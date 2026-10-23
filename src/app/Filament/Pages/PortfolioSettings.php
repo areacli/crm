@@ -4,10 +4,10 @@ namespace App\Filament\Pages;
 
 use App\Enums\Permission;
 use App\Enums\UpcomingDisplay;
+use App\Filament\Clusters\SettingsCluster;
 use App\Models\Tenant;
 use App\Portfolio\InvalidBrackets;
 use App\Portfolio\SettingsService;
-use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Repeater;
@@ -20,7 +20,6 @@ use Filament\Schemas\Components\EmbeddedSchema;
 use Filament\Schemas\Components\Form;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
-use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -28,15 +27,15 @@ use Illuminate\Support\Facades\Gate;
 /** Configuração da carteira do credor: faixas de atraso (R18) e tratamento dos títulos a vencer (R20). */
 class PortfolioSettings extends Page
 {
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCog6Tooth;
+    protected static ?string $cluster = SettingsCluster::class;
 
-    protected static ?string $navigationLabel = 'Configuração';
+    protected static ?string $navigationLabel = 'Políticas da carteira';
 
-    protected static ?string $title = 'Configuração da carteira';
+    protected static ?string $title = 'Políticas da carteira';
 
-    protected static ?string $slug = 'configuracao';
+    protected static ?string $slug = 'carteira';
 
-    protected static ?int $navigationSort = 40;
+    protected static ?int $navigationSort = 1;
 
     protected string $view = 'filament-panels::pages.page';
 

@@ -57,6 +57,25 @@
             </dl>
         </x-filament::section>
 
+        <x-filament::section heading="Acionamentos" :compact="true">
+            <div class="grid gap-6 md:grid-cols-2">
+                @foreach ($s['contacts'] as $days => $block)
+                    <div>
+                        <p class="text-sm text-gray-500">Últimos {{ $days }} dias</p>
+                        <table class="mt-1 w-full text-sm">
+                            <thead><tr class="text-left text-gray-500"><th class="py-1 pe-4"></th><th class="py-1 pe-4 text-end">Acionamentos</th><th class="py-1 text-end">Clientes</th></tr></thead>
+                            <tbody>
+                                <tr class="border-t border-gray-100 font-semibold dark:border-white/10"><td class="py-1 pe-4">Total</td><td class="py-1 pe-4 text-end">{{ number_format($block['total']['attempts'], 0, ',', '.') }}</td><td class="py-1 text-end">{{ number_format($block['total']['customers'], 0, ',', '.') }}</td></tr>
+                                @foreach ($block['types'] as $type => $numbers)
+                                    <tr class="border-t border-gray-100 dark:border-white/10"><td class="py-1 pe-4">{{ \App\Enums\ContactResultType::from($type)->getLabel() }}</td><td class="py-1 pe-4 text-end">{{ number_format($numbers['attempts'], 0, ',', '.') }}</td><td class="py-1 text-end">{{ number_format($numbers['customers'], 0, ',', '.') }}</td></tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @endforeach
+            </div>
+        </x-filament::section>
+
         <div class="grid gap-6 md:grid-cols-2">
             @foreach ([['title' => 'Por cliente', 'help' => 'Cada cliente na faixa do título mais atrasado, com todo o seu vencido.', 'rows' => $s['by_customer'], 'unit' => 'Clientes'],
                        ['title' => 'Por título', 'help' => 'Cada título vencido na faixa do próprio atraso.', 'rows' => $s['by_bill'], 'unit' => 'Títulos']] as $table)

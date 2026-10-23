@@ -25,7 +25,7 @@ it('captura as telas do README', function () {
     $page->navigate('/importacoes/'.$batimento)->assertSee('Linhas recusadas')->screenshot(filename: 'readme-conferencia-da-carteira');
     $payments = Import::where('kind', 'payments')->value('id');
     $page->navigate('/pagamentos/'.$payments)->assertSee('Resultado')->screenshot(filename: 'readme-pagamentos');
-    $page->navigate('/canais')->assertSee('Canais de recebimento')->screenshot(filename: 'readme-canais');
+    $page->navigate('/configuracao/canais')->assertSee('Canais de recebimento')->screenshot(filename: 'readme-canais');
     $page->navigate('/usuarios')->assertSee('Usuários')->screenshot(filename: 'readme-usuarios');
     $page->navigate('/perfis/'.Profile::where('name', 'Operador')->value('id').'/editar')->assertSee('Permissões')->screenshot(filename: 'readme-perfil');
 })->skip(fn () => ! getenv('CAPTURAS'), 'só roda com CAPTURAS=1');

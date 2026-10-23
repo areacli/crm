@@ -5,7 +5,7 @@
   </picture>
 </h1>
 
-CRM de cobrança: um credor importa a carteira de clientes e títulos a partir de planilhas, acompanha quem deve e quanto, registra os pagamentos e os estornos recebidos pelos seus canais, controla quem acessa o quê e mantém o histórico de cada alteração. Vários credores convivem no mesmo sistema, e cada pessoa vê só os credores em que tem permissão.
+CRM de cobrança: um credor importa a carteira de clientes e títulos a partir de planilhas, acompanha quem deve e quanto, registra os pagamentos e os estornos recebidos pelos seus canais, registra os contatos feitos com cada cliente, controla quem acessa o quê e mantém o histórico de cada alteração. Vários credores convivem no mesmo sistema, e cada pessoa vê só os credores em que tem permissão.
 
 O projeto é desenvolvido por incrementos, cada um a partir de uma especificação aprovada antes do código. A discussão de cada incremento é contada na série [Criei um CRM](https://blog.areacli.com/criei-um-crm/), no Blog AreaCli.
 
@@ -15,8 +15,8 @@ https://crm.areacli.com, com dados fictícios recriados todo dia às 4h (horári
 
 | Usuário | Senha | O que pode fazer |
 |---|---|---|
-| `gestor@demo.crm.areacli.com` | `demonstracao-gestor` | importar e confirmar carteira, pagamentos e estornos; canais de recebimento e políticas de pagamento; transferir crédito entre contratos (usuários e perfis ficam fechados na demonstração) |
-| `operador@demo.crm.areacli.com` | `demonstracao-operador` | consultar clientes e fichas |
+| `gestor@demo.crm.areacli.com` | `demonstracao-gestor` | importar e confirmar carteira, pagamentos e estornos; registrar e anular acionamentos; canais de recebimento, políticas de pagamento e resultados de acionamento; transferir crédito entre contratos (usuários e perfis ficam fechados na demonstração; o que é digitado é trocado por texto fictício) |
+| `operador@demo.crm.areacli.com` | `demonstracao-operador` | consultar clientes e fichas e registrar acionamentos |
 
 ## Telas
 
@@ -28,18 +28,23 @@ https://crm.areacli.com, com dados fictícios recriados todo dia às 4h (horári
 | Ficha do cliente: títulos por contrato, crédito do contrato e títulos pagos | Conferência antes de confirmar a carga: o que entra, o que sai e as linhas recusadas |
 | ![Resultado de uma importação de pagamentos](docs/telas/pagamentos.png) | ![Canais de recebimento](docs/telas/canais.png) |
 | Importação de pagamentos: títulos quitados, baixas parciais, créditos e pendentes | Canais de recebimento do credor |
-| ![Usuários do credor](docs/telas/usuarios.png) | ![Edição de um perfil de permissões](docs/telas/perfil.png) |
-| Usuários e seus perfis em cada credor | Perfil com as permissões escolhidas |
+| ![Ficha do cliente com o histórico de acionamentos](docs/telas/ficha-com-acionamentos.png) | ![Lista de acionamentos](docs/telas/acionamentos.png) |
+| Histórico de acionamentos na ficha, com o registro e a anulação | Lista de acionamentos do credor, com período, operador, canal e resultado |
+| ![Configuração do credor, em abas](docs/telas/configuracao.png) | ![Usuários do credor](docs/telas/usuarios.png) |
+| Configuração: uma entrada no menu e uma aba por assunto | Usuários e seus perfis em cada credor |
+| ![Edição de um perfil de permissões](docs/telas/perfil.png) | |
+| Perfil com as permissões escolhidas | |
 
 ## Incrementos
 
-Uma branch por incremento (`incremento-01-carteira` … `incremento-03-pagamentos-e-baixa`). O `main` recebe cada uma depois que ela é publicada na demonstração.
+Uma branch por incremento (`incremento-01-carteira` … `incremento-04-acionamentos`). O `main` recebe cada uma depois que ela é publicada na demonstração.
 
 | Incremento | O que entrega |
 |---|---|
 | 1. Carteira | Credores (tenants), importação da carteira por planilha CSV com conferência antes de confirmar (incremental ou batimento), contratos com vários clientes e seus papéis, lista de clientes com faixas de atraso, ficha, histórico de alterações e login |
 | 2. Perfis e usuários | Perfis com permissões por credor, gestão de usuários identificados pelo e-mail, senha temporária, troca da própria senha, ligação de um usuário existente a outro credor e histórico de acessos |
 | 3. Pagamentos e baixa | Canais de recebimento, importação de pagamentos e de estornos, baixa parcial ou crédito sem baixar conforme a política do credor, crédito do contrato e sua transferência entre contratos, pendentes reavaliados a cada conferência e o recuperado no resumo |
+| 4. Acionamentos | Contatos com o cliente registrados na ficha (canal, contato usado, resultado de uma lista do credor, retorno e texto), anulação com motivo, lista com filtros, números no resumo por credor e a configuração reunida em abas |
 
 ## Tecnologia
 

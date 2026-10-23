@@ -36,11 +36,11 @@ it('recusa as telas de pagamentos a quem não tem a permissão, com registro (R3
     Profile::factory()->allowing([Permission::ViewPortfolio])->create(['tenant_id' => $this->tenant->id, 'name' => 'Operador']);
     $operator = makeUser($this->tenant, 'op@exemplo.com.br', 'Operador');
 
-    foreach (['/importar-pagamentos', '/importar-estornos', '/pagamentos', '/canais', '/politicas-de-pagamento'] as $path) {
+    foreach (['/importar-pagamentos', '/importar-estornos', '/pagamentos', '/configuracao/canais', '/configuracao/pagamentos'] as $path) {
         $this->actingAs($operator)->get($path)->assertForbidden();
     }
     $this->assertDatabaseHas('access_events', ['event' => 'permission_denied', 'user_id' => $operator->id]);
-    foreach (['/importar-pagamentos', '/importar-estornos', '/pagamentos', '/canais', '/politicas-de-pagamento'] as $path) {
+    foreach (['/importar-pagamentos', '/importar-estornos', '/pagamentos', '/configuracao/canais', '/configuracao/pagamentos'] as $path) {
         $this->actingAs($this->manager)->get($path)->assertOk();
     }
 });

@@ -7,6 +7,7 @@ use App\Filament\Pages\ChangePassword;
 use App\Filament\Pages\ImportPayments;
 use App\Filament\Pages\ImportPortfolio;
 use App\Import\ImportService;
+use App\Models\ContactAttempt;
 use App\Models\Customer;
 use App\Models\Import;
 use App\Models\Payment;
@@ -31,7 +32,7 @@ it('recria a demonstração: usuários públicos, carteira, recebimentos e perfi
 
     $gestor = User::where('email', 'gestor@demo.crm.areacli.com')->firstOrFail();
     $operador = User::where('email', 'operador@demo.crm.areacli.com')->firstOrFail();
-    expect(Customer::count())->toBe(20)->and(Payment::count())->toBeGreaterThan(10)
+    expect(Customer::count())->toBe(20)->and(Payment::count())->toBeGreaterThan(10)->and(ContactAttempt::count())->toBe(60)
         ->and($gestor->hasAnyPermission(Permission::ConfirmPayments))->toBeTrue()
         ->and($gestor->hasAnyPermission(Permission::ManageUsers))->toBeFalse()
         ->and($gestor->hasAnyPermission(Permission::ManageProfiles))->toBeFalse()

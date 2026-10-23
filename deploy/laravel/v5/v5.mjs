@@ -72,7 +72,7 @@ await passo('entrar com e-mail e senha', async () => {
     await pagina.getByText('Resumo da carteira').first().waitFor();
 });
 
-for (const [rota, texto] of [['/', 'Resumo da carteira'], ['/clientes', 'Clientes'], ['/importar', 'Importar carteira'], ['/importacoes', 'Importações de carteira'], ['/configuracao', 'Configuração da carteira']]) {
+for (const [rota, texto] of [['/', 'Resumo da carteira'], ['/clientes', 'Clientes'], ['/importar', 'Importar carteira'], ['/importacoes', 'Importações de carteira'], ['/configuracao/carteira', 'Políticas da carteira']]) {
     await passo(`abrir ${rota}`, async () => {
         const resposta = await pagina.goto(BASE + rota);
         if (resposta.status() !== 200) throw new Error(`status ${resposta.status()}`);
@@ -141,11 +141,11 @@ await passo(`recusar arquivo acima de 50 MB (${(tamanhoAcima / 1048576).toFixed(
 });
 
 await passo('mudar a configuração e desfazer', async () => {
-    await pagina.goto(BASE + '/configuracao');
+    await pagina.goto(BASE + '/configuracao/carteira');
     await pagina.getByText('Somado:').click();
     await pagina.click('button:has-text("Salvar")');
     await pagina.getByText('Configuração salva').first().waitFor();
-    await pagina.goto(BASE + '/configuracao');
+    await pagina.goto(BASE + '/configuracao/carteira');
     await pagina.getByText('Separado:').click();
     await pagina.click('button:has-text("Salvar")');
     await pagina.getByText('Configuração salva').first().waitFor();

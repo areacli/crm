@@ -2,9 +2,13 @@
 
 namespace App\Demo;
 
+use App\Enums\ContactChannel;
 use App\Enums\ImportMode;
 use App\Enums\Permission;
+use App\Enums\ReturnRule;
 use App\Import\ImportService;
+use App\Models\ContactResult;
+use App\Models\Customer;
 use App\Models\Membership;
 use App\Models\PaymentChannel;
 use App\Models\Profile;
@@ -13,6 +17,7 @@ use App\Models\User;
 use App\Support\FakeData;
 use App\Tenancy\TenantProvisioner;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Dados fictícios da demonstração e das capturas de tela: um credor, usuários, carteira, recebimentos e uma importação
@@ -58,6 +63,7 @@ final class DemoDataset
         $this->service->confirm($import->refresh());
 
         $this->payments($tenant, $manager, $customers);
+        $this->contactAttempts($tenant, [$manager->id, User::where('email', 'operador@'.$domain)->value('id')], $customers);
 
         // Segunda planilha, só conferida: com linhas recusadas, para mostrar a conferência e o botão de confirmar.
         $second = storage_path('app/demo-batimento.csv');
@@ -123,6 +129,40 @@ final class DemoDataset
         $this->service->confirm($second->refresh());
         @unlink($file);
         @unlink($file2);
+    }
+
+    /**
+     * Acionamentos fictícios dos últimos 30 dias, distribuídos entre os resultados, os canais e os dois usuários, para a lista e
+     * o resumo terem conteúdo; os textos são fixos. Três por cliente em média, com alguns anulados.
+     *
+     * @param  list<int>  $userIds
+     */
+    private function contactAttempts(Tenant $tenant, array $userIds, int $customers): void
+    {
+        $results = ContactResult::query()->where('tenant_id', $tenant->id)->orderBy('position')->get();
+        $customerIds = Customer::query()->where('tenant_id', $tenant->id)->orderBy('id')->pluck('id')->all();
+        $channels = ContactChannel::cases();
+        $rows = [];
+        $total = $customers * 3;
+        for ($i = 0; $i < $total; $i++) {
+            $result = $results[$i % count($results)];
+            $when = now()->subDays($i % 30)->subMinutes(($i * 37) % 600);
+            $rows[] = [
+                'tenant_id' => $tenant->id, 'customer_id' => $customerIds[($i * 7) % count($customerIds)], 'user_id' => $userIds[$i % count($userIds)],
+                'result_id' => $result->id, 'result_type' => $result->type->value, 'channel' => $channels[$i % 5]->value,
+                'text' => $i % 4 === 0 ? 'texto da demonstração' : null, 'contacted_at' => $when,
+                'return_at' => $result->return_rule === ReturnRule::Required ? $when->copy()->addDays(3) : null,
+                'voided_at' => $i % 40 === 0 ? $when : null, 'voided_by' => $i % 40 === 0 ? $userIds[0] : null, 'void_reason' => $i % 40 === 0 ? 'registrado por engano' : null,
+                'created_at' => $when, 'updated_at' => $when,
+            ];
+            if (count($rows) >= 1000) {
+                DB::table('contact_attempts')->insert($rows);
+                $rows = [];
+            }
+        }
+        if ($rows !== []) {
+            DB::table('contact_attempts')->insert($rows);
+        }
     }
 
     private function user(Tenant $tenant, string $email, string $name, string $profile, string $password): User

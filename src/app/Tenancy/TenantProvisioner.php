@@ -40,6 +40,8 @@ final class TenantProvisioner
                 ]);
             }
 
+            InitialContactResults::createFor($tenant);
+
             return $tenant;
         });
     }

@@ -2,7 +2,10 @@
 
 namespace App\Filament\Resources\Customers\Schemas;
 
+use App\Livewire\CustomerContactAttempts;
+use App\Models\Customer;
 use Filament\Infolists\Components\TextEntry;
+use Filament\Schemas\Components\Livewire;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\View;
 use Filament\Schemas\Schema;
@@ -23,6 +26,7 @@ class CustomerInfolist
                     TextEntry::make('tenant.name')->label('Credor'),
                 ]),
             View::make('filament.customers.bills'),
+            Livewire::make(CustomerContactAttempts::class, fn (Customer $record) => ['customerId' => $record->id])->key('contact-attempts')->columnSpanFull(),
         ]);
     }
 

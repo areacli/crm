@@ -7,9 +7,9 @@ use App\Enums\Permission;
 use App\Enums\ReversalMonthPolicy;
 use App\Enums\WithdrawnPaymentPolicy;
 use App\Enums\WithdrawnReversalPolicy;
+use App\Filament\Clusters\SettingsCluster;
 use App\Models\Change;
 use App\Models\Tenant;
-use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Select;
@@ -20,7 +20,6 @@ use Filament\Schemas\Components\EmbeddedSchema;
 use Filament\Schemas\Components\Form;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
-use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -28,15 +27,15 @@ use Illuminate\Support\Facades\Gate;
 /** Políticas do credor para pagamentos e estornos (R46, R46a, R62a, R64): permissão 14, no credor escolhido. */
 class PaymentSettings extends Page
 {
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedAdjustmentsHorizontal;
+    protected static ?string $cluster = SettingsCluster::class;
 
     protected static ?string $navigationLabel = 'Políticas de pagamento';
 
     protected static ?string $title = 'Políticas de pagamento e estorno';
 
-    protected static ?string $slug = 'politicas-de-pagamento';
+    protected static ?string $slug = 'pagamentos';
 
-    protected static ?int $navigationSort = 43;
+    protected static ?int $navigationSort = 3;
 
     protected string $view = 'filament-panels::pages.page';
 

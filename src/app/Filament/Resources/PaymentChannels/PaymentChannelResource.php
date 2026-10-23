@@ -4,12 +4,12 @@ namespace App\Filament\Resources\PaymentChannels;
 
 use App\Enums\ChannelType;
 use App\Enums\Permission;
+use App\Filament\Clusters\SettingsCluster;
 use App\Filament\Resources\PaymentChannels\Pages\CreatePaymentChannel;
 use App\Filament\Resources\PaymentChannels\Pages\EditPaymentChannel;
 use App\Filament\Resources\PaymentChannels\Pages\ListPaymentChannels;
 use App\Models\PaymentChannel;
 use App\Models\Tenant;
-use BackedEnum;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\Hidden;
@@ -18,7 +18,6 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
-use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -32,7 +31,7 @@ class PaymentChannelResource extends Resource
 {
     protected static ?string $model = PaymentChannel::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBuildingLibrary;
+    protected static ?string $cluster = SettingsCluster::class;
 
     protected static ?string $modelLabel = 'canal de recebimento';
 
@@ -42,7 +41,7 @@ class PaymentChannelResource extends Resource
 
     protected static ?string $slug = 'canais';
 
-    protected static ?int $navigationSort = 42;
+    protected static ?int $navigationSort = 2;
 
     public static function getEloquentQuery(): Builder
     {
