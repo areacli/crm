@@ -1,7 +1,7 @@
 <?php
 
+use App\Livewire\Auth\Login;
 use App\Models\User;
-use Filament\Auth\Pages\Login;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Livewire\Livewire;
@@ -15,8 +15,9 @@ beforeEach(function () {
 function attemptLogin(string $email, string $password)
 {
     return Livewire::test(Login::class)
-        ->fillForm(['email' => $email, 'password' => $password])
-        ->call('authenticate');
+        ->set('email', $email)
+        ->set('password', $password)
+        ->call('login');
 }
 
 // R24: toda tela exige login; depois de entrar, volta para onde estava.
@@ -25,7 +26,7 @@ it('manda quem não tem sessão para a tela de entrada', function () {
 });
 
 it('entra com e-mail e senha certos', function () {
-    attemptLogin('joana.souza@exemplo.com.br', 'cobranca-sem-pressa')->assertHasNoFormErrors();
+    attemptLogin('joana.souza@exemplo.com.br', 'cobranca-sem-pressa')->assertHasNoErrors();
 
     $this->assertAuthenticatedAs($this->user->fresh());
     expect(DB::table('access_events')->where('event', 'login')->count())->toBe(1);
@@ -36,9 +37,10 @@ it('dá a mesma mensagem para usuário inexistente e senha errada', function () 
     $a = attemptLogin('ninguem@exemplo.com.br', 'qualquer-senha-longa');
     $b = attemptLogin('joana.souza@exemplo.com.br', 'senha-errada-longa');
 
-    $a->assertHasErrors(['data.email']);
-    $b->assertHasErrors(['data.email']);
-    expect($a->errors()->get('data.email'))->toEqual($b->errors()->get('data.email'));
+    $a->assertHasErrors(['email']);
+    $b->assertHasErrors(['email']);
+    expect($a->errors()->get('email'))->toEqual(['Essas credenciais não correspondem aos nossos registros.']);
+    expect($a->errors()->get('email'))->toEqual($b->errors()->get('email'));
     $this->assertGuest();
 });
 
@@ -47,24 +49,21 @@ it('bloqueia por 15 minutos depois de 5 erros seguidos', function () {
     $this->travelTo(now()->setTime(10, 0));
     foreach (range(1, 5) as $i) {
         attemptLogin('joana.souza@exemplo.com.br', 'senha-errada-'.$i);
-        // O limite de tentativas por minuto do Filament é outro mecanismo; passa o minuto entre elas.
-        $this->travel(61)->seconds();
     }
 
     expect($this->user->fresh()->locked_until)->not->toBeNull();
 
-    attemptLogin('joana.souza@exemplo.com.br', 'cobranca-sem-pressa')->assertHasErrors(['data.email']);
+    attemptLogin('joana.souza@exemplo.com.br', 'cobranca-sem-pressa')->assertHasErrors(['email']);
     $this->assertGuest();
 
     $this->travelTo($this->user->fresh()->locked_until->addMinute());
-    attemptLogin('joana.souza@exemplo.com.br', 'cobranca-sem-pressa')->assertHasNoFormErrors();
+    attemptLogin('joana.souza@exemplo.com.br', 'cobranca-sem-pressa')->assertHasNoErrors();
     $this->assertAuthenticated();
 });
 
 it('zera a contagem de erros com um login certo', function () {
     foreach (range(1, 4) as $i) {
         attemptLogin('joana.souza@exemplo.com.br', 'senha-errada-'.$i);
-        $this->travel(61)->seconds();
     }
     attemptLogin('joana.souza@exemplo.com.br', 'cobranca-sem-pressa');
 
@@ -75,7 +74,7 @@ it('zera a contagem de erros com um login certo', function () {
 it('recusa o login do usuário desativado', function () {
     $this->user->update(['active' => false]);
 
-    attemptLogin('joana.souza@exemplo.com.br', 'cobranca-sem-pressa')->assertHasErrors(['data.email']);
+    attemptLogin('joana.souza@exemplo.com.br', 'cobranca-sem-pressa')->assertHasErrors(['email']);
     $this->assertGuest();
 });
 
@@ -92,7 +91,7 @@ it('derruba a sessão aberta quando o administrador desativa o usuário', functi
 it('recusa o usuário sem vínculo ativo com um credor', function () {
     $this->user->memberships()->update(['active' => false]);
 
-    attemptLogin('joana.souza@exemplo.com.br', 'cobranca-sem-pressa')->assertHasErrors(['data.email']);
+    attemptLogin('joana.souza@exemplo.com.br', 'cobranca-sem-pressa')->assertHasErrors(['email']);
 });
 
 // R28: a sessão vale no máximo 8 horas desde o login.

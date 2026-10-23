@@ -2,7 +2,7 @@
 
 namespace App\Enums;
 
-use Filament\Support\Contracts\HasLabel;
+use App\Support\Contracts\HasLabel;
 
 /** Canal do contato: lista fixa (R65). */
 enum ContactChannel: string implements HasLabel

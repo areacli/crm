@@ -2,7 +2,7 @@
 
 namespace App\Enums;
 
-use Filament\Support\Contracts\HasLabel;
+use App\Support\Contracts\HasLabel;
 
 /** Mês em que o estorno desconta do valor recuperado (R64). */
 enum ReversalMonthPolicy: string implements HasLabel

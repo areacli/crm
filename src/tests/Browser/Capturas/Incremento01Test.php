@@ -13,9 +13,9 @@ it('captura as telas do incremento 1', function () {
     Artisan::call('crm:demo-data', ['--customers' => 80]);
     // Valores variados na carteira de demonstração: dá faixas diferentes no resumo.
     $page = visit('/login');
-    $page->assertSee('Faça login')->screenshot(filename: '01-entrada');
+    $page->assertSee('Entrar')->screenshot(filename: '01-entrada');
 
-    $page->type('#form\\.email', 'gestor@demo.exemplo.com.br')->type('#form\\.password', 'demonstracao-gestor')->press('Login')
+    $page->type('#email', 'gestor@demo.exemplo.com.br')->type('#password', 'demonstracao-gestor')->click('button[type=submit]')
         ->assertSee('Resumo da carteira')->screenshot(filename: '02-resumo');
 
     $page->navigate('/clientes')->assertSee('Clientes')->screenshot(filename: '03-clientes-lista');

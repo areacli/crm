@@ -12,7 +12,7 @@ beforeEach(function () {
 
 it('mostra o recuperado no resumo e a lista de pagamentos importados', function () {
     $page = visit('/login');
-    $page->type('#form\\.email', 'gestor@demo.exemplo.com.br')->type('#form\\.password', 'demonstracao-gestor')->press('Login')
+    $page->type('#email', 'gestor@demo.exemplo.com.br')->type('#password', 'demonstracao-gestor')->click('button[type=submit]')
         ->assertSee('Resumo da carteira')->assertSee('Recuperado em')->assertSee('Créditos dos contratos')->assertSee('Pagamentos pendentes');
 
     $page->navigate('/pagamentos')->assertSee('pagamentos-outubro.csv')->assertSee('estornos-outubro.csv');

@@ -5,13 +5,12 @@ use App\Enums\BillStatus;
 use App\Enums\ImportMode;
 use App\Enums\Permission;
 use App\Enums\ReversalMonthPolicy;
-use App\Filament\Pages\ImportPayments;
-use App\Filament\Pages\ImportReversals;
-use App\Filament\Pages\PaymentSettings;
-use App\Filament\Resources\PaymentChannels\Pages\CreatePaymentChannel;
-use App\Filament\Resources\PaymentChannels\Pages\ListPaymentChannels;
-use App\Filament\Resources\PaymentImports\Pages\ViewPaymentImport;
 use App\Import\ImportService;
+use App\Livewire\Customers\Show as ViewCustomer;
+use App\Livewire\Payments\Show as ViewPaymentImport;
+use App\Livewire\Payments\Upload;
+use App\Livewire\Settings\Channels;
+use App\Livewire\Settings\PaymentPolicies;
 use App\Models\Bill;
 use App\Models\Change;
 use App\Models\Contract;
@@ -46,28 +45,37 @@ it('recusa as telas de pagamentos a quem não tem a permissão, com registro (R3
 });
 
 it('cadastra canal, trava o código com pagamento e só apaga canal sem pagamento (R45)', function () {
-    Livewire::actingAs($this->manager)->test(CreatePaymentChannel::class)
-        ->fillForm(['type' => 'card', 'code' => '1029384756', 'description' => 'Cielo, loja virtual', 'active' => true])
-        ->call('create')->assertHasNoFormErrors();
+    Livewire::actingAs($this->manager)->test(Channels::class)
+        ->call('openCreate')
+        ->set('type', 'card')->set('code', '1029384756')->set('description', 'Cielo, loja virtual')->set('active', true)
+        ->call('save')->assertHasNoErrors();
     $card = PaymentChannel::where('code', '1029384756')->first();
     expect($card->type->value)->toBe('card');
     $this->assertDatabaseHas('changes', ['subject_type' => 'channel', 'subject_id' => $card->id, 'event' => 'created']);
 
     // O mesmo código no mesmo credor é recusado.
-    Livewire::actingAs($this->manager)->test(CreatePaymentChannel::class)
-        ->fillForm(['type' => 'card', 'code' => '1029384756', 'description' => 'Outro', 'active' => true])
-        ->call('create')->assertHasFormErrors(['code']);
+    Livewire::actingAs($this->manager)->test(Channels::class)
+        ->call('openCreate')
+        ->set('type', 'card')->set('code', '1029384756')->set('description', 'Outro')
+        ->call('save')->assertHasErrors(['code']);
 
     runPayments($this->tenant, $this->manager, paymentsCsv(['341-1234-56789;P1;529.982.247-25;NF-1;18/10/2026;400,00;pix']));
     expect(fn () => Gate::forUser($this->manager)->authorize('delete', $this->channel))->toThrow(AuthorizationException::class);
     expect(Gate::forUser($this->manager)->allows('delete', $card))->toBeTrue();
-    Livewire::actingAs($this->manager)->test(ListPaymentChannels::class)->assertCanSeeTableRecords([$this->channel, $card]);
+    // Canal com pagamento não é apagado pela tela; o sem pagamento é.
+    Livewire::actingAs($this->manager)->test(Channels::class)
+        ->call('delete', $this->channel->id)->assertDispatched('toast');
+    expect(PaymentChannel::find($this->channel->id))->not->toBeNull();
+    Livewire::actingAs($this->manager)->test(Channels::class)
+        ->assertSee('1029384756')->call('delete', $card->id)->assertDispatched('toast');
+    expect(PaymentChannel::find($card->id))->toBeNull();
 });
 
 it('salva as políticas de pagamento com registro das mudanças (R46, R64, PD4)', function () {
-    Livewire::actingAs($this->manager)->test(PaymentSettings::class)
-        ->fillForm(['partial_payment_policy' => 'credit', 'withdrawn_payment_policy' => 'prevails', 'withdrawn_reversal_policy' => 'reopen', 'reversal_month_policy' => 'payment'])
-        ->call('save');
+    Livewire::actingAs($this->manager)->test(PaymentPolicies::class)
+        ->set('partial_payment_policy', 'credit')->set('withdrawn_payment_policy', 'prevails')
+        ->set('withdrawn_reversal_policy', 'reopen')->set('reversal_month_policy', 'payment')
+        ->call('save')->assertDispatched('toast');
 
     expect($this->tenant->settings->refresh()->reversal_month_policy)->toBe(ReversalMonthPolicy::Payment);
     expect(Change::where('event', 'partial_payment_policy_changed')->count())->toBe(1)
@@ -81,14 +89,14 @@ it('quem só envia não confirma, e quem confirma vê o botão (R34, R47)', func
     $approver = makeUser($this->tenant, 'apr@exemplo.com.br', 'Aprovador');
     $import = runPayments($this->tenant, $sender, paymentsCsv(['341-1234-56789;P1;529.982.247-25;NF-1;18/10/2026;400,00;pix']), confirm: false);
 
-    Livewire::actingAs($sender)->test(ViewPaymentImport::class, ['record' => $import->id])->assertActionHidden('confirm');
-    Livewire::actingAs($approver)->test(ViewPaymentImport::class, ['record' => $import->id])->assertActionVisible('confirm')->callAction('confirm');
+    Livewire::actingAs($sender)->test(ViewPaymentImport::class, ['import' => $import])->assertDontSee('Confirmar importação');
+    Livewire::actingAs($approver)->test(ViewPaymentImport::class, ['import' => $import])->assertSee('Confirmar importação')->call('confirmImport');
     expect(Bill::where('number', 'NF-1')->first()->paid_cents)->toBe(40_000);
 });
 
 it('oferece a planilha-modelo de pagamentos e de estornos e mostra as colunas', function () {
-    Livewire::actingAs($this->manager)->test(ImportPayments::class)->assertSee('data_pagamento')->callAction('template')->assertFileDownloaded('planilha-modelo-pagamentos.csv');
-    Livewire::actingAs($this->manager)->test(ImportReversals::class)->assertSee('identificador_estorno')->callAction('template')->assertFileDownloaded('planilha-modelo-estornos.csv');
+    Livewire::actingAs($this->manager)->test(Upload::class, ['kind' => 'payments'])->assertSee('data_pagamento')->call('template')->assertFileDownloaded('planilha-modelo-pagamentos.csv');
+    Livewire::actingAs($this->manager)->test(Upload::class, ['kind' => 'reversals'])->assertSee('identificador_estorno')->call('template')->assertFileDownloaded('planilha-modelo-estornos.csv');
     expect(array_column(PaymentColumns::for('payments'), 'name'))->toEqualCanonicalizing([...PaymentRowValidator::REQUIRED, ...PaymentRowValidator::OPTIONAL]);
     expect(array_column(PaymentColumns::for('reversals'), 'name'))->toEqualCanonicalizing([...ReversalRowValidator::REQUIRED, ...ReversalRowValidator::OPTIONAL]);
 });
@@ -143,4 +151,32 @@ it('transfere crédito entre contratos do mesmo credor, com motivo, só com a pe
     Profile::factory()->allowing([Permission::ViewPortfolio])->create(['tenant_id' => $this->tenant->id, 'name' => 'Operador']);
     $operator = makeUser($this->tenant, 'op@exemplo.com.br', 'Operador');
     expect(fn () => $service->transfer($operator, $from, $to, 1_000, 'x'))->toThrow(AccessRefused::class, 'permissão');
+});
+
+it('transfere crédito pela ficha do cliente, com motivo, e recusa destino de outro credor (R55a)', function () {
+    runPayments($this->tenant, $this->manager, paymentsCsv(['341-1234-56789;P1;529.982.247-25;NF-1;18/10/2026;1.300,00;pix']));
+    $bill = Bill::where('number', 'NF-1')->first();
+    $from = $bill->contract;
+    $to = Contract::factory()->create(['tenant_id' => $this->tenant->id, 'code' => 'C-9']);
+
+    $screen = Livewire::actingAs($this->manager)->test(ViewCustomer::class, ['customer' => $bill->customer])
+        ->call('openTransfer')
+        ->set('toCode', 'C-9')->set('amount', '100,00')->set('reason', '')
+        ->call('transfer')->assertHasErrors(['reason']);
+
+    $screen->set('reason', 'Pagamento feito no contrato errado')->call('transfer')->assertHasNoErrors()->assertDispatched('toast');
+    expect($from->creditCents())->toBe(20_000)->and($to->creditCents())->toBe(10_000);
+
+    $foreign = Contract::factory()->create(['tenant_id' => makeTenant('Beta')->id, 'code' => 'B-1']);
+    $screen->call('openTransfer')->set('toCode', 'B-1')->set('amount', '10,00')->set('reason', 'x')->call('transfer');
+    expect($foreign->creditCents())->toBe(0)->and($from->creditCents())->toBe(20_000);
+});
+
+it('recusa a transferência de crédito pela ficha a quem não tem a permissão 17', function () {
+    runPayments($this->tenant, $this->manager, paymentsCsv(['341-1234-56789;P1;529.982.247-25;NF-1;18/10/2026;1.300,00;pix']));
+    Profile::factory()->allowing([Permission::ViewPortfolio])->create(['tenant_id' => $this->tenant->id, 'name' => 'Operador']);
+    $operator = makeUser($this->tenant, 'op@exemplo.com.br', 'Operador');
+
+    Livewire::actingAs($operator)->test(ViewCustomer::class, ['customer' => Bill::where('number', 'NF-1')->first()->customer])
+        ->assertDontSeeHtml('wire:click="openTransfer"')->call('openTransfer')->assertForbidden();
 });

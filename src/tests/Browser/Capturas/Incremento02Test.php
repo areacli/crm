@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Artisan;
 it('captura as telas do incremento 2', function () {
     Artisan::call('crm:demo-data', ['--customers' => 40]);
     $page = visit('/login');
-    $page->type('#form\\.email', 'gestor@demo.exemplo.com.br')->type('#form\\.password', 'demonstracao-gestor')->press('Login')
+    $page->type('#email', 'gestor@demo.exemplo.com.br')->type('#password', 'demonstracao-gestor')->click('button[type=submit]')
         ->assertSee('Resumo da carteira');
 
     $page->navigate('/usuarios')->assertSee('Usuários')->screenshot(filename: '01-usuarios');

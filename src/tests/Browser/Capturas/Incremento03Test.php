@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Artisan;
 it('captura as telas do incremento 3', function () {
     Artisan::call('crm:demo-data', ['--customers' => 60]);
     $page = visit('/login');
-    $page->type('#form\\.email', 'gestor@demo.exemplo.com.br')->type('#form\\.password', 'demonstracao-gestor')->press('Login')
+    $page->type('#email', 'gestor@demo.exemplo.com.br')->type('#password', 'demonstracao-gestor')->click('button[type=submit]')
         ->assertSee('Resumo da carteira')->screenshot(filename: '01-resumo-com-recebimentos');
 
     $page->navigate('/configuracao/canais')->assertSee('Canais de recebimento')->screenshot(filename: '02-canais');

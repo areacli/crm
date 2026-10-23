@@ -1,0 +1,162 @@
+@php
+    use App\Enums\BillStatus;
+    use App\Enums\UpcomingDisplay;
+    use App\Models\Bill;
+    use App\Portfolio\AgingBrackets;
+    use App\Support\Money;
+
+    $today = now()->startOfDay();
+    $settings = $customer->tenant->settings;
+    $brackets = AgingBrackets::fromStored($settings->aging_brackets);
+
+    $bills = Bill::query()->where('customer_id', $customer->id)->with('contract')->orderBy('due_date')->get();
+    $active = $bills->where('status', BillStatus::Active);
+    $withdrawn = $bills->where('status', BillStatus::Withdrawn);
+    $paid = $bills->where('status', BillStatus::Paid);
+    $contractIds = $bills->pluck('contract_id')->unique()->all();
+    $credits = \App\Models\Credit::query()->whereIn('contract_id', $contractIds ?: [0])->selectRaw('contract_id, sum(amount_cents) as cents')->groupBy('contract_id')->pluck('cents', 'contract_id');
+    $payments = \App\Models\Payment::query()->whereIn('bill_id', $paid->pluck('id')->all() ?: [0])->with('channel')->orderBy('paid_on')->get()->groupBy('bill_id');
+
+    $overdue = $active->filter(fn ($b) => $b->due_date->lt($today));
+    $upcoming = $active->filter(fn ($b) => ! $b->due_date->lt($today));
+    $maxDays = $overdue->isEmpty() ? null : $overdue->max(fn ($b) => $b->daysOverdue($today));
+    $display = $settings->upcoming_display;
+    $byContract = $active->groupBy('contract_id');
+    $roleLabels = ['holder' => 'titular', 'financial_responsible' => 'responsável financeiro'];
+@endphp
+
+<div class="space-y-6">
+    <x-ui.card title="Situação">
+        <dl class="grid grid-cols-2 gap-4 md:grid-cols-4">
+            <div>
+                <dt class="text-sm text-slate-500">Vencido</dt>
+                <dd class="text-lg font-bold text-slate-900">R$ {{ Money::format((int) $overdue->sum(fn ($b) => $b->balanceCents())) }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm text-slate-500">A vencer</dt>
+                <dd class="text-lg font-bold text-slate-900">
+                    @if ($display === UpcomingDisplay::DetailOnly)
+                        —
+                    @else
+                        R$ {{ Money::format((int) $upcoming->sum(fn ($b) => $b->balanceCents())) }}
+                    @endif
+                </dd>
+            </div>
+            <div>
+                <dt class="text-sm text-slate-500">Maior atraso</dt>
+                <dd class="text-lg font-bold text-slate-900">{{ $maxDays === null ? 'sem atraso' : $maxDays.' dias' }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm text-slate-500">Faixa</dt>
+                <dd class="text-lg font-bold text-slate-900">
+                    {{ $maxDays === null ? 'sem atraso' : $brackets->label($brackets->indexFor($maxDays)) }}
+                </dd>
+            </div>
+        </dl>
+    </x-ui.card>
+
+    @forelse ($byContract as $contractId => $items)
+        @php($contract = $items->first()->contract->load('customers'))
+        @php($responsibles = $contract->financialResponsibles())
+        <x-ui.card :title="$contract->code ? 'Contrato '.$contract->code : 'Sem contrato informado'">
+            <div class="mb-3 text-sm">
+                <span class="text-slate-500">Clientes do contrato:</span>
+                @foreach ($contract->customers as $member)
+                    @php($memberRoles = \App\Models\Contract::rolesOf($member))
+                    <span class="me-3 inline-block">
+                        <span class="font-medium">{{ $member->name }}</span>
+                        <span class="text-slate-500">({{ collect($memberRoles)->map(fn ($r) => $roleLabels[$r] ?? $r)->implode(', ') ?: 'sem papel' }})</span>
+                    </span>
+                @endforeach
+                @if ($responsibles->isNotEmpty() && ! $contract->customers->contains(fn ($m) => in_array('financial_responsible', \App\Models\Contract::rolesOf($m), true)))
+                    <p class="mt-1 text-slate-500">Sem responsável financeiro declarado: os titulares respondem financeiramente.</p>
+                @endif
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="text-left text-slate-500">
+                            <th class="py-1 pe-4">Título</th>
+                            <th class="py-1 pe-4">Descrição</th>
+                            <th class="py-1 pe-4">Vencimento</th>
+                            <th class="py-1 pe-4">Situação</th>
+                            <th class="py-1 pe-4 text-end">Dias de atraso</th>
+                            <th class="py-1 text-end">Valor</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($items as $bill)
+                            @php($days = $bill->daysOverdue($today))
+                            <tr class="border-t border-slate-200">
+                                <td class="py-1 pe-4">{{ $bill->number }}</td>
+                                <td class="py-1 pe-4">{{ $bill->description }}</td>
+                                <td class="py-1 pe-4">{{ $bill->due_date->format('d/m/Y') }}</td>
+                                <td class="py-1 pe-4">{{ $days > 0 ? 'Vencido' : 'A vencer' }}</td>
+                                <td class="py-1 pe-4 text-end">{{ $days > 0 ? $days : '—' }}</td>
+                                <td class="py-1 text-end">R$ {{ Money::format($bill->balanceCents()) }}@if ($bill->paid_cents > 0)<span class="block text-xs text-slate-500">pago R$ {{ Money::format($bill->paid_cents) }} de R$ {{ Money::format($bill->amount_cents) }}</span>@endif</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </x-ui.card>
+    @empty
+        <x-ui.card>
+            <p class="text-sm text-slate-500">Sem títulos em cobrança.</p>
+        </x-ui.card>
+    @endforelse
+
+    @php($creditContracts = $bills->pluck('contract')->unique('id')->filter(fn ($c) => ($credits[$c->id] ?? 0) !== 0))
+    @if ($creditContracts->isNotEmpty())
+        <x-ui.card title="Crédito por contrato" description="O crédito é do contrato, visível a todos os clientes dele.">
+            <table class="w-full text-sm">
+                <tbody>
+                    @foreach ($creditContracts as $contract)
+                        <tr class="border-t border-slate-200">
+                            <td class="py-1 pe-4">{{ $contract->code ? 'Contrato '.$contract->code : 'Sem contrato informado' }}</td>
+                            <td class="py-1 text-end font-semibold">R$ {{ Money::format((int) $credits[$contract->id]) }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </x-ui.card>
+    @endif
+
+    @if ($paid->isNotEmpty())
+        <x-ui.card title="Pagos">
+            <table class="w-full text-sm">
+                <tbody>
+                    @foreach ($paid as $bill)
+                        <tr class="border-t border-slate-200">
+                            <td class="py-1 pe-4">{{ $bill->number }}</td>
+                            <td class="py-1 pe-4">{{ $bill->contract->code ? 'Contrato '.$bill->contract->code : 'Sem contrato informado' }}</td>
+                            <td class="py-1 pe-4">
+                                @foreach ($payments[$bill->id] ?? [] as $payment)
+                                    <span class="me-3 inline-block">{{ $payment->paid_on->format('d/m/Y') }} · R$ {{ Money::format($payment->applied_cents) }} · {{ $payment->method->getLabel() }} · {{ $payment->channel->code }}</span>
+                                @endforeach
+                            </td>
+                            <td class="py-1 text-end">R$ {{ Money::format($bill->amount_cents) }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </x-ui.card>
+    @endif
+
+    @if ($withdrawn->isNotEmpty())
+        <x-ui.card title="Retirados" description="O credor tirou estes títulos da carteira; o sistema não presume o motivo.">
+            <table class="w-full text-sm">
+                <tbody>
+                    @foreach ($withdrawn as $bill)
+                        <tr class="border-t border-slate-200">
+                            <td class="py-1 pe-4">{{ $bill->number }}</td>
+                            <td class="py-1 pe-4">{{ $bill->contract->code ? 'Contrato '.$bill->contract->code : 'Sem contrato informado' }}</td>
+                            <td class="py-1 pe-4">Retirado em {{ $bill->withdrawn_at?->format('d/m/Y') }}</td>
+                            <td class="py-1 text-end">R$ {{ Money::format($bill->amount_cents) }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </x-ui.card>
+    @endif
+</div>

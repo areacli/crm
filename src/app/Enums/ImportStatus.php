@@ -2,8 +2,8 @@
 
 namespace App\Enums;
 
-use Filament\Support\Contracts\HasColor;
-use Filament\Support\Contracts\HasLabel;
+use App\Support\Contracts\HasColor;
+use App\Support\Contracts\HasLabel;
 
 /** Estados da importação, conforme a tabela de transições do domínio. */
 enum ImportStatus: string implements HasColor, HasLabel

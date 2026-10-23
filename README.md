@@ -48,7 +48,7 @@ Uma branch por incremento (`incremento-01-carteira` … `incremento-04-acionamen
 
 ## Tecnologia
 
-PHP 8.5, Laravel 13, Filament 5 (Livewire 4), PostgreSQL 19, Pest 5. Fila e agendador do Laravel com o driver de banco. Tudo roda em contêineres Docker, com versões travadas. As importações grandes usam `COPY` e SQL em lote do PostgreSQL: 200 mil linhas de carteira ou de pagamentos se conferem e se confirmam em até cerca de 1 minuto cada.
+PHP 8.5, Laravel 13, Livewire 4 e Tailwind 4, PostgreSQL 19, Pest 5. Fila e agendador do Laravel com o driver de banco. Tudo roda em contêineres Docker, com versões travadas. As importações grandes usam `COPY` e SQL em lote do PostgreSQL: 200 mil linhas de carteira ou de pagamentos se conferem e se confirmam em até cerca de 1 minuto cada.
 
 ## Como rodar
 

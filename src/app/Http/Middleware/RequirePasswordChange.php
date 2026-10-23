@@ -2,7 +2,6 @@
 
 namespace App\Http\Middleware;
 
-use App\Filament\Pages\ChangePassword;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -16,9 +15,9 @@ final class RequirePasswordChange
         $user = Auth::user();
 
         if ($user !== null && $user->mustChangePassword()
-            && ! $request->routeIs('filament.crm.auth.logout', 'filament.crm.pages.senha')
+            && ! $request->routeIs('logout', 'password')
             && ! $request->is('livewire*', '*/livewire*')) {
-            return redirect(ChangePassword::getUrl());
+            return redirect()->route('password');
         }
 
         return $next($request);

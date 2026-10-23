@@ -2,8 +2,8 @@
 
 namespace App\Enums;
 
+use App\Support\Contracts\HasLabel;
 use App\Support\Text;
-use Filament\Support\Contracts\HasLabel;
 
 /** Meio de pagamento da planilha (R49): a lista é fechada. */
 enum PaymentMethod: string implements HasLabel

@@ -12,8 +12,8 @@ use Illuminate\Support\Facades\Artisan;
 it('captura as telas do README', function () {
     Artisan::call('crm:demo-data', ['--customers' => 80]);
     $page = visit('/login');
-    $page->assertSee('Faça login')->screenshot(filename: 'readme-entrada');
-    $page->type('#form\\.email', 'gestor@demo.exemplo.com.br')->type('#form\\.password', 'demonstracao-gestor')->press('Login')
+    $page->assertSee('Entrar')->screenshot(filename: 'readme-entrada');
+    $page->type('#email', 'gestor@demo.exemplo.com.br')->type('#password', 'demonstracao-gestor')->click('button[type=submit]')
         ->assertSee('Resumo da carteira')->screenshot(filename: 'readme-resumo');
     $page->navigate('/clientes')->assertSee('Clientes')->screenshot(filename: 'readme-clientes');
 

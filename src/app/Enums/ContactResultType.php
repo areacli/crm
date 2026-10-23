@@ -2,8 +2,8 @@
 
 namespace App\Enums;
 
-use Filament\Support\Contracts\HasColor;
-use Filament\Support\Contracts\HasLabel;
+use App\Support\Contracts\HasColor;
+use App\Support\Contracts\HasLabel;
 
 /** Tipo do resultado (R66): classificação fixa por trás da lista livre; não muda depois de criado. */
 enum ContactResultType: string implements HasColor, HasLabel

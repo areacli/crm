@@ -41,6 +41,16 @@ final class Document
         return substr($document, 0, 2).'.***.***/****-'.substr($document, 12, 2);
     }
 
+    /** Documento completo com pontuação, para a ficha do cliente. */
+    public static function format(string $document): string
+    {
+        if (strlen($document) === 11) {
+            return substr($document, 0, 3).'.'.substr($document, 3, 3).'.'.substr($document, 6, 3).'-'.substr($document, 9, 2);
+        }
+
+        return substr($document, 0, 2).'.'.substr($document, 2, 3).'.'.substr($document, 5, 3).'/'.substr($document, 8, 4).'-'.substr($document, 12, 2);
+    }
+
     private static function validCpf(string $cpf): bool
     {
         if (! ctype_digit($cpf) || preg_match('/^(\d)\1{10}$/', $cpf)) {

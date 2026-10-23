@@ -1,7 +1,7 @@
 <?php
 
 use App\Enums\UpcomingDisplay;
-use App\Filament\Pages\Summary;
+use App\Livewire\Summary;
 use App\Models\Bill;
 use App\Models\Membership;
 use App\Models\Profile;

@@ -2,7 +2,6 @@
 
 namespace App\Notifications;
 
-use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Notifications\Notification;
 
 /** Aviso dentro do sistema: o usuário foi ligado a um credor (A5, R36a). */
@@ -23,9 +22,6 @@ final class LinkedToTenant extends Notification
     /** @return array<string, mixed> */
     public function toDatabase(object $notifiable): array
     {
-        return FilamentNotification::make()
-            ->title("{$this->actorName} ligou você a {$this->tenantName}")
-            ->body("Perfil: {$this->profileName}.")
-            ->getDatabaseMessage();
+        return ['title' => "{$this->actorName} ligou você a {$this->tenantName}", 'body' => "Perfil: {$this->profileName}."];
     }
 }

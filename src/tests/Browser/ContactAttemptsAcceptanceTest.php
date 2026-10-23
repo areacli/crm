@@ -15,22 +15,22 @@ beforeEach(function () {
 
 it('o operador registra um acionamento na ficha e o vê no histórico', function () {
     $page = visit('/login');
-    $page->type('#form\\.email', 'operador@demo.exemplo.com.br')->type('#form\\.password', 'demonstracao-operador')->press('Login')
+    $page->type('#email', 'operador@demo.exemplo.com.br')->type('#password', 'demonstracao-operador')->click('button[type=submit]')
         ->assertSee('Resumo da carteira');
     $customer = Customer::query()->orderBy('id')->first();
 
     $page->navigate('/clientes/'.$customer->id)->assertSee('Acionamentos')->click('Registrar acionamento')
-        ->select('.fi-modal-window select[id$="channel"]', 'phone')
-        ->select('.fi-modal-window select[id$="result_id"]', (string) ContactResult::where('name', 'Não atendeu')->value('id'))
-        ->type('.fi-modal-window textarea[id$="text"]', 'primeira tentativa')
-        ->click('Enviar')->assertSee('Acionamento registrado');
+        ->select('[role=dialog] select[wire\\:model="channel"]', 'phone')
+        ->select('[role=dialog] select[wire\\:model\\.live="resultId"]', (string) ContactResult::where('name', 'Não atendeu')->value('id'))
+        ->type('[role=dialog] textarea[wire\\:model="text"]', 'primeira tentativa')
+        ->click('Registrar')->assertSee('Acionamento registrado');
 
     expect(ContactAttempt::where('customer_id', $customer->id)->where('text', 'primeira tentativa')->exists())->toBeTrue();
 });
 
 it('o gestor vê a lista, o resumo e os resultados dentro da configuração', function () {
     $page = visit('/login');
-    $page->type('#form\\.email', 'gestor@demo.exemplo.com.br')->type('#form\\.password', 'demonstracao-gestor')->press('Login')
+    $page->type('#email', 'gestor@demo.exemplo.com.br')->type('#password', 'demonstracao-gestor')->click('button[type=submit]')
         ->assertSee('Resumo da carteira')->assertSee('Últimos 7 dias');
     $page->navigate('/acionamentos')->assertSee('Acionamentos')->assertSee('Contato');
     $page->navigate('/configuracao')->assertPathIs('/configuracao/carteira')->assertSee('Políticas da carteira')->assertSee('Canais de recebimento')

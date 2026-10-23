@@ -2,7 +2,7 @@
 
 namespace App\Enums;
 
-use Filament\Support\Contracts\HasLabel;
+use App\Support\Contracts\HasLabel;
 
 /** Política do credor para pagamento menor que o saldo (R46). */
 enum PartialPaymentPolicy: string implements HasLabel

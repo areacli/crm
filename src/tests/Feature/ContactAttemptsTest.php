@@ -6,7 +6,7 @@ use App\Contacts\ContactResultManager;
 use App\Enums\ContactResultType;
 use App\Enums\Permission;
 use App\Enums\ReturnRule;
-use App\Filament\Resources\ContactAttempts\Pages\ListContactAttempts;
+use App\Livewire\Contacts\Index as ContactsIndex;
 use App\Models\ContactAttempt;
 use App\Models\ContactResult;
 use App\Models\Contract;
@@ -192,13 +192,13 @@ it('lista os acionamentos do período, com filtros, sem anulados e sem outro cre
     $foreignCustomer = makeCustomerWithBills($beta, '11144477735', 'De outro credor', ['NF-1' => [now()->toDateString(), 1000]], 'B-1');
     ContactAttempt::factory()->create(['customer_id' => $foreignCustomer->id, 'result_id' => ContactResult::where('tenant_id', $beta->id)->first()->id]);
 
-    $page = Livewire::actingAs($this->manager)->test(ListContactAttempts::class);
-    expect($page->instance()->getTableRecords())->toHaveCount(3);                       // os 3 não anulados dos últimos 7 dias, só deste credor
-    $page->assertCanNotSeeTableRecords([$old, $voided]);
-    $page->filterTable('user_id', $this->joana->id);
-    expect($page->instance()->getTableRecords())->toHaveCount(2);
-    $page->filterTable('include_voided', ['include' => true]);
-    expect($page->instance()->getTableRecords())->toHaveCount(3);
+    $page = Livewire::actingAs($this->manager)->test(ContactsIndex::class);
+    $count = fn () => $page->instance()->render()->getData()['rows']->total();
+    expect($count())->toBe(3);                                                         // os 3 não anulados dos últimos 7 dias, só deste credor
+    $page->set('operator', (string) $this->joana->id);
+    expect($count())->toBe(2);
+    $page->set('includeVoided', true);
+    expect($count())->toBe(3);
 });
 
 it('o resumo conta acionamentos e clientes por tipo, sem anulados, um bloco por credor (R79)', function () {
