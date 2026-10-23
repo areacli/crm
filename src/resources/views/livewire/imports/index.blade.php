@@ -32,17 +32,17 @@
             <tbody class="divide-y divide-slate-200">
                 @foreach ($rows as $row)
                     <tr wire:key="i{{ $row->id }}" class="hover:bg-slate-50">
-                        <td class="px-3 py-2"><a href="{{ route($showRoute, $row->id) }}" wire:navigate class="font-semibold text-blue-600 hover:underline">{{ $row->id }}</a></td>
-                        @if ($several)<td class="px-3 py-2">{{ $row->tenant->name }}</td>@endif
-                        @if ($newRoute !== 'imports.create')<td class="px-3 py-2">{{ $row->kind === 'reversals' ? 'Estornos' : 'Pagamentos' }}</td>@endif
-                        <td class="max-w-xs truncate px-3 py-2">{{ $row->original_name }}</td>
-                        @if ($newRoute === 'imports.create')<td class="px-3 py-2"><x-ui.badge>{{ $row->mode->getLabel() }}</x-ui.badge></td>@endif
-                        <td class="px-3 py-2"><x-ui.badge :color="$row->status->getColor()">{{ $row->status->getLabel() }}</x-ui.badge></td>
-                        <td class="px-3 py-2 text-right">{{ isset($row->summary['valid']) ? number_format($row->summary['valid'], 0, ',', '.') : '—' }}</td>
-                        <td class="px-3 py-2 text-right">{{ isset($row->summary['rejected']) ? number_format($row->summary['rejected'], 0, ',', '.') : '—' }}</td>
-                        @if ($newRoute === 'imports.create')<td class="px-3 py-2 text-right">{{ isset($row->summary['amount_cents']) ? 'R$ '.Money::format((int) $row->summary['amount_cents']) : '—' }}</td>@endif
-                        <td class="px-3 py-2">{{ $row->user?->name ?: '—' }}</td>
-                        <td class="whitespace-nowrap px-3 py-2">{{ $row->created_at->format('d/m/Y H:i') }}</td>
+                        <td class="px-2 py-1.5"><a href="{{ route($showRoute, $row->id) }}" wire:navigate class="font-semibold text-blue-600 hover:underline">{{ $row->id }}</a></td>
+                        @if ($several)<td class="px-2 py-1.5">{{ $row->tenant->name }}</td>@endif
+                        @if ($newRoute !== 'imports.create')<td class="px-2 py-1.5">{{ $row->kind === 'reversals' ? 'Estornos' : 'Pagamentos' }}</td>@endif
+                        <td class="max-w-xs truncate px-2 py-1.5">{{ $row->original_name }}</td>
+                        @if ($newRoute === 'imports.create')<td class="px-2 py-1.5"><x-ui.badge>{{ $row->mode->getLabel() }}</x-ui.badge></td>@endif
+                        <td class="px-2 py-1.5"><x-ui.badge :color="$row->status->getColor()">{{ $row->status->getLabel() }}</x-ui.badge></td>
+                        <td class="px-2 py-1.5 text-right">{{ isset($row->summary['valid']) ? number_format($row->summary['valid'], 0, ',', '.') : '—' }}</td>
+                        <td class="px-2 py-1.5 text-right">{{ isset($row->summary['rejected']) ? number_format($row->summary['rejected'], 0, ',', '.') : '—' }}</td>
+                        @if ($newRoute === 'imports.create')<td class="px-2 py-1.5 text-right">{{ isset($row->summary['amount_cents']) ? 'R$ '.Money::format((int) $row->summary['amount_cents']) : '—' }}</td>@endif
+                        <td class="px-2 py-1.5">{{ $row->user?->name ?: '—' }}</td>
+                        <td class="whitespace-nowrap px-2 py-1.5">{{ $row->created_at->format('d/m/Y H:i') }}</td>
                     </tr>
                 @endforeach
             </tbody>

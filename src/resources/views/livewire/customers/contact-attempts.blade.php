@@ -10,26 +10,25 @@
     @else
         <x-ui.table>
             <thead>
-                <tr>
-                    <x-ui.th>Contato</x-ui.th><x-ui.th>Canal</x-ui.th><x-ui.th>Contato usado</x-ui.th><x-ui.th>Resultado</x-ui.th>
-                    <x-ui.th>Contrato</x-ui.th><x-ui.th>Retorno</x-ui.th><x-ui.th>Texto</x-ui.th><x-ui.th>Registrado por</x-ui.th><x-ui.th></x-ui.th>
-                </tr>
+                <tr><x-ui.th>Contato</x-ui.th><x-ui.th>Resultado</x-ui.th><x-ui.th>Detalhes</x-ui.th><x-ui.th>Texto</x-ui.th><x-ui.th>Registrado por</x-ui.th></tr>
             </thead>
             <tbody class="divide-y divide-slate-200">
                 @foreach ($rows as $row)
                     <tr wire:key="a{{ $row->id }}" @class(['align-top', 'opacity-60' => $row->isVoided()])>
-                        <td class="whitespace-nowrap px-3 py-2">{{ $row->contacted_at->format('d/m/Y H:i') }}</td>
-                        <td class="px-3 py-2"><x-ui.badge>{{ $row->channel->getLabel() }}</x-ui.badge></td>
-                        <td class="px-3 py-2">{{ $row->contact_used ?: '—' }}</td>
-                        <td class="px-3 py-2"><span class="font-semibold">{{ $row->result->name }}</span><br><span class="text-xs text-slate-500">{{ $row->result_type->getLabel() }}</span></td>
-                        <td class="px-3 py-2">{{ $row->contract?->code ?: '—' }}</td>
-                        <td class="whitespace-nowrap px-3 py-2">{{ $row->return_at?->format('d/m/Y H:i') ?: '—' }}</td>
-                        {{-- Texto puro (R72): escapado pelo Blade, com as quebras de linha preservadas por CSS. --}}
-                        <td class="min-w-56 whitespace-pre-line px-3 py-2">{{ $row->text ?: '—' }}</td>
-                        <td class="px-3 py-2">{{ $row->user?->name ?: '—' }}<br><span class="text-xs text-slate-500">em {{ $row->created_at->format('d/m/Y H:i') }}</span>
-                            @if ($row->isVoided())<br><span class="text-xs font-semibold text-red-700">Anulado: {{ $row->void_reason }} ({{ $row->voidedBy?->name ?? '—' }}, {{ $row->voided_at->format('d/m/Y H:i') }})</span>@endif
+                        <td class="whitespace-nowrap px-2 py-1.5">{{ $row->contacted_at->format('d/m/Y H:i') }}<br><x-ui.badge>{{ $row->channel->getLabel() }}</x-ui.badge></td>
+                        <td class="min-w-40 px-2 py-1.5"><span class="font-semibold">{{ $row->result->name }}</span><br><span class="text-xs text-slate-500">{{ $row->result_type->getLabel() }}</span></td>
+                        <td class="px-2 py-1.5 text-xs text-slate-600">
+                            @if ($row->contact_used)<span class="block">{{ $row->contact_used }}</span>@endif
+                            @if ($row->contract)<span class="block">Contrato {{ $row->contract->code ?: '(sem código)' }}</span>@endif
+                            @if ($row->return_at)<span class="block">Retorno {{ $row->return_at->format('d/m/Y H:i') }}</span>@endif
+                            @if (! $row->contact_used && ! $row->contract && ! $row->return_at)—@endif
                         </td>
-                        <td class="px-3 py-2 text-right">@can('void', $row)<x-ui.button size="sm" variant="danger" wire:click="askVoid({{ $row->id }})">Anular</x-ui.button>@endcan</td>
+                        {{-- Texto puro (R72): escapado pelo Blade, com as quebras de linha preservadas por CSS. --}}
+                        <td class="min-w-48 max-w-lg whitespace-pre-line px-2 py-1.5">{{ $row->text ?: '—' }}</td>
+                        <td class="px-2 py-1.5 text-xs">{{ $row->user?->name ?: '—' }}<br><span class="text-slate-500">{{ $row->created_at->format('d/m/Y H:i') }}</span>
+                            @if ($row->isVoided())<br><span class="font-semibold text-red-700">Anulado: {{ $row->void_reason }} ({{ $row->voided_by ? $row->voidedBy?->name : '—' }}, {{ $row->voided_at->format('d/m/Y H:i') }})</span>@endif
+                            @can('void', $row)<br><x-ui.button size="sm" variant="danger" class="mt-1" wire:click="askVoid({{ $row->id }})">Anular</x-ui.button>@endcan
+                        </td>
                     </tr>
                 @endforeach
             </tbody>

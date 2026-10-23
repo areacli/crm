@@ -1,6 +1,6 @@
 <div class="space-y-4">
     <x-ui.page-header :title="$profile ? 'Editar perfil' : 'Novo perfil'" />
-    <form wire:submit="save" class="space-y-6">
+    <form wire:submit="save" class="space-y-4">
         <x-ui.card>
             <div class="space-y-4">
                 @if ($several && ! $profile)

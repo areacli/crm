@@ -15,11 +15,11 @@
             <tbody class="divide-y divide-slate-200">
                 @foreach ($rows as $p)
                     <tr wire:key="p{{ $p->id }}" class="hover:bg-slate-50">
-                        @if ($several)<td class="px-3 py-2">{{ $p->tenant->name }}</td>@endif
-                        <td class="px-3 py-2">{{ $p->name }}</td>
-                        <td class="px-3 py-2 text-right">{{ count($p->permissions ?? []) }}</td>
-                        <td class="px-3 py-2 text-right">{{ $p->memberships_count }}</td>
-                        <td class="space-x-1 whitespace-nowrap px-3 py-2 text-right">
+                        @if ($several)<td class="px-2 py-1.5">{{ $p->tenant->name }}</td>@endif
+                        <td class="px-2 py-1.5">{{ $p->name }}</td>
+                        <td class="px-2 py-1.5 text-right">{{ count($p->permissions ?? []) }}</td>
+                        <td class="px-2 py-1.5 text-right">{{ $p->memberships_count }}</td>
+                        <td class="space-x-1 whitespace-nowrap px-2 py-1.5 text-right">
                             <x-ui.button size="sm" variant="secondary" :href="route('profiles.edit', $p->id)" wire:navigate>Editar</x-ui.button>
                             <x-ui.button size="sm" variant="danger" wire:click="delete({{ $p->id }})" wire:confirm="Apagar o perfil {{ $p->name }}?">Apagar</x-ui.button>
                         </td>

@@ -19,12 +19,12 @@
             <tbody class="divide-y divide-slate-200">
                 @foreach ($rows as $row)
                     <tr wire:key="cr{{ $row->id }}" class="hover:bg-slate-50">
-                        <td class="px-3 py-2">{{ $row->name }}</td>
-                        <td class="px-3 py-2"><x-ui.badge :color="$row->type->getColor()">{{ $row->type->getLabel() }}</x-ui.badge></td>
-                        <td class="px-3 py-2">{{ $row->return_rule->getLabel() }}</td>
-                        <td class="px-3 py-2 text-right">{{ $row->attempts_count }}</td>
-                        <td class="px-3 py-2">{{ $row->active ? 'Sim' : 'Não' }}</td>
-                        <td class="space-x-1 whitespace-nowrap px-3 py-2 text-right">
+                        <td class="px-2 py-1.5">{{ $row->name }}</td>
+                        <td class="px-2 py-1.5"><x-ui.badge :color="$row->type->getColor()">{{ $row->type->getLabel() }}</x-ui.badge></td>
+                        <td class="px-2 py-1.5">{{ $row->return_rule->getLabel() }}</td>
+                        <td class="px-2 py-1.5 text-right">{{ $row->attempts_count }}</td>
+                        <td class="px-2 py-1.5">{{ $row->active ? 'Sim' : 'Não' }}</td>
+                        <td class="space-x-1 whitespace-nowrap px-2 py-1.5 text-right">
                             <x-ui.button size="sm" variant="secondary" wire:click="move({{ $row->id }}, -1)" aria-label="Subir">↑</x-ui.button>
                             <x-ui.button size="sm" variant="secondary" wire:click="move({{ $row->id }}, 1)" aria-label="Descer">↓</x-ui.button>
                             <x-ui.button size="sm" variant="secondary" wire:click="openEdit({{ $row->id }})">Editar</x-ui.button>

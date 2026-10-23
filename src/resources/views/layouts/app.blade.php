@@ -55,7 +55,7 @@
 
         <div class="flex">
             @auth
-                <nav x-bind:class="menu ? 'block' : 'hidden'" class="fixed inset-x-0 top-14 z-30 max-h-[calc(100vh-3.5rem)] overflow-y-auto border-b border-slate-200 bg-white p-3 lg:static lg:block lg:max-h-none lg:w-64 lg:shrink-0 lg:border-b-0 lg:border-r" aria-label="Menu">
+                <nav x-bind:class="menu ? 'block' : 'hidden'" class="fixed inset-x-0 top-14 z-30 max-h-[calc(100vh-3.5rem)] overflow-y-auto border-b border-slate-200 bg-white p-3 lg:static lg:block lg:max-h-none lg:w-52 lg:shrink-0 lg:border-b-0 lg:border-r" aria-label="Menu">
                     @foreach ($sections as $section)
                         <div class="mb-3">
                             @if ($section['title'])
@@ -63,7 +63,7 @@
                             @endif
                             @foreach ($section['items'] as $item)
                                 <a href="{{ route($item['route']) }}" wire:navigate @class([
-                                    'block rounded-md px-3 py-2 text-sm font-semibold',
+                                    'block rounded-md px-2 py-1.5 text-sm font-semibold',
                                     'bg-slate-100 text-slate-900' => request()->is($item['match']),
                                     'text-slate-700 hover:bg-slate-50' => ! request()->is($item['match']),
                                 ]) @if (request()->is($item['match'])) aria-current="page" @endif>{{ $item['label'] }}</a>
@@ -73,8 +73,8 @@
                 </nav>
             @endauth
 
-            <main class="min-w-0 flex-1 p-4 sm:p-6">
-                <div class="mx-auto max-w-7xl space-y-6">
+            <main class="min-w-0 flex-1 p-3 sm:p-4">
+                <div class="mx-auto max-w-[110rem] space-y-4">
                     {{ $slot }}
                 </div>
             </main>

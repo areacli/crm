@@ -25,7 +25,7 @@
     $roleLabels = ['holder' => 'titular', 'financial_responsible' => 'responsável financeiro'];
 @endphp
 
-<div class="space-y-6">
+<div class="space-y-4">
     <x-ui.card title="Situação">
         <dl class="grid grid-cols-2 gap-4 md:grid-cols-4">
             <div>

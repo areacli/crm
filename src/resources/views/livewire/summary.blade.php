@@ -4,26 +4,26 @@
     $summaries = $this->summaries();
 @endphp
 
-<div class="space-y-6">
+<div class="space-y-4">
     <x-ui.page-header title="Resumo da carteira" />
     @forelse ($summaries as $s)
         <x-ui.card :title="count($summaries) > 1 ? $s['tenant']->name : null">
             <dl class="grid grid-cols-2 gap-4 md:grid-cols-4">
                 <div>
                     <dt class="text-sm text-slate-500">Clientes em cobrança</dt>
-                    <dd class="text-2xl font-bold text-slate-900">{{ number_format($s['upcoming_display'] === UpcomingDisplay::DetailOnly ? $s['customers_overdue'] : $s['customers'], 0, ',', '.') }}</dd>
+                    <dd class="text-xl font-bold text-slate-900">{{ number_format($s['upcoming_display'] === UpcomingDisplay::DetailOnly ? $s['customers_overdue'] : $s['customers'], 0, ',', '.') }}</dd>
                 </div>
                 <div>
                     <dt class="text-sm text-slate-500">Títulos</dt>
-                    <dd class="text-2xl font-bold text-slate-900">{{ number_format($s['bills'], 0, ',', '.') }}</dd>
+                    <dd class="text-xl font-bold text-slate-900">{{ number_format($s['bills'], 0, ',', '.') }}</dd>
                 </div>
                 <div>
                     <dt class="text-sm text-slate-500">Vencido</dt>
-                    <dd class="text-2xl font-bold text-slate-900">R$ {{ Money::format($s['overdue_cents']) }}</dd>
+                    <dd class="text-xl font-bold text-slate-900">R$ {{ Money::format($s['overdue_cents']) }}</dd>
                 </div>
                 <div>
                     <dt class="text-sm text-slate-500">A vencer</dt>
-                    <dd class="text-2xl font-bold text-slate-900">
+                    <dd class="text-xl font-bold text-slate-900">
                         @if ($s['upcoming_display'] === UpcomingDisplay::DetailOnly) — @else R$ {{ Money::format($s['upcoming_cents']) }} @endif
                     </dd>
                 </div>
@@ -38,7 +38,7 @@
                 @foreach ($s['recovered'] as $month)
                     <div>
                         <dt class="text-sm text-slate-500">Recuperado em {{ $month['label'] }}</dt>
-                        <dd class="text-2xl font-bold text-slate-900">R$ {{ Money::format($month['total']) }}</dd>
+                        <dd class="text-xl font-bold text-slate-900">R$ {{ Money::format($month['total']) }}</dd>
                         @if ($month['methods'] !== [])
                             <dd class="text-sm text-slate-500">
                                 @foreach ($month['methods'] as $method => $cents){{ $method }} R$ {{ Money::format($cents) }}@if (! $loop->last); @endif @endforeach
@@ -48,11 +48,11 @@
                 @endforeach
                 <div>
                     <dt class="text-sm text-slate-500">Créditos dos contratos</dt>
-                    <dd class="text-2xl font-bold text-slate-900">R$ {{ Money::format($s['credit_cents']) }}</dd>
+                    <dd class="text-xl font-bold text-slate-900">R$ {{ Money::format($s['credit_cents']) }}</dd>
                 </div>
                 <div>
                     <dt class="text-sm text-slate-500">Pagamentos pendentes</dt>
-                    <dd class="text-2xl font-bold text-slate-900">{{ number_format($s['pending_count'], 0, ',', '.') }}</dd>
+                    <dd class="text-xl font-bold text-slate-900">{{ number_format($s['pending_count'], 0, ',', '.') }}</dd>
                     <dd class="text-sm text-slate-500">R$ {{ Money::format($s['pending_cents']) }}</dd>
                 </div>
             </dl>
