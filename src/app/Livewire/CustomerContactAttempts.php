@@ -59,7 +59,6 @@ final class CustomerContactAttempts extends Component implements HasActions, Has
             ->query(fn (): Builder => ContactAttempt::query()->where('customer_id', $this->customerId)->with(['result', 'user', 'contract', 'voidedBy']))
             ->heading('Acionamentos')
             ->defaultSort('contacted_at', 'desc')
-            ->paginated([20])
             ->headerActions([
                 Action::make('record')->label('Registrar acionamento')->icon('heroicon-o-phone')
                     ->visible(fn () => Auth::user()->hasPermission(Permission::RecordContactAttempts, $tenantId) && Auth::user()->hasPermission(Permission::ViewPortfolio, $tenantId))

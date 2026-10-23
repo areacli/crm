@@ -78,3 +78,9 @@ it('quem não vê o cliente não abre o histórico dele, nem pelo componente (MT
 
     Livewire::actingAs($outsider)->test(CustomerContactAttempts::class, ['customerId' => $this->maria->id])->assertStatus(404);
 });
+
+it('toda tabela mostra 20 registros por página, com 20, 50 e 100 à escolha (P22)', function () {
+    $table = Livewire::actingAs($this->joana)->test(CustomerContactAttempts::class, ['customerId' => $this->maria->id])->instance()->getTable();
+
+    expect($table->getDefaultPaginationPageOption())->toBe(20)->and($table->getPaginationPageOptions())->toBe([20, 50, 100]);
+});
