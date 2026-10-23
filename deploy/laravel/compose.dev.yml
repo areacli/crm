@@ -1,0 +1,64 @@
+# Ambiente de desenvolvimento do CRM em Laravel (decisão 0013): banco e aplicação descartáveis, sem porta publicada.
+# Uso: docker compose -f deploy/laravel/compose.dev.yml --env-file deploy/laravel/.env.dev up -d db
+name: crm-laravel
+services:
+  db:
+    image: postgres:19rc1-trixie@sha256:de2cbeff2b8177e65bd64d077b46c90a1898aa8aea974a9e35a8cf60b5e90581
+    environment:
+      POSTGRES_DB: crm
+      POSTGRES_USER: crm
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      # A imagem 19 grava em /var/lib/postgresql/<versão>/docker: monta o diretório pai.
+      - pgdata:/var/lib/postgresql
+    mem_limit: 1g
+    cpus: 1.5
+    security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      test: ["CMD-SHELL", "psql -U crm -d crm -tAc 'select 1' | grep -q 1"]
+      interval: 3s
+      retries: 30
+  app:
+    image: crm-laravel-php:8.5
+    working_dir: /app
+    volumes:
+      - ../../src:/app
+      - composer-cache:/root/.composer/cache
+    environment:
+      DB_CONNECTION: pgsql
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_DATABASE: crm
+      DB_USERNAME: crm
+      DB_PASSWORD: ${DB_PASSWORD}
+    depends_on:
+      db:
+        condition: service_healthy
+    mem_limit: 1g
+    cpus: 1.5
+    security_opt: ["no-new-privileges:true"]
+    command: ["sleep", "infinity"]
+  testes:
+    image: crm-laravel-php:8.5-testes
+    working_dir: /app
+    volumes:
+      - ../../src:/app
+      - composer-cache:/root/.composer/cache
+    environment:
+      DB_CONNECTION: pgsql
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_DATABASE: crm
+      DB_USERNAME: crm
+      DB_PASSWORD: ${DB_PASSWORD}
+    depends_on:
+      db:
+        condition: service_healthy
+    mem_limit: 3g
+    cpus: 2
+    shm_size: 1g
+    security_opt: ["no-new-privileges:true"]
+    command: ["sleep", "infinity"]
+volumes:
+  pgdata:
+  composer-cache:

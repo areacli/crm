@@ -1,0 +1,19 @@
+.git
+.github
+deploy/compose*.yml
+deploy/laravel/.env*
+# Laravel: nada que seja segredo, dependência instalada na máquina, arquivo gerado ou teste vai para a imagem.
+src/.env
+src/.env.*
+src/vendor
+src/node_modules
+src/public/build
+src/public/css/filament
+src/public/js/filament
+src/public/fonts/filament
+src/storage/logs
+src/storage/app
+src/storage/framework
+src/tests
+src/phpunit.xml
+**/*.log

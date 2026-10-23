@@ -1,0 +1,74 @@
+# CRM em Laravel (decisão 0013): PHP-FPM, nginx, fila, agendador e banco. O nginx do servidor (TLS e cabeçalhos)
+# fica na frente e fala com `web` em 127.0.0.1:${WEB_PORT}. Segredos em .env.producao (fora do git).
+#
+#   docker compose -f deploy/laravel/compose.producao.yml --env-file deploy/laravel/.env.producao up -d
+name: crm-laravel-producao
+
+x-aplicacao: &aplicacao
+  image: crm-laravel-producao-app:${VERSAO:-local}
+  env_file: .env.producao
+  security_opt: ["no-new-privileges:true"]
+  restart: unless-stopped
+  volumes:
+    - storage:/app/storage
+  depends_on:
+    db:
+      condition: service_healthy
+
+services:
+  db:
+    image: postgres:19rc1-trixie@sha256:de2cbeff2b8177e65bd64d077b46c90a1898aa8aea974a9e35a8cf60b5e90581
+    environment:
+      POSTGRES_DB: crm
+      POSTGRES_USER: crm
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      # A imagem 19 grava em /var/lib/postgresql/<versão>/docker: monta o diretório pai.
+      - pgdata:/var/lib/postgresql
+    mem_limit: 1g
+    cpus: 1
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "psql -U crm -d crm -tAc 'select 1' | grep -q 1"]
+      interval: 5s
+      retries: 30
+
+  app:
+    <<: *aplicacao
+    command: ["app"]
+    environment:
+      RUN_MIGRATIONS: "1"
+    mem_limit: 512m
+    cpus: 1
+    healthcheck:
+      test: ["CMD-SHELL", "php -r 'exit(@fsockopen(\"127.0.0.1\", 9000) ? 0 : 1);'"]
+      interval: 10s
+      retries: 6
+
+  web:
+    image: crm-laravel-producao-web:${VERSAO:-local}
+    ports:
+      - "127.0.0.1:${WEB_PORT:-3210}:8080"
+    depends_on:
+      - app
+    mem_limit: 128m
+    cpus: 0.5
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+
+  worker:
+    <<: *aplicacao
+    command: ["worker"]
+    mem_limit: 1g
+    cpus: 1
+
+  scheduler:
+    <<: *aplicacao
+    command: ["scheduler"]
+    mem_limit: 256m
+    cpus: 0.25
+
+volumes:
+  pgdata:
+  storage:
