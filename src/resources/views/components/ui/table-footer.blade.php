@@ -1,6 +1,6 @@
 @props(['rows'])
 {{-- Rodapé da tabela: quantos registros, seletor de registros por página (P22) e páginas. --}}
-<div class="flex flex-wrap items-center justify-between gap-3 py-2 text-sm text-slate-500">
+<div class="flex flex-wrap items-center justify-between gap-3 py-2 text-sm text-ink-soft">
     <p>
         @if ($rows->total() === 0)
             Nenhum registro

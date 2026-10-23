@@ -1,12 +1,34 @@
 @import 'tailwindcss';
 
-/* Identidade: o Tailwind puro (decisão 0015): paleta e fonte padrão, sem tema próprio. */
+/* Identidade: manual da marca AreaCli 2.0 sobre o Tailwind (decisão 0016). */
+@font-face { font-family: 'Source Sans 3'; font-weight: 400; font-display: swap; src: url('/fonts/source-sans-3-latin-400.woff2') format('woff2'); }
+@font-face { font-family: 'Source Sans 3'; font-weight: 600; font-display: swap; src: url('/fonts/source-sans-3-latin-600.woff2') format('woff2'); }
+@font-face { font-family: 'Source Sans 3'; font-weight: 700; font-display: swap; src: url('/fonts/source-sans-3-latin-700.woff2') format('woff2'); }
+
+@theme {
+    --font-sans: 'Source Sans 3', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+    --color-brand-navy: #1c3a57;
+    --color-brand-blue: #2a6496;
+    --color-brand-blue-dark: #1d4f7a;
+    --color-brand-yellow: #f5c518;
+    --color-brand-orange: #b4531a;
+    --color-ink: #212529;
+    --color-ink-soft: #5b6670;
+    --color-surface: #f4f6f9;
+    --color-line: #dee3e8;
+    --color-line-strong: #7b8691;
+}
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 
 @layer base {
     /* Interface compacta: tudo em rem encolhe junto com a raiz. */
     html { font-size: 14px; }
-    body { @apply bg-slate-50 text-slate-900 antialiased; }
+    body { @apply bg-surface text-ink antialiased; }
     [x-cloak] { display: none !important; }
+}
+
+@layer base {
+    :focus-visible { outline: 2px solid var(--color-brand-orange); outline-offset: 2px; }
+    header.brand :focus-visible { outline-color: var(--color-brand-yellow); }
 }

@@ -29,10 +29,10 @@
                     <x-ui.th>Usuário</x-ui.th><x-ui.th field="created_at" :sort="$sort" :dir="$dir">Enviada em</x-ui.th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-slate-200">
+            <tbody class="divide-y divide-line">
                 @foreach ($rows as $row)
-                    <tr wire:key="i{{ $row->id }}" class="hover:bg-slate-50">
-                        <td class="px-2 py-1.5"><a href="{{ route($showRoute, $row->id) }}" wire:navigate class="font-semibold text-blue-600 hover:underline">{{ $row->id }}</a></td>
+                    <tr wire:key="i{{ $row->id }}" class="hover:bg-surface">
+                        <td class="px-2 py-1.5"><a href="{{ route($showRoute, $row->id) }}" wire:navigate class="font-semibold text-brand-blue hover:underline">{{ $row->id }}</a></td>
                         @if ($several)<td class="px-2 py-1.5">{{ $row->tenant->name }}</td>@endif
                         @if ($newRoute !== 'imports.create')<td class="px-2 py-1.5">{{ $row->kind === 'reversals' ? 'Estornos' : 'Pagamentos' }}</td>@endif
                         <td class="max-w-xs truncate px-2 py-1.5">{{ $row->original_name }}</td>

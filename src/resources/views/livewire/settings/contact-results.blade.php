@@ -16,9 +16,9 @@
     @else
         <x-ui.table>
             <thead><tr><x-ui.th>Nome</x-ui.th><x-ui.th>Tipo</x-ui.th><x-ui.th>Retorno</x-ui.th><x-ui.th align="right">Acionamentos</x-ui.th><x-ui.th>Ativo</x-ui.th><x-ui.th></x-ui.th></tr></thead>
-            <tbody class="divide-y divide-slate-200">
+            <tbody class="divide-y divide-line">
                 @foreach ($rows as $row)
-                    <tr wire:key="cr{{ $row->id }}" class="hover:bg-slate-50">
+                    <tr wire:key="cr{{ $row->id }}" class="hover:bg-surface">
                         <td class="px-2 py-1.5">{{ $row->name }}</td>
                         <td class="px-2 py-1.5"><x-ui.badge :color="$row->type->getColor()">{{ $row->type->getLabel() }}</x-ui.badge></td>
                         <td class="px-2 py-1.5">{{ $row->return_rule->getLabel() }}</td>
