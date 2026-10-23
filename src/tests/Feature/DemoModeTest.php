@@ -3,10 +3,9 @@
 use App\Demo\DemoMode;
 use App\Enums\ImportStatus;
 use App\Enums\Permission;
-use App\Filament\Pages\ChangePassword;
-use App\Filament\Pages\ImportPayments;
-use App\Filament\Pages\ImportPortfolio;
 use App\Import\ImportService;
+use App\Livewire\Imports\Create as ImportPortfolio;
+use App\Livewire\Payments\Upload as ImportPayments;
 use App\Models\ContactAttempt;
 use App\Models\Customer;
 use App\Models\Import;
@@ -51,7 +50,7 @@ it('ninguém troca a senha dos usuários públicos', function () {
     $this->artisan('crm:demo-reset')->assertSuccessful();
     $gestor = User::where('email', 'gestor@demo.crm.areacli.com')->first();
 
-    $this->actingAs($gestor)->get(ChangePassword::getUrl())->assertForbidden();
+    $this->actingAs($gestor)->get(route('password'))->assertForbidden();
     expect(DemoMode::isPublicUser($gestor))->toBeTrue();
 });
 
@@ -65,14 +64,14 @@ it('troca o arquivo enviado por um fictício, sem ler o do visitante', function 
     $secret = UploadedFile::fake()->createWithContent('meu-arquivo-real.csv', "documento;nome\n999;DADO REAL QUE NAO PODE SER LIDO\n");
 
     Livewire::actingAs($gestor)->test(ImportPortfolio::class)
-        ->fillForm(['mode' => 'incremental', 'file' => $secret])->call('send');
+        ->set('mode', 'incremental')->set('file', $secret)->call('send');
     $import = Import::where('kind', 'portfolio')->latest('id')->first();
     expect($import->original_name)->toBe('arquivo-de-demonstracao.csv')->and($import->status)->toBe(ImportStatus::Checked)
         ->and($import->rejections()->count())->toBe(0)->and($import->summary['valid'])->toBe(400);
     app(ImportService::class)->discard($import);
 
     $secret2 = UploadedFile::fake()->createWithContent('pagamentos-reais.csv', "canal;identificador\nX;Y\n");
-    Livewire::actingAs($gestor)->test(ImportPayments::class)->fillForm(['file' => $secret2])->call('send');
+    Livewire::actingAs($gestor)->test(ImportPayments::class)->set('file', $secret2)->call('send');
     $payments = Import::where('kind', 'payments')->latest('id')->first();
     expect($payments->original_name)->toBe('arquivo-de-demonstracao.csv')->and($payments->summary['valid'])->toBe(31);
 });

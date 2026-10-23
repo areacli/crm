@@ -2,7 +2,7 @@
 
 namespace App\Enums;
 
-use Filament\Support\Contracts\HasLabel;
+use App\Support\Contracts\HasLabel;
 
 /** Regra de retorno de um resultado (R66, R73). */
 enum ReturnRule: string implements HasLabel

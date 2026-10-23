@@ -27,12 +27,12 @@ RUN npm install -g playwright@1.64.1 \
 # Contexto de build: a raiz do repositório. Alvos: producao-app (PHP-FPM, worker e agendador) e producao-web (nginx).
 # ---------------------------------------------------------------------------------------------------------
 
-# Dependências PHP sem as de desenvolvimento (o tema do Filament compila sobre o código do próprio Filament).
+# Dependências PHP sem as de desenvolvimento.
 FROM app AS dependencias
 COPY src/composer.json src/composer.lock ./
 RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist --no-interaction
 
-# Tema do painel e demais arquivos do Vite.
+# CSS (Tailwind) e demais arquivos do Vite.
 FROM node:26.12.1-trixie-slim@sha256:36793bcbb160a6a16cede1e62b93f84e26b78a972a8a4c0b879c1c12f22761ec AS assets
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 WORKDIR /app
@@ -56,10 +56,9 @@ COPY --from=dependencias /app/vendor ./vendor
 COPY src/ ./
 COPY --from=assets /app/public/build ./public/build
 # Os diretórios de trabalho do Laravel não vêm do código (o .dockerignore os exclui) e precisam existir antes de qualquer
-# comando do artisan. O Filament publica os arquivos dele em public/; a chave abaixo existe só durante a montagem.
+# comando do artisan; a chave abaixo existe só durante a montagem.
 RUN mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views storage/logs storage/app/private bootstrap/cache \
  && APP_KEY=base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA= composer dump-autoload --optimize --classmap-authoritative --no-dev --no-interaction \
- && APP_KEY=base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA= php artisan filament:assets --no-interaction \
  && rm -f /usr/bin/composer \
  && chown -R www-data:www-data storage bootstrap/cache
 COPY deploy/laravel/entrypoint.sh /usr/local/bin/crm-entrypoint

@@ -4,9 +4,8 @@ use App\Access\AccessManager;
 use App\Access\AccessRefused;
 use App\Access\ProfileManager;
 use App\Enums\Permission;
-use App\Filament\Resources\Memberships\Pages\ListMemberships;
-use App\Filament\Resources\Profiles\Pages\CreateProfile;
-use App\Filament\Resources\Profiles\Pages\ListProfiles;
+use App\Livewire\Access\Profiles;
+use App\Livewire\Access\Users;
 use App\Models\Membership;
 use App\Models\Profile;
 use App\Models\User;
@@ -120,7 +119,7 @@ it('liga pela tela quem já existe em outro credor, com aviso, sem redefinir nom
 
     // Desativar o vínculo na Alfa não tira a Marta da Beta.
     $svc->setActive($ana, $membership, false);
-    expect($marta->fresh()->canAccessPanel(Filament\Facades\Filament::getPanel('crm')))->toBeTrue()
+    expect($marta->fresh()->canEnter())->toBeTrue()
         ->and($marta->fresh()->hasAnyPermission(Permission::ViewPortfolio))->toBeTrue()
         ->and($marta->fresh()->tenantIdsWith(Permission::ViewPortfolio))->toBe([$beta->id]);
 });
@@ -132,8 +131,11 @@ it('não mostra nem permite agir sobre usuários de outro credor, nem por link (
     $outro = makeUser($beta, 'beta@exemplo.com.br');
     $other = $outro->memberships()->first();
 
-    Livewire::actingAs($ana)->test(ListMemberships::class)
-        ->assertCanSeeTableRecords($ana->memberships)->assertCanNotSeeTableRecords([$other]);
+    Livewire::actingAs($ana)->test(Users::class)
+        ->assertSee('ana@exemplo.com.br')->assertDontSee('beta@exemplo.com.br')
+        // Por link direto (id de outro credor), a ação não acha o vínculo.
+        ->call('setActive', $other->id, false)->assertStatus(404);
+    expect($outro->fresh()->memberships()->first()->active)->toBeTrue();
     expect(fn () => app(AccessManager::class)->changeProfile($ana, $other, $other->profile))->toThrow(AccessRefused::class);
     $this->assertDatabaseHas('access_events', ['event' => 'permission_denied', 'user_id' => $ana->id]);
 });
@@ -143,20 +145,61 @@ it('o gestor não vê a opção de desativar a si mesmo (R36)', function () {
     $ana = makeUser($tenant, 'ana@exemplo.com.br');
     $joana = makeUser($tenant, 'joana@exemplo.com.br');
 
-    Livewire::actingAs($ana)->test(ListMemberships::class)
-        ->assertTableActionHidden('deactivate', $ana->memberships()->first())
-        ->assertTableActionVisible('deactivate', $joana->memberships()->first());
+    $component = Livewire::actingAs($ana)->test(Users::class);
+    $html = $component->html();
+    expect($html)->toContain('setActive('.$joana->memberships()->first()->id.', false)')
+        ->not->toContain('setActive('.$ana->memberships()->first()->id.', false)');
+    // Por chamada direta, a própria desativação também é recusada.
+    $component->call('setActive', $ana->memberships()->first()->id, false);
+    expect($ana->memberships()->first()->active)->toBeTrue();
 });
 
 it('cria perfil pela tela, com as permissões escolhidas', function () {
     $tenant = makeTenant();
     $ana = makeUser($tenant, 'ana@exemplo.com.br');
 
-    Livewire::actingAs($ana)->test(CreateProfile::class)
-        ->fillForm(['name' => 'Analista de carga', 'permissions' => ['view_portfolio', 'upload_imports']])
-        ->call('create')->assertHasNoFormErrors();
+    Livewire::actingAs($ana)->test(Profiles\Form::class)
+        ->set('name', 'Analista de carga')->set('permissions', ['view_portfolio', 'upload_imports'])
+        ->call('save')->assertHasNoErrors()->assertRedirect(route('profiles.index'));
     expect(Profile::where('name', 'Analista de carga')->first()->permissions)->toBe(['view_portfolio', 'upload_imports']);
-    Livewire::actingAs($ana)->test(ListProfiles::class)->assertSee('Analista de carga');
+    Livewire::actingAs($ana)->test(Profiles\Index::class)->assertSee('Analista de carga');
+});
+
+it('cria usuário pela tela, mostra a senha temporária uma vez e liga quem já existe', function () {
+    $alfa = makeTenant('Alfa');
+    $beta = makeTenant('Beta');
+    $ana = makeUser($alfa, 'ana@exemplo.com.br');
+    makeUser($beta, 'marta@grupo.example');
+    $profile = operatorProfile($alfa);
+
+    Livewire::actingAs($ana)->test(Users::class)
+        ->call('open', 'new')
+        ->set('email', 'joana@exemplo.com.br')->set('profileId', (string) $profile->id)
+        ->call('addUser')->assertHasErrors(['name'])
+        ->set('name', 'Joana Souza')->call('addUser')->assertHasNoErrors()->assertDispatched('toast')
+        ->call('open', 'new')
+        ->set('email', 'marta@grupo.example')->set('profileId', (string) $profile->id)
+        ->call('addUser')->assertHasNoErrors()->assertDispatched('toast');
+
+    expect(User::where('email', 'joana@exemplo.com.br')->first()->mustChangePassword())->toBeTrue();
+    expect(Membership::where('tenant_id', $alfa->id)->whereRelation('user', 'email', 'marta@grupo.example')->exists())->toBeTrue();
+});
+
+it('muda o perfil, renomeia e redefine a senha pela tela', function () {
+    $tenant = makeTenant();
+    $operator = operatorProfile($tenant);
+    $ana = makeUser($tenant, 'ana@exemplo.com.br');
+    $joana = makeUser($tenant, 'joana@exemplo.com.br');
+    $id = $joana->memberships()->first()->id;
+
+    Livewire::actingAs($ana)->test(Users::class)
+        ->call('open', 'profile', $id)->set('profileId', (string) $operator->id)->call('changeProfile')->assertDispatched('toast')
+        ->call('open', 'rename', $id)->set('name', 'Joana Nova')->call('rename')->assertDispatched('toast')
+        ->call('resetPassword', $id)->assertDispatched('toast');
+
+    expect($joana->memberships()->first()->profile_id)->toBe($operator->id)
+        ->and($joana->fresh()->name)->toBe('Joana Nova')
+        ->and($joana->fresh()->mustChangePassword())->toBeTrue();
 });
 
 it('o comando cria com senha temporária, liga a outro credor, renomeia e lista (R43)', function () {

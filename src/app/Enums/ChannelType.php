@@ -2,7 +2,7 @@
 
 namespace App\Enums;
 
-use Filament\Support\Contracts\HasLabel;
+use App\Support\Contracts\HasLabel;
 
 /** Tipo do canal de recebimento (R45); só leitura, não entra em cálculo. */
 enum ChannelType: string implements HasLabel

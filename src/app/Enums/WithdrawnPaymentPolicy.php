@@ -2,7 +2,7 @@
 
 namespace App\Enums;
 
-use Filament\Support\Contracts\HasLabel;
+use App\Support\Contracts\HasLabel;
 
 /** Política do credor para pagamento de título retirado (R46a). */
 enum WithdrawnPaymentPolicy: string implements HasLabel

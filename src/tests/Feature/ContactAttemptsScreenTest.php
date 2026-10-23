@@ -1,7 +1,8 @@
 <?php
 
 use App\Enums\Permission;
-use App\Livewire\CustomerContactAttempts;
+use App\Livewire\Contacts\Index;
+use App\Livewire\Customers\ContactAttempts as CustomerContactAttempts;
 use App\Models\ContactAttempt;
 use App\Models\ContactResult;
 use App\Models\Profile;
@@ -24,8 +25,10 @@ it('o operador registra pela ficha e o acionamento aparece no topo do histórico
     $naoAtendeu = ContactResult::where('name', 'Não atendeu')->first();
 
     Livewire::actingAs($this->joana)->test(CustomerContactAttempts::class, ['customerId' => $this->maria->id])
-        ->callTableAction('record', data: ['channel' => 'phone', 'result_id' => $naoAtendeu->id, 'contact_used' => '(11) 98765-4321', 'contacted_at' => now()->toDateTimeString()])
-        ->assertHasNoTableActionErrors()
+        ->call('openRecord')
+        ->set('channel', 'phone')->set('resultId', (string) $naoAtendeu->id)->set('contactUsed', '(11) 98765-4321')->set('contactedAt', now()->format('Y-m-d\TH:i'))
+        ->call('record')
+        ->assertHasNoErrors()->assertDispatched('toast', message: 'Acionamento registrado')
         ->assertSee('Não atendeu')->assertSee('Telefone')->assertSee('(11) 98765-4321')->assertSee($this->joana->name);
 
     expect(ContactAttempt::count())->toBe(1);
@@ -35,8 +38,9 @@ it('o formulário não aparece para quem não registra, e a ficha mostra só o h
     ContactAttempt::factory()->create(['customer_id' => $this->maria->id, 'result_id' => ContactResult::first()->id, 'user_id' => $this->joana->id]);
 
     Livewire::actingAs($this->reader)->test(CustomerContactAttempts::class, ['customerId' => $this->maria->id])
-        ->assertTableActionHidden('record')->assertCountTableRecords(1);
-    Livewire::actingAs($this->joana)->test(CustomerContactAttempts::class, ['customerId' => $this->maria->id])->assertTableActionVisible('record');
+        ->assertDontSeeHtml('wire:click="openRecord"')->assertSee('1 registro')
+        ->call('openRecord')->assertForbidden();
+    Livewire::actingAs($this->joana)->test(CustomerContactAttempts::class, ['customerId' => $this->maria->id])->assertSeeHtml('wire:click="openRecord"');
 });
 
 it('mostra o texto exatamente como digitado, sem interpretar (R72)', function () {
@@ -54,8 +58,7 @@ it('mostra 20 por vez, do mais recente ao mais antigo (R74)', function () {
 
     $component = Livewire::actingAs($this->joana)->test(CustomerContactAttempts::class, ['customerId' => $this->maria->id]);
 
-    $component->assertCountTableRecords(25);
-    expect($component->instance()->getTableRecords()->count())->toBe(20);
+    $component->assertSee('de 25 registros')->assertSee('Exibindo 1 a 20');
     $component->assertSee('contato 1')->assertDontSee('contato 25');
 });
 
@@ -64,12 +67,14 @@ it('a anulação pede motivo, fica no histórico e some do botão (R75)', functi
     $others = ContactAttempt::factory()->create(['customer_id' => $this->maria->id, 'result_id' => ContactResult::first()->id, 'user_id' => $this->manager->id]);
     $component = Livewire::actingAs($this->joana)->test(CustomerContactAttempts::class, ['customerId' => $this->maria->id]);
 
-    $component->assertTableActionVisible('void', $mine)->assertTableActionHidden('void', $others);
-    $component->callTableAction('void', $mine, data: ['reason' => 'cliente errado'])->assertSee('Anulado: cliente errado');
+    $component->assertSeeHtml('askVoid('.$mine->id.')')->assertDontSeeHtml('askVoid('.$others->id.')');
+    Livewire::actingAs($this->joana)->test(CustomerContactAttempts::class, ['customerId' => $this->maria->id])->call('askVoid', $others->id)->assertForbidden();
+    $component->call('askVoid', $mine->id)->call('void')->assertHasErrors(['voidReason' => 'required']);
+    $component->call('askVoid', $mine->id)->set('voidReason', 'cliente errado')->call('void')->assertSee('Anulado: cliente errado');
     expect($mine->fresh()->isVoided())->toBeTrue();
-    $component->assertTableActionHidden('void', $mine->fresh());
+    $component->assertDontSeeHtml('askVoid('.$mine->id.')');
 
-    Livewire::actingAs($this->manager)->test(CustomerContactAttempts::class, ['customerId' => $this->maria->id])->assertTableActionVisible('void', $others);
+    Livewire::actingAs($this->manager)->test(CustomerContactAttempts::class, ['customerId' => $this->maria->id])->assertSeeHtml('askVoid('.$others->id.')');
 });
 
 it('quem não vê o cliente não abre o histórico dele, nem pelo componente (MT-5, V10)', function () {
@@ -79,8 +84,14 @@ it('quem não vê o cliente não abre o histórico dele, nem pelo componente (MT
     Livewire::actingAs($outsider)->test(CustomerContactAttempts::class, ['customerId' => $this->maria->id])->assertStatus(404);
 });
 
-it('toda tabela mostra 20 registros por página, com 20, 50 e 100 à escolha (P22)', function () {
-    $table = Livewire::actingAs($this->joana)->test(CustomerContactAttempts::class, ['customerId' => $this->maria->id])->instance()->getTable();
+it('a lista de acionamentos abre com 20 por página, com 20, 50 e 100 à escolha (P22)', function () {
+    foreach (range(1, 25) as $i) {
+        ContactAttempt::factory()->create(['customer_id' => $this->maria->id, 'result_id' => ContactResult::first()->id, 'contacted_at' => now()->subMinutes($i)]);
+    }
 
-    expect($table->getDefaultPaginationPageOption())->toBe(20)->and($table->getPaginationPageOptions())->toBe([20, 50, 100]);
+    $page = Livewire::actingAs($this->manager)->test(Index::class);
+    expect($page->get('perPage'))->toBe(20);
+    $page->assertSee('Exibindo 1 a 20 de 25 registros')->assertSeeHtml('<option value="50"')->assertSeeHtml('<option value="100"');
+    $page->set('perPage', 50)->assertSee('Exibindo 1 a 25 de 25 registros');
+    $page->set('perPage', 7)->assertSet('perPage', 20);
 });

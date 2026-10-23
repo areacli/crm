@@ -4,8 +4,6 @@ namespace App\Models;
 
 use App\Enums\Permission;
 use Database\Factories\UserFactory;
-use Filament\Models\Contracts\FilamentUser;
-use Filament\Panel;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -15,7 +13,7 @@ use Illuminate\Notifications\Notifiable;
 
 #[Fillable(['name', 'email', 'password', 'active'])]
 #[Hidden(['password', 'remember_token'])]
-class User extends Authenticatable implements FilamentUser
+class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
@@ -40,11 +38,11 @@ class User extends Authenticatable implements FilamentUser
     }
 
     /**
-     * Quem entra: usuário ativo, fora do bloqueio de tentativas (R25, R27) e com vínculo ativo a pelo menos um
-     * credor (MT-2). A recusa tem a mesma mensagem para qualquer motivo, e vale a cada requisição, o que
-     * derruba as sessões abertas de um usuário desativado (R25).
+     * Quem entra: usuário ativo, fora do bloqueio de tentativas (R25, R27), com a senha temporária ainda dentro do prazo
+     * (R37) e com vínculo ativo a pelo menos um credor (MT-2). A recusa tem a mesma mensagem para qualquer motivo, e vale a
+     * cada requisição, o que derruba as sessões abertas de um usuário desativado (R25).
      */
-    public function canAccessPanel(Panel $panel): bool
+    public function canEnter(): bool
     {
         return $this->active
             && ! $this->isLocked()
@@ -52,7 +50,6 @@ class User extends Authenticatable implements FilamentUser
             && $this->memberships()->where('active', true)->exists();
     }
 
-    /** R37: vencido o prazo, a senha temporária é recusada no login, com a mensagem de sempre. */
     public function temporaryPasswordExpired(): bool
     {
         return $this->temporary_password_until !== null && $this->temporary_password_until->isPast();

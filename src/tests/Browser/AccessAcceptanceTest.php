@@ -16,13 +16,13 @@ beforeEach(function () {
 
 it('o gestor cria um operador pela tela e vê a senha temporária uma única vez', function () {
     $page = visit('/login');
-    $page->type('#form\\.email', 'gestor@demo.exemplo.com.br')->type('#form\\.password', 'demonstracao-gestor')->press('Login')
+    $page->type('#email', 'gestor@demo.exemplo.com.br')->type('#password', 'demonstracao-gestor')->click('button[type=submit]')
         ->assertSee('Resumo da carteira');
 
     $page->navigate('/usuarios')->assertSee('Usuários')->click('Novo usuário')
-        ->type('[id$="email"]', 'joana.souza@credor.example')->type('[id$="name"]', 'Joana Souza')
-        ->select('[id$="profile_id"]', (string) Profile::where('name', 'Operador')->value('id'))
-        ->click('Enviar')->assertSee('Senha temporária');
+        ->type('[role=dialog] input[wire\\:model="email"]', 'joana.souza@credor.example')->type('[role=dialog] input[wire\\:model="name"]', 'Joana Souza')
+        ->select('[role=dialog] select[wire\\:model="profileId"]', (string) Profile::where('name', 'Operador')->value('id'))
+        ->click('Salvar')->assertSee('Senha temporária');
 
     expect(User::where('email', 'joana.souza@credor.example')->first()?->mustChangePassword())->toBeTrue();
 });
@@ -33,10 +33,10 @@ it('o operador define a própria senha no primeiro acesso e não vê Importar ne
     [, $password] = app(AccessManager::class)->createUser(User::where('email', 'gestor@demo.exemplo.com.br')->first(), $tenant, 'joana.souza@credor.example', 'Joana Souza', $profile);
 
     $page = visit('/login');
-    $page->type('#form\\.email', 'joana.souza@credor.example')->type('#form\\.password', $password)->press('Login')
+    $page->type('#email', 'joana.souza@credor.example')->type('#password', $password)->click('button[type=submit]')
         ->assertPathIs('/senha')->assertSee('senha temporária');
-    $page->type('#form\\.current_password', $password)->type('#form\\.password', 'senha-nova-bem-longa')
-        ->type('#form\\.password_confirmation', 'senha-nova-bem-longa')->press('Salvar a nova senha')
+    $page->type('#current_password', $password)->type('#password', 'senha-nova-bem-longa')
+        ->type('#password_confirmation', 'senha-nova-bem-longa')->press('Salvar a nova senha')
         ->assertSee('Resumo da carteira')->assertDontSee('Importar carteira')->assertDontSee('Configuração');
     $page->navigate('/importar')->assertDontSee('Enviar e conferir');
 

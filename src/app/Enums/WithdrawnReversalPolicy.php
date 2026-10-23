@@ -2,7 +2,7 @@
 
 namespace App\Enums;
 
-use Filament\Support\Contracts\HasLabel;
+use App\Support\Contracts\HasLabel;
 
 /** Política do credor para o título retirado, quitado e estornado (R62a). */
 enum WithdrawnReversalPolicy: string implements HasLabel

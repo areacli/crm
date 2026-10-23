@@ -1,7 +1,7 @@
 <?php
 
 use App\Access\TemporaryPassword;
-use App\Filament\Pages\ChangePassword;
+use App\Livewire\Auth\ChangePassword;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Livewire\Livewire;
@@ -15,8 +15,8 @@ it('leva quem tem senha temporária só à tela de definir a senha (R38)', funct
     $user = makeUser($tenant, 'joana@exemplo.com.br');
     $user->forceFill(['temporary_password_until' => now()->addHours(10)])->save();
 
-    $this->actingAs($user)->get('/')->assertRedirect(ChangePassword::getUrl());
-    $this->actingAs($user)->get(ChangePassword::getUrl())->assertOk()->assertSee('senha temporária');
+    $this->actingAs($user)->get('/')->assertRedirect(route('password'));
+    $this->actingAs($user)->get(route('password'))->assertOk()->assertSee('senha temporária');
 });
 
 it('recusa o login com senha temporária vencida (R37)', function () {
@@ -24,7 +24,7 @@ it('recusa o login com senha temporária vencida (R37)', function () {
     $user = makeUser($tenant, 'joana@exemplo.com.br');
     $user->forceFill(['temporary_password_until' => now()->subHour()])->save();
 
-    expect($user->fresh()->canAccessPanel(Filament\Facades\Filament::getPanel('crm')))->toBeFalse();
+    expect($user->fresh()->canEnter())->toBeFalse();
     $this->actingAs($user)->get('/')->assertRedirect();
 });
 
@@ -35,16 +35,16 @@ it('troca a senha com a atual, recusa a igual e a fraca (R38, R39)', function ()
     $this->actingAs($user);
 
     Livewire::test(ChangePassword::class)
-        ->fillForm(['current_password' => 'Temporaria-1234', 'password' => 'Temporaria-1234', 'password_confirmation' => 'Temporaria-1234'])
+        ->set(['current_password' => 'Temporaria-1234', 'password' => 'Temporaria-1234', 'password_confirmation' => 'Temporaria-1234'])
         ->call('save')->assertHasErrors();
     Livewire::test(ChangePassword::class)
-        ->fillForm(['current_password' => 'Temporaria-1234', 'password' => '123456789012', 'password_confirmation' => '123456789012'])
+        ->set(['current_password' => 'Temporaria-1234', 'password' => '123456789012', 'password_confirmation' => '123456789012'])
         ->call('save')->assertHasErrors();
     Livewire::test(ChangePassword::class)
-        ->fillForm(['current_password' => 'errada', 'password' => 'Outra-senha-forte-9', 'password_confirmation' => 'Outra-senha-forte-9'])
+        ->set(['current_password' => 'errada', 'password' => 'Outra-senha-forte-9', 'password_confirmation' => 'Outra-senha-forte-9'])
         ->call('save')->assertHasErrors();
     Livewire::test(ChangePassword::class)
-        ->fillForm(['current_password' => 'Temporaria-1234', 'password' => 'Outra-senha-forte-9', 'password_confirmation' => 'Outra-senha-forte-9'])
+        ->set(['current_password' => 'Temporaria-1234', 'password' => 'Outra-senha-forte-9', 'password_confirmation' => 'Outra-senha-forte-9'])
         ->call('save')->assertHasNoErrors();
 
     $user = User::find($user->id);

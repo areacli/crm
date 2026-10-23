@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Artisan;
 
 function signIn($page, string $email, string $password)
 {
-    return $page->type('#form\\.email', $email)->type('#form\\.password', $password)->press('Login');
+    return $page->type('#email', $email)->type('#password', $password)->click('button[type=submit]');
 }
 
 beforeEach(function () {
@@ -21,7 +21,7 @@ beforeEach(function () {
 it('manda quem não tem sessão para a entrada e volta para a lista depois do login', function () {
     $page = visit('/clientes');
 
-    $page->assertSee('Faça login');
+    $page->assertSee('Entrar');
     signIn($page, 'gestor@demo.exemplo.com.br', 'demonstracao-gestor')->assertPathIs('/clientes')->assertSee('Clientes');
 });
 
@@ -39,7 +39,7 @@ it('mostra a lista, abre a ficha e mostra o contrato com os títulos', function 
     signIn($page, 'operador@demo.exemplo.com.br', 'demonstracao-operador')->assertPathIs('/');
 
     $page->navigate('/clientes')->assertSee('Clientes')->assertSee('Documento')->assertSee('Vencido')->assertSee('Faixa');
-    $page->click('Abrir')->assertSee('Contrato CT-')->assertSee('Maior atraso')->assertSee('Situação');
+    $page->click('table tbody tr:first-child a')->assertSee('Contrato CT-')->assertSee('Maior atraso')->assertSee('Situação');
 });
 
 // Permissão 2 (enviar importação): o operador não vê "Importar carteira" no menu.

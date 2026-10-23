@@ -8,9 +8,6 @@ src/.env.*
 src/vendor
 src/node_modules
 src/public/build
-src/public/css/filament
-src/public/js/filament
-src/public/fonts/filament
 src/storage/logs
 src/storage/app
 src/storage/framework
