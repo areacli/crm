@@ -18,6 +18,7 @@ use Tests\TestCase;
 // Os testes de funcionalidade não precisam dos arquivos compilados pelo Vite (npm run build).
 pest()->extend(TestCase::class)->use(RefreshDatabase::class)->beforeEach(fn () => $this->withoutVite())->in('Feature');
 pest()->extend(TestCase::class)->in('Unit');
+pest()->extend(TestCase::class)->use(RefreshDatabase::class)->in('Browser');
 
 /** Credor com a configuração inicial e um perfil de gestor com todas as permissões, montados com as factories. */
 function makeTenant(string $name = 'Escola Alfa'): Tenant

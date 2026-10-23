@@ -3,11 +3,11 @@
 namespace App\Models;
 
 use App\Enums\Permission;
+use App\Models\Concerns\BelongsToTenant;
 use Database\Factories\ProfileFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /** Perfil de um credor: o conjunto de permissões que o vínculo concede (MT-3, MT-21). */
@@ -15,16 +15,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Profile extends Model
 {
     /** @use HasFactory<ProfileFactory> */
-    use HasFactory;
+    use BelongsToTenant, HasFactory;
 
     protected function casts(): array
     {
         return ['permissions' => 'array'];
-    }
-
-    public function tenant(): BelongsTo
-    {
-        return $this->belongsTo(Tenant::class);
     }
 
     public function memberships(): HasMany

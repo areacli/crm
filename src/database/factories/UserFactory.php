@@ -34,6 +34,7 @@ class UserFactory extends Factory
             'failed_attempts' => 0,
             'locked_until' => null,
             'last_login_at' => null,
+            'temporary_password_until' => null,
         ];
     }
 

@@ -5,7 +5,11 @@ use App\Enums\ImportStatus;
 use App\Filament\Pages\ImportPortfolio;
 use App\Filament\Resources\Imports\Pages\ListImports;
 use App\Filament\Resources\Imports\Pages\ViewImport;
+use App\Import\CsvColumns;
+use App\Import\CsvFile;
+use App\Import\ImportChecker;
 use App\Import\ImportService;
+use App\Jobs\CheckImport;
 use App\Models\Bill;
 use App\Models\Import;
 use App\Models\Profile;
@@ -87,4 +91,23 @@ it('não oferece confirmar a quem só pode enviar', function () {
 
     $this->actingAs($sender->fresh());
     Livewire::test(ViewImport::class, ['record' => $import->id])->assertActionHidden('confirm');
+});
+
+it('mostra as colunas e oferece a planilha-modelo, que passa na conferência sem recusa (R44)', function () {
+    $tenant = makeTenant();
+    $ana = makeUser($tenant, 'ana@exemplo.com.br');
+
+    Livewire::actingAs($ana)->test(ImportPortfolio::class)
+        ->assertSee('Colunas da planilha')->assertSee('vencimento')->assertSee('dd/mm/aaaa')
+        ->callAction('template')->assertFileDownloaded('planilha-modelo-carteira.csv');
+
+    $names = array_column(CsvColumns::all(), 'name');
+    expect($names)->toEqualCanonicalizing([...CsvFile::REQUIRED, ...CsvFile::OPTIONAL]);
+
+    $path = tempnam(sys_get_temp_dir(), 'modelo');
+    file_put_contents($path, CsvColumns::templateCsv());
+    $import = app(ImportService::class)->start($tenant, $ana, $path, ImportMode::Incremental, 'modelo.csv');
+    (new CheckImport($import))->handle(app(ImportChecker::class));
+    $import->refresh();
+    expect($import->summary['valid'])->toBe(3)->and($import->summary['rejected'])->toBe(0);
 });

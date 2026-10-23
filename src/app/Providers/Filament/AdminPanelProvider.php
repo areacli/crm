@@ -2,8 +2,11 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Pages\ChangePassword;
 use App\Filament\Pages\Summary;
 use App\Http\Middleware\EnforceSessionLimits;
+use App\Http\Middleware\RequirePasswordChange;
+use Filament\Actions\Action;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -11,6 +14,7 @@ use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\Support\Icons\Heroicon;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
@@ -28,6 +32,10 @@ class AdminPanelProvider extends PanelProvider
             ->path('')
             ->brandName('CRM')
             ->login()
+            ->databaseNotifications()
+            ->userMenuItems([
+                Action::make('change-password')->label('Trocar a senha')->icon(Heroicon::OutlinedKey)->url(fn () => ChangePassword::getUrl()),
+            ])
             // Tema compilado com Vite e Tailwind: as classes das views próprias do CRM (resources/views/filament) entram no CSS.
             ->viteTheme('resources/css/filament/crm/theme.css')
             ->colors([
@@ -44,6 +52,7 @@ class AdminPanelProvider extends PanelProvider
                 AddQueuedCookiesToResponse::class,
                 StartSession::class,
                 EnforceSessionLimits::class,
+                RequirePasswordChange::class,
                 AuthenticateSession::class,
                 ShareErrorsFromSession::class,
                 PreventRequestForgery::class,

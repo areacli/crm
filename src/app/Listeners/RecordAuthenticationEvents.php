@@ -3,10 +3,10 @@
 namespace App\Listeners;
 
 use App\Models\User;
+use App\Support\AccessLog;
 use Illuminate\Auth\Events\Failed;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;
-use Illuminate\Support\Facades\DB;
 
 /**
  * Regras de acesso ligadas aos eventos de autenticação do Laravel (especificação 01, R27 e R29), registradas pela
@@ -55,12 +55,6 @@ final class RecordAuthenticationEvents
 
     private function log(string $kind, ?User $user, ?string $email): void
     {
-        DB::table('access_events')->insert([
-            'user_id' => $user?->id,
-            'email' => $email !== null && $email !== '' ? mb_substr($email, 0, 254) : null,
-            'event' => $kind,
-            'ip' => request()?->ip(),
-            'occurred_at' => now(),
-        ]);
+        AccessLog::record($kind, $user, email: $email);
     }
 }
