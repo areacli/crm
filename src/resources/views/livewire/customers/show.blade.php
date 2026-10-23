@@ -1,5 +1,5 @@
 @php use App\Support\Document; @endphp
-<div class="space-y-6">
+<div class="space-y-4">
     <x-ui.page-header :title="$customer->name">
         <x-slot:actions>
             @if ($this->canTransfer())

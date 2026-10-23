@@ -18,13 +18,13 @@
             <tbody class="divide-y divide-slate-200">
                 @foreach ($rows as $m)
                     <tr wire:key="m{{ $m->id }}" class="hover:bg-slate-50">
-                        <td class="px-3 py-2">{{ $m->user->name }}</td>
-                        <td class="px-3 py-2">{{ $m->user->email }}</td>
-                        @if ($several)<td class="px-3 py-2">{{ $m->tenant->name }}</td>@endif
-                        <td class="px-3 py-2">{{ $m->profile->name }}</td>
-                        <td class="px-3 py-2">{{ $m->active ? 'Sim' : 'Não' }}</td>
-                        <td class="whitespace-nowrap px-3 py-2">{{ $m->user->last_login_at?->format('d/m/Y H:i') ?: '—' }}</td>
-                        <td class="space-x-1 whitespace-nowrap px-3 py-2 text-right">
+                        <td class="px-2 py-1.5">{{ $m->user->name }}</td>
+                        <td class="px-2 py-1.5">{{ $m->user->email }}</td>
+                        @if ($several)<td class="px-2 py-1.5">{{ $m->tenant->name }}</td>@endif
+                        <td class="px-2 py-1.5">{{ $m->profile->name }}</td>
+                        <td class="px-2 py-1.5">{{ $m->active ? 'Sim' : 'Não' }}</td>
+                        <td class="whitespace-nowrap px-2 py-1.5">{{ $m->user->last_login_at?->format('d/m/Y H:i') ?: '—' }}</td>
+                        <td class="space-x-1 whitespace-nowrap px-2 py-1.5 text-right">
                             @can('changeProfile', $m)<x-ui.button size="sm" variant="secondary" wire:click="open('profile', {{ $m->id }})">Mudar o perfil</x-ui.button>@endcan
                             @if ($personal($m))
                                 <x-ui.button size="sm" variant="secondary" wire:click="open('rename', {{ $m->id }})">Alterar o nome</x-ui.button>

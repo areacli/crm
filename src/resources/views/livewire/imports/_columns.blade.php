@@ -5,10 +5,10 @@
         <tbody class="divide-y divide-slate-200">
             @foreach ($columns as $column)
                 <tr>
-                    <td class="px-3 py-2 font-mono">{{ $column['name'] }}</td>
-                    <td class="px-3 py-2">{{ $column['required'] ? 'Sim' : 'Não' }}</td>
-                    <td class="px-3 py-2">{{ $column['format'] }}</td>
-                    <td class="px-3 py-2 font-mono">{{ $column['example'] }}</td>
+                    <td class="px-2 py-1.5 font-mono">{{ $column['name'] }}</td>
+                    <td class="px-2 py-1.5">{{ $column['required'] ? 'Sim' : 'Não' }}</td>
+                    <td class="px-2 py-1.5">{{ $column['format'] }}</td>
+                    <td class="px-2 py-1.5 font-mono">{{ $column['example'] }}</td>
                 </tr>
             @endforeach
         </tbody>

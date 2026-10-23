@@ -5,6 +5,8 @@
 @source '../../storage/framework/views/*.php';
 
 @layer base {
+    /* Interface compacta: tudo em rem encolhe junto com a raiz. */
+    html { font-size: 14px; }
     body { @apply bg-slate-50 text-slate-900 antialiased; }
     [x-cloak] { display: none !important; }
 }

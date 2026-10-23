@@ -44,14 +44,14 @@
             <tbody class="divide-y divide-slate-200">
                 @foreach ($rows as $row)
                     <tr wire:key="c{{ $row->id }}" class="hover:bg-slate-50">
-                        @if ($several)<td class="px-3 py-2">{{ $row->tenant->name }}</td>@endif
-                        <td class="px-3 py-2"><a href="{{ route('customers.show', $row->id) }}" wire:navigate class="font-semibold text-blue-600 hover:underline">{{ $row->name }}</a></td>
-                        <td class="px-3 py-2 font-mono">{{ Document::mask($row->document) }}</td>
-                        <td class="px-3 py-2 text-right">{{ number_format($row->bills_count, 0, ',', '.') }}</td>
-                        <td class="px-3 py-2 text-right">R$ {{ Money::format((int) $row->overdue_cents) }}</td>
-                        <td class="px-3 py-2 text-right">{{ $this->upcomingText($row, $settings) }}</td>
-                        <td class="px-3 py-2 text-right">{{ $row->max_days_overdue === null ? '—' : $row->max_days_overdue.' dias' }}</td>
-                        <td class="px-3 py-2"><x-ui.badge>{{ $portfolio->bracketLabel($row->tenant_id, $row->max_days_overdue === null ? null : (int) $row->max_days_overdue) }}</x-ui.badge></td>
+                        @if ($several)<td class="px-2 py-1.5">{{ $row->tenant->name }}</td>@endif
+                        <td class="px-2 py-1.5"><a href="{{ route('customers.show', $row->id) }}" wire:navigate class="font-semibold text-blue-600 hover:underline">{{ $row->name }}</a></td>
+                        <td class="px-2 py-1.5 font-mono">{{ Document::mask($row->document) }}</td>
+                        <td class="px-2 py-1.5 text-right">{{ number_format($row->bills_count, 0, ',', '.') }}</td>
+                        <td class="px-2 py-1.5 text-right">R$ {{ Money::format((int) $row->overdue_cents) }}</td>
+                        <td class="px-2 py-1.5 text-right">{{ $this->upcomingText($row, $settings) }}</td>
+                        <td class="px-2 py-1.5 text-right">{{ $row->max_days_overdue === null ? '—' : $row->max_days_overdue.' dias' }}</td>
+                        <td class="px-2 py-1.5"><x-ui.badge>{{ $portfolio->bracketLabel($row->tenant_id, $row->max_days_overdue === null ? null : (int) $row->max_days_overdue) }}</x-ui.badge></td>
                     </tr>
                 @endforeach
             </tbody>

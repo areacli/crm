@@ -10,7 +10,7 @@
     $n = fn ($v) => number_format((int) $v, 0, ',', '.');
 @endphp
 
-<div class="space-y-6" @if ($inProgress) wire:poll.3s @endif>
+<div class="space-y-4" @if ($inProgress) wire:poll.3s @endif>
     <x-ui.card>
         <dl class="grid grid-cols-2 gap-4 md:grid-cols-4">
             <div><dt class="text-sm text-slate-500">Situação</dt><dd class="font-semibold">{{ $import->status->getLabel() }}</dd></div>

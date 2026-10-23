@@ -1,4 +1,4 @@
-<div class="space-y-6">
+<div class="space-y-4">
     <x-ui.page-header title="Importar carteira">
         <x-slot:actions><x-ui.button variant="secondary" wire:click="template">Baixar a planilha-modelo</x-ui.button></x-slot:actions>
     </x-ui.page-header>

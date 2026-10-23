@@ -28,15 +28,15 @@
             <tbody class="divide-y divide-slate-200">
                 @foreach ($rows as $row)
                     <tr wire:key="r{{ $row->id }}" @class(['hover:bg-slate-50', 'opacity-60' => $row->isVoided()])>
-                        <td class="whitespace-nowrap px-3 py-2">{{ $row->contacted_at->format('d/m/Y H:i') }}</td>
-                        @if ($several)<td class="px-3 py-2">{{ $row->tenant->name }}</td>@endif
-                        <td class="px-3 py-2"><a href="{{ route('customers.show', $row->customer_id) }}" wire:navigate class="font-semibold text-blue-600 hover:underline">{{ $row->customer->name }}</a></td>
-                        <td class="px-3 py-2">{{ $row->contract?->code ?: '—' }}</td>
-                        <td class="px-3 py-2"><x-ui.badge>{{ $row->channel->getLabel() }}</x-ui.badge></td>
-                        <td class="px-3 py-2">{{ $row->result->name }}@if ($row->isVoided())<br><span class="text-xs text-red-700">Anulado</span>@endif</td>
-                        <td class="px-3 py-2"><x-ui.badge :color="$row->result_type->getColor()">{{ $row->result_type->getLabel() }}</x-ui.badge></td>
-                        <td class="px-3 py-2">{{ $row->user?->name ?: '—' }}</td>
-                        <td class="whitespace-nowrap px-3 py-2">{{ $row->return_at?->format('d/m/Y H:i') ?: '—' }}</td>
+                        <td class="whitespace-nowrap px-2 py-1.5">{{ $row->contacted_at->format('d/m/Y H:i') }}</td>
+                        @if ($several)<td class="px-2 py-1.5">{{ $row->tenant->name }}</td>@endif
+                        <td class="px-2 py-1.5"><a href="{{ route('customers.show', $row->customer_id) }}" wire:navigate class="font-semibold text-blue-600 hover:underline">{{ $row->customer->name }}</a></td>
+                        <td class="px-2 py-1.5">{{ $row->contract?->code ?: '—' }}</td>
+                        <td class="px-2 py-1.5"><x-ui.badge>{{ $row->channel->getLabel() }}</x-ui.badge></td>
+                        <td class="px-2 py-1.5">{{ $row->result->name }}@if ($row->isVoided())<br><span class="text-xs text-red-700">Anulado</span>@endif</td>
+                        <td class="px-2 py-1.5"><x-ui.badge :color="$row->result_type->getColor()">{{ $row->result_type->getLabel() }}</x-ui.badge></td>
+                        <td class="px-2 py-1.5">{{ $row->user?->name ?: '—' }}</td>
+                        <td class="whitespace-nowrap px-2 py-1.5">{{ $row->return_at?->format('d/m/Y H:i') ?: '—' }}</td>
                     </tr>
                 @endforeach
             </tbody>

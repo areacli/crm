@@ -21,12 +21,12 @@
             <tbody class="divide-y divide-slate-200">
                 @foreach ($rows as $row)
                     <tr wire:key="ch{{ $row->id }}" class="hover:bg-slate-50">
-                        @if ($several)<td class="px-3 py-2">{{ $row->tenant->name }}</td>@endif
-                        <td class="px-3 py-2 font-mono">{{ $row->code }}</td>
-                        <td class="px-3 py-2"><x-ui.badge>{{ $row->type->getLabel() }}</x-ui.badge></td>
-                        <td class="px-3 py-2">{{ $row->description }}</td>
-                        <td class="px-3 py-2">{{ $row->active ? 'Sim' : 'Não' }}</td>
-                        <td class="space-x-2 whitespace-nowrap px-3 py-2 text-right">
+                        @if ($several)<td class="px-2 py-1.5">{{ $row->tenant->name }}</td>@endif
+                        <td class="px-2 py-1.5 font-mono">{{ $row->code }}</td>
+                        <td class="px-2 py-1.5"><x-ui.badge>{{ $row->type->getLabel() }}</x-ui.badge></td>
+                        <td class="px-2 py-1.5">{{ $row->description }}</td>
+                        <td class="px-2 py-1.5">{{ $row->active ? 'Sim' : 'Não' }}</td>
+                        <td class="space-x-2 whitespace-nowrap px-2 py-1.5 text-right">
                             <x-ui.button size="sm" variant="secondary" wire:click="openEdit({{ $row->id }})">Editar</x-ui.button>
                             @if ($row->payments_count === 0)
                                 <x-ui.button size="sm" variant="danger" wire:click="delete({{ $row->id }})" wire:confirm="Apagar o canal {{ $row->code }}?">Apagar</x-ui.button>
