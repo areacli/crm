@@ -25,12 +25,12 @@
                     <x-ui.th>Cliente</x-ui.th><x-ui.th>Contrato</x-ui.th><x-ui.th>Canal</x-ui.th><x-ui.th>Resultado</x-ui.th><x-ui.th>Tipo</x-ui.th><x-ui.th>Operador</x-ui.th><x-ui.th>Retorno</x-ui.th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-slate-200">
+            <tbody class="divide-y divide-line">
                 @foreach ($rows as $row)
-                    <tr wire:key="r{{ $row->id }}" @class(['hover:bg-slate-50', 'opacity-60' => $row->isVoided()])>
+                    <tr wire:key="r{{ $row->id }}" @class(['hover:bg-surface', 'opacity-60' => $row->isVoided()])>
                         <td class="whitespace-nowrap px-2 py-1.5">{{ $row->contacted_at->format('d/m/Y H:i') }}</td>
                         @if ($several)<td class="px-2 py-1.5">{{ $row->tenant->name }}</td>@endif
-                        <td class="px-2 py-1.5"><a href="{{ route('customers.show', $row->customer_id) }}" wire:navigate class="font-semibold text-blue-600 hover:underline">{{ $row->customer->name }}</a></td>
+                        <td class="px-2 py-1.5"><a href="{{ route('customers.show', $row->customer_id) }}" wire:navigate class="font-semibold text-brand-blue hover:underline">{{ $row->customer->name }}</a></td>
                         <td class="px-2 py-1.5">{{ $row->contract?->code ?: '—' }}</td>
                         <td class="px-2 py-1.5"><x-ui.badge>{{ $row->channel->getLabel() }}</x-ui.badge></td>
                         <td class="px-2 py-1.5">{{ $row->result->name }}@if ($row->isVoided())<br><span class="text-xs text-red-700">Anulado</span>@endif</td>

@@ -13,19 +13,19 @@
 <div class="space-y-4" @if ($inProgress) wire:poll.3s @endif>
     <x-ui.card>
         <dl class="grid grid-cols-2 gap-4 md:grid-cols-4">
-            <div><dt class="text-sm text-slate-500">Situação</dt><dd class="font-semibold">{{ $import->status->getLabel() }}</dd></div>
-            <div><dt class="text-sm text-slate-500">Tipo</dt><dd class="font-semibold">{{ $reversals ? 'Estornos' : 'Pagamentos' }}</dd></div>
-            <div><dt class="text-sm text-slate-500">Arquivo</dt><dd class="font-semibold break-all">{{ $import->original_name }}</dd></div>
-            <div><dt class="text-sm text-slate-500">Credor</dt><dd class="font-semibold">{{ $import->tenant->name }}</dd></div>
+            <div><dt class="text-sm text-ink-soft">Situação</dt><dd class="font-semibold">{{ $import->status->getLabel() }}</dd></div>
+            <div><dt class="text-sm text-ink-soft">Tipo</dt><dd class="font-semibold">{{ $reversals ? 'Estornos' : 'Pagamentos' }}</dd></div>
+            <div><dt class="text-sm text-ink-soft">Arquivo</dt><dd class="font-semibold break-all">{{ $import->original_name }}</dd></div>
+            <div><dt class="text-sm text-ink-soft">Credor</dt><dd class="font-semibold">{{ $import->tenant->name }}</dd></div>
         </dl>
     </x-ui.card>
 
     @if ($inProgress)
         <x-ui.card title="Andamento">
-            <div class="h-3 w-full overflow-hidden rounded bg-slate-200" role="progressbar" aria-valuenow="{{ $import->progress_percent }}" aria-valuemin="0" aria-valuemax="100">
-                <div class="h-3 rounded bg-blue-600" style="width: {{ $import->progress_percent }}%"></div>
+            <div class="h-3 w-full overflow-hidden rounded bg-line" role="progressbar" aria-valuenow="{{ $import->progress_percent }}" aria-valuemin="0" aria-valuemax="100">
+                <div class="h-3 rounded bg-brand-blue" style="width: {{ $import->progress_percent }}%"></div>
             </div>
-            <p class="mt-2 text-sm text-slate-600">{{ $import->progress_percent }}% — {{ $import->progress_label ?? 'Aguardando' }}. Você pode sair desta tela e voltar: a importação continua.</p>
+            <p class="mt-2 text-sm text-ink-soft">{{ $import->progress_percent }}% — {{ $import->progress_label ?? 'Aguardando' }}. Você pode sair desta tela e voltar: a importação continua.</p>
         </x-ui.card>
     @endif
 
@@ -38,10 +38,10 @@
     @if ($summary)
         <x-ui.card title="{{ $import->status === ImportStatus::Confirmed ? 'Resultado' : 'Conferência' }}">
             <dl class="grid grid-cols-2 gap-4 md:grid-cols-4">
-                <div><dt class="text-sm text-slate-500">Linhas válidas</dt><dd class="text-lg font-semibold">{{ $n($summary['valid'] ?? 0) }}</dd></div>
-                <div><dt class="text-sm text-slate-500">Valor das válidas</dt><dd class="text-lg font-semibold">R$ {{ Money::format((int) ($summary['amount_cents'] ?? 0)) }}</dd></div>
-                <div><dt class="text-sm text-slate-500">Já registradas, ignoradas</dt><dd class="text-lg font-semibold">{{ $n($summary['ignored'] ?? 0) }}</dd></div>
-                <div><dt class="text-sm text-slate-500">Recusadas</dt><dd class="text-lg font-semibold">{{ $n($summary['rejected'] ?? 0) }}</dd></div>
+                <div><dt class="text-sm text-ink-soft">Linhas válidas</dt><dd class="text-lg font-semibold">{{ $n($summary['valid'] ?? 0) }}</dd></div>
+                <div><dt class="text-sm text-ink-soft">Valor das válidas</dt><dd class="text-lg font-semibold">R$ {{ Money::format((int) ($summary['amount_cents'] ?? 0)) }}</dd></div>
+                <div><dt class="text-sm text-ink-soft">Já registradas, ignoradas</dt><dd class="text-lg font-semibold">{{ $n($summary['ignored'] ?? 0) }}</dd></div>
+                <div><dt class="text-sm text-ink-soft">Recusadas</dt><dd class="text-lg font-semibold">{{ $n($summary['rejected'] ?? 0) }}</dd></div>
             </dl>
             <ul class="mt-4 list-disc space-y-1 ps-5 text-sm">
                 @if ($reversals)
@@ -66,10 +66,10 @@
     @if ($rejections->isNotEmpty())
         <x-ui.card title="Linhas recusadas" :description="($summary['rejected'] ?? 0) > 200 ? 'Mostrando as 200 primeiras.' : null">
             <table class="w-full text-sm">
-                <thead><tr class="text-left text-slate-500"><th class="py-1 pe-4">Linha</th><th class="py-1">Motivo</th></tr></thead>
+                <thead><tr class="text-left text-ink-soft"><th class="py-1 pe-4">Linha</th><th class="py-1">Motivo</th></tr></thead>
                 <tbody>
                     @foreach ($rejections as $rejection)
-                        <tr class="border-t border-slate-200"><td class="py-1 pe-4">{{ $rejection->line }}</td><td class="py-1">{{ $rejection->reason }}</td></tr>
+                        <tr class="border-t border-line"><td class="py-1 pe-4">{{ $rejection->line }}</td><td class="py-1">{{ $rejection->reason }}</td></tr>
                     @endforeach
                 </tbody>
             </table>

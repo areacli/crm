@@ -18,9 +18,9 @@
                     <x-ui.th field="description" :sort="$sort" :dir="$dir">Descrição</x-ui.th><x-ui.th>Ativo</x-ui.th><x-ui.th></x-ui.th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-slate-200">
+            <tbody class="divide-y divide-line">
                 @foreach ($rows as $row)
-                    <tr wire:key="ch{{ $row->id }}" class="hover:bg-slate-50">
+                    <tr wire:key="ch{{ $row->id }}" class="hover:bg-surface">
                         @if ($several)<td class="px-2 py-1.5">{{ $row->tenant->name }}</td>@endif
                         <td class="px-2 py-1.5 font-mono">{{ $row->code }}</td>
                         <td class="px-2 py-1.5"><x-ui.badge>{{ $row->type->getLabel() }}</x-ui.badge></td>

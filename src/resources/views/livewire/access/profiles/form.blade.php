@@ -11,7 +11,7 @@
                     <legend class="mb-2 text-sm font-semibold">Permissões <span class="text-red-600">*</span></legend>
                     <div class="grid gap-2 sm:grid-cols-2">
                         @foreach ($all as $p)
-                            <label class="flex items-start gap-2"><input type="checkbox" value="{{ $p->value }}" wire:model="permissions" class="mt-1 h-4 w-4 rounded border-slate-300"><span>{{ $p->number() }}. {{ $p->label() }}</span></label>
+                            <label class="flex items-start gap-2"><input type="checkbox" value="{{ $p->value }}" wire:model="permissions" class="mt-1 h-4 w-4 rounded border-line-strong"><span>{{ $p->number() }}. {{ $p->label() }}</span></label>
                         @endforeach
                     </div>
                     @error('permissions')<p class="mt-1 text-sm font-semibold text-red-600">{{ $message }}</p>@enderror

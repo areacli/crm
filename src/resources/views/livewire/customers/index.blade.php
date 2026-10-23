@@ -24,7 +24,7 @@
 
     @if ($rows->total() === 0)
         <x-ui.empty>
-            <p class="font-semibold text-slate-900">Nenhum cliente em cobrança</p>
+            <p class="font-semibold text-ink">Nenhum cliente em cobrança</p>
             <p>Importe a carteira para ver os clientes aqui.</p>
         </x-ui.empty>
     @else
@@ -41,11 +41,11 @@
                     <x-ui.th>Faixa</x-ui.th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-slate-200">
+            <tbody class="divide-y divide-line">
                 @foreach ($rows as $row)
-                    <tr wire:key="c{{ $row->id }}" class="hover:bg-slate-50">
+                    <tr wire:key="c{{ $row->id }}" class="hover:bg-surface">
                         @if ($several)<td class="px-2 py-1.5">{{ $row->tenant->name }}</td>@endif
-                        <td class="px-2 py-1.5"><a href="{{ route('customers.show', $row->id) }}" wire:navigate class="font-semibold text-blue-600 hover:underline">{{ $row->name }}</a></td>
+                        <td class="px-2 py-1.5"><a href="{{ route('customers.show', $row->id) }}" wire:navigate class="font-semibold text-brand-blue hover:underline">{{ $row->name }}</a></td>
                         <td class="px-2 py-1.5 font-mono">{{ Document::mask($row->document) }}</td>
                         <td class="px-2 py-1.5 text-right">{{ number_format($row->bills_count, 0, ',', '.') }}</td>
                         <td class="px-2 py-1.5 text-right">R$ {{ Money::format((int) $row->overdue_cents) }}</td>

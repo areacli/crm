@@ -15,9 +15,9 @@
     @else
         <x-ui.table>
             <thead><tr><x-ui.th>Nome</x-ui.th><x-ui.th>E-mail</x-ui.th>@if ($several)<x-ui.th>Credor</x-ui.th>@endif<x-ui.th>Perfil</x-ui.th><x-ui.th>Ativo</x-ui.th><x-ui.th>Último acesso</x-ui.th><x-ui.th></x-ui.th></tr></thead>
-            <tbody class="divide-y divide-slate-200">
+            <tbody class="divide-y divide-line">
                 @foreach ($rows as $m)
-                    <tr wire:key="m{{ $m->id }}" class="hover:bg-slate-50">
+                    <tr wire:key="m{{ $m->id }}" class="hover:bg-surface">
                         <td class="px-2 py-1.5">{{ $m->user->name }}</td>
                         <td class="px-2 py-1.5">{{ $m->user->email }}</td>
                         @if ($several)<td class="px-2 py-1.5">{{ $m->tenant->name }}</td>@endif
@@ -62,14 +62,14 @@
             <div class="max-h-96 space-y-2 overflow-y-auto text-sm">
                 @forelse ($events as $event)
                     @php($details = $event->details ? json_decode($event->details, true) : [])
-                    <div class="rounded border border-slate-200 p-2">
+                    <div class="rounded border border-line p-2">
                         <p class="font-semibold">{{ $labels[$event->event] ?? $event->event }}</p>
-                        <p class="text-slate-500">{{ \Illuminate\Support\Carbon::parse($event->occurred_at)->format('d/m/Y H:i') }}
+                        <p class="text-ink-soft">{{ \Illuminate\Support\Carbon::parse($event->occurred_at)->format('d/m/Y H:i') }}
                             @if (isset($details['before'], $details['after'])) — de {{ is_array($details['before']) ? ($details['before']['name'] ?? '') : $details['before'] }} para {{ is_array($details['after']) ? ($details['after']['name'] ?? '') : $details['after'] }} @endif
                             @if (isset($details['profile']) && ! isset($details['before'])) — perfil {{ $details['profile'] }} @endif</p>
                     </div>
                 @empty
-                    <p class="text-slate-500">Nenhum registro.</p>
+                    <p class="text-ink-soft">Nenhum registro.</p>
                 @endforelse
             </div>
         @endif

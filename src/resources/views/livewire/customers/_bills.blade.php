@@ -29,12 +29,12 @@
     <x-ui.card title="Situação">
         <dl class="grid grid-cols-2 gap-4 md:grid-cols-4">
             <div>
-                <dt class="text-sm text-slate-500">Vencido</dt>
-                <dd class="text-lg font-bold text-slate-900">R$ {{ Money::format((int) $overdue->sum(fn ($b) => $b->balanceCents())) }}</dd>
+                <dt class="text-sm text-ink-soft">Vencido</dt>
+                <dd class="text-lg font-bold text-ink">R$ {{ Money::format((int) $overdue->sum(fn ($b) => $b->balanceCents())) }}</dd>
             </div>
             <div>
-                <dt class="text-sm text-slate-500">A vencer</dt>
-                <dd class="text-lg font-bold text-slate-900">
+                <dt class="text-sm text-ink-soft">A vencer</dt>
+                <dd class="text-lg font-bold text-ink">
                     @if ($display === UpcomingDisplay::DetailOnly)
                         —
                     @else
@@ -43,12 +43,12 @@
                 </dd>
             </div>
             <div>
-                <dt class="text-sm text-slate-500">Maior atraso</dt>
-                <dd class="text-lg font-bold text-slate-900">{{ $maxDays === null ? 'sem atraso' : $maxDays.' dias' }}</dd>
+                <dt class="text-sm text-ink-soft">Maior atraso</dt>
+                <dd class="text-lg font-bold text-ink">{{ $maxDays === null ? 'sem atraso' : $maxDays.' dias' }}</dd>
             </div>
             <div>
-                <dt class="text-sm text-slate-500">Faixa</dt>
-                <dd class="text-lg font-bold text-slate-900">
+                <dt class="text-sm text-ink-soft">Faixa</dt>
+                <dd class="text-lg font-bold text-ink">
                     {{ $maxDays === null ? 'sem atraso' : $brackets->label($brackets->indexFor($maxDays)) }}
                 </dd>
             </div>
@@ -60,22 +60,22 @@
         @php($responsibles = $contract->financialResponsibles())
         <x-ui.card :title="$contract->code ? 'Contrato '.$contract->code : 'Sem contrato informado'">
             <div class="mb-3 text-sm">
-                <span class="text-slate-500">Clientes do contrato:</span>
+                <span class="text-ink-soft">Clientes do contrato:</span>
                 @foreach ($contract->customers as $member)
                     @php($memberRoles = \App\Models\Contract::rolesOf($member))
                     <span class="me-3 inline-block">
                         <span class="font-medium">{{ $member->name }}</span>
-                        <span class="text-slate-500">({{ collect($memberRoles)->map(fn ($r) => $roleLabels[$r] ?? $r)->implode(', ') ?: 'sem papel' }})</span>
+                        <span class="text-ink-soft">({{ collect($memberRoles)->map(fn ($r) => $roleLabels[$r] ?? $r)->implode(', ') ?: 'sem papel' }})</span>
                     </span>
                 @endforeach
                 @if ($responsibles->isNotEmpty() && ! $contract->customers->contains(fn ($m) => in_array('financial_responsible', \App\Models\Contract::rolesOf($m), true)))
-                    <p class="mt-1 text-slate-500">Sem responsável financeiro declarado: os titulares respondem financeiramente.</p>
+                    <p class="mt-1 text-ink-soft">Sem responsável financeiro declarado: os titulares respondem financeiramente.</p>
                 @endif
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead>
-                        <tr class="text-left text-slate-500">
+                        <tr class="text-left text-ink-soft">
                             <th class="py-1 pe-4">Título</th>
                             <th class="py-1 pe-4">Descrição</th>
                             <th class="py-1 pe-4">Vencimento</th>
@@ -87,13 +87,13 @@
                     <tbody>
                         @foreach ($items as $bill)
                             @php($days = $bill->daysOverdue($today))
-                            <tr class="border-t border-slate-200">
+                            <tr class="border-t border-line">
                                 <td class="py-1 pe-4">{{ $bill->number }}</td>
                                 <td class="py-1 pe-4">{{ $bill->description }}</td>
                                 <td class="py-1 pe-4">{{ $bill->due_date->format('d/m/Y') }}</td>
                                 <td class="py-1 pe-4">{{ $days > 0 ? 'Vencido' : 'A vencer' }}</td>
                                 <td class="py-1 pe-4 text-end">{{ $days > 0 ? $days : '—' }}</td>
-                                <td class="py-1 text-end">R$ {{ Money::format($bill->balanceCents()) }}@if ($bill->paid_cents > 0)<span class="block text-xs text-slate-500">pago R$ {{ Money::format($bill->paid_cents) }} de R$ {{ Money::format($bill->amount_cents) }}</span>@endif</td>
+                                <td class="py-1 text-end">R$ {{ Money::format($bill->balanceCents()) }}@if ($bill->paid_cents > 0)<span class="block text-xs text-ink-soft">pago R$ {{ Money::format($bill->paid_cents) }} de R$ {{ Money::format($bill->amount_cents) }}</span>@endif</td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -102,7 +102,7 @@
         </x-ui.card>
     @empty
         <x-ui.card>
-            <p class="text-sm text-slate-500">Sem títulos em cobrança.</p>
+            <p class="text-sm text-ink-soft">Sem títulos em cobrança.</p>
         </x-ui.card>
     @endforelse
 
@@ -112,7 +112,7 @@
             <table class="w-full text-sm">
                 <tbody>
                     @foreach ($creditContracts as $contract)
-                        <tr class="border-t border-slate-200">
+                        <tr class="border-t border-line">
                             <td class="py-1 pe-4">{{ $contract->code ? 'Contrato '.$contract->code : 'Sem contrato informado' }}</td>
                             <td class="py-1 text-end font-semibold">R$ {{ Money::format((int) $credits[$contract->id]) }}</td>
                         </tr>
@@ -127,7 +127,7 @@
             <table class="w-full text-sm">
                 <tbody>
                     @foreach ($paid as $bill)
-                        <tr class="border-t border-slate-200">
+                        <tr class="border-t border-line">
                             <td class="py-1 pe-4">{{ $bill->number }}</td>
                             <td class="py-1 pe-4">{{ $bill->contract->code ? 'Contrato '.$bill->contract->code : 'Sem contrato informado' }}</td>
                             <td class="py-1 pe-4">
@@ -148,7 +148,7 @@
             <table class="w-full text-sm">
                 <tbody>
                     @foreach ($withdrawn as $bill)
-                        <tr class="border-t border-slate-200">
+                        <tr class="border-t border-line">
                             <td class="py-1 pe-4">{{ $bill->number }}</td>
                             <td class="py-1 pe-4">{{ $bill->contract->code ? 'Contrato '.$bill->contract->code : 'Sem contrato informado' }}</td>
                             <td class="py-1 pe-4">Retirado em {{ $bill->withdrawn_at?->format('d/m/Y') }}</td>

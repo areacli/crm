@@ -12,9 +12,9 @@
     @else
         <x-ui.table>
             <thead><tr>@if ($several)<x-ui.th>Credor</x-ui.th>@endif<x-ui.th field="name" :sort="$sort" :dir="$dir">Perfil</x-ui.th><x-ui.th align="right">Permissões</x-ui.th><x-ui.th align="right">Usuários</x-ui.th><x-ui.th></x-ui.th></tr></thead>
-            <tbody class="divide-y divide-slate-200">
+            <tbody class="divide-y divide-line">
                 @foreach ($rows as $p)
-                    <tr wire:key="p{{ $p->id }}" class="hover:bg-slate-50">
+                    <tr wire:key="p{{ $p->id }}" class="hover:bg-surface">
                         @if ($several)<td class="px-2 py-1.5">{{ $p->tenant->name }}</td>@endif
                         <td class="px-2 py-1.5">{{ $p->name }}</td>
                         <td class="px-2 py-1.5 text-right">{{ count($p->permissions ?? []) }}</td>
