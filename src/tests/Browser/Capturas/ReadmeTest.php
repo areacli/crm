@@ -21,6 +21,11 @@ it('captura as telas do README', function () {
         ?? Customer::query()->whereHas('bills', fn ($q) => $q->where('status', 'paid'))->orderBy('id')->first();
     $page->navigate('/clientes/'.$customer->id)->assertSee('Pagos')->screenshot(filename: 'readme-ficha-do-cliente');
 
+    $withAttempts = Customer::find(\App\Models\ContactAttempt::query()->whereNull('voided_at')->orderBy('id')->value('customer_id'));
+    $page->navigate('/clientes/'.$withAttempts->id)->assertSee('Acionamentos')->screenshot(filename: 'readme-ficha-com-acionamentos');
+    $page->navigate('/acionamentos')->assertSee('Acionamentos')->screenshot(filename: 'readme-acionamentos');
+    $page->navigate('/configuracao/carteira')->assertSee('Políticas da carteira')->screenshot(filename: 'readme-configuracao');
+
     $batimento = Import::where('original_name', 'batimento-outubro.csv')->value('id');
     $page->navigate('/importacoes/'.$batimento)->assertSee('Linhas recusadas')->screenshot(filename: 'readme-conferencia-da-carteira');
     $payments = Import::where('kind', 'payments')->value('id');
