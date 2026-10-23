@@ -14,8 +14,8 @@ it('captura as telas do incremento 3', function () {
     $page->type('#form\\.email', 'gestor@demo.exemplo.com.br')->type('#form\\.password', 'demonstracao-gestor')->press('Login')
         ->assertSee('Resumo da carteira')->screenshot(filename: '01-resumo-com-recebimentos');
 
-    $page->navigate('/canais')->assertSee('Canais de recebimento')->screenshot(filename: '02-canais');
-    $page->navigate('/politicas-de-pagamento')->assertSee('Pagamento menor que o saldo')->screenshot(filename: '03-politicas-de-pagamento');
+    $page->navigate('/configuracao/canais')->assertSee('Canais de recebimento')->screenshot(filename: '02-canais');
+    $page->navigate('/configuracao/pagamentos')->assertSee('Pagamento menor que o saldo')->screenshot(filename: '03-politicas-de-pagamento');
     $page->navigate('/importar-pagamentos')->assertSee('Colunas da planilha')->screenshot(filename: '04-importar-pagamentos');
     $page->navigate('/importar-estornos')->assertSee('identificador_estorno')->screenshot(filename: '05-importar-estornos');
     $page->navigate('/pagamentos')->assertSee('pagamentos-outubro.csv')->screenshot(filename: '06-pagamentos-lista');

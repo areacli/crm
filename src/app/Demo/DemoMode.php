@@ -20,7 +20,7 @@ final class DemoMode
     /** Os dois usuários públicos: senhas legíveis, que ninguém pode trocar. */
     public static function isPublicUser(?User $user): bool
     {
-        return $user !== null && in_array($user->email, [self::email('gestor'), self::email('operador')], true);
+        return self::enabled() && $user !== null && in_array($user->email, [self::email('gestor'), self::email('operador')], true);
     }
 
     public static function email(string $who): string

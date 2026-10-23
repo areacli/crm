@@ -16,6 +16,6 @@ it('mostra o recuperado no resumo e a lista de pagamentos importados', function 
         ->assertSee('Resumo da carteira')->assertSee('Recuperado em')->assertSee('Créditos dos contratos')->assertSee('Pagamentos pendentes');
 
     $page->navigate('/pagamentos')->assertSee('pagamentos-outubro.csv')->assertSee('estornos-outubro.csv');
-    $page->navigate('/canais')->assertSee('341-1234-56789')->assertSee('Cielo, loja virtual');
+    $page->navigate('/configuracao/canais')->assertSee('341-1234-56789')->assertSee('Cielo, loja virtual');
     $page->navigate('/importar-pagamentos')->assertSee('data_pagamento')->assertSee('Baixar a planilha-modelo');
 });

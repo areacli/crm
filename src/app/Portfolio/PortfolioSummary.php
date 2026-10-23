@@ -2,6 +2,7 @@
 
 namespace App\Portfolio;
 
+use App\Enums\ContactResultType;
 use App\Enums\PaymentMethod;
 use App\Enums\Permission;
 use App\Enums\ReversalMonthPolicy;
@@ -75,7 +76,7 @@ final class PortfolioSummary
             'labels' => $brackets->labels(),
             'by_customer' => $this->distribution($brackets, $byCustomer),
             'by_bill' => $this->distribution($brackets, $byBill),
-        ] + $this->payments($tenant);
+        ] + $this->payments($tenant) + ['contacts' => $this->contacts($tenant)];
     }
 
     /**
@@ -147,5 +148,47 @@ final class PortfolioSummary
             'pending_count' => (int) $pending->n,
             'pending_cents' => (int) $pending->cents,
         ];
+    }
+
+    /**
+     * Acionamentos dos últimos 7 e 30 dias, pela data do contato e sem anulados (R79): número de acionamentos e de clientes
+     * acionados, no total e por tipo de resultado. Um cliente acionado mais de uma vez conta uma vez em cada tipo.
+     *
+     * Duas passadas na tabela, as duas agrupando por cliente (nada de `count(distinct)`, que ordena todas as linhas do período
+     * e vai a disco com volume grande): uma por tipo e cliente, outra só por cliente. Cada passada traz os dois períodos.
+     *
+     * @return array<int, array{total: array{attempts: int, customers: int}, types: array<string, array{attempts: int, customers: int}>}>
+     */
+    private function contacts(Tenant $tenant): array
+    {
+        $since7 = Carbon::parse($this->reference)->subDays(7)->startOfDay();
+        $since30 = Carbon::parse($this->reference)->subDays(30)->startOfDay();
+        $out = [7 => ['total' => ['attempts' => 0, 'customers' => 0], 'types' => []], 30 => ['total' => ['attempts' => 0, 'customers' => 0], 'types' => []]];
+        foreach ([7, 30] as $days) {
+            foreach (ContactResultType::cases() as $type) {
+                $out[$days]['types'][$type->value] = ['attempts' => 0, 'customers' => 0];
+            }
+        }
+
+        $byType = DB::select(<<<'SQL'
+            select result_type, count(*) as customers30, count(*) filter (where n7 > 0) as customers7, sum(n30) as attempts30, sum(n7) as attempts7
+            from (select result_type, customer_id, count(*) as n30, count(*) filter (where contacted_at >= ?) as n7
+                  from contact_attempts where tenant_id = ? and voided_at is null and contacted_at >= ? group by result_type, customer_id) g
+            group by result_type
+        SQL, [$since7, $tenant->id, $since30]);
+        foreach ($byType as $row) {
+            $out[7]['types'][$row->result_type] = ['attempts' => (int) $row->attempts7, 'customers' => (int) $row->customers7];
+            $out[30]['types'][$row->result_type] = ['attempts' => (int) $row->attempts30, 'customers' => (int) $row->customers30];
+        }
+
+        $total = DB::selectOne(<<<'SQL'
+            select count(*) as customers30, count(*) filter (where n7 > 0) as customers7, coalesce(sum(n30), 0) as attempts30, coalesce(sum(n7), 0) as attempts7
+            from (select customer_id, count(*) as n30, count(*) filter (where contacted_at >= ?) as n7
+                  from contact_attempts where tenant_id = ? and voided_at is null and contacted_at >= ? group by customer_id) g
+        SQL, [$since7, $tenant->id, $since30]);
+        $out[7]['total'] = ['attempts' => (int) $total->attempts7, 'customers' => (int) $total->customers7];
+        $out[30]['total'] = ['attempts' => (int) $total->attempts30, 'customers' => (int) $total->customers30];
+
+        return $out;
     }
 }

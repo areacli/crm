@@ -27,7 +27,7 @@ it('captura as telas do incremento 1', function () {
     $id = Import::where('original_name', 'batimento-outubro.csv')->value('id');
     $page->navigate('/importacoes/'.$id)->assertSee('Linhas recusadas')->screenshot(filename: '06-importacao-conferida');
 
-    $page->navigate('/configuracao')->assertSee('Configuração da carteira')->screenshot(filename: '07-configuracao');
+    $page->navigate('/configuracao/carteira')->assertSee('Políticas da carteira')->screenshot(filename: '07-configuracao');
 
     $customer = Customer::orderBy('id')->first();
     $page->navigate('/clientes/'.$customer->id)->assertSee('Maior atraso')->screenshot(filename: '08-ficha-do-cliente');

@@ -75,12 +75,17 @@ await passo('entrar com e-mail e senha', async () => {
     await pagina.getByText('Demonstração: os dados são fictícios').first().waitFor();
 });
 
-for (const [rota, texto] of [['/', 'Recuperado em'], ['/clientes', 'Clientes'], ['/importar', 'Importar carteira'], ['/importacoes', 'Importações de carteira'], ['/importar-pagamentos', 'Colunas da planilha'], ['/importar-estornos', 'identificador_estorno'], ['/pagamentos', 'Pagamentos e estornos'], ['/canais', 'Canais de recebimento'], ['/politicas-de-pagamento', 'Pagamento menor que o saldo'], ['/configuracao', 'Configuração da carteira']]) {
+for (const [rota, texto] of [['/', 'Recuperado em'], ['/clientes', 'Clientes'], ['/importar', 'Importar carteira'], ['/importacoes', 'Importações de carteira'], ['/importar-pagamentos', 'Colunas da planilha'], ['/importar-estornos', 'identificador_estorno'], ['/pagamentos', 'Pagamentos e estornos'], ['/configuracao/canais', 'Canais de recebimento'], ['/configuracao/pagamentos', 'Políticas de pagamento e estorno'], ['/acionamentos', 'Acionamentos'], ['/configuracao/carteira', 'Políticas da carteira'], ['/configuracao/acionamentos', 'Resultados de acionamento']]) {
     await passo(`abrir ${rota}`, async () => {
         const resposta = await pagina.goto(BASE + rota);
         if (resposta.status() !== 200) throw new Error(`status ${resposta.status()}`);
-        await pagina.getByText(texto).first().waitFor();
-        await pagina.screenshot({ path: `${PASTA}/${rota === '/' ? 'resumo' : rota.slice(1)}.png` });
+        // Nas abas da configuração o nome também aparece na sub-navegação (e numa cópia escondida): confere o título da página.
+        if (rota.startsWith('/configuracao')) {
+            await pagina.getByRole('heading', { name: texto }).first().waitFor();
+        } else {
+            await pagina.getByText(texto).first().waitFor();
+        }
+        await pagina.screenshot({ path: `${PASTA}/${rota === '/' ? 'resumo' : rota.slice(1).replaceAll('/', '-')}.png` });
     });
 }
 
@@ -147,25 +152,40 @@ for (const rota of ['/importar', '/importar-pagamentos']) {
     });
 }
 
+await passo('acionamento: registrar pela ficha e anular', async () => {
+    await pagina.goto(BASE + '/clientes');
+    await pagina.locator('table tbody tr').first().click();
+    await pagina.getByRole('button', { name: 'Registrar acionamento' }).click();
+    await pagina.locator('.fi-modal-window select[id$="channel"]').selectOption({ label: 'Telefone' });
+    await pagina.locator('.fi-modal-window select[id$="result_id"]').selectOption({ label: 'Não atendeu' });
+    await pagina.locator('.fi-modal-window textarea[id$="text"]').fill('registrado na V5');
+    await pagina.locator('.fi-modal-window button:has-text("Enviar")').click();
+    await pagina.getByText('Acionamento registrado').first().waitFor();
+    await pagina.getByRole('button', { name: 'Anular' }).first().click();
+    await pagina.locator('.fi-modal-window textarea').fill('teste da V5');
+    await pagina.locator('.fi-modal-window button:has-text("Enviar")').click();
+    await pagina.getByText('Acionamento anulado').first().waitFor();
+});
+
 await passo('política de pagamento: mudar e desfazer', async () => {
-    await pagina.goto(BASE + '/politicas-de-pagamento');
+    await pagina.goto(BASE + '/configuracao/pagamentos');
     await pagina.getByText('Crédito sem baixar:').click();
     await pagina.click('button:has-text("Salvar")');
     await pagina.getByText('Políticas salvas').first().waitFor();
-    await pagina.goto(BASE + '/politicas-de-pagamento');
+    await pagina.goto(BASE + '/configuracao/pagamentos');
     await pagina.getByText('Baixa parcial:').click();
     await pagina.click('button:has-text("Salvar")');
     await pagina.getByText('Políticas salvas').first().waitFor();
 });
 
 await passo('canal de recebimento: criar e apagar', async () => {
-    await pagina.goto(BASE + '/canais/novo');
+    await pagina.goto(BASE + '/configuracao/canais/novo');
     await pagina.fill('input[id$="code"]', 'V5-TESTE');
     await pagina.fill('input[id$="description"]', 'Canal da V5');
     await pagina.getByRole('combobox', { name: /Tipo/ }).first().selectOption('account').catch(async () => {});
     await pagina.click('button:has-text("Criar")');
-    await pagina.waitForURL(/\/canais\/\d+\/editar/);
-    await pagina.goto(BASE + '/canais');
+    await pagina.waitForURL(/\/configuracao\/canais\/\d+\/editar/);
+    await pagina.goto(BASE + '/configuracao/canais');
     const linha = pagina.locator('table tbody tr', { hasText: 'V5-TESTE' });
     await linha.getByRole('button', { name: 'Apagar' }).click();
     await pagina.click('.fi-modal-window button:has-text("Excluir")');
