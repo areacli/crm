@@ -63,7 +63,6 @@ class ContactAttemptResource extends Resource
                 return $query->with(['customer', 'contract', 'result', 'user', 'tenant']);
             })
             ->defaultSort('contacted_at', 'desc')
-            ->paginated([50])
             ->columns([
                 TextColumn::make('contacted_at')->label('Contato')->dateTime('d/m/Y H:i')->sortable(),
                 TextColumn::make('tenant.name')->label('Credor')->visible(count($ids) > 1),
