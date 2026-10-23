@@ -26,6 +26,11 @@ class Tenant extends Model
         return $this->hasOne(TenantSettings::class);
     }
 
+    public function paymentChannels(): HasMany
+    {
+        return $this->hasMany(PaymentChannel::class);
+    }
+
     public function profiles(): HasMany
     {
         return $this->hasMany(Profile::class);

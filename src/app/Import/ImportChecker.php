@@ -196,7 +196,8 @@ final class ImportChecker
                 count(*) filter (where b.id is not null and b.status = 'active' and
                     b.amount_cents = r.amount_cents and b.due_date = r.due_date and b.description is not distinct from r.description and
                     coalesce(k.code, '') = coalesce(r.contract, '')) as bills_unchanged,
-                count(*) filter (where b.status = 'withdrawn') as bills_reincluded
+                count(*) filter (where b.status = 'withdrawn') as bills_reincluded,
+                count(*) filter (where b.status = 'paid') as bills_paid_kept
             from import_rows r
             left join customers c on c.tenant_id = ? and c.document = r.document
             left join bills b on b.tenant_id = ? and b.customer_id = c.id and b.number = r.number
@@ -256,6 +257,7 @@ final class ImportChecker
             'bills_updated' => (int) $existing->bills_updated,
             'bills_unchanged' => (int) $existing->bills_unchanged,
             'bills_reincluded' => (int) $existing->bills_reincluded,
+            'bills_paid_kept' => (int) $existing->bills_paid_kept,
             'to_withdraw' => $withdraw,
             'kept_by_rejection' => (int) $kept,
             'contracts_created_by_omission' => $omitted,

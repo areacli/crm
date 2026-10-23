@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Import\ImportConfirmer;
 use App\Models\Import;
+use App\Payments\PaymentImportConfirmer;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\Attributes\DeleteWhenMissingModels;
@@ -20,8 +21,8 @@ final class ConfirmImport implements ShouldQueue
 
     public function __construct(public readonly Import $import) {}
 
-    public function handle(ImportConfirmer $confirmer): void
+    public function handle(ImportConfirmer $confirmer, PaymentImportConfirmer $paymentConfirmer): void
     {
-        $confirmer->run($this->import);
+        $this->import->kind === 'portfolio' ? $confirmer->run($this->import) : $paymentConfirmer->run($this->import);
     }
 }

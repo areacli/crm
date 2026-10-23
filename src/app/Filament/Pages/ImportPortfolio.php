@@ -2,6 +2,8 @@
 
 namespace App\Filament\Pages;
 
+use App\Demo\DemoFiles;
+use App\Demo\DemoMode;
 use App\Enums\ImportMode;
 use App\Enums\Permission;
 use App\Filament\Resources\Imports\ImportResource;
@@ -83,7 +85,7 @@ class ImportPortfolio extends Page
                 ->default(ImportMode::Incremental->value)
                 ->required(),
             FileUpload::make('file')->label('Arquivo CSV')
-                ->helperText('Separador ponto e vírgula, UTF-8 ou Windows-1252, até 50 MB e 200.000 linhas.')
+                ->helperText('Separador ponto e vírgula, UTF-8 ou Windows-1252, até 50 MB e 200.000 linhas.'.(DemoMode::enabled() ? ' Na demonstração, seu arquivo é descartado sem ser lido e trocado por um arquivo fictício.' : ''))
                 ->disk('local')->directory('uploads')
                 ->acceptedFileTypes(['text/csv', 'text/plain', 'application/vnd.ms-excel', 'application/csv'])
                 // 50 MiB. O campo de arquivo do Filament mede no navegador em KB decimais (1 KB = 1.000 bytes) e o servidor
@@ -129,9 +131,15 @@ class ImportPortfolio extends Page
         $stored = is_array($data['file']) ? array_values($data['file'])[0] : $data['file'];
         $original = basename((string) $stored);
 
+        // Na demonstração, o arquivo do visitante é descartado sem ser lido e trocado por uma planilha fictícia.
+        $source = DemoMode::enabled() ? DemoFiles::portfolio() : Storage::disk('local')->path($stored);
+        if (DemoMode::enabled()) {
+            $original = DemoFiles::NAME;
+        }
+
         try {
             $import = app(ImportService::class)->start(
-                $tenant, $user, Storage::disk('local')->path($stored), ImportMode::from($data['mode']), $original,
+                $tenant, $user, $source, ImportMode::from($data['mode']), $original,
             );
         } catch (ImportRefused $e) {
             Notification::make()->title('Não foi possível iniciar a importação')->body(ucfirst($e->getMessage()).'.')->danger()->send();
@@ -139,6 +147,9 @@ class ImportPortfolio extends Page
             return;
         } finally {
             Storage::disk('local')->delete($stored);
+            if (DemoMode::enabled()) {
+                @unlink($source);
+            }
         }
 
         $this->redirect(ImportResource::getUrl('view', ['record' => $import]));

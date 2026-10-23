@@ -32,6 +32,31 @@
             @endif
         </x-filament::section>
 
+        <x-filament::section heading="Recebimentos" :compact="true">
+            <dl class="grid grid-cols-1 gap-4 md:grid-cols-4">
+                @foreach ($s['recovered'] as $month)
+                    <div>
+                        <dt class="text-sm text-gray-500">Recuperado em {{ $month['label'] }}</dt>
+                        <dd class="text-2xl font-semibold">R$ {{ Money::format($month['total']) }}</dd>
+                        @if ($month['methods'] !== [])
+                            <dd class="text-sm text-gray-500">
+                                @foreach ($month['methods'] as $method => $cents){{ $method }} R$ {{ Money::format($cents) }}@if (! $loop->last); @endif @endforeach
+                            </dd>
+                        @endif
+                    </div>
+                @endforeach
+                <div>
+                    <dt class="text-sm text-gray-500">Créditos dos contratos</dt>
+                    <dd class="text-2xl font-semibold">R$ {{ Money::format($s['credit_cents']) }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm text-gray-500">Pagamentos pendentes</dt>
+                    <dd class="text-2xl font-semibold">{{ number_format($s['pending_count'], 0, ',', '.') }}</dd>
+                    <dd class="text-sm text-gray-500">R$ {{ Money::format($s['pending_cents']) }}</dd>
+                </div>
+            </dl>
+        </x-filament::section>
+
         <div class="grid gap-6 md:grid-cols-2">
             @foreach ([['title' => 'Por cliente', 'help' => 'Cada cliente na faixa do título mais atrasado, com todo o seu vencido.', 'rows' => $s['by_customer'], 'unit' => 'Clientes'],
                        ['title' => 'Por título', 'help' => 'Cada título vencido na faixa do próprio atraso.', 'rows' => $s['by_bill'], 'unit' => 'Títulos']] as $table)

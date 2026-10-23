@@ -1,9 +1,14 @@
 <?php
 
+use App\Enums\ImportMode;
+use App\Enums\ImportStatus;
+use App\Import\ImportService;
 use App\Models\Bill;
 use App\Models\Contract;
 use App\Models\Customer;
+use App\Models\Import;
 use App\Models\Membership;
+use App\Models\PaymentChannel;
 use App\Models\Profile;
 use App\Models\Tenant;
 use App\Models\TenantSettings;
@@ -68,4 +73,40 @@ function makeCustomerWithBills(Tenant $tenant, string $document, string $name, a
     }
 
     return $customer;
+}
+
+/** Canal de recebimento do credor, montado com a factory. */
+function makeChannel(Tenant $tenant, string $code = '341-1234-56789', bool $active = true): PaymentChannel
+{
+    return PaymentChannel::factory()->create(['tenant_id' => $tenant->id, 'code' => $code, 'active' => $active]);
+}
+
+/** Grava um CSV de pagamentos num arquivo temporário e devolve o caminho. */
+function paymentsCsv(array $lines): string
+{
+    $path = tempnam(sys_get_temp_dir(), 'pagamentos');
+    file_put_contents($path, "canal;identificador;documento;titulo;data_pagamento;valor;meio\n".implode("\n", $lines)."\n");
+
+    return $path;
+}
+
+/** Grava um CSV de estornos num arquivo temporário e devolve o caminho. */
+function reversalsCsv(array $lines): string
+{
+    $path = tempnam(sys_get_temp_dir(), 'estornos');
+    file_put_contents($path, "canal;identificador_pagamento;identificador_estorno;data_estorno;valor;motivo\n".implode("\n", $lines)."\n");
+
+    return $path;
+}
+
+/** Envia um arquivo de pagamentos ou de estornos, confere e (se pedido) confirma; a fila é síncrona nos testes. */
+function runPayments(Tenant $tenant, User $user, string $path, string $kind = 'payments', bool $confirm = true): Import
+{
+    $service = app(ImportService::class);
+    $import = $service->start($tenant, $user, $path, ImportMode::Incremental, kind: $kind);
+    if ($confirm && $import->status === ImportStatus::Checked) {
+        $import = $service->confirm($import);
+    }
+
+    return $import;
 }

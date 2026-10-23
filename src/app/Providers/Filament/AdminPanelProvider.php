@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Demo\DemoMode;
 use App\Filament\Pages\ChangePassword;
 use App\Filament\Pages\Summary;
 use App\Http\Middleware\EnforceSessionLimits;
@@ -15,6 +16,7 @@ use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
 use Filament\Support\Icons\Heroicon;
+use Filament\View\PanelsRenderHook;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
@@ -33,8 +35,10 @@ class AdminPanelProvider extends PanelProvider
             ->brandName('CRM')
             ->login()
             ->databaseNotifications()
+            // Faixa fixa da demonstração pública: dados fictícios e o horário da recriação.
+            ->renderHook(PanelsRenderHook::BODY_START, fn () => DemoMode::enabled() ? view('filament.demo-banner', ['at' => config('crm.demo.reset_at')]) : '')
             ->userMenuItems([
-                Action::make('change-password')->label('Trocar a senha')->icon(Heroicon::OutlinedKey)->url(fn () => ChangePassword::getUrl()),
+                Action::make('change-password')->label('Trocar a senha')->icon(Heroicon::OutlinedKey)->url(fn () => ChangePassword::getUrl())->visible(fn () => ChangePassword::canAccess()),
             ])
             // Tema compilado com Vite e Tailwind: as classes das views próprias do CRM (resources/views/filament) entram no CSS.
             ->viteTheme('resources/css/filament/crm/theme.css')

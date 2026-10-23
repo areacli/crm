@@ -2,7 +2,11 @@
 
 namespace App\Models;
 
+use App\Enums\PartialPaymentPolicy;
+use App\Enums\ReversalMonthPolicy;
 use App\Enums\UpcomingDisplay;
+use App\Enums\WithdrawnPaymentPolicy;
+use App\Enums\WithdrawnReversalPolicy;
 use Database\Factories\TenantSettingsFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
@@ -12,7 +16,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /** Configuração do credor: faixas de atraso (R18) e tratamento do a vencer (R20). */
 #[Table('tenant_settings')]
-#[Fillable(['tenant_id', 'aging_brackets', 'upcoming_display'])]
+#[Fillable(['tenant_id', 'aging_brackets', 'upcoming_display', 'partial_payment_policy', 'withdrawn_payment_policy', 'withdrawn_reversal_policy', 'reversal_month_policy'])]
 class TenantSettings extends Model
 {
     /** @use HasFactory<TenantSettingsFactory> */
@@ -33,6 +37,10 @@ class TenantSettings extends Model
         return [
             'aging_brackets' => 'array',
             'upcoming_display' => UpcomingDisplay::class,
+            'partial_payment_policy' => PartialPaymentPolicy::class,
+            'withdrawn_payment_policy' => WithdrawnPaymentPolicy::class,
+            'withdrawn_reversal_policy' => WithdrawnReversalPolicy::class,
+            'reversal_month_policy' => ReversalMonthPolicy::class,
         ];
     }
 
