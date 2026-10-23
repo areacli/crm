@@ -30,6 +30,7 @@ class User extends Authenticatable implements FilamentUser
             'active' => 'boolean',
             'locked_until' => 'datetime',
             'last_login_at' => 'datetime',
+            'temporary_password_until' => 'datetime',
         ];
     }
 
@@ -47,7 +48,20 @@ class User extends Authenticatable implements FilamentUser
     {
         return $this->active
             && ! $this->isLocked()
+            && ! $this->temporaryPasswordExpired()
             && $this->memberships()->where('active', true)->exists();
+    }
+
+    /** R37: vencido o prazo, a senha temporária é recusada no login, com a mensagem de sempre. */
+    public function temporaryPasswordExpired(): bool
+    {
+        return $this->temporary_password_until !== null && $this->temporary_password_until->isPast();
+    }
+
+    /** R38: com senha temporária ainda válida, só a troca de senha está liberada. */
+    public function mustChangePassword(): bool
+    {
+        return $this->temporary_password_until !== null && $this->temporary_password_until->isFuture();
     }
 
     public function isLocked(): bool

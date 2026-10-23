@@ -5,6 +5,7 @@ namespace App\Filament\Pages;
 use App\Enums\ImportMode;
 use App\Enums\Permission;
 use App\Filament\Resources\Imports\ImportResource;
+use App\Import\CsvColumns;
 use App\Import\ImportRefused;
 use App\Import\ImportService;
 use App\Models\Import;
@@ -19,6 +20,7 @@ use Filament\Pages\Page;
 use Filament\Schemas\Components\Actions;
 use Filament\Schemas\Components\EmbeddedSchema;
 use Filament\Schemas\Components\Form;
+use Filament\Schemas\Components\View;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Collection;
@@ -95,6 +97,7 @@ class ImportPortfolio extends Page
     public function content(Schema $schema): Schema
     {
         return $schema->components([
+            View::make('filament.imports.columns')->viewData(['columns' => CsvColumns::all()]),
             Form::make([EmbeddedSchema::make('form')])
                 ->id('form')
                 ->livewireSubmitHandler('send')
@@ -104,6 +107,15 @@ class ImportPortfolio extends Page
                     ]),
                 ]),
         ]);
+    }
+
+    /** R44: planilha-modelo no formato aceito, com cabeçalho e três linhas fictícias. */
+    protected function getHeaderActions(): array
+    {
+        return [
+            Action::make('template')->label('Baixar a planilha-modelo')->icon('heroicon-o-arrow-down-tray')->color('gray')
+                ->action(fn () => response()->streamDownload(fn () => print (CsvColumns::templateCsv()), 'planilha-modelo-carteira.csv', ['Content-Type' => 'text/csv; charset=UTF-8'])),
+        ];
     }
 
     public function send(): void
