@@ -40,4 +40,11 @@ final class CustomerPolicy
     {
         return false;
     }
+
+    /** Transferir crédito entre contratos: permissão 17 e a 1 (PD6), no credor do cliente (11, R239a; 03, R55a). */
+    public function transferCredit(User $user, Customer $customer): bool
+    {
+        return $user->hasPermission(Permission::AdministerAgreements, $customer->tenant_id)
+            && $user->hasPermission(Permission::ViewPortfolio, $customer->tenant_id);
+    }
 }

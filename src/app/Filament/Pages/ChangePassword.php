@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Demo\DemoMode;
 use App\Models\User;
 use App\Rules\StrongPassword;
 use App\Support\AccessLog;
@@ -33,6 +34,13 @@ final class ChangePassword extends Page
 
     /** @var array<string, mixed> */
     public array $data = [];
+
+    /** Os usuários públicos da demonstração têm senha legível e ninguém a troca. */
+    #[\Override]
+    public static function canAccess(): bool
+    {
+        return ! DemoMode::isPublicUser(Auth::user());
+    }
 
     public function mount(): void
     {

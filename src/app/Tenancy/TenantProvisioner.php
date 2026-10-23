@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\DB;
  */
 final class TenantProvisioner
 {
-    /** Perfis padrão e suas permissões (matriz de permissões). */
+    /** Perfis padrão e suas permissões (matriz de permissões do projeto). */
     public const array PROFILES = [
         'Gestor' => 'all',
         'Operador' => [

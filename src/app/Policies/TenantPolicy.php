@@ -19,4 +19,15 @@ final class TenantPolicy
     {
         return $user->hasPermission(Permission::ChangeSettings, $tenant);
     }
+
+    /** Políticas de pagamento e estorno (permissão 14, matriz de permissões). */
+    public function configurePayments(User $user): bool
+    {
+        return $user->hasAnyPermission(Permission::ChangeFinancialPolicies);
+    }
+
+    public function updatePaymentPolicies(User $user, Tenant $tenant): bool
+    {
+        return $user->hasPermission(Permission::ChangeFinancialPolicies, $tenant);
+    }
 }

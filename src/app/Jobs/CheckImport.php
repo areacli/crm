@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Import\ImportChecker;
 use App\Models\Import;
+use App\Payments\PaymentImportChecker;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\Attributes\DeleteWhenMissingModels;
@@ -20,8 +21,8 @@ final class CheckImport implements ShouldQueue
 
     public function __construct(public readonly Import $import) {}
 
-    public function handle(ImportChecker $checker): void
+    public function handle(ImportChecker $checker, PaymentImportChecker $paymentChecker): void
     {
-        $checker->run($this->import);
+        $this->import->kind === 'portfolio' ? $checker->run($this->import) : $paymentChecker->run($this->import);
     }
 }

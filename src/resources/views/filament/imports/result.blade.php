@@ -62,6 +62,9 @@
             <ul class="mt-4 list-disc space-y-1 ps-5 text-sm">
                 <li>{{ number_format($summary['bills_new'] ?? 0, 0, ',', '.') }} títulos novos, {{ number_format($summary['bills_updated'] ?? 0, 0, ',', '.') }} atualizados, {{ number_format($summary['bills_unchanged'] ?? 0, 0, ',', '.') }} sem mudança.</li>
                 <li>{{ number_format($summary['customers_new'] ?? 0, 0, ',', '.') }} clientes novos.</li>
+                @if (($summary['bills_paid_kept'] ?? 0) > 0)
+                    <li>{{ $summary['bills_paid_kept'] }} títulos pagos neste sistema, mantidos como estão.</li>
+                @endif
                 @if (($summary['bills_reincluded'] ?? 0) > 0)
                     <li>{{ $summary['bills_reincluded'] }} títulos retirados voltam à carteira.</li>
                 @endif

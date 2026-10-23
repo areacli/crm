@@ -33,7 +33,11 @@ final class CsvFile
 
     private bool $latin1 = false;
 
-    public function __construct(private readonly string $path)
+    /**
+     * @param  list<string>  $required  colunas obrigatórias (por padrão, as da carteira)
+     * @param  list<string>  $optional  colunas opcionais
+     */
+    public function __construct(private readonly string $path, private readonly array $required = self::REQUIRED, private readonly array $optional = self::OPTIONAL)
     {
         if (filesize($path) > self::MAX_BYTES) {
             throw new ImportRefused('arquivo acima do limite de 50 MB');
@@ -141,7 +145,7 @@ final class CsvFile
         }
 
         $names = str_getcsv(rtrim($headerLine, "\r\n"), ';', '"', '');
-        $known = array_merge(self::REQUIRED, self::OPTIONAL);
+        $known = array_merge($this->required, $this->optional);
         foreach ($names as $position => $raw) {
             $name = str_replace(' ', '', Text::fold((string) $raw));
             if (in_array($name, $known, true) && ! in_array($name, $this->columns, true)) {
@@ -151,7 +155,7 @@ final class CsvFile
             }
         }
 
-        $missing = array_values(array_diff(self::REQUIRED, $this->columns));
+        $missing = array_values(array_diff($this->required, $this->columns));
         if ($missing !== []) {
             throw new ImportRefused('coluna obrigatória ausente: '.implode(', ', $missing));
         }

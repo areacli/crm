@@ -18,7 +18,7 @@ use Illuminate\Support\Str;
 final class ImportService
 {
     /** @throws ImportRefused quando já há uma importação em andamento no credor (R10, caso de exceção). */
-    public function start(Tenant $tenant, User $user, UploadedFile|string $file, ImportMode $mode, ?string $originalName = null): Import
+    public function start(Tenant $tenant, User $user, UploadedFile|string $file, ImportMode $mode, ?string $originalName = null, string $kind = 'portfolio'): Import
     {
         if ($this->inProgress($tenant) !== null) {
             throw new ImportRefused('há uma importação em andamento');
@@ -37,7 +37,7 @@ final class ImportService
         $import = Import::create([
             'tenant_id' => $tenant->id,
             'user_id' => $user->id,
-            'kind' => 'portfolio',
+            'kind' => $kind,
             'mode' => $mode,
             'status' => ImportStatus::Received,
             'original_name' => $originalName,
@@ -66,7 +66,7 @@ final class ImportService
         if ($import->status !== ImportStatus::Checked) {
             throw new ImportRefused('só uma importação conferida pode ser descartada');
         }
-        DB::table('import_rows')->where('import_id', $import->id)->delete();
+        DB::table($import->kind === 'portfolio' ? 'import_rows' : 'payment_rows')->where('import_id', $import->id)->delete();
         Storage::disk('local')->delete($import->stored_path);
         $import->update(['status' => ImportStatus::Discarded, 'finished_at' => now()]);
 

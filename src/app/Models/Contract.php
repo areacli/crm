@@ -33,6 +33,17 @@ class Contract extends Model
         return $this->hasMany(Bill::class);
     }
 
+    public function credits(): HasMany
+    {
+        return $this->hasMany(Credit::class);
+    }
+
+    /** Crédito do contrato: a soma dos lançamentos (MT-22, R55b). */
+    public function creditCents(): int
+    {
+        return (int) $this->credits()->sum('amount_cents');
+    }
+
     /** @return list<string> papéis (holder, financial_responsible) do cliente neste contrato */
     public static function rolesOf(Customer $customer): array
     {

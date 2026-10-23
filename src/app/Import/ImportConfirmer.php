@@ -156,6 +156,11 @@ final class ImportConfirmer
             where r.import_id = ? and r.ok and r.contract is null
         SQL, [$t, $t, $i, $t, $i]);
         $this->sql('create index on import_bills (customer_id, number)');
+        // R57: título pago neste sistema continua pago e não é atualizado pela carga (a baixa ainda não chegou ao faturamento).
+        $this->sql(<<<'SQL'
+            delete from import_bills n using bills b
+            where b.tenant_id = ? and b.customer_id = n.customer_id and b.number = n.number and b.status = 'paid'
+        SQL, [$t]);
         $this->sql('analyze import_bills');
 
         // Papéis do cliente em cada contrato (R9b): a união do que as linhas declaram (coluna vazia vale os dois),

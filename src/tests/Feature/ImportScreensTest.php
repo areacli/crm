@@ -7,7 +7,6 @@ use App\Filament\Resources\Imports\Pages\ListImports;
 use App\Filament\Resources\Imports\Pages\ViewImport;
 use App\Import\CsvColumns;
 use App\Import\CsvFile;
-use App\Import\ImportChecker;
 use App\Import\ImportService;
 use App\Jobs\CheckImport;
 use App\Models\Bill;
@@ -107,7 +106,7 @@ it('mostra as colunas e oferece a planilha-modelo, que passa na conferência sem
     $path = tempnam(sys_get_temp_dir(), 'modelo');
     file_put_contents($path, CsvColumns::templateCsv());
     $import = app(ImportService::class)->start($tenant, $ana, $path, ImportMode::Incremental, 'modelo.csv');
-    (new CheckImport($import))->handle(app(ImportChecker::class));
+    app()->call([new CheckImport($import), 'handle']);
     $import->refresh();
     expect($import->summary['valid'])->toBe(3)->and($import->summary['rejected'])->toBe(0);
 });
