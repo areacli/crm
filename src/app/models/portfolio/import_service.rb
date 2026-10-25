@@ -35,12 +35,14 @@ module Portfolio
     def recheck_if_policy_changed(import)
       return unless import.portfolio?
 
-      checked_with = import.summary_data[:discrepancy_policy]
-      return if checked_with.nil? || checked_with == import.tenant.setting.discrepancy_policy
+      setting = import.tenant.setting
+      data = import.summary_data
+      changed = %i[discrepancy_policy correction_policy].select { |policy| data[policy].present? && data[policy] != setting.public_send(policy) }
+      return if changed.empty?
 
       import.update!(status: :received, progress_percent: 0, summary: nil)
       CheckImportJob.perform_later(import)
-      raise ImportRefused, "a política de divergência mudou; a conferência foi refeita, confira de novo"
+      raise ImportRefused, "a política de #{changed.first == :correction_policy ? 'correção na tela ou carga' : 'divergência'} mudou; a conferência foi refeita, confira de novo"
     end
     private :recheck_if_policy_changed
 
@@ -48,6 +50,7 @@ module Portfolio
       raise ImportRefused, "só uma importação conferida pode ser descartada" unless import.checked?
 
       Sql.run("delete from import_rows where import_id = ?", import.id)
+      Sql.run("delete from import_contacts where import_id = ?", import.id)
       Sql.run("delete from payment_rows where import_id = ?", import.id)
       FileUtils.rm_f(import.file_path)
       import.update!(status: :discarded, finished_at: Time.current)

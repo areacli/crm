@@ -19,6 +19,48 @@
   </div>
 </section>
 
+<%# Contatos da carga (06): avisos que não recusam a linha (R111, R125, R126) e o que a carga queria mudar em dados mantidos pelo credor (R118). %>
+<% if data[:contact_warnings].to_i.positive? %>
+  <% warnings = import.warnings.order(:line, :id).limit(50) %>
+  <section class="cartao" id="contatos-da-conferencia" aria-labelledby="avisos-de-contato">
+    <header><div><h2 id="avisos-de-contato">Contatos com aviso: <%= number_br(data[:contact_warnings]) %></h2><p>Os títulos e os demais dados da linha entram; só o contato avisado é ignorado ou entra inválido. Mostrando os primeiros <%= number_br(warnings.size) %>.</p></div></header>
+    <div class="tabela">
+      <table>
+        <caption class="apenas-leitor-de-tela">Avisos de contato da conferência</caption>
+        <thead><tr><th scope="col">Aviso</th></tr></thead>
+        <tbody><% warnings.each do |warning| %><tr><td>linha <%= warning.line %>: <%= warning.reason %></td></tr><% end %></tbody>
+      </table>
+    </div>
+  </section>
+<% end %>
+
+<% kept = data[:kept_by_tenant] %>
+<% if kept && (kept.dig(:names, :count).to_i + kept.dig(:contacts, :count).to_i).positive? %>
+  <% effect = data[:correction_policy] == "load" ? "a carga vence" : "mantido pelo credor" %>
+  <section class="cartao" id="mantidos-pelo-credor" aria-labelledby="mantidos">
+    <header>
+      <div>
+        <h2 id="mantidos">Mantidos pelo credor: <%= number_br(kept[:names][:count]) %> <%= kept[:names][:count].to_i == 1 ? "nome" : "nomes" %>, <%= number_br(kept[:contacts][:count]) %> <%= kept[:contacts][:count].to_i == 1 ? "contato" : "contatos" %></h2>
+        <p>Dados corrigidos ou decididos na tela que a carga queria mudar. Política do credor: <%= t("registry.correction_policies.#{data[:correction_policy]}").downcase %>. Mostrando até 50 de cada.</p>
+      </div>
+    </header>
+    <div class="tabela">
+      <table>
+        <caption class="apenas-leitor-de-tela">Dados mantidos pelo credor que a carga queria mudar</caption>
+        <thead><tr><th scope="col">Cliente</th><th scope="col">Dado</th><th scope="col">Hoje</th><th scope="col">A carga traz</th><th scope="col">Efeito</th></tr></thead>
+        <tbody>
+          <% kept[:names][:items].each do |item| %>
+            <tr><th scope="row"><%= item[:current_name] %></th><td>Nome</td><td><%= item[:current_name] %></td><td><%= item[:load_name] %></td><td><%= effect %></td></tr>
+          <% end %>
+          <% kept[:contacts][:items].each do |item| %>
+            <tr><th scope="row"><%= item[:customer] %></th><td><%= t("registry.kinds.#{item[:kind]}") %></td><td><%= item[:value] %> (<%= t("registry.statuses.#{item[:status]}").downcase %>)</td><td><%= item[:value] %></td><td><%= data[:correction_policy] == "load" ? "volta a válido, a carga vence" : "continua #{t("registry.statuses.#{item[:status]}").downcase}, mantido pelo credor" %></td></tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </section>
+<% end %>
+
 <% discrepancies = data[:discrepancies] %>
 <% if discrepancies && discrepancies[:count].to_i.positive? %>
   <section class="cartao" aria-labelledby="divergencias-da-conferencia">

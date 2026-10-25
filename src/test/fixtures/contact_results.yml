@@ -9,5 +9,6 @@
   kind: <%= kind %>
   return_rule: <%= rule %>
   position: <%= index + 1 %>
+  invalidates_contact: <%= name == "Número ou endereço inexistente" %>
 <% end %>
 <% end %>

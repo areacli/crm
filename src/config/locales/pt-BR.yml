@@ -45,6 +45,21 @@ pt-BR:
         juros_credor: "Juros que o credor já aplicou, em reais; só para conferência"
         correcao_credor: "Correção que o credor já aplicou, em reais; só para conferência"
         outros_credor: "Outros acréscimos do credor, em reais; só para conferência"
+        telefone2: "Outro telefone do cliente; telefone3 a telefone5 também valem. Vazio não muda nada"
+        telefone3: "Outro telefone do cliente"
+        telefone4: "Outro telefone do cliente"
+        telefone5: "Outro telefone do cliente"
+        email2: "Outro e-mail do cliente; email3 a email5 também valem. Vazio não muda nada"
+        email3: "Outro e-mail do cliente"
+        email4: "Outro e-mail do cliente"
+        email5: "Outro e-mail do cliente"
+        logradouro: "Endereço do cliente: logradouro, cidade, UF e CEP são obrigatórios para o endereço existir"
+        numero: "Número do endereço; vazio vale s/n"
+        complemento: "Complemento do endereço, opcional"
+        bairro: "Bairro, opcional"
+        cidade: "Cidade do endereço"
+        uf: "Sigla de um dos 27 estados"
+        cep: "8 dígitos, com ou sem hífen"
   payments:
     sheet:
       payments:
@@ -165,7 +180,55 @@ pt-BR:
       return_too_far: "Retorno até %{days} dias depois do contato."
       text_too_long: "O texto tem no máximo %{max} caracteres."
       contact_too_long: "O contato usado tem no máximo %{max} caracteres para este canal."
+  registry:
+    kinds:
+      phone: "Telefone"
+      email: "E-mail"
+      address: "Endereço"
+    statuses:
+      valid: "Válido"
+      invalid: "Inválido"
+      do_not_disturb: "Não perturbe"
+    origins:
+      load: "Carga"
+      screen: "Tela"
+      contact_attempt: "Acionamento"
+    roles:
+      holder: "titular"
+      financial_responsible: "responsável financeiro"
+    correction_policies:
+      screen: "A tela prevalece"
+      load: "A carga vence"
+    correction_policy_help:
+      screen: "O que foi corrigido na tela continua: o nome marcado como mantido pelo credor não muda pela carga, e um contato marcado inválido ou não perturbe continua assim, mesmo que a carga o traga de novo. Exemplo: Joana corrigiu o nome para \"Maria da Silva Souza\" e a carga traz \"Maria da Silva\"; o nome continua \"Maria da Silva Souza\"."
+      load: "A carga corrige a tela: ela muda o nome e devolve a válido o contato inválido ou não perturbe que vier nela. Exemplo: com o mesmo nome corrigido, a carga com \"Maria da Silva\" devolve o nome \"Maria da Silva\"."
+    attempt_warning:
+      do_not_disturb: "Atenção: este contato está em não perturbe desde %{date}. O acionamento foi registrado."
+      invalid: "Atenção: este contato está inválido (%{reason}). O acionamento foi registrado."
+    refused:
+      kind: "Escolha o tipo do contato."
+      status: "Escolha a situação do contato."
+      value_required: "Informe o contato."
+      address_blank: "Preencha o endereço: logradouro, cidade, UF e CEP."
+      too_long: "O contato tem no máximo %{max} caracteres."
+      invalid_format: "%{kind} inválido: %{reason}."
+      already_registered: "Este contato já está cadastrado (%{status})."
+      same_as_current: "O novo valor é igual ao contato atual."
+      invalid_cannot_be_corrected: "Contato inválido não se corrige: volte-o a válido, com motivo, ou crie o contato certo."
+      already_invalid: "O contato já está inválido."
+      already_valid: "O contato já está válido."
+      only_valid_can_be_dnd: "Só um contato válido vai para não perturbe."
+      tenant_contact: "Este contato é do credor e não pode ficar válido."
+      reason_required: "Informe o motivo."
+      reason_too_long: "O motivo tem no máximo %{max} caracteres."
+      invalid_date: "Data do pedido inválida."
+      future_date: "A data do pedido não pode ser futura."
+      name_required: "Informe o nome."
+      name_too_long: "O nome tem no máximo %{max} caracteres."
   customers:
+    names:
+      update:
+        done: "Nome corrigido."
     contact_attempts:
       create:
         done: "Acionamento registrado."
@@ -173,7 +236,19 @@ pt-BR:
       create:
         done: "R$ %{amount} transferidos para o contrato %{to}."
         destination_not_found: "Contrato de destino não encontrado neste credor."
+  customer_contacts:
+    create:
+      done: "Contato criado."
+      done_tenant_contact: "Contato criado como inválido: é contato do credor."
+    update:
+      done: "Contato corrigido: o antigo ficou inválido e o novo nasceu válido."
+    statuses:
+      update:
+        done: "Situação do contato alterada."
   settings:
+    tenant_registries:
+      update:
+        done: "Dados de %{tenant} salvos."
     contact_results:
       create:
         done: "Resultado %{name} criado."
@@ -296,6 +371,9 @@ pt-BR:
         permissions: "Permissões"
       tenant:
         name: "Nome"
+        legal_name: "Razão social"
+        trade_name: "Nome fantasia"
+        cnpj: "CNPJ"
       contact_result:
         name: "Nome"
         kind: "Tipo"

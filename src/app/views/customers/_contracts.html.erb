@@ -1,0 +1,27 @@
+<%# Contratos em que o cliente figura (06, R124a), só para leitura: o papel dele, os clientes do contrato e o crédito. Locais: customer, contracts, members, credit_totals. %>
+<section class="cartao" id="contratos" aria-labelledby="contratos-titulo">
+  <header><div><h2 id="contratos-titulo">Contratos</h2><p>Os contratos em que este cliente figura e o papel de cada cliente neles.</p></div></header>
+  <div class="tabela">
+    <table>
+      <caption class="apenas-leitor-de-tela">Contratos do cliente e os clientes de cada um</caption>
+      <thead><tr><th scope="col">Contrato</th><th scope="col">Papel deste cliente</th><th scope="col">Clientes do contrato</th><th scope="col" data-numerico>Crédito</th></tr></thead>
+      <tbody>
+        <% contracts.each do |contract| %>
+          <% rows = members.fetch(contract.id, []) %>
+          <% own = rows.find { |row| row.customer_id == customer.id } %>
+          <tr>
+            <th scope="row"><%= contract.label %></th>
+            <td><%= own ? role_label(own, rows) : "—" %></td>
+            <td>
+              <% rows.sort_by { |row| row.customer.name }.each do |row| %>
+                <%= row.customer_id == customer.id ? row.customer.name : (policy(row.customer).show? ? link_to(row.customer.name, customer_path(row.customer)) : row.customer.name) %>
+                <small><%= role_label(row, rows) %></small>
+              <% end %>
+            </td>
+            <td data-numerico><%= money(credit_totals.fetch(contract.id, 0)) %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</section>

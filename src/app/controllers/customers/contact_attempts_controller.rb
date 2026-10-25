@@ -26,10 +26,13 @@ module Customers
     def create
       authorize ContactAttempt.new(tenant: @customer.tenant), :create?
       values = params.expect(contact_attempt: Contacts::Form::FIELDS).to_h
-      Contacts::Recorder.new(Current.user).record(@customer, values)
-      return redirect_to(customer_path(@customer, anchor: "acionamentos"), notice: t(".done"), status: :see_other) unless htmx_fragment?
+      # R122 e PD5: "salvar este contato no cadastro" só vale com a permissão 12 no credor do cliente; sem ela a marca é ignorada.
+      save_contact = values[:save_contact].to_s == "1" && policy(@customer).edit_registry?
+      warning = Contacts::Recorder.contact_warning(@customer, values[:channel], values[:contact_used])
+      Contacts::Recorder.new(Current.user).record(@customer, values, save_contact: save_contact)
+      return redirect_to(customer_path(@customer, anchor: "acionamentos"), notice: [ t(".done"), warning ].compact.join(" "), status: :see_other) unless htmx_fragment?
 
-      render_form(Contacts::Form.new(@customer), notice: t(".done"), history: true)
+      render_form(Contacts::Form.new(@customer), notice: t(".done"), history: true, warning: warning)
     rescue Contacts::Refused => error
       return redirect_to(customer_path(@customer, anchor: "acionamentos"), alert: error.message, status: :see_other) unless htmx_fragment?
 
@@ -39,9 +42,9 @@ module Customers
     private
       def set_customer = @customer = Customer.includes(:tenant).find(params[:customer_id])
 
-      def render_form(form, status: :ok, notice: nil, history: false)
+      def render_form(form, status: :ok, notice: nil, history: false, warning: nil)
         @history = ContactAttempt.history_for(@customer, page: 1) if history
-        render partial: "customers/contact_attempts/form_and_history", locals: { form: form, customer: @customer, history: @history, notice: notice }, status: status
+        render partial: "customers/contact_attempts/form_and_history", locals: { form: form, customer: @customer, history: @history, notice: notice, warning: warning }, status: status
       end
   end
 end

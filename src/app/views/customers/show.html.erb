@@ -18,10 +18,20 @@
   <div>
     <dl class="valores">
       <div><dt>Documento</dt><dd><%= @customer.formatted_document %></dd></div>
-      <div><dt>Telefone</dt><dd><%= @customer.phone.presence || "—" %></dd></div>
-      <div><dt>E-mail</dt><dd><%= @customer.email.presence || "—" %></dd></div>
+      <div><dt>Telefone</dt><dd><%= @contacts.find { |contact| contact.phone? && contact.status_valid? }&.value || "—" %></dd></div>
+      <div><dt>E-mail</dt><dd><%= @contacts.find { |contact| contact.email? && contact.status_valid? }&.value || "—" %></dd></div>
       <div><dt>Faixa de atraso</dt><dd><%= worst ? "#{@brackets.label(@brackets.index_for(worst))} dias" : "Sem atraso" %></dd></div>
     </dl>
+    <% if @customer.name_kept? %><p><small>O nome foi corrigido na tela (mantido pelo credor).</small></p><% end %>
+    <% if @can_edit_registry %>
+      <details id="corrigir-nome">
+        <summary>Corrigir nome</summary>
+        <%= form_with scope: :customer, url: customer_name_path(@customer), method: :patch, html: { "hx-boost": "false" } do |form| %>
+          <div class="campo"><%= form.label :name, "Nome" %><%= form.text_field :name, value: @customer.name, required: true, maxlength: 300 %><small>O documento não se edita: documento errado é outro cliente.</small></div>
+          <div class="acoes"><button type="submit">Corrigir nome</button></div>
+        <% end %>
+      </details>
+    <% end %>
   </div>
 </section>
 
@@ -38,7 +48,11 @@
   </div>
 </section>
 
+<%= render "customers/registry", customer: @customer, top: @top_contacts, listed: @listed_contacts, can_edit: @can_edit_registry, history: @registry_history, contacts_by_id: @contacts.index_by(&:id) %>
+
 <%= render "customers/contact_attempts", customer: @customer, history: @contact_history, form: @contact_form %>
+
+<%= render "customers/contracts", customer: @customer, contracts: @contracts, members: @contract_members, credit_totals: @credit_totals %>
 
 <section class="cartao" aria-labelledby="titulos">
   <header><h2 id="titulos">Títulos</h2></header>

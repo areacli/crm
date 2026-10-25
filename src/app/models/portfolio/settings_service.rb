@@ -25,6 +25,14 @@ module Portfolio
       log(tenant, user, "discrepancy_policy_changed", "discrepancy_policy", before, setting.discrepancy_policy) if before != setting.discrepancy_policy
     end
 
+    # Correção na tela ou carga: qual vale (06, R117). Vale para as cargas seguintes.
+    def update_correction_policy(tenant, policy, user)
+      setting = tenant.setting
+      before = setting.correction_policy
+      setting.update!(correction_policy: policy)
+      log(tenant, user, "correction_policy_changed", "correction_policy", before, setting.correction_policy) if before != setting.correction_policy
+    end
+
     private
       def log(tenant, user, event, field, before, after)
         Change.create!(tenant: tenant, user: user, subject_type: "settings", subject_id: tenant.id, event: event, field: field, before: before, after: after)

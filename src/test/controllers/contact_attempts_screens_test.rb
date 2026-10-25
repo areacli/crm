@@ -206,7 +206,8 @@ class ContactAttemptsScreensTest < ActionDispatch::IntegrationTest
   end
 
   test "R71: os contatos oferecidos são os do cliente contatado, nunca os de outro cliente do contrato" do
-    @maria.update!(phone: "(11) 98765-4321", email: "maria@exemplo.com.br")
+    add_contact(@maria, "phone", "(11) 98765-4321")
+    add_contact(@maria, "email", "maria@exemplo.com.br")
     pedro = make_customer(@alfa, document: PaymentsHelper::JOAO, name: "Pedro Souza", contract_code: "CT-1")
     entrar(users(:joana))
 

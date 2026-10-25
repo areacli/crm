@@ -17,7 +17,7 @@ class Portfolio::RowValidatorTest < ActiveSupport::TestCase
     assert_equal "52998224725", parsed.document
     assert_equal 123_456, parsed.amount_cents
     assert_equal Date.new(2026, 9, 1), parsed.due_date
-    assert_nil parsed.phone
+    assert_equal [ "email" ], parsed.contacts.map(&:kind)
     assert_equal 7, parsed.line
   end
 

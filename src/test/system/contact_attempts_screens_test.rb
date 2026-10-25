@@ -5,7 +5,7 @@ class ContactAttemptsScreensSystemTest < ApplicationSystemTestCase
   setup do
     @alfa = tenants(:alfa)
     @maria = make_customer(@alfa)
-    @maria.update!(phone: "(11) 98765-4321")
+    add_contact(@maria, "phone", "(11) 98765-4321")
     pedro = make_customer(@alfa, document: PaymentsHelper::JOAO, name: "Pedro Souza", contract_code: "CT-1")
     ContractCustomer.where(customer: @maria).update_all(roles: %w[holder financial_responsible])
     ContractCustomer.where(customer: pedro).update_all(roles: %w[holder])

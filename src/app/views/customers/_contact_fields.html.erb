@@ -1,0 +1,17 @@
+<%# Campos de um contato (R110): um valor para telefone e e-mail; os campos do endereço para o tipo endereço. Locais: form, kind, contact (ou nil). %>
+<% if kind == "address" %>
+  <div class="grupo-de-campos">
+    <div class="campo"><%= form.label :street, "Logradouro" %><%= form.text_field :street, value: contact&.street, required: true, maxlength: 200 %></div>
+    <div class="campo"><%= form.label :number, "Número" %><%= form.text_field :number, value: contact&.number, maxlength: 20 %></div>
+    <div class="campo"><%= form.label :complement, "Complemento" %><%= form.text_field :complement, value: contact&.complement, maxlength: 100 %></div>
+    <div class="campo"><%= form.label :district, "Bairro" %><%= form.text_field :district, value: contact&.district, maxlength: 100 %></div>
+    <div class="campo"><%= form.label :city, "Cidade" %><%= form.text_field :city, value: contact&.city, required: true, maxlength: 100 %></div>
+    <div class="campo"><%= form.label :state, "UF" %><%= form.select :state, Registry::Normalizer::UFS, { selected: contact&.state, include_blank: true }, required: true %></div>
+    <div class="campo"><%= form.label :zip, "CEP" %><%= form.text_field :zip, value: contact&.zip, required: true, maxlength: 9, inputmode: "numeric" %></div>
+  </div>
+<% else %>
+  <div class="campo">
+    <%= form.label :value, kind == "email" ? "E-mail" : "Telefone" %>
+    <%= form.text_field :value, value: contact&.value, required: true, maxlength: (kind == "email" ? 254 : 60), type: (kind == "email" ? "email" : "tel"), autocomplete: "off" %>
+  </div>
+<% end %>

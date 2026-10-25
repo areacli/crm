@@ -2,7 +2,7 @@ module Contacts
   # O que o formulário de registro precisa saber (R69 a R73): os valores enviados (para voltar preenchido quando algo é recusado), os resultados
   # ativos do credor, os contratos do cliente, os contatos da ficha dele (R71) e a sugestão do responsável financeiro (R69c, só aviso).
   class Form
-    FIELDS = %i[channel result_id contract_id contact_used text contacted_at return_at].freeze
+    FIELDS = %i[channel result_id contract_id contact_used text contacted_at return_at save_contact].freeze
 
     attr_reader :customer, :values, :error
 
@@ -28,8 +28,16 @@ module Contacts
 
     def selected_contract = contracts.find { |contract| contract.id.to_s == values[:contract_id].to_s }
 
-    # R71: os contatos oferecidos são os do cliente contatado, nunca os de outro cliente do contrato.
-    def suggested_contacts = [ customer.phone, customer.email ].compact_blank
+    # R71 e R120: os contatos oferecidos são os válidos do cliente contatado (nunca os de outro cliente do contrato), do tipo do canal escolhido:
+    # telefone para telefone, WhatsApp e SMS; e-mail para e-mail; endereço para carta e presencial. Sem canal, todos os válidos.
+    def suggested_contacts
+      kind = CustomerContact::CHANNEL_KINDS[values[:channel]]
+      contacts = customer.contacts.status_valid
+      contacts = contacts.where(kind: kind) if kind
+      contacts.order(:kind, :id).pluck(:value)
+    end
+
+    def save_contact? = values[:save_contact].to_s == "1"
 
     # R69c / MT-16: o responsável financeiro do contrato; sem nenhum declarado, os titulares. Devolve os nomes quando o cliente da ficha não
     # é um deles (aviso, nunca bloqueio); nil quando não há contrato escolhido ou o cliente é o próprio responsável.

@@ -55,6 +55,7 @@
     width: 100%;
     margin-inline: auto;
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--espaco-6);
     align-content: start;
   }

@@ -14,6 +14,9 @@ class TenantSetting < ApplicationRecord
   # Divergência de valor (R94, permissão 14): seguir o valor novo (padrão) ou manter o valor vigente e só registrar.
   enum :discrepancy_policy, { follow: "follow", keep: "keep" }, prefix: true, validate: true
 
+  # Correção na tela ou carga: qual vale (06, R117). Padrão: a tela prevalece.
+  enum :correction_policy, { screen: "screen", load: "load" }, prefix: true, validate: true
+
   PAYMENT_POLICIES = %w[partial_payment_policy withdrawn_payment_policy withdrawn_reversal_policy reversal_month_policy].freeze
 
   # Faixas iniciais de atraso, em dias: de 1 a 30, de 31 a 60, de 61 a 90, de 91 a 180, de 181 a 360 e mais de 360.

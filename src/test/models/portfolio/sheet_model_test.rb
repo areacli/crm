@@ -7,7 +7,7 @@ class Portfolio::SheetModelTest < ActiveSupport::TestCase
   test "tem o cabeçalho das colunas e três linhas, em CSV com ponto e vírgula e UTF-8" do
     lines = Portfolio::SheetModel.csv.delete_prefix("﻿").split("\r\n")
 
-    assert_equal "documento;nome;titulo;vencimento;valor;telefone;email;contrato;descricao;papel;produto;multa_credor;juros_credor;correcao_credor;outros_credor", lines.first
+    assert_equal "documento;nome;titulo;vencimento;valor;telefone;email;contrato;descricao;papel;produto;multa_credor;juros_credor;correcao_credor;outros_credor;telefone2;telefone3;telefone4;telefone5;email2;email3;email4;email5;logradouro;numero;complemento;bairro;cidade;uf;cep", lines.first
     assert_equal 4, lines.size
     assert_equal Encoding::UTF_8, Portfolio::SheetModel.csv.encoding
   end
@@ -27,7 +27,7 @@ class Portfolio::SheetModelTest < ActiveSupport::TestCase
   end
 
   test "a tabela de colunas diz quais são obrigatórias, o formato e um exemplo da própria planilha" do
-    assert_equal 15, Portfolio::SheetModel::COLUMNS.size
+    assert_equal 30, Portfolio::SheetModel::COLUMNS.size
     assert Portfolio::SheetModel.required?("vencimento")
     assert_not Portfolio::SheetModel.required?("telefone")
     assert_equal "10/09/2026", Portfolio::SheetModel.example("vencimento")

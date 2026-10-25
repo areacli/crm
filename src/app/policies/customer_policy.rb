@@ -2,6 +2,8 @@
 class CustomerPolicy < ApplicationPolicy
   def index? = user.permitted_anywhere?("view_portfolio")
   def show? = permitted?("view_portfolio")
+  # Editar o cadastro (contatos e nome): a 12 e a 1 (RP1), no credor do cliente (06, R113, R113a).
+  def edit_registry? = permitted?("edit_customer_registry") && permitted?("view_portfolio")
 
   class Scope < Scope
     def resolve = scope.visible_to(user, "view_portfolio")

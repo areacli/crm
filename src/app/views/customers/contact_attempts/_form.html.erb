@@ -3,16 +3,17 @@
 <% path = customer_contact_attempts_path(customer) %>
 <% fields_path = new_customer_contact_attempt_path(customer) %>
 <% dependents = { "hx-get": fields_path, "hx-trigger": "change", "hx-swap": "none",
-                  "hx-include": "[name='contact_attempt[result_id]'], [name='contact_attempt[contract_id]'], [name='contact_attempt[return_at]']" } %>
+                  "hx-include": "[name='contact_attempt[channel]'], [name='contact_attempt[result_id]'], [name='contact_attempt[contract_id]'], [name='contact_attempt[return_at]']" } %>
 <div id="form-acionamento">
   <% if local_assigns[:notice] %><%= aviso(tom: :success) { tag.p notice } %><% end %>
+  <% if local_assigns[:warning] %><%= aviso(tom: :warning) { tag.p warning } %><% end %>
   <% if form.error %><%= aviso(tom: :danger) { tag.p form.error } %><% end %>
   <%= form_with scope: :contact_attempt, url: path, html: { "hx-post": path, "hx-target": "#form-acionamento", "hx-swap": "outerHTML", "aria-labelledby": "registrar-acionamento" } do |f| %>
     <h3 id="registrar-acionamento">Registrar acionamento</h3>
     <div class="grupo-de-campos">
       <div class="campo">
         <%= f.label :channel, "Canal" %>
-        <%= f.select :channel, ContactAttempt::CHANNELS.map { |channel| [ t("contacts.channels.#{channel}"), channel ] }, { selected: form.value(:channel), prompt: "Escolha o canal" }, required: true %>
+        <%= f.select :channel, ContactAttempt::CHANNELS.map { |channel| [ t("contacts.channels.#{channel}"), channel ] }, { selected: form.value(:channel), prompt: "Escolha o canal" }, { required: true, **dependents } %>
       </div>
       <div class="campo">
         <%= f.label :result_id, "Resultado" %>
@@ -28,8 +29,11 @@
       <div class="campo">
         <%= f.label :contact_used, "Contato usado (opcional)" %>
         <%= f.text_field :contact_used, value: form.value(:contact_used), maxlength: 300, list: "contatos-do-cliente", autocomplete: "off", "aria-describedby": "ajuda-contato" %>
-        <datalist id="contatos-do-cliente"><% form.suggested_contacts.each do |contact| %><option value="<%= contact %>"><% end %></datalist>
-        <small id="ajuda-contato">Escolha um contato da ficha ou digite outro; o digitado fica só neste acionamento.</small>
+        <%= render "customers/contact_attempts/suggestions", form: form, oob: false %>
+        <small id="ajuda-contato">Escolha um contato válido da ficha ou digite outro; o digitado fica só neste acionamento<%= policy(customer).edit_registry? ? ", a menos que você marque para salvá-lo no cadastro" : "" %>.</small>
+        <% if policy(customer).edit_registry? %>
+          <label><%= f.check_box :save_contact, { checked: form.save_contact? }, "1", "0" %> Salvar este contato no cadastro</label>
+        <% end %>
       </div>
       <div class="campo">
         <%= f.label :contacted_at, "Data e hora do contato (opcional)" %>

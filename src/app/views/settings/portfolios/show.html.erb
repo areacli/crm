@@ -62,6 +62,26 @@
         <%= policy_body %>
       <% end %>
 
+      <%# Correção na tela ou carga: qual vale (06, R117): cartão de política com o efeito e o exemplo de cada opção. %>
+      <% last_correction = Change.where(subject_type: "settings", subject_id: tenant.id, field: "correction_policy").includes(:user).order(occurred_at: :desc, id: :desc).first %>
+      <%= form_with url: settings_portfolio_path, method: :patch, html: { "hx-boost": "false" } do |form| %>
+        <%= hidden_field_tag :tenant_id, tenant.id %>
+        <%= hidden_field_tag :section, "correction" %>
+        <fieldset>
+          <legend>Correção na tela ou carga: qual vale</legend>
+          <p><small>Quando a pessoa corrige o nome ou um contato de um cliente na tela e a carga seguinte traz outro valor. Vale para as cargas seguintes; a carga nunca apaga um contato.</small></p>
+          <% TenantSetting.defined_enums.fetch("correction_policy").each_key do |value| %>
+            <label>
+              <%= radio_button_tag :correction_policy, value, setting.correction_policy == value, id: "correction-#{tenant.id}-#{value}" %>
+              <strong><%= t("registry.correction_policies.#{value}") %></strong>
+              <small><%= t("registry.correction_policy_help.#{value}") %></small>
+            </label>
+          <% end %>
+          <% if last_correction %><p><small>Alterada por <%= last_correction.user&.name || "sistema" %> em <%= datetime_br(last_correction.occurred_at) %>.</small></p><% end %>
+        </fieldset>
+        <div class="acoes"><button type="submit">Salvar política de correção</button></div>
+      <% end %>
+
       <%= form_with url: settings_portfolio_path, method: :patch, html: { "hx-boost": "false" } do |form| %>
         <%= hidden_field_tag :tenant_id, tenant.id %>
         <%= hidden_field_tag :section, "upcoming" %>

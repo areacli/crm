@@ -1,4 +1,4 @@
-# Configuração da carteira, por credor: faixas de atraso (R18), tratamento do a vencer (R20) e política de divergência de valor (05, R94, R104). Sem seleção de credor: cada um tem o seu bloco.
+# Configuração da carteira, por credor: faixas de atraso (R18), tratamento do a vencer (R20), política de divergência de valor (05, R94, R104) e correção na tela ou carga (06, R117). Sem seleção de credor: cada um tem o seu bloco.
 module Settings
   class PortfoliosController < ApplicationController
     def show
@@ -19,6 +19,8 @@ module Settings
         service.update_upcoming_display(tenant, params[:upcoming_display], Current.user)
       when "discrepancy"
         service.update_discrepancy_policy(tenant, params[:discrepancy_policy], Current.user)
+      when "correction"
+        service.update_correction_policy(tenant, params[:correction_policy], Current.user)
       else
         return head :bad_request
       end

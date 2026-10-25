@@ -1,0 +1,3 @@
+<%# Contatos válidos do cliente, do tipo do canal escolhido (R120). Refeita pelo htmx quando o canal muda. Locais: form, oob. %>
+<% wrapper = { id: "contatos-do-cliente" }.merge(local_assigns[:oob] ? { "hx-swap-oob": "true" } : {}) %>
+<%= tag.datalist(**wrapper) do %><% form.suggested_contacts.each do |contact| %><option value="<%= contact %>"><% end %><% end %>
