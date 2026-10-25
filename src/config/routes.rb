@@ -15,6 +15,12 @@ Rails.application.routes.draw do
     resources :contact_attempts, path: "acionamentos", path_names: { new: "campos" }, only: %i[index new create], module: :customers
   end
 
+  # Histórico do título (05, R100) e divergências de valor (05, R99).
+  resources :bills, path: "titulos", only: :show
+  resources :value_discrepancies, path: "divergencias-de-valor", only: %i[index show] do
+    resource :handling, path: "tratamento", only: :create, module: :value_discrepancies
+  end
+
   # Lista de acionamentos dos credores (04, R78).
   resources :contact_attempts, path: "acionamentos", only: :index
 

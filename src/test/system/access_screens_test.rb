@@ -51,7 +51,7 @@ class AccessScreensSystemTest < ApplicationSystemTestCase
     visit new_import_path
 
     assert_selector "h2", text: "Colunas da planilha"
-    assert_selector "tbody tr", count: 10
+    assert_selector "tbody tr", count: 15
     assert_link "Baixar planilha modelo"
     assert_acessivel
   end

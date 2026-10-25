@@ -150,12 +150,49 @@ module Portfolio
         SQL
         roles_declared = Sql.one("select count(*) as n from import_rows where import_id = ? and ok and roles is not null", id)["n"]
 
-        { lines: lines, valid: ok["bills"].to_i, rejected: ImportRejection.where(import_id: id).count, blank_lines: file.blank_lines,
+        policy = TenantSetting.find_by!(tenant_id: tenant_id).discrepancy_policy
+        reported = surcharges_reported(id)
+
+        { lines: lines, valid: ok["bills"].to_i, discrepancy_policy: policy, discrepancies: discrepancies(tenant_id, id, policy), reported_surcharges: reported, rejected: ImportRejection.where(import_id: id).count, blank_lines: file.blank_lines,
           ignored_columns: file.ignored_columns, customers: ok["customers"].to_i, customers_new: new_customers.to_i, amount_cents: ok["amount"].to_i,
           bills_new: existing["bills_new"].to_i, bills_updated: existing["bills_updated"].to_i, bills_unchanged: existing["bills_unchanged"].to_i,
           bills_reincluded: existing["bills_reincluded"].to_i, bills_paid_kept: existing["bills_paid_kept"].to_i, to_withdraw: withdraw,
           kept_by_rejection: kept.to_i, contracts_created_by_omission: omitted.to_i, contracts_multi_customer: multi_customer.to_i,
           roles_declared: roles_declared.to_i, amount_formatted: Money.format(ok["amount"].to_i) }
+      end
+
+      # R98: os títulos com pagamento cujo valor muda, com o efeito pela política do credor da importação; o total e as primeiras linhas (a
+      # tela mostra até 200). O mesmo cálculo da confirmação (`DiscrepancyRules`). Consulta: `bills (tenant_id, customer_id, number)`.
+      def discrepancies(tenant_id, import_id, policy)
+        reported = "r.amount_cents"
+        base = <<~SQL
+          from import_rows r
+          join customers c on c.tenant_id = #{tenant_id.to_i} and c.document = r.document
+          join bills b on b.tenant_id = #{tenant_id.to_i} and b.customer_id = c.id and b.number = r.number
+          where r.import_id = ? and r.ok and b.amount_cents <> r.amount_cents and #{DiscrepancyRules::WITH_ALLOCATION}
+        SQL
+        count = Sql.one("select count(*) as n #{base}", import_id)["n"].to_i
+        items = Sql.rows(<<~SQL, import_id).map do |row|
+          select b.number, c.name as customer, b.amount_cents as previous_cents, r.amount_cents as reported_cents, b.paid_cents as allocated_cents,
+                 #{DiscrepancyRules.balance_before_sql} as balance_before_cents, #{DiscrepancyRules.balance_after_sql(policy, reported)} as balance_after_cents,
+                 #{DiscrepancyRules.excess_sql(policy, reported)} as excess_cents, #{DiscrepancyRules.effect_sql(policy, reported)} as effect
+          #{base} order by c.name, b.number limit 200
+        SQL
+          row.slice("number", "customer", "effect").merge(row.slice("previous_cents", "reported_cents", "allocated_cents", "balance_before_cents",
+                                                                    "balance_after_cents", "excess_cents").transform_values(&:to_i))
+        end
+        { count: count, items: items }
+      end
+
+      # R102: o total informado pelo credor em cada componente (só para conferência).
+      def surcharges_reported(import_id)
+        row = Sql.one(<<~SQL, import_id)
+          select count(*) filter (where penalty_cents is not null or interest_cents is not null or correction_cents is not null or other_cents is not null) as lines,
+                 coalesce(sum(penalty_cents), 0) as penalty_cents, coalesce(sum(interest_cents), 0) as interest_cents,
+                 coalesce(sum(correction_cents), 0) as correction_cents, coalesce(sum(other_cents), 0) as other_cents
+          from import_rows where import_id = ? and ok
+        SQL
+        row.transform_values(&:to_i)
       end
 
       def join_lines(lines)

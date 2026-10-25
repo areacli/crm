@@ -41,8 +41,8 @@ module Portfolio
       def aggregate_sql(ids)
         ActiveRecord::Base.sanitize_sql_array([ <<~SQL, @reference, @reference, @reference, @reference, ids.presence || [ 0 ] ])
           select customer_id, count(*) as bills_count,
-                 coalesce(sum(amount_cents - paid_cents) filter (where due_date < ?::date), 0) as overdue_cents,
-                 coalesce(sum(amount_cents - paid_cents) filter (where due_date >= ?::date), 0) as upcoming_cents,
+                 coalesce(sum(greatest(amount_cents - paid_cents, 0)) filter (where due_date < ?::date), 0) as overdue_cents,
+                 coalesce(sum(greatest(amount_cents - paid_cents, 0)) filter (where due_date >= ?::date), 0) as upcoming_cents,
                  max(?::date - due_date) filter (where due_date < ?::date) as max_days_overdue
           from bills where status = 'active' and tenant_id in (?) group by customer_id
         SQL

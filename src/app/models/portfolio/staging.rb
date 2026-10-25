@@ -1,7 +1,7 @@
 module Portfolio
   # Grava as linhas da conferência na tabela de preparação, em lote, pelo COPY do PostgreSQL.
   class Staging
-    COLUMNS = %w[import_id line document number name name_key phone email contract due_date amount_cents description ok keep_document roles].freeze
+    COLUMNS = %w[import_id line document number name name_key phone email contract due_date amount_cents description ok keep_document roles product penalty_cents interest_cents correction_cents other_cents].freeze
 
     def initialize(import_id, batch_size: 5000)
       @import_id = import_id
@@ -11,12 +11,12 @@ module Portfolio
 
     def add(row, name_key)
       push [ @import_id, row.line, row.document, row.number, row.name, name_key, row.phone, row.email, row.contract, row.due_date, row.amount_cents,
-             row.description, "t", "f", row.roles ]
+             row.description, "t", "f", row.roles, row.product, row.penalty_cents, row.interest_cents, row.correction_cents, row.other_cents ]
     end
 
     # Linha recusada, mas com documento e título legíveis: guarda a chave para o título não ser retirado (R15).
     def add_key_only(line, document, number)
-      push [ @import_id, line, document, number, nil, nil, nil, nil, nil, nil, nil, nil, "f", "f", nil ]
+      push [ @import_id, line, document, number, nil, nil, nil, nil, nil, nil, nil, nil, "f", "f", nil, nil, nil, nil, nil, nil ]
     end
 
     def flush

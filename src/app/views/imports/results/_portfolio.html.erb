@@ -18,3 +18,59 @@
     <% if data[:contracts_created_by_omission].to_i.positive? %><p><small><%= number_br(data[:contracts_created_by_omission]) %> clientes sem contrato no arquivo ganharam um contrato criado por omissão.</small></p><% end %>
   </div>
 </section>
+
+<% discrepancies = data[:discrepancies] %>
+<% if discrepancies && discrepancies[:count].to_i.positive? %>
+  <section class="cartao" aria-labelledby="divergencias-da-conferencia">
+    <header>
+      <div>
+        <h2 id="divergencias-da-conferencia">Divergências de valor: <%= number_br(discrepancies[:count]) %> <%= discrepancies[:count].to_i == 1 ? "título" : "títulos" %></h2>
+        <p>Títulos com pagamento cujo valor muda. Política do credor: <%= t("discrepancies.policies.#{data[:discrepancy_policy]}").downcase %>.
+        <% if discrepancies[:count].to_i > discrepancies[:items].size %>Mostrando os primeiros <%= number_br(discrepancies[:items].size) %>.<% end %></p>
+      </div>
+    </header>
+    <div class="tabela">
+      <table>
+        <caption class="apenas-leitor-de-tela">Títulos com divergência de valor</caption>
+        <thead>
+          <tr>
+            <th scope="col">Título</th><th scope="col">Cliente</th><th scope="col" data-numerico>Valor vigente</th><th scope="col" data-numerico>Informado</th>
+            <th scope="col" data-numerico>Pago</th><th scope="col" data-numerico>Saldo antes</th><th scope="col" data-numerico>Saldo depois</th>
+            <th scope="col" data-numerico>Excedente</th><th scope="col">Efeito</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% discrepancies[:items].each do |item| %>
+            <tr>
+              <th scope="row"><%= item[:number] %></th>
+              <td><%= item[:customer] %></td>
+              <td data-numerico><%= money(item[:previous_cents]) %></td>
+              <td data-numerico><%= money(item[:reported_cents]) %></td>
+              <td data-numerico><%= money(item[:allocated_cents]) %></td>
+              <td data-numerico><%= money(item[:balance_before_cents]) %></td>
+              <td data-numerico><%= money(item[:balance_after_cents]) %></td>
+              <td data-numerico><%= item[:excess_cents].to_i.positive? ? money(item[:excess_cents]) : "—" %></td>
+              <td><%= t("discrepancies.effects.#{item[:effect]}") %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </section>
+<% end %>
+
+<% reported = data[:reported_surcharges] %>
+<% if reported && reported[:lines].to_i.positive? %>
+  <section class="cartao" aria-labelledby="acrescimos-informados">
+    <header><div><h2 id="acrescimos-informados">Acréscimos informados pelo credor</h2><p>Só para conferência: não mudam o valor nem o saldo dos títulos.</p></div></header>
+    <div>
+      <dl class="valores">
+        <div><dt>Linhas com acréscimo</dt><dd><%= number_br(reported[:lines]) %></dd></div>
+        <div><dt>Multa</dt><dd><%= money(reported[:penalty_cents]) %></dd></div>
+        <div><dt>Juros</dt><dd><%= money(reported[:interest_cents]) %></dd></div>
+        <div><dt>Correção</dt><dd><%= money(reported[:correction_cents]) %></dd></div>
+        <div><dt>Outros</dt><dd><%= money(reported[:other_cents]) %></dd></div>
+      </dl>
+    </div>
+  </section>
+<% end %>

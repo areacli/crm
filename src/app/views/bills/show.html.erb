@@ -1,0 +1,72 @@
+<% content_for :title, "Histórico do título #{@bill.number}" %>
+<% bill = @bill %>
+<header class="cabecalho-da-pagina">
+  <div>
+    <h1>Título <%= bill.number %></h1>
+    <p><%= link_to bill.customer.name, customer_path(bill.customer) %> · <%= bill.tenant.name %> · <%= link_to "Voltar para a ficha", customer_path(bill.customer, anchor: "titulos") %></p>
+  </div>
+</header>
+
+<section class="cartao" aria-labelledby="situacao">
+  <header><h2 id="situacao">Situação do título</h2></header>
+  <div>
+    <dl class="valores">
+      <div><dt>Valor vigente</dt><dd><%= money(bill.amount_cents) %></dd></div>
+      <div><dt>Pago</dt><dd><%= money(bill.paid_cents) %></dd></div>
+      <div><dt>Saldo</dt><dd><%= money(bill.balance_cents) %></dd></div>
+      <% if bill.excess_cents.positive? %><div><dt>Excedente (crédito do contrato)</dt><dd><%= money(bill.excess_cents) %></dd></div><% end %>
+      <div><dt>Contrato</dt><dd><%= bill.contract.label %></dd></div>
+      <div><dt>Vencimento</dt><dd><%= date_br(bill.due_date) %></dd></div>
+      <% if bill.product.present? %><div><dt>Produto</dt><dd><%= bill.product %></dd></div><% end %>
+      <div>
+        <dt>Situação</dt>
+        <dd>
+          <% if bill.withdrawn? %><%= situacao "Retirado", tom: :neutral %>
+          <% elsif bill.paid? %><%= situacao "Pago", tom: :success %>
+          <% elsif bill.due_date < Date.current %><%= situacao "Vencido", tom: :danger %>
+          <% else %><%= situacao "A vencer", tom: :info %><% end %>
+        </dd>
+      </div>
+    </dl>
+  </div>
+</section>
+
+<section class="cartao" aria-labelledby="versoes">
+  <header><h2 id="versoes">Versões do valor</h2><p>Cada valor que o credor informou para este título. A vigente é a última.</p></header>
+  <div class="tabela">
+    <table>
+      <caption class="apenas-leitor-de-tela">Versões do valor do título</caption>
+      <thead><tr><th scope="col" data-numerico>Versão</th><th scope="col" data-numerico>Valor</th><th scope="col">Data</th><th scope="col">Importação</th><th scope="col">Confirmada por</th></tr></thead>
+      <tbody>
+        <% @history.versions.each_with_index do |version, index| %>
+          <tr>
+            <th scope="row" data-numerico><%= index + 1 %><%= " (vigente)" if index == @history.versions.size - 1 %></th>
+            <td data-numerico><%= money(version.amount_cents) %></td>
+            <td><%= datetime_br(version.created_at) %></td>
+            <td><%= version.import ? "de #{date_br(version.import.created_at.in_time_zone.to_date)}" : "—" %></td>
+            <td><%= version.user&.name || "—" %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="cartao" aria-labelledby="linha-do-tempo">
+  <header><h2 id="linha-do-tempo">Linha do tempo</h2><p>Versões, pagamentos aplicados, estornos e divergências, em ordem de data.</p></header>
+  <div class="tabela">
+    <table>
+      <caption class="apenas-leitor-de-tela">Linha do tempo do título</caption>
+      <thead><tr><th scope="col">Data</th><th scope="col">O que aconteceu</th><th scope="col" data-numerico>Valor</th></tr></thead>
+      <tbody>
+        <% @history.events.each do |event| %>
+          <tr>
+            <th scope="row"><%= date_br(event.date) %></th>
+            <td><%= event.text %></td>
+            <td data-numerico><%= event.cents ? money(event.cents) : "—" %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</section>

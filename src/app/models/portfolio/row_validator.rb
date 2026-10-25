@@ -3,9 +3,11 @@ module Portfolio
   # Devolve [linha normalizada, nil] ou [nil, motivo da recusa].
   class RowValidator
     # Limites de caracteres por campo (especificação 01, formato da planilha).
-    LIMITS = { "nome" => 300, "titulo" => 100, "contrato" => 100, "descricao" => 300, "email" => 254, "telefone" => 60 }.freeze
+    LIMITS = { "nome" => 300, "titulo" => 100, "contrato" => 100, "descricao" => 300, "email" => 254, "telefone" => 60, "produto" => 100 }.freeze
     FIELD_NAMES = { "documento" => "documento", "nome" => "nome", "titulo" => "título", "vencimento" => "vencimento", "valor" => "valor",
-                    "telefone" => "telefone", "email" => "e-mail", "contrato" => "contrato", "descricao" => "descrição", "papel" => "papel" }.freeze
+                    "telefone" => "telefone", "email" => "e-mail", "contrato" => "contrato", "descricao" => "descrição", "papel" => "papel", "produto" => "produto" }.freeze
+    # Colunas de acréscimos já aplicados pelo credor (R102), na ordem de ParsedRow.
+    SURCHARGES = %w[multa_credor juros_credor correcao_credor outros_credor].freeze
     ROLES = { "titular" => "holder", "responsavelfinanceiro" => "financial_responsible", "responsavel" => "financial_responsible" }.freeze
 
     def validate(csv_row)
@@ -29,12 +31,31 @@ module Portfolio
       roles, role_problem = parse_roles(values["papel"].to_s)
       return [ nil, role_problem ] if role_problem
 
+      surcharges = SURCHARGES.map do |column|
+        extra = parse_surcharge(values[column])
+        return [ nil, "#{column} inválido" ] if extra == :invalid
+
+        extra
+      end
+
       [ ParsedRow.new(line: csv_row.line, document: Document.normalize(values["documento"]), name: values["nome"], phone: values["telefone"].presence,
                       email: values["email"].presence, contract: values["contrato"].presence, number: values["titulo"], due_date: due,
-                      amount_cents: cents, description: values["descricao"].presence, roles: roles), nil ]
+                      amount_cents: cents, description: values["descricao"].presence, roles: roles, product: values["produto"].presence,
+                      penalty_cents: surcharges[0], interest_cents: surcharges[1], correction_cents: surcharges[2], other_cents: surcharges[3]), nil ]
     end
 
     private
+      # Acréscimo do credor (R102): vazio é nulo; aceita zero; valor inválido ou negativo recusa a linha (R103).
+      def parse_surcharge(raw)
+        return nil if raw.to_s.strip.empty?
+
+        value = raw.to_s.strip
+        match = value.match(/\A(\d{1,3}(?:\.\d{3})+|\d+)(?:,(\d{1,2}))?\z/)
+        return :invalid unless match
+
+        match[1].delete(".").to_i * 100 + match[2].to_s.ljust(2, "0").to_i
+      end
+
       # Papéis do cliente no contrato (R9b): "titular", "responsável financeiro" ou os dois separados por barra, sem diferenciar
       # maiúsculas nem acentos. Vazio não declara papel (vale os dois). Valor desconhecido recusa a linha.
       def parse_roles(raw)

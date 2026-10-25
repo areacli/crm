@@ -5,7 +5,7 @@ module Portfolio
   # diferenciar maiúsculas nem acentos (formato da planilha, especificação 01). Lê registro a registro, sem carregar o arquivo inteiro.
   class CsvFile
     REQUIRED = %w[documento nome titulo vencimento valor].freeze
-    OPTIONAL = %w[telefone email contrato descricao papel].freeze
+    OPTIONAL = %w[telefone email contrato descricao papel produto multa_credor juros_credor correcao_credor outros_credor].freeze
     MAX_BYTES = 50 * 1024 * 1024
     MAX_LINES = 200_000
     UNDEFINED_IN_WINDOWS_1252 = /[\x81\x8D\x8F\x90\x9D]/n

@@ -17,7 +17,7 @@ module Payments
         create temporary table reversal_stream on commit drop as
         select row_number() over (order by r.paid_on, r.line) as n, r.line, r.identifier, r.paid_on as reversed_on, r.amount_cents, r.reason,
                p.id as payment_id, p.channel_id, p.status as payment_status, p.amount_cents as payment_amount, p.applied_cents, p.credit_cents,
-               p.reversed_cents, p.credit_reversed_cents, p.bill_id, b.contract_id, b.paid_cents, b.status as bill_status, b.withdrawn_at
+               p.reversed_cents, p.credit_reversed_cents, p.bill_id, b.contract_id, b.amount_cents as bill_amount, b.paid_cents, b.paid_on as bill_paid_on, b.status as bill_status, b.withdrawn_at
         from payment_rows r
         join payment_channels ch on ch.tenant_id = ? and ch.code = r.channel_code
         join payments p on p.tenant_id = ? and p.channel_id = ch.id and p.identifier = r.payment_identifier
@@ -61,10 +61,11 @@ module Payments
             end
             if from_bill.positive?
               bill_id = row["bill_id"].to_i
-              bill = bills[bill_id] ||= { paid: row["paid_cents"].to_i, status: row["bill_status"], paid_on: nil }
+              bill = bills[bill_id] ||= { paid: row["paid_cents"].to_i, status: row["bill_status"], paid_on: row["bill_paid_on"] }
               bill[:paid] -= from_bill
               summary[:from_bill_cents] += from_bill
-              if bill[:status] == "paid"
+              # R92: o estorno consome primeiro o excedente (valor reduzido abaixo do alocado); o título só volta à cobrança se o saldo reabre.
+              if bill[:status] == "paid" && bill[:paid] < row["bill_amount"].to_i
                 # R62a: o título que o credor tinha retirado segue a política; os demais voltam à cobrança.
                 bill[:status] = row["withdrawn_at"].present? && setting.withdrawn_reversal_policy_withdrawn? ? "withdrawn" : "active"
                 bill[:paid_on] = nil

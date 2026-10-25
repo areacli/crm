@@ -17,21 +17,21 @@ module Portfolio
       brackets = AgingBrackets.from_stored(tenant.setting.aging_brackets)
       totals = Sql.one(<<~SQL, @reference, @reference, @reference, tenant.id)
         select count(distinct customer_id) as customers, count(*) as bills,
-               coalesce(sum(amount_cents - paid_cents) filter (where due_date < ?::date), 0) as overdue_cents,
-               coalesce(sum(amount_cents - paid_cents) filter (where due_date >= ?::date), 0) as upcoming_cents,
+               coalesce(sum(greatest(amount_cents - paid_cents, 0)) filter (where due_date < ?::date), 0) as overdue_cents,
+               coalesce(sum(greatest(amount_cents - paid_cents, 0)) filter (where due_date >= ?::date), 0) as upcoming_cents,
                count(distinct customer_id) filter (where due_date < ?::date) as customers_overdue
         from bills where tenant_id = ? and status = 'active'
       SQL
       # A data de referência entra uma só vez, por parâmetro, numa CTE; as faixas a repetem em cada WHEN pela coluna.
       by_bill = Sql.rows(<<~SQL, @reference, tenant.id)
         with r as (select ?::date as d)
-        select #{brackets.sql_index('(r.d - due_date)')} as idx, count(*) as n, sum(amount_cents - paid_cents) as cents
+        select #{brackets.sql_index('(r.d - due_date)')} as idx, count(*) as n, sum(greatest(amount_cents - paid_cents, 0)) as cents
         from bills, r where tenant_id = ? and status = 'active' and due_date < r.d group by 1
       SQL
       by_customer = Sql.rows(<<~SQL, @reference, tenant.id)
         with r as (select ?::date as d)
         select #{brackets.sql_index('max_days')} as idx, count(*) as n, sum(overdue) as cents from (
-          select max(r.d - due_date) as max_days, sum(amount_cents - paid_cents) as overdue
+          select max(r.d - due_date) as max_days, sum(greatest(amount_cents - paid_cents, 0)) as overdue
           from bills, r where tenant_id = ? and status = 'active' and due_date < r.d group by customer_id
         ) c group by 1
       SQL
@@ -83,6 +83,14 @@ module Portfolio
           select payment_method, date_trunc('month', paid_on)::date as month, sum(applied_cents) as cents from payments
           where tenant_id = ? and status = 'applied' and paid_on >= ? group by 1, 2
         SQL
+        # R90, R58: o excedente de título com valor reduzido não conta como recuperado. É tirado do mês e do meio do último pagamento do título
+        # (aproximação: o excedente não tem pagamento próprio). Usa o índice parcial dos títulos com excedente e o de `payments (bill_id)`.
+        Sql.rows(<<~SQL, tenant.id, since).each { |row| add.call(row["payment_method"], Date.parse(row["month"].to_s), -row["cents"].to_i, true) }
+          select lp.payment_method, date_trunc('month', lp.paid_on)::date as month, sum(b.paid_cents - b.amount_cents) as cents
+          from bills b
+          join lateral (select payment_method, paid_on from payments where bill_id = b.id and status = 'applied' order by paid_on desc, id desc limit 1) lp on true
+          where b.tenant_id = ? and b.paid_cents > b.amount_cents and lp.paid_on >= ? group by 1, 2
+        SQL
         by_reversal = tenant.setting.reversal_month_policy_reversal?
         column = by_reversal ? "r.reversed_on" : "p.paid_on"
         Sql.rows(<<~SQL, tenant.id, since).each { |row| add.call(row["payment_method"], Date.parse(row["month"].to_s), -row["cents"].to_i, false) }
@@ -91,8 +99,18 @@ module Portfolio
           where r.tenant_id = ? and #{column} >= ? group by 1, 2
         SQL
         pending = Sql.one("select count(*) as n, coalesce(sum(amount_cents - reversed_cents), 0) as cents from payments where tenant_id = ? and status = 'pending'", tenant.id)
-        { recovered: recovered, credit_cents: Sql.one("select coalesce(sum(amount_cents), 0) as cents from credits where tenant_id = ?", tenant.id)["cents"].to_i,
+        ledger = ledger_credit_cents(tenant)
+        excess = excess_cents(tenant)
+        { recovered: recovered, credit_cents: ledger + excess, excess_cents: excess,
           pending_count: pending["n"].to_i, pending_cents: pending["cents"].to_i }
+      end
+
+      # Crédito do credor: o livro dos contratos (cada contrato uma vez) mais o excedente dos títulos de valor reduzido, calculado (05, R90).
+      def ledger_credit_cents(tenant) = Sql.one("select coalesce(sum(amount_cents), 0) as cents from credits where tenant_id = ?", tenant.id)["cents"].to_i
+
+      # Consulta: índice parcial `bills (tenant_id) where paid_cents > amount_cents` (só os títulos com excedente).
+      def excess_cents(tenant)
+        Sql.one("select coalesce(sum(paid_cents - amount_cents), 0) as cents from bills where tenant_id = ? and paid_cents > amount_cents", tenant.id)["cents"].to_i
       end
 
       def distribution(brackets, rows)

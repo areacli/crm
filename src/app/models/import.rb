@@ -6,6 +6,7 @@ class Import < ApplicationRecord
   PROGRESS_STEP = 5
 
   belongs_to :user, optional: true
+  belongs_to :confirmed_by, class_name: "User", optional: true
   has_many :rejections, class_name: "ImportRejection", dependent: :delete_all
 
   enum :status, { received: "received", checking: "checking", checked: "checked", confirming: "confirming", confirmed: "confirmed",

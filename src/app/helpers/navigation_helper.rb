@@ -33,6 +33,7 @@ module NavigationHelper
                                      [ "Importar carteira", new_import_path, "upload_imports", %r{\A/importacoes/nova(?!\?kind=(payments|reversals))} ],
                                      [ "Importar pagamentos", new_import_path(kind: "payments"), "upload_payments", %r{\A/importacoes/nova\?kind=payments} ],
                                      [ "Importar estornos", new_import_path(kind: "reversals"), "upload_payments", %r{\A/importacoes/nova\?kind=reversals} ],
+                                     [ discrepancies_label, value_discrepancies_path, "confirm_payments", %r{\A/divergencias-de-valor} ],
                                      [ "Importações", imports_path, ImportPolicy::UPLOAD.values.uniq + ImportPolicy::CONFIRM.values.uniq, %r{\A/importacoes(?!/nova)} ] ] },
       { titulo: "Administração", itens: [ [ "Usuários", memberships_path, "manage_users", %r{\A/usuarios} ],
                                           [ "Perfis", profiles_path, "manage_profiles", %r{\A/perfis} ],
@@ -46,6 +47,14 @@ module NavigationHelper
       end
       section.merge(itens: items) if items.any?
     end
+  end
+
+  # "Divergências de valor" com o número das abertas que a pessoa pode tratar (05, DV3, MT-4): só os credores em que ela confirma pagamentos.
+  # Consulta: `value_discrepancies (tenant_id, status, id)`.
+  def discrepancies_label
+    ids = Current.user.tenant_ids_with("confirm_payments")
+    open = ids.any? ? ValueDiscrepancy.where(tenant_id: ids, status: "open").count : 0
+    open.positive? ? "Divergências de valor (#{number_br(open)})" : "Divergências de valor"
   end
 
   # Canais do WebSocket que a página assina (um por credor em que o usuário acompanha importações), lidos por `cable.js`.
