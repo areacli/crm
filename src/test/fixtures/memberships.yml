@@ -18,3 +18,7 @@ inativo_alfa:
   user: inativo
   tenant: alfa
   profile: alfa_operator
+marta_beta:
+  user: marta
+  tenant: beta
+  profile: beta_operator

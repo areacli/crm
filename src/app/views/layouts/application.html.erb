@@ -8,7 +8,7 @@
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
     <%= yield :head %>
-    <meta name="cable-channels" content="<%= (content_for(:cable_channels).presence || "[]") %>">
+    <meta name="cable-channels" content="<%= cable_channels %>">
     <link rel="icon" href="<%= image_path("simbolo.svg") %>" type="image/svg+xml">
     <%= stylesheet_link_tag :app %>
     <%= javascript_importmap_tags %>
@@ -22,11 +22,17 @@
         <strong>CRM</strong>
       </a>
       <% if authenticated? %>
-        <details class="usuario">
-          <summary><span class="iniciais" aria-hidden="true"><%= Current.user.name.first.upcase %></span> <span><%= Current.user.name %></span></summary>
-          <p><small><%= Current.user.email_address %></small></p>
-          <%= button_to "Sair", session_path, method: :delete, data: { variant: "secondary", size: "small" } %>
-        </details>
+        <div class="conta">
+          <%= render "notices/bell" unless Current.user.temporary_password? %>
+          <details class="usuario">
+            <summary><span class="iniciais" aria-hidden="true"><%= Current.user.name.first.upcase %></span> <span><%= Current.user.name %></span></summary>
+            <div>
+              <p><small><%= Current.user.email_address %></small></p>
+              <%= link_to "Trocar a senha", edit_password_path, class: "botao", data: { variant: "secondary", size: "small" } %>
+              <%= button_to "Sair", session_path, method: :delete, data: { variant: "secondary", size: "small" } %>
+            </div>
+          </details>
+        </div>
       <% end %>
       <%= yield :cabecalho %>
     </header>

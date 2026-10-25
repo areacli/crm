@@ -1,0 +1,31 @@
+<% content_for :title, "Usuários" %>
+<header class="cabecalho-da-pagina">
+  <div><h1>Usuários</h1><p>Quem tem acesso aos credores que você administra, com o perfil de cada um.</p></div>
+  <div class="acoes"><%= link_to "Novo usuário", new_membership_path, class: "botao" %></div>
+</header>
+
+<% if flash[:temporary_password] %><%= render "memberships/temporary_password", data: flash[:temporary_password] %><% end %>
+
+<form class="filtros" role="search" action="<%= memberships_path %>" method="get"
+      hx-get="<%= memberships_path %>" hx-trigger="input changed delay:300ms from:#q, change" hx-target="#resultado" hx-push-url="true" hx-swap="outerHTML">
+  <div class="campo">
+    <label for="q">Buscar por nome ou e-mail</label>
+    <input type="search" id="q" name="q" value="<%= params[:q] %>" autocomplete="off">
+  </div>
+  <% if @several_tenants %>
+    <div class="campo">
+      <label for="tenant">Credor</label>
+      <select id="tenant" name="tenant">
+        <option value="">Todos</option>
+        <%= options_for_select(@tenants, params[:tenant]) %>
+      </select>
+    </div>
+  <% end %>
+  <div class="campo">
+    <label for="per_page">Por página</label>
+    <select id="per_page" name="per_page"><%= options_for_select(Pagination::PER_PAGE_OPTIONS, @pagination.per_page) %></select>
+  </div>
+  <button type="submit" data-variant="secondary">Buscar</button>
+</form>
+
+<%= render "memberships/result" %>

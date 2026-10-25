@@ -24,8 +24,9 @@ class ProfilePolicyTest < ActiveSupport::TestCase
     assert_not ProfilePolicy.new(carlos, profiles(:alfa_operator)).show?
   end
 
-  test "perfil com usuários não se apaga" do
-    assert_not ProfilePolicy.new(users(:joana), profiles(:alfa_operator)).destroy?
+  test "apagar perfil é da permissão 11 no credor dele; perfil em uso é recusado pelo gerenciador (R35)" do
+    assert ProfilePolicy.new(users(:joana), profiles(:alfa_operator)).destroy?
+    assert_not ProfilePolicy.new(users(:joana), profiles(:beta_operator)).destroy?
   end
 
   test "o usuário não altera o próprio vínculo (R33)" do

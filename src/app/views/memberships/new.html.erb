@@ -1,0 +1,36 @@
+<% content_for :title, "Novo usuário" %>
+<header class="cabecalho-da-pagina">
+  <div><h1>Novo usuário</h1><p><%= link_to "Voltar para os usuários", memberships_path %></p></div>
+</header>
+
+<section class="cartao" aria-labelledby="dados">
+  <header><h2 id="dados">Dados do acesso</h2></header>
+  <div>
+    <% if @error %><%= aviso(tom: :danger) { tag.p @error } %><% end %>
+    <p>Se o e-mail já pertence a alguém que atua em outro credor, a pessoa é ligada a este credor na hora, com o perfil escolhido, e recebe um aviso no sistema. Se não, o usuário é criado com uma senha temporária.</p>
+    <%= form_with scope: :membership, url: memberships_path, html: { "hx-boost": "false" } do |form| %>
+      <% if @tenants.size > 1 %>
+        <div class="campo">
+          <%= form.label :tenant_id, "Credor" %>
+          <%= form.select :tenant_id, @tenants.map { |tenant| [ tenant.name, tenant.id ] }, { selected: @tenant.id }, required: true,
+                          "hx-get": new_membership_path, "hx-trigger": "change", "hx-target": "#campo-perfil", "hx-swap": "outerHTML", "hx-push-url": "false", "hx-include": "this" %>
+        </div>
+      <% else %>
+        <%= form.hidden_field :tenant_id, value: @tenant.id %>
+        <p>Credor: <strong><%= @tenant.name %></strong></p>
+      <% end %>
+      <div class="campo">
+        <%= form.label :email_address, "E-mail" %>
+        <%= form.email_field :email_address, required: true, autocomplete: "off", value: @form&.dig(:email_address) %>
+        <small>É o identificador de entrada; nada é enviado para ele.</small>
+      </div>
+      <div class="campo">
+        <%= form.label :name, "Nome" %>
+        <%= form.text_field :name, autocomplete: "off", maxlength: 150, value: @form&.dig(:name) %>
+        <small>Obrigatório para um usuário novo; ignorado se o e-mail já existe.</small>
+      </div>
+      <%= render "memberships/profile_field" %>
+      <div class="acoes"><button type="submit">Salvar</button></div>
+    <% end %>
+  </div>
+</section>

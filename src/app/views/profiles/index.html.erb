@@ -1,0 +1,53 @@
+<% content_for :title, "Perfis" %>
+<header class="cabecalho-da-pagina">
+  <div><h1>Perfis</h1><p>Conjuntos de permissões de cada credor. Cada usuário tem um perfil em cada credor.</p></div>
+  <div class="acoes"><%= link_to "Novo perfil", new_profile_path, class: "botao" %></div>
+</header>
+
+<% if @several_tenants %>
+  <form class="filtros" role="search" action="<%= profiles_path %>" method="get">
+    <div class="campo">
+      <label for="tenant">Credor</label>
+      <select id="tenant" name="tenant"><option value="">Todos</option><%= options_for_select(@tenants, params[:tenant]) %></select>
+    </div>
+    <button type="submit" data-variant="secondary">Filtrar</button>
+  </form>
+<% end %>
+
+<% if @profiles.empty? %>
+  <p class="vazio">Nenhum perfil encontrado.</p>
+<% else %>
+  <div class="tabela">
+    <table>
+      <caption class="apenas-leitor-de-tela">Perfis dos credores</caption>
+      <thead>
+        <tr>
+          <th scope="col">Perfil</th>
+          <% if @several_tenants %><th scope="col">Credor</th><% end %>
+          <th scope="col" data-numerico>Permissões</th>
+          <th scope="col" data-numerico>Usuários</th>
+          <th scope="col">Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @profiles.each do |profile| %>
+          <% users = @users_by_profile.fetch(profile.id, 0) %>
+          <tr>
+            <th scope="row"><%= link_to profile.name, edit_profile_path(profile) %></th>
+            <% if @several_tenants %><td><%= profile.tenant.name %></td><% end %>
+            <td data-numerico><%= profile.permissions.size %> de <%= Permission::ALL.size %></td>
+            <td data-numerico><%= users %></td>
+            <td>
+              <div class="acoes">
+                <%= link_to "Editar", edit_profile_path(profile), class: "botao", data: { variant: "secondary", size: "small" } %>
+                <%= render("shared/confirmacao", id: "apagar-#{profile.id}", titulo: "Apagar o perfil #{profile.name}?", acao: "Apagar o perfil", url: profile_path(profile), metodo: :delete,
+                           mensagem: users.positive? ? "O perfil está em uso por #{users} #{'usuário'.pluralize(users)} e não pode ser apagado." : "O perfil deixa de existir.") { "Apagar" } %>
+              </div>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+  <%= render "shared/paginacao", pagination: @pagination, path: ->(page) { profiles_path(request.query_parameters.merge("page" => page)) } %>
+<% end %>
