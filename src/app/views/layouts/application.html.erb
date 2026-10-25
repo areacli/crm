@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <title><%= [ content_for(:title), "CRM AreaCli" ].compact_blank.join(" · ") %></title>
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+    <%= yield :head %>
+    <meta name="cable-channels" content="<%= (content_for(:cable_channels).presence || "[]") %>">
+    <link rel="icon" href="<%= image_path("simbolo.svg") %>" type="image/svg+xml">
+    <%= stylesheet_link_tag :app %>
+    <%= javascript_importmap_tags %>
+  </head>
+
+  <body hx-boost="true">
+    <a href="#conteudo" class="pular-para-o-conteudo">Ir para o conteúdo</a>
+    <header>
+      <a href="<%= root_path %>" class="marca">
+        <%= image_tag "logotipo-negativo.svg", alt: "AreaCli" %>
+        <strong>CRM</strong>
+      </a>
+      <% if authenticated? %>
+        <details class="usuario">
+          <summary><span class="iniciais" aria-hidden="true"><%= Current.user.name.first.upcase %></span> <span><%= Current.user.name %></span></summary>
+          <p><small><%= Current.user.email_address %></small></p>
+          <%= button_to "Sair", session_path, method: :delete, data: { variant: "secondary", size: "small" } %>
+        </details>
+      <% end %>
+      <%= yield :cabecalho %>
+    </header>
+    <%= render "layouts/navegacao" if menu_sections.present? %>
+    <main id="conteudo" tabindex="-1">
+      <% if notice %><%= aviso(tom: :success) { tag.p notice } %><% end %>
+      <% if alert && !current_page?(new_session_path) %><%= aviso(tom: :danger) { tag.p alert } %><% end %>
+      <%= yield %>
+    </main>
+  </body>
+</html>

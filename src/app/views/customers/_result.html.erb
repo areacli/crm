@@ -1,0 +1,46 @@
+<%# Trecho que o htmx refaz a cada busca: tabela, contagem e paginação. %>
+<%
+  sorted_by = params[:sort].presence_in(Portfolio::Query::SORTS) || "overdue_cents"
+  ascending = params[:sort].present? && params[:dir] == "asc"
+  sort_state = ->(column) { sorted_by == column ? (ascending ? "ascending" : "descending") : nil }
+  sort_link = lambda do |column, label|
+    link_to label, customers_path(request.query_parameters.merge("sort" => column, "dir" => sort_state.call(column) == "descending" ? "asc" : "desc", "page" => 1))
+  end
+%>
+<div id="resultado" aria-live="polite">
+  <% if @customers.empty? %>
+    <p class="vazio">Nenhum cliente encontrado.</p>
+  <% else %>
+    <p><small>Mostrando <%= number_br(@pagination.first_item) %> a <%= number_br(@pagination.last_item) %> de <%= number_br(@pagination.total) %> clientes.</small></p>
+    <div class="tabela">
+      <table>
+        <caption class="apenas-leitor-de-tela">Clientes da carteira</caption>
+        <thead>
+          <tr>
+            <th scope="col" aria-sort="<%= sort_state.call("name") || "none" %>"><%= sort_link.call("name", "Cliente") %></th>
+            <th scope="col">Documento</th>
+            <% if @several_tenants %><th scope="col">Credor</th><% end %>
+            <th scope="col" data-numerico aria-sort="<%= sort_state.call("bills_count") || "none" %>"><%= sort_link.call("bills_count", "Títulos") %></th>
+            <th scope="col" data-numerico aria-sort="<%= sort_state.call("overdue_cents") || "none" %>"><%= sort_link.call("overdue_cents", "Vencido") %></th>
+            <th scope="col" data-numerico aria-sort="<%= sort_state.call("upcoming_cents") || "none" %>"><%= sort_link.call("upcoming_cents", "A vencer") %></th>
+            <th scope="col" aria-sort="<%= sort_state.call("max_days_overdue") || "none" %>"><%= sort_link.call("max_days_overdue", "Faixa (dias)") %></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @customers.each do |customer| %>
+            <tr>
+              <th scope="row"><%= link_to customer.name, customer_path(customer) %></th>
+              <td><%= customer.masked_document %></td>
+              <% if @several_tenants %><td><%= customer.tenant.name %></td><% end %>
+              <td data-numerico><%= number_br(customer.bills_count) %></td>
+              <td data-numerico><%= money(customer.overdue_cents) %></td>
+              <td data-numerico><%= customer.tenant_id && @settings.fetch(customer.tenant_id).upcoming_display == "detail_only" ? "—" : money(customer.upcoming_cents) %></td>
+              <td><%= @query.bracket_label(customer.tenant_id, customer.max_days_overdue) %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+    <%= render "shared/paginacao", pagination: @pagination, path: ->(page) { customers_path(request.query_parameters.merge("page" => page)) } %>
+  <% end %>
+</div>

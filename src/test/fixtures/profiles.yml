@@ -1,0 +1,17 @@
+<% all = Permission::ALL.to_json %>
+alfa_manager:
+  tenant: alfa
+  name: Gestor
+  permissions: <%= all %>
+alfa_operator:
+  tenant: alfa
+  name: Operador
+  permissions: <%= Permission::OPERATOR.to_json %>
+beta_manager:
+  tenant: beta
+  name: Gestor
+  permissions: <%= all %>
+beta_operator:
+  tenant: beta
+  name: Operador
+  permissions: <%= Permission::OPERATOR.to_json %>

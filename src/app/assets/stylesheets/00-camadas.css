@@ -1,0 +1,2 @@
+/* Ordem das camadas do CSS do CRM (design system, revisão 2). As folhas seguintes entram em ordem alfabética. */
+@layer tokens, base, layout, componentes, estados;

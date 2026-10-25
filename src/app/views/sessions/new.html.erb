@@ -1,0 +1,20 @@
+<% content_for :title, "Entrar" %>
+<section class="cartao" aria-labelledby="entrar">
+  <header><h2 id="entrar">Entrar</h2></header>
+  <div>
+    <% if alert %>
+      <%= aviso(tom: :danger) { tag.p alert } %>
+    <% end %>
+    <%= form_with url: session_path do |form| %>
+      <div class="campo">
+        <%= form.label :email_address, "E-mail" %>
+        <%= form.email_field :email_address, required: true, autofocus: true, autocomplete: "username", value: params[:email_address] %>
+      </div>
+      <div class="campo">
+        <%= form.label :password, "Senha" %>
+        <%= form.password_field :password, required: true, autocomplete: "current-password", maxlength: 72 %>
+      </div>
+      <div class="acoes"><button type="submit">Entrar</button></div>
+    <% end %>
+  </div>
+</section>

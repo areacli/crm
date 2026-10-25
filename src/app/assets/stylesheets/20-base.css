@@ -1,0 +1,39 @@
+/* Base: o estilo vem do próprio elemento (HTML semântico), não de classe utilitária. */
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; }
+
+  html { scroll-padding-top: calc(var(--altura-cabecalho) + var(--espaco-4)); -webkit-text-size-adjust: 100%; }
+
+  body {
+    margin: 0;
+    font-family: var(--fonte);
+    font-size: var(--texto-corpo);
+    line-height: 1.5;
+    color: var(--cor-texto);
+    background: var(--cor-superficie);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3 { line-height: 1.2; margin: 0; font-weight: 700; }
+  h1 { font-size: var(--texto-pagina); }
+  h2 { font-size: var(--texto-subtitulo); color: var(--cor-azul); }
+  h3 { font-size: var(--texto-corpo); }
+  p { margin: 0 0 var(--espaco-3); }
+
+  a { color: var(--cor-azul); text-decoration: underline; text-underline-offset: 0.15em; }
+  a:hover { color: var(--cor-azul-escuro); }
+
+  small { font-size: var(--texto-legenda); }
+  code, kbd, samp { font-family: var(--fonte-codigo); font-size: 0.9em; }
+  table { font-variant-numeric: tabular-nums; }
+  hr { border: 0; border-top: 1px solid var(--cor-linha); }
+  img, svg { max-width: 100%; }
+
+  :focus-visible { outline: var(--foco); outline-offset: 2px; }
+
+  [hidden] { display: none !important; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0s !important; transition-duration: 0s !important; scroll-behavior: auto !important; }
+  }
+}

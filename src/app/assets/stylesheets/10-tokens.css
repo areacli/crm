@@ -1,0 +1,73 @@
+/*
+ * Tokens do design system (o documento do design system do projeto, seções 3 e 14). Único lugar com cor, tamanho, espaço, raio e sombra:
+ * o resto do CSS só usa estas variáveis.
+ */
+@layer tokens {
+  @font-face { font-family: "Source Sans 3"; font-weight: 400; font-display: swap; src: url("source-sans-3-latin-400.woff2") format("woff2"); }
+  @font-face { font-family: "Source Sans 3"; font-weight: 600; font-display: swap; src: url("source-sans-3-latin-600.woff2") format("woff2"); }
+  @font-face { font-family: "Source Sans 3"; font-weight: 700; font-display: swap; src: url("source-sans-3-latin-700.woff2") format("woff2"); }
+
+  :root {
+    /* Marca AreaCli (manual 2.0) */
+    --cor-marinho: #1c3a57;
+    --cor-azul: #2a6496;
+    --cor-azul-escuro: #1d4f7a;
+    --cor-amarelo: #f5c518;
+    --cor-laranja: #b4531a;
+    --cor-texto: #212529;
+    --cor-texto-suave: #5b6670;
+    --cor-superficie: #f4f6f9;
+    --cor-linha: #dee3e8;
+    --cor-linha-forte: #7b8691;
+    --cor-branco: #ffffff;
+
+    /* Situações (fundo e texto medidos para contraste AA) */
+    --cor-perigo: #b42318;
+    --cor-perigo-fundo: #fdecea;
+    --cor-perigo-texto: #8a1a12;
+    --cor-sucesso: #1a6b3c;
+    --cor-sucesso-fundo: #e7f4ec;
+    --cor-sucesso-texto: #14532d;
+    --cor-atencao: #b4531a;
+    --cor-atencao-fundo: #fdf1e3;
+    --cor-atencao-texto: #7a3a0f;
+    --cor-info-fundo: #e8f0f7;
+    --cor-info-texto: #1d4f7a;
+    --cor-neutro-fundo: #eef1f4;
+    --cor-neutro-texto: #5b6670;
+
+    /* Tipografia: a raiz é a do navegador (16 px); piso de 14 px */
+    --fonte: "Source Sans 3", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    --fonte-codigo: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Menlo, Consolas, monospace;
+    --texto-legenda: 0.875rem;
+    --texto-corpo: 1rem;
+    --texto-subtitulo: 1.25rem;
+    --texto-titulo: 1.5rem;
+    --texto-pagina: 2rem;
+    --texto-marca: 1.75rem;
+
+    /* Espaço (grade de 4 px), forma e elevação */
+    --espaco-1: 0.25rem;
+    --espaco-2: 0.5rem;
+    --espaco-3: 0.75rem;
+    --espaco-4: 1rem;
+    --espaco-6: 1.5rem;
+    --espaco-8: 2rem;
+    --raio-controle: 6px;
+    --raio-cartao: 8px;
+    --raio-janela: 12px;
+    --sombra-menu: 0 4px 12px rgb(28 58 87 / 0.14);
+    --sombra-janela: 0 20px 40px rgb(28 58 87 / 0.28);
+
+    /* Medidas */
+    --altura-controle: 2.75rem;
+    --altura-controle-pequeno: 2.25rem;
+    --altura-cabecalho: 4.5rem;
+    --altura-logotipo: 3rem;
+    --largura-menu: 13rem;
+    --largura-conteudo: 110rem;
+    --largura-formulario: 36rem;
+    --cor-fundo-da-janela: rgb(28 58 87 / 0.5);
+    --foco: 3px solid var(--cor-laranja);
+  }
+}

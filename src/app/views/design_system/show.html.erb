@@ -1,0 +1,138 @@
+<% content_for :title, "Design system" %>
+<header class="cabecalho-da-pagina">
+  <div>
+    <h1>Design system</h1>
+    <p>Referência dos tokens e dos componentes, com todos os estados.</p>
+  </div>
+</header>
+
+<section class="cartao" aria-labelledby="cores">
+  <header><h2 id="cores">Cores</h2></header>
+  <ul class="amostras">
+    <% @cores.each do |cor| %>
+      <li><i data-cor="<%= cor %>"></i><span><%= cor %></span></li>
+    <% end %>
+  </ul>
+</section>
+
+<section class="cartao" aria-labelledby="tipografia">
+  <header><h2 id="tipografia">Tipografia</h2></header>
+  <div class="escala">
+    <h1>Título da página, 32 px</h1>
+    <p><strong>Título de seção, 24 px</strong></p>
+    <h2>Título de cartão, 20 px</h2>
+    <p>Corpo, 16 px: texto, campos e tabelas. R$ 1.234,56 · 12/10/2026 14:30</p>
+    <p><small>Legenda, 14 px: o piso do produto.</small></p>
+  </div>
+</section>
+
+<section class="cartao" aria-labelledby="botoes">
+  <header><h2 id="botoes">Botões</h2></header>
+  <div class="acoes">
+    <button type="button">Primário</button>
+    <button type="button" data-variant="secondary">Secundário</button>
+    <button type="button" data-variant="danger">Excluir</button>
+    <button type="button" data-variant="danger-outline" data-size="small">Anular</button>
+    <button type="button" data-variant="link">Link</button>
+    <button type="button" disabled>Desabilitado</button>
+    <button type="button" data-variant="secondary" data-size="small">Pequeno</button>
+  </div>
+</section>
+
+<section class="cartao" aria-labelledby="campos">
+  <header><h2 id="campos">Campos</h2></header>
+  <form action="<%= design_system_path %>" method="get">
+    <div class="campo">
+      <label for="exemplo-normal">Normal</label>
+      <input id="exemplo-normal" type="text" value="Texto digitado" aria-describedby="exemplo-normal-ajuda">
+      <small id="exemplo-normal-ajuda">Texto de ajuda em legenda.</small>
+    </div>
+    <div class="campo">
+      <label for="exemplo-erro">Com erro <span class="obrigatorio" aria-hidden="true">*</span><span class="apenas-leitor-de-tela"> (obrigatório)</span></label>
+      <input id="exemplo-erro" type="text" aria-invalid="true" aria-describedby="exemplo-erro-mensagem">
+      <p class="erro" id="exemplo-erro-mensagem" role="alert"><%= icone("exclamation-circle", tamanho: "small") %>Informe um valor válido.</p>
+    </div>
+    <div class="campo">
+      <label for="exemplo-desabilitado">Desabilitado</label>
+      <input id="exemplo-desabilitado" type="text" value="Somente leitura" disabled>
+    </div>
+    <div class="campo">
+      <label for="exemplo-lista">Lista</label>
+      <select id="exemplo-lista"><option>Primeira opção</option><option>Segunda opção</option></select>
+    </div>
+    <div class="campo">
+      <label for="exemplo-texto">Texto longo</label>
+      <textarea id="exemplo-texto"></textarea>
+    </div>
+    <fieldset>
+      <legend>Opções</legend>
+      <label><input type="checkbox"> Caixa de seleção</label>
+      <label><input type="radio" name="exemplo-opcao"> Primeira</label>
+      <label><input type="radio" name="exemplo-opcao"> Segunda</label>
+    </fieldset>
+  </form>
+</section>
+
+<section class="cartao" aria-labelledby="situacoes">
+  <header><h2 id="situacoes">Situações e avisos</h2></header>
+  <div class="acoes">
+    <%= situacao "Concluída", tom: :success %>
+    <%= situacao "Aguardando confirmação", tom: :warning %>
+    <%= situacao "Falhou", tom: :danger %>
+    <%= situacao "Em processamento", tom: :info %>
+    <%= situacao "Descartada" %>
+  </div>
+  <p></p>
+  <%= aviso(tom: :info) { tag.p "Informação para o usuário." } %>
+  <%= aviso(tom: :success) { tag.p "Operação concluída." } %>
+  <%= aviso(tom: :warning) { tag.p "Atenção: confira antes de confirmar." } %>
+  <%= aviso(tom: :danger) { tag.p "Erro: a importação foi recusada." } %>
+</section>
+
+<section class="cartao" aria-labelledby="tabela-exemplo">
+  <header><h2 id="tabela-exemplo">Tabela, valores e estado vazio</h2></header>
+  <div class="tabela">
+    <table>
+      <caption>Títulos do contrato</caption>
+      <thead><tr><th scope="col">Título</th><th scope="col" data-numerico>Valor</th><th scope="col">Situação</th></tr></thead>
+      <tbody>
+        <tr><td>NF-1/1</td><td data-numerico>R$ 1.234,56</td><td><%= situacao "Vencido", tom: :danger %></td></tr>
+        <tr><td>NF-1/2</td><td data-numerico>R$ 99,00</td><td><%= situacao "Pago", tom: :success %></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <dl class="valores">
+    <div><dt>Vencido</dt><dd>R$ 1.234,56</dd></div>
+    <div><dt>Faixa</dt><dd>mais de 360</dd></div>
+    <div><dt>Pagamentos</dt><dd>12<small>no mês</small></dd></div>
+  </dl>
+  <p class="vazio">Nenhum registro encontrado.</p>
+</section>
+
+<section class="cartao" aria-labelledby="abas-exemplo">
+  <header><h2 id="abas-exemplo">Abas, ícones, janela e confirmação</h2></header>
+  <nav class="abas" aria-label="Abas de exemplo">
+    <a href="<%= design_system_path %>" aria-current="page">Carteira</a>
+    <a href="<%= design_system_path %>">Canais</a>
+    <a href="<%= design_system_path %>">Pagamentos</a>
+  </nav>
+  <p><%= icone("bell", rotulo: "Avisos") %> <%= icone("check-circle", tamanho: "small") %> <%= icone("x-mark") %> <%= icone("chevron-down", tamanho: "small") %></p>
+  <div class="acoes">
+    <button type="button" command="show-modal" commandfor="janela-exemplo">Abrir janela</button>
+    <%= render "shared/confirmacao", id: "confirmar-exemplo", titulo: "Apagar o exemplo", mensagem: "O exemplo é apagado e não volta.", acao: "Apagar", url: design_system_path, metodo: :get do %>Apagar o exemplo<% end %>
+  </div>
+  <dialog id="janela-exemplo" aria-labelledby="janela-exemplo-titulo">
+    <header>
+      <div>
+        <h2 id="janela-exemplo-titulo">Janela de exemplo</h2>
+        <p>Cabe na altura da tela; cabeçalho e rodapé fixos.</p>
+      </div>
+      <button type="button" command="close" commandfor="janela-exemplo" data-variant="link" aria-label="Fechar a janela"><%= icone("x-mark") %></button>
+    </header>
+    <div><p>Conteúdo da janela.</p></div>
+    <footer>
+      <button type="button" command="close" commandfor="janela-exemplo" data-variant="secondary">Cancelar</button>
+      <button type="button" command="close" commandfor="janela-exemplo">Confirmar</button>
+    </footer>
+  </dialog>
+</section>

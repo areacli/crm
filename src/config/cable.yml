@@ -1,0 +1,14 @@
+# Action Cable no Valkey (decisão 0020): o adaptador `redis` fala com o Valkey. Um banco do Valkey por ambiente (a prefixação
+# de nomes por ambiente é desaconselhada pela documentação do Sidekiq; aqui o prefixo é só do canal do Action Cable).
+development:
+  adapter: redis
+  url: <%= ENV.fetch("REDIS_URL") { "redis://localhost:6379/0" } %>
+  channel_prefix: crm_development
+
+test:
+  adapter: test
+
+production:
+  adapter: redis
+  url: <%= ENV.fetch("REDIS_URL") { "redis://localhost:6379/1" } %>
+  channel_prefix: crm_production

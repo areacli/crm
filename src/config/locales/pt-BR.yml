@@ -1,0 +1,63 @@
+pt-BR:
+  sessions:
+    invalid: "E-mail ou senha incorretos."
+    too_many: "Muitas tentativas. Aguarde alguns minutos."
+  imports:
+    modes:
+      incremental: "Incremental"
+      full_sync: "Carga completa"
+    statuses:
+      received: "Recebida"
+      checking: "Em conferência"
+      checked: "Conferida, aguardando confirmação"
+      confirming: "Confirmando"
+      confirmed: "Confirmada"
+      discarded: "Descartada"
+      rejected: "Recusada"
+      failed: "Falhou"
+  permissions:
+    view_portfolio: "Consultar a carteira"
+    upload_imports: "Enviar e conferir importação"
+    confirm_imports: "Confirmar importação"
+    change_settings: "Alterar configuração"
+    upload_payments: "Enviar e conferir pagamentos"
+    confirm_payments: "Confirmar pagamentos"
+    record_contact_attempts: "Registrar acionamentos"
+    void_others_contact_attempts: "Anular acionamentos de outros"
+    manage_contact_results: "Gerenciar resultados de acionamento"
+    manage_users: "Gerenciar usuários"
+    manage_profiles: "Gerenciar perfis"
+    edit_customer_registry: "Editar cadastro de cliente"
+    handle_data_subject_rights: "Atender os direitos do titular"
+    change_financial_policies: "Alterar políticas financeiras"
+    cancel_payment_promises: "Cancelar promessas"
+    negotiate_agreements: "Negociar acordos"
+    administer_agreements: "Administrar acordos"
+  activerecord:
+    models:
+      tenant: "Credor"
+      user: "Usuário"
+      profile: "Perfil"
+      membership: "Vínculo"
+    attributes:
+      user:
+        name: "Nome"
+        email_address: "E-mail"
+        password: "Senha"
+      profile:
+        name: "Nome"
+        permissions: "Permissões"
+      tenant:
+        name: "Nome"
+    errors:
+      models:
+        profile:
+          attributes:
+            permissions:
+              unknown: "tem permissões desconhecidas: %{list}"
+              needs_view_portfolio: "precisa incluir consultar a carteira"
+              needs_negotiate_agreements: "precisa incluir negociar acordos para administrar acordos"
+        membership:
+          attributes:
+            profile:
+              other_tenant: "é de outro credor"

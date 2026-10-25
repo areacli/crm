@@ -1,0 +1,80 @@
+# Ambiente de desenvolvimento do CRM em Rails (decisão 0020): banco, Valkey e a aplicação descartáveis, sem porta publicada.
+# Uso: docker compose -f deploy/rails/compose.dev.yml --env-file deploy/rails/.env.dev up -d db valkey
+name: crm-rails
+x-aplicacao: &aplicacao
+  image: crm-rails-dev:4.0.6
+  working_dir: /app
+  volumes:
+    - ../../src:/app
+    - gems:/usr/local/bundle
+  environment: &ambiente
+    DB_HOST: db
+    DB_USERNAME: crm
+    DB_PASSWORD: ${DB_PASSWORD}
+    REDIS_URL: redis://:${REDIS_PASSWORD}@valkey:6379/0
+    RAILS_ENV: development
+  depends_on:
+    db:
+      condition: service_healthy
+    valkey:
+      condition: service_healthy
+  security_opt: ["no-new-privileges:true"]
+services:
+  db:
+    image: postgres:19rc1-trixie@sha256:de2cbeff2b8177e65bd64d077b46c90a1898aa8aea974a9e35a8cf60b5e90581
+    environment:
+      POSTGRES_DB: crm
+      POSTGRES_USER: crm
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      # A imagem 19 grava em /var/lib/postgresql/<versão>/docker: monta o diretório pai.
+      - pgdata:/var/lib/postgresql
+    mem_limit: 1g
+    cpus: 1.5
+    security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      test: ["CMD-SHELL", "psql -U crm -d crm -tAc 'select 1' | grep -q 1"]
+      interval: 3s
+      retries: 30
+  valkey:
+    image: valkey/valkey:9-trixie@sha256:418652cfb58ef879d4978c33553735d7147016032d5aefaa14c828e611eb9dfd
+    command: ["valkey-server", "--requirepass", "${REDIS_PASSWORD}", "--appendonly", "yes", "--maxmemory", "256mb"]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    volumes:
+      - valkeydata:/data
+    mem_limit: 384m
+    cpus: 0.5
+    security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      test: ["CMD-SHELL", "valkey-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
+      interval: 3s
+      retries: 30
+  app:
+    <<: *aplicacao
+    command: ["sleep", "infinity"]
+    mem_limit: 1g
+    cpus: 1.5
+  web:
+    <<: *aplicacao
+    command: ["bin/rails", "server", "-b", "0.0.0.0", "-p", "3000"]
+    mem_limit: 1g
+    cpus: 1
+  sidekiq:
+    <<: *aplicacao
+    command: ["bundle", "exec", "sidekiq"]
+    mem_limit: 1g
+    cpus: 1
+  testes:
+    <<: *aplicacao
+    environment:
+      <<: *ambiente
+      RAILS_ENV: test
+    command: ["sleep", "infinity"]
+    mem_limit: 3g
+    cpus: 2
+    shm_size: 1g
+volumes:
+  pgdata:
+  valkeydata:
+  gems:

@@ -1,0 +1,42 @@
+<% content_for :title, "Configuração da carteira" %>
+<header class="cabecalho-da-pagina"><h1>Configuração da carteira</h1></header>
+
+<% @settings.each do |setting| %>
+  <% tenant = setting.tenant %>
+  <% error = @error if @error && @error[:tenant_id] == tenant.id %>
+  <section class="cartao" aria-labelledby="credor-<%= tenant.id %>">
+    <header><h2 id="credor-<%= tenant.id %>"><%= tenant.name %></h2></header>
+    <div>
+      <% if error %><%= aviso(tom: :danger) { tag.p error[:message] } %><% end %>
+
+      <%= form_with url: settings_portfolio_path, method: :patch, html: { "hx-boost": "false" } do |form| %>
+        <%= hidden_field_tag :tenant_id, tenant.id %>
+        <%= hidden_field_tag :section, "brackets" %>
+        <fieldset>
+          <legend>Faixas de atraso (dias)</legend>
+          <p><small>A primeira começa em 1 dia, sem buraco nem sobreposição, e a última não tem fim. Deixe a linha em branco para não usar.</small></p>
+          <% rows = setting.aging_brackets.map { |bracket| [ bracket["from"], bracket["to"] ] } + [ [ nil, nil ], [ nil, nil ] ] %>
+          <% rows.each_with_index do |(from, to), index| %>
+            <div class="acoes">
+              <div class="campo"><label for="from-<%= tenant.id %>-<%= index %>">Faixa <%= index + 1 %>: de</label><input type="number" min="1" id="from-<%= tenant.id %>-<%= index %>" name="brackets[][from]" value="<%= from %>"></div>
+              <div class="campo"><label for="to-<%= tenant.id %>-<%= index %>">até</label><input type="number" min="1" id="to-<%= tenant.id %>-<%= index %>" name="brackets[][to]" value="<%= to %>"></div>
+            </div>
+          <% end %>
+        </fieldset>
+        <div class="acoes"><button type="submit">Salvar faixas</button></div>
+      <% end %>
+
+      <%= form_with url: settings_portfolio_path, method: :patch, html: { "hx-boost": "false" } do |form| %>
+        <%= hidden_field_tag :tenant_id, tenant.id %>
+        <%= hidden_field_tag :section, "upcoming" %>
+        <fieldset>
+          <legend>Títulos a vencer</legend>
+          <% { "separate" => "Mostrar à parte do vencido", "summed" => "Somar ao vencido, mostrando o vencido em separado", "detail_only" => "Só na ficha do cliente, fora dos totais" }.each do |value, label| %>
+            <label><%= radio_button_tag :upcoming_display, value, setting.upcoming_display == value %> <%= label %></label>
+          <% end %>
+        </fieldset>
+        <div class="acoes"><button type="submit">Salvar</button></div>
+      <% end %>
+    </div>
+  </section>
+<% end %>

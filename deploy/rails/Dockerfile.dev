@@ -1,0 +1,9 @@
+# Imagem de desenvolvimento e de testes do CRM em Rails (decisão 0020): Ruby 4.0.6 com as ferramentas de compilação das gems,
+# o cliente do PostgreSQL e o Chromium para os testes de sistema (cuprite). A de produção é o Dockerfile gerado em src/.
+FROM docker.io/library/ruby:4.0.6-trixie
+ENV BUNDLE_PATH=/usr/local/bundle LANG=C.UTF-8
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends build-essential libpq-dev libyaml-dev pkg-config git curl ca-certificates postgresql-client chromium fonts-liberation \
+ && rm -rf /var/lib/apt/lists/*
+ENV BROWSER_PATH=/usr/bin/chromium
+WORKDIR /app

@@ -1,0 +1,33 @@
+<% content_for :title, "Clientes" %>
+<header class="cabecalho-da-pagina"><h1>Clientes</h1></header>
+
+<form class="filtros" role="search" action="<%= customers_path %>" method="get"
+      hx-get="<%= customers_path %>" hx-trigger="input changed delay:300ms from:#q, change" hx-target="#resultado" hx-push-url="true" hx-swap="outerHTML">
+  <div class="campo">
+    <label for="q">Buscar por nome, documento ou contrato</label>
+    <input type="search" id="q" name="q" value="<%= params[:q] %>" autocomplete="off">
+  </div>
+  <% if @several_tenants %>
+    <div class="campo">
+      <label for="tenant">Credor</label>
+      <select id="tenant" name="tenant">
+        <option value="">Todos</option>
+        <%= options_for_select(@tenants, params[:tenant]) %>
+      </select>
+    </div>
+  <% end %>
+  <div class="campo">
+    <label for="bracket">Faixa de atraso</label>
+    <select id="bracket" name="bracket">
+      <option value="">Todas</option>
+      <%= options_for_select(@brackets, params[:bracket]) %>
+    </select>
+  </div>
+  <div class="campo">
+    <label for="per_page">Por página</label>
+    <select id="per_page" name="per_page"><%= options_for_select(Pagination::PER_PAGE_OPTIONS, @pagination.per_page) %></select>
+  </div>
+  <button type="submit" data-variant="secondary">Buscar</button>
+</form>
+
+<%= render "customers/result" %>

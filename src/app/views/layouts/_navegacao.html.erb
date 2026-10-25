@@ -1,0 +1,11 @@
+<%# Menu lateral: só texto, o item atual com aria-current="page". `menu_sections` vem do NavigationHelper. %>
+<nav aria-label="Menu">
+  <% menu_sections.each do |secao| %>
+    <% if secao[:titulo].present? %><h2><%= secao[:titulo] %></h2><% end %>
+    <ul>
+      <% secao[:itens].each do |item| %>
+        <li><%= link_to item[:rotulo], item[:caminho], aria: { current: (item[:atual] ? "page" : nil) } %></li>
+      <% end %>
+    </ul>
+  <% end %>
+</nav>

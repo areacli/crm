@@ -1,0 +1,5 @@
+# Imagem descartável que só gera o esqueleto (rails new) a partir do Ruby oficial; o Dockerfile da aplicação é o gerado em src/.
+FROM ruby:4.0.6-trixie
+RUN apt-get update && apt-get install -y --no-install-recommends libpq-dev libyaml-dev git curl ca-certificates \
+ && rm -rf /var/lib/apt/lists/* && gem install rails -v 8.1.4 --no-document
+WORKDIR /work

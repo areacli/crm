@@ -1,0 +1,22 @@
+<% digest = BCrypt::Password.create("senha-de-teste-1", cost: 4) %>
+joana:
+  name: Joana Souza
+  email_address: joana@exemplo.com.br
+  password_digest: <%= digest %>
+carlos:
+  name: Carlos Lima
+  email_address: carlos@exemplo.com.br
+  password_digest: <%= digest %>
+ana:
+  name: Ana Prado
+  email_address: ana@exemplo.com.br
+  password_digest: <%= digest %>
+inativo:
+  name: Pedro Inativo
+  email_address: pedro@exemplo.com.br
+  password_digest: <%= digest %>
+  active: false
+sem_vinculo:
+  name: Sem Vínculo
+  email_address: semvinculo@exemplo.com.br
+  password_digest: <%= digest %>

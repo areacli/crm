@@ -1,0 +1,51 @@
+<% content_for :title, "Resumo da carteira" %>
+<header class="cabecalho-da-pagina"><h1>Resumo da carteira</h1></header>
+
+<% if @summaries.empty? %>
+  <p class="vazio">Nenhuma carteira para mostrar. Importe a carteira para ver o resumo.</p>
+<% end %>
+
+<% @summaries.each do |summary| %>
+  <% detail_only = summary[:upcoming_display] == "detail_only" %>
+  <section class="cartao" aria-labelledby="carteira-<%= summary[:tenant].id %>">
+    <header><h2 id="carteira-<%= summary[:tenant].id %>"><%= summary[:tenant].name %></h2></header>
+    <div>
+      <dl class="valores">
+        <div><dt>Clientes em cobrança</dt><dd><%= number_br(detail_only ? summary[:customers_overdue] : summary[:customers]) %></dd></div>
+        <div><dt>Títulos</dt><dd><%= number_br(summary[:bills]) %></dd></div>
+        <div><dt>Vencido</dt><dd><%= money(summary[:overdue_cents]) %></dd></div>
+        <div><dt>A vencer</dt><dd><%= detail_only ? "—" : money(summary[:upcoming_cents]) %></dd></div>
+      </dl>
+      <% if summary[:upcoming_display] == "summed" %>
+        <p><small>Em cobrança, somando o a vencer: <%= money(summary[:overdue_cents] + summary[:upcoming_cents]) %> (vencido <%= money(summary[:overdue_cents]) %>).</small></p>
+      <% end %>
+    </div>
+  </section>
+
+  <div class="duas-colunas">
+    <% [ [ "Por cliente", "Cada cliente na faixa do título mais atrasado, com todo o seu vencido.", summary[:by_customer], "Clientes" ],
+         [ "Por título", "Cada título vencido na faixa do próprio atraso.", summary[:by_bill], "Títulos" ] ].each do |title, help, rows, unit| %>
+      <% maximum = [ rows.sum { |row| row[:cents] }, 1 ].max %>
+      <section class="cartao" aria-labelledby="faixas-<%= summary[:tenant].id %>-<%= title.parameterize %>">
+        <header>
+          <div><h2 id="faixas-<%= summary[:tenant].id %>-<%= title.parameterize %>">Faixas de atraso — <%= title %></h2><p><%= help %></p></div>
+        </header>
+        <div class="tabela">
+          <table>
+            <thead><tr><th scope="col">Faixa (dias)</th><th scope="col" data-numerico><%= unit %></th><th scope="col" data-numerico>Valor vencido</th><th scope="col"><span class="apenas-leitor-de-tela">Proporção do vencido</span></th></tr></thead>
+            <tbody>
+              <% rows.each do |row| %>
+                <tr>
+                  <td><%= row[:label] %></td>
+                  <td data-numerico><%= number_br(row[:count]) %></td>
+                  <td data-numerico><%= money(row[:cents]) %></td>
+                  <td><progress value="<%= row[:cents] %>" max="<%= maximum %>" aria-label="<%= row[:label] %> dias: <%= money(row[:cents]) %>"></progress></td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    <% end %>
+  </div>
+<% end %>

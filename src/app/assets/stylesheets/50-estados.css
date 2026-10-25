@@ -1,0 +1,14 @@
+/* Estados de todo controle: desabilitado, carregando (htmx), inválido. Desabilitado não usa opacidade (derrubaria o contraste). */
+@layer estados {
+  button:disabled, .botao[aria-disabled="true"] { background: var(--cor-superficie); color: var(--cor-texto-suave); border: 1px solid var(--cor-linha); cursor: not-allowed; }
+  input:disabled, select:disabled, textarea:disabled { background: var(--cor-superficie); color: var(--cor-texto-suave); }
+  [aria-invalid="true"] { border-color: var(--cor-perigo); }
+
+  /* O htmx põe a classe htmx-request no elemento que faz a requisição: o botão mostra um indicador e não muda de largura. */
+  button.htmx-request, .botao.htmx-request { cursor: progress; }
+  button.htmx-request::before, .botao.htmx-request::before {
+    content: ""; width: 1rem; height: 1rem; border-radius: 50%;
+    border: 2px solid currentColor; border-right-color: transparent; animation: girar 700ms linear infinite;
+  }
+  @keyframes girar { to { transform: rotate(360deg); } }
+}

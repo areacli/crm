@@ -1,0 +1,78 @@
+# CRM em Rails (decisão 0020): Puma com Thruster, Sidekiq, Valkey e banco. O nginx do servidor (TLS, cabeçalhos, CrowdSec, limites)
+# fica na frente e fala com `app` em 127.0.0.1:${WEB_PORT}. Segredos em .env.producao (fora do git).
+#
+#   docker compose -f deploy/rails/compose.producao.yml --env-file deploy/rails/.env.producao up -d
+name: crm-rails-producao
+
+x-aplicacao: &aplicacao
+  image: crm-rails-producao-app:${VERSAO:-local}
+  env_file: .env.producao
+  security_opt: ["no-new-privileges:true"]
+  restart: unless-stopped
+  depends_on:
+    db:
+      condition: service_healthy
+    valkey:
+      condition: service_healthy
+
+services:
+  db:
+    image: postgres:19rc1-trixie@sha256:de2cbeff2b8177e65bd64d077b46c90a1898aa8aea974a9e35a8cf60b5e90581
+    environment:
+      POSTGRES_DB: crm
+      POSTGRES_USER: crm
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      # A imagem 19 grava em /var/lib/postgresql/<versão>/docker: monta o diretório pai.
+      - pgdata:/var/lib/postgresql
+    mem_limit: 1g
+    cpus: 1
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "psql -U crm -d crm -tAc 'select 1' | grep -q 1"]
+      interval: 5s
+      retries: 30
+
+  valkey:
+    image: valkey/valkey:9-trixie@sha256:418652cfb58ef879d4978c33553735d7147016032d5aefaa14c828e611eb9dfd
+    command: ["valkey-server", "--requirepass", "${REDIS_PASSWORD}", "--appendonly", "yes", "--maxmemory", "256mb"]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    volumes:
+      - valkeydata:/data
+    mem_limit: 384m
+    cpus: 0.5
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "valkey-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
+      interval: 5s
+      retries: 30
+
+  app:
+    <<: *aplicacao
+    ports:
+      - "127.0.0.1:${WEB_PORT:-3220}:80"
+    volumes:
+      - storage:/rails/storage
+    mem_limit: 768m
+    cpus: 1
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://127.0.0.1:80/up >/dev/null || exit 1"]
+      interval: 10s
+      retries: 6
+
+  sidekiq:
+    <<: *aplicacao
+    command: ["bundle", "exec", "sidekiq"]
+    volumes:
+      - storage:/rails/storage
+    mem_limit: 1536m
+    cpus: 1.5
+    stop_grace_period: 60s
+
+volumes:
+  pgdata:
+  valkeydata:
+  storage:

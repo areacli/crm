@@ -1,0 +1,22 @@
+{
+  "ignored_warnings": [
+    {
+      "warning_type": "SQL Injection",
+      "warning_code": 0,
+      "fingerprint": "8c6c6e55ac77b88b750ab495c956ce5a5b006b1ae72b22994743cb14162bf173",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "app/models/portfolio/query.rb",
+      "line": 20,
+      "link": "https://brakemanscanner.org/docs/warning_types/sql_injection/",
+      "code": "Customer.visible_to(@user, \"view_portfolio\").joins(\"left join (#{aggregate_sql(tenant_ids)}) agg on agg.customer_id = customers.id\")",
+      "render_path": null,
+      "location": { "type": "method", "class": "Portfolio::Query", "method": "customers" },
+      "user_input": "aggregate_sql(tenant_ids)",
+      "confidence": "Medium",
+      "cwe_id": [ 89 ],
+      "note": "Falso positivo: aggregate_sql monta o texto com sanitize_sql_array, e os ids dos credores vêm das permissões do usuário no banco."
+    }
+  ],
+  "brakeman_version": "8.0.2"
+}

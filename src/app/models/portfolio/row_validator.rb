@@ -1,0 +1,52 @@
+module Portfolio
+  # Valida uma linha da planilha contra as regras de identificação e validação (R1 a R6) e os limites de tamanho de campo.
+  # Devolve [linha normalizada, nil] ou [nil, motivo da recusa].
+  class RowValidator
+    # Limites de caracteres por campo (especificação 01, formato da planilha).
+    LIMITS = { "nome" => 300, "titulo" => 100, "contrato" => 100, "descricao" => 300, "email" => 254, "telefone" => 60 }.freeze
+    FIELD_NAMES = { "documento" => "documento", "nome" => "nome", "titulo" => "título", "vencimento" => "vencimento", "valor" => "valor",
+                    "telefone" => "telefone", "email" => "e-mail", "contrato" => "contrato", "descricao" => "descrição", "papel" => "papel" }.freeze
+    ROLES = { "titular" => "holder", "responsavelfinanceiro" => "financial_responsible", "responsavel" => "financial_responsible" }.freeze
+
+    def validate(csv_row)
+      values = csv_row.values
+      return [ nil, "linha com mais colunas que o cabeçalho" ] if csv_row.extra
+      return [ nil, "linha incompleta" ] if csv_row.short
+
+      CsvFile::REQUIRED.each { |field| return [ nil, "#{FIELD_NAMES[field]} obrigatório" ] if values[field].blank? }
+      problem = Document.problem(values["documento"])
+      return [ nil, problem ] if problem
+
+      LIMITS.each do |field, max|
+        return [ nil, "#{FIELD_NAMES[field]} acima de #{max} caracteres" ] if values[field].to_s.length > max
+      end
+      due = BrDate.parse(values["vencimento"])
+      return [ nil, "data inválida" ] unless due
+
+      cents, money_problem = Money.parse_cents(values["valor"])
+      return [ nil, money_problem ] unless cents
+
+      roles, role_problem = parse_roles(values["papel"].to_s)
+      return [ nil, role_problem ] if role_problem
+
+      [ ParsedRow.new(line: csv_row.line, document: Document.normalize(values["documento"]), name: values["nome"], phone: values["telefone"].presence,
+                      email: values["email"].presence, contract: values["contrato"].presence, number: values["titulo"], due_date: due,
+                      amount_cents: cents, description: values["descricao"].presence, roles: roles), nil ]
+    end
+
+    private
+      # Papéis do cliente no contrato (R9b): "titular", "responsável financeiro" ou os dois separados por barra, sem diferenciar
+      # maiúsculas nem acentos. Vazio não declara papel (vale os dois). Valor desconhecido recusa a linha.
+      def parse_roles(raw)
+        return [ nil, nil ] if raw.strip.empty?
+
+        roles = raw.split("/").map do |token|
+          role = ROLES[FoldedText.fold(token).delete(" ")]
+          return [ nil, "papel inválido: #{token.strip}" ] unless role
+
+          role
+        end
+        [ roles.uniq.sort.join(","), nil ]
+      end
+  end
+end

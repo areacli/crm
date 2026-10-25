@@ -1,0 +1,7 @@
+<% content_for :title, "Importações" %>
+<% content_for :cable_channels, import_cable_channels %>
+<header class="cabecalho-da-pagina">
+  <h1>Importações</h1>
+  <% if policy(Import).new? %><div class="acoes"><%= link_to "Importar carteira", new_import_path, class: "botao" %></div><% end %>
+</header>
+<%= render "imports/list" %>

@@ -1,0 +1,9 @@
+# Sidekiq 8 (decisão 0020): as filas precisam ser listadas ao iniciar. Importação e exportação ficam em filas próprias.
+:concurrency: <%= ENV.fetch("SIDEKIQ_CONCURRENCY", 5) %>
+:timeout: 25
+:queues:
+  - imports
+  - exports
+  - messaging
+  - webhooks
+  - default

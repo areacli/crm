@@ -1,0 +1,73 @@
+<%# Refeito pelo htmx a cada aviso do WebSocket. Locais: import, rejections. %>
+<% data = import.summary_data %>
+<div id="importacao" hx-get="<%= import_path(import) %>" hx-trigger="cable:import-changed from:body, cable:connected from:body" hx-swap="outerHTML">
+  <section class="cartao" aria-labelledby="situacao-da-importacao">
+    <header><h2 id="situacao-da-importacao">Situação</h2></header>
+    <div>
+      <dl class="valores">
+        <div><dt>Situação</dt><dd><%= render "imports/status", import: import %></dd></div>
+        <div><dt>Arquivo</dt><dd><%= import.original_name %> <small>(<%= number_br(import.size_bytes / 1024) %> KB)</small></dd></div>
+        <div><dt>Modo</dt><dd><%= t("imports.modes.#{import.mode}") %></dd></div>
+        <div><dt>Enviada por</dt><dd><%= import.user&.name || "—" %></dd></div>
+      </dl>
+      <% if import.working? %>
+        <p>
+          <progress value="<%= import.progress_percent %>" max="100" aria-label="Andamento da importação"></progress>
+          <%= import.progress_percent %>% <%= "— #{import.progress_label}" if import.progress_label.present? %>
+        </p>
+      <% end %>
+      <% if import.rejected? || import.failed? %>
+        <%= aviso(tom: :danger) { tag.p import.failure_reason.presence || "A importação não pôde ser concluída." } %>
+      <% end %>
+    </div>
+  </section>
+
+  <% if data.present? %>
+    <section class="cartao" aria-labelledby="resultado-da-conferencia">
+      <header><h2 id="resultado-da-conferencia"><%= import.confirmed? ? "O que foi gravado" : "Resultado da conferência" %></h2></header>
+      <div>
+        <dl class="valores">
+          <div><dt>Linhas lidas</dt><dd><%= number_br(data[:lines]) %></dd></div>
+          <div><dt>Títulos válidos</dt><dd><%= number_br(data[:valid]) %></dd></div>
+          <div><dt>Linhas recusadas</dt><dd><%= number_br(data[:rejected]) %></dd></div>
+          <div><dt>Clientes</dt><dd><%= number_br(data[:customers]) %> <small>(<%= number_br(data[:customers_new]) %> novos)</small></dd></div>
+          <div><dt>Valor dos títulos</dt><dd>R$ <%= data[:amount_formatted] %></dd></div>
+          <div><dt>Títulos novos</dt><dd><%= number_br(data[:bills_new]) %></dd></div>
+          <div><dt>Títulos atualizados</dt><dd><%= number_br(data[:bills_updated]) %></dd></div>
+          <div><dt>Títulos sem mudança</dt><dd><%= number_br(data[:bills_unchanged]) %></dd></div>
+          <% if data[:bills_reincluded].to_i.positive? %><div><dt>Títulos reincluídos</dt><dd><%= number_br(data[:bills_reincluded]) %></dd></div><% end %>
+          <% if import.full_sync? %><div><dt>Títulos a retirar</dt><dd><%= number_br(data.dig(:to_withdraw, :count)) %> <small>(R$ <%= Money.format(data.dig(:to_withdraw, :amount_cents).to_i) %>)</small></dd></div><% end %>
+        </dl>
+        <% if data[:ignored_columns].present? %><p><small>Colunas ignoradas: <%= data[:ignored_columns].join(", ") %>.</small></p><% end %>
+        <% if data[:contracts_created_by_omission].to_i.positive? %><p><small><%= number_br(data[:contracts_created_by_omission]) %> clientes sem contrato no arquivo ganharam um contrato criado por omissão.</small></p><% end %>
+      </div>
+    </section>
+  <% end %>
+
+  <% if policy(import).confirm? %>
+    <section class="cartao" aria-labelledby="decisao">
+      <header><h2 id="decisao">Confirmar ou descartar</h2><p>Nada foi gravado na carteira até agora.</p></header>
+      <div class="acoes">
+        <%= render("shared/confirmacao", id: "confirmar-importacao", titulo: "Confirmar a importação?", gatilho: "primary",
+                   mensagem: "Os títulos válidos entram na carteira#{' e os que não vieram no arquivo saem da cobrança' if import.full_sync?}.",
+                   acao: "Confirmar importação", url: import_confirmation_path(import), variante: "primary") { "Confirmar" } %>
+        <%= render("shared/confirmacao", id: "descartar-importacao", titulo: "Descartar a importação?",
+                   mensagem: "O arquivo conferido é descartado e nada entra na carteira.",
+                   acao: "Descartar importação", url: import_discard_path(import)) { "Descartar" } %>
+      </div>
+    </section>
+  <% end %>
+
+  <% if rejections.any? %>
+    <section class="cartao" aria-labelledby="recusadas">
+      <header><h2 id="recusadas">Linhas recusadas</h2><p>Mostrando as primeiras <%= rejections.size %> de <%= number_br(import.rejections.count) %>.</p></header>
+      <div class="tabela">
+        <table>
+          <caption class="apenas-leitor-de-tela">Linhas recusadas</caption>
+          <thead><tr><th scope="col" data-numerico>Linha</th><th scope="col">Motivo</th></tr></thead>
+          <tbody><% rejections.each do |rejection| %><tr><td data-numerico><%= rejection.line %></td><td><%= rejection.reason %></td></tr><% end %></tbody>
+        </table>
+      </div>
+    </section>
+  <% end %>
+</div>

@@ -1,0 +1,20 @@
+joana_alfa:
+  user: joana
+  tenant: alfa
+  profile: alfa_manager
+carlos_alfa:
+  user: carlos
+  tenant: alfa
+  profile: alfa_operator
+ana_alfa:
+  user: ana
+  tenant: alfa
+  profile: alfa_operator
+ana_beta:
+  user: ana
+  tenant: beta
+  profile: beta_manager
+inativo_alfa:
+  user: inativo
+  tenant: alfa
+  profile: alfa_operator

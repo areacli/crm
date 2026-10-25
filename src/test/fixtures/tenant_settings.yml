@@ -1,0 +1,6 @@
+alfa:
+  tenant: alfa
+  aging_brackets: <%= TenantSetting::DEFAULT_BRACKETS.to_json %>
+beta:
+  tenant: beta
+  aging_brackets: <%= TenantSetting::DEFAULT_BRACKETS.to_json %>

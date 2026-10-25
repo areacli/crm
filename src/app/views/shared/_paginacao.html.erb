@@ -1,0 +1,6 @@
+<%# Paginação (P22): anterior, página atual de N e próxima. Locais: pagination, path (lambda da página para a URL). %>
+<nav class="paginacao" aria-label="Paginação">
+  <% if pagination.previous_page %><%= link_to "Anterior", path.call(pagination.previous_page), rel: "prev" %><% else %><span aria-disabled="true">Anterior</span><% end %>
+  <span>Página <%= pagination.page %> de <%= number_br(pagination.pages) %></span>
+  <% if pagination.next_page %><%= link_to "Próxima", path.call(pagination.next_page), rel: "next" %><% else %><span aria-disabled="true">Próxima</span><% end %>
+</nav>

@@ -1,0 +1,101 @@
+/* Estrutura da página: cabeçalho marinho com a marca em destaque, menu lateral claro só com texto, conteúdo, sem rodapé. */
+@layer layout {
+  body {
+    display: grid;
+    grid-template-columns: var(--largura-menu) minmax(0, 1fr);
+    grid-template-rows: var(--altura-cabecalho) 1fr;
+    grid-template-areas: "cabecalho cabecalho" "menu conteudo";
+    min-height: 100vh;
+  }
+
+  body > header {
+    grid-area: cabecalho;
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--espaco-4);
+    padding-inline: var(--espaco-4);
+    background: var(--cor-marinho);
+    color: var(--cor-branco);
+  }
+  body > header :focus-visible { outline-color: var(--cor-amarelo); }
+  body > header a { color: inherit; text-decoration: none; }
+
+  /* A marca é o elemento de maior peso do cabeçalho (revisão 2): logotipo de 48 px e o nome do produto em 28 px. */
+  .marca { display: flex; align-items: center; gap: var(--espaco-3); }
+  .marca img { height: var(--altura-logotipo); width: auto; }
+  .marca strong { font-size: var(--texto-marca); line-height: 1; font-weight: 700; }
+
+  .usuario { display: flex; align-items: center; gap: var(--espaco-3); }
+  .usuario summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: var(--espaco-2); padding: var(--espaco-1); border-radius: var(--raio-controle); }
+  .usuario summary::-webkit-details-marker { display: none; }
+  .usuario summary:hover { background: var(--cor-azul-escuro); }
+  .iniciais { display: grid; place-items: center; width: 2.5rem; height: 2.5rem; border-radius: 50%; background: var(--cor-amarelo); color: var(--cor-marinho); font-weight: 700; }
+
+  body > nav {
+    grid-area: menu;
+    background: var(--cor-branco);
+    border-right: 1px solid var(--cor-linha);
+    padding: var(--espaco-3);
+  }
+  body > nav h2 { padding: var(--espaco-2) var(--espaco-3) var(--espaco-1); font-size: var(--texto-legenda); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--cor-texto-suave); }
+  body > nav ul { list-style: none; margin: 0 0 var(--espaco-3); padding: 0; }
+  body > nav a { display: block; padding: var(--espaco-2) var(--espaco-3); border-radius: var(--raio-controle); color: var(--cor-texto); text-decoration: none; font-weight: 600; }
+  body > nav a:hover { background: var(--cor-superficie); }
+  body > nav a[aria-current="page"] { background: var(--cor-marinho); color: var(--cor-branco); }
+
+  body > main {
+    grid-area: conteudo;
+    min-width: 0;
+    padding: var(--espaco-6);
+    max-width: var(--largura-conteudo);
+    width: 100%;
+    margin-inline: auto;
+    display: grid;
+    gap: var(--espaco-6);
+    align-content: start;
+  }
+  body > main:focus { outline: none; }
+
+  /* Sem menu (página de entrada): o conteúdo ocupa a largura toda. */
+  body:not(:has(> nav)) { grid-template-columns: minmax(0, 1fr); grid-template-areas: "cabecalho" "conteudo"; }
+
+  .pular-para-o-conteudo { position: absolute; left: -999px; top: var(--espaco-2); z-index: 60; background: var(--cor-branco); padding: var(--espaco-2) var(--espaco-4); border-radius: var(--raio-controle); font-weight: 600; }
+  .pular-para-o-conteudo:focus { left: var(--espaco-2); }
+
+  .cabecalho-da-pagina { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--espaco-3); }
+  .cabecalho-da-pagina p { margin: var(--espaco-1) 0 0; color: var(--cor-texto-suave); }
+  .acoes { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espaco-2); }
+
+  /* Tela estreita: o menu vira uma faixa acima do conteúdo e o conteúdo usa menos espaço. */
+  @media (max-width: 48rem) {
+    body { grid-template-columns: minmax(0, 1fr); grid-template-rows: var(--altura-cabecalho) auto 1fr; grid-template-areas: "cabecalho" "menu" "conteudo"; }
+    body > nav { border-right: 0; border-bottom: 1px solid var(--cor-linha); overflow-x: auto; }
+    body > nav ul { display: flex; gap: var(--espaco-1); }
+    body > nav h2 { display: none; }
+    body > main { padding: var(--espaco-4); }
+    .marca strong { font-size: var(--texto-subtitulo); }
+  }
+}
+
+/* Menu do usuário: <details> no cabeçalho; o conteúdo abre sobre a página. */
+@layer layout {
+  .usuario { position: relative; }
+  .usuario[open] > :not(summary) { position: absolute; right: 0; z-index: 50; margin: 0; padding: var(--espaco-3) var(--espaco-4); background: var(--cor-branco); color: var(--cor-texto); box-shadow: var(--sombra-menu); }
+  .usuario[open] > p { top: calc(100% + var(--espaco-2)); border-radius: var(--raio-controle) var(--raio-controle) 0 0; white-space: nowrap; }
+  .usuario[open] > form { top: calc(100% + 3.5rem); border-radius: 0 0 var(--raio-controle) var(--raio-controle); width: 100%; }
+}
+
+/* Telas da carteira: filtros, colunas e paginação. */
+@layer layout {
+  .filtros { display: flex; flex-wrap: wrap; align-items: end; gap: var(--espaco-3); margin-block: var(--espaco-4); }
+  .filtros .campo { margin: 0; }
+  .duas-colunas { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 28rem), 1fr)); gap: var(--espaco-4); align-items: start; }
+  .paginacao { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: var(--espaco-4); margin-block: var(--espaco-4); }
+  .paginacao [aria-disabled="true"] { color: var(--cor-texto-suave); }
+  .apenas-leitor-de-tela { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  progress { width: 100%; max-width: 20rem; height: var(--espaco-3); vertical-align: middle; accent-color: var(--cor-azul); }
+}

@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+src/estaticos/
+.publico/
+
+# Segredos do ambiente de desenvolvimento em Laravel
+deploy/laravel/.env.dev
+deploy/laravel/.env.producao*
+
+# Segredos do ambiente de desenvolvimento e de produção em Rails
+deploy/rails/.env.dev
+deploy/rails/.env.producao*

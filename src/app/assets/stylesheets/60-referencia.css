@@ -1,0 +1,20 @@
+/* Só a página de referência do design system: amostras das cores dos tokens. */
+@layer componentes {
+  .amostras { display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); gap: var(--espaco-3); list-style: none; margin: 0; padding: 0; }
+  .amostras li { display: grid; gap: var(--espaco-1); }
+  .amostras i { display: block; height: 2.5rem; border: 1px solid var(--cor-linha); border-radius: var(--raio-controle); }
+  .amostras [data-cor="marinho"] { background: var(--cor-marinho); }
+  .amostras [data-cor="azul"] { background: var(--cor-azul); }
+  .amostras [data-cor="azul-escuro"] { background: var(--cor-azul-escuro); }
+  .amostras [data-cor="amarelo"] { background: var(--cor-amarelo); }
+  .amostras [data-cor="laranja"] { background: var(--cor-laranja); }
+  .amostras [data-cor="texto"] { background: var(--cor-texto); }
+  .amostras [data-cor="texto-suave"] { background: var(--cor-texto-suave); }
+  .amostras [data-cor="superficie"] { background: var(--cor-superficie); }
+  .amostras [data-cor="linha"] { background: var(--cor-linha); }
+  .amostras [data-cor="linha-forte"] { background: var(--cor-linha-forte); }
+  .amostras [data-cor="perigo"] { background: var(--cor-perigo); }
+  .amostras [data-cor="sucesso"] { background: var(--cor-sucesso); }
+  .amostras [data-cor="atencao"] { background: var(--cor-atencao); }
+  .escala > * { margin: 0; }
+}

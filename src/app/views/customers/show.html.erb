@@ -1,0 +1,76 @@
+<% content_for :title, @customer.name %>
+<header class="cabecalho-da-pagina">
+  <div>
+    <h1><%= @customer.name %></h1>
+    <p><%= @customer.tenant.name %> · <%= link_to "Voltar para os clientes", customers_path %></p>
+  </div>
+</header>
+
+<%
+  active = @bills.select(&:active?)
+  overdue = active.select { |bill| bill.due_date < @today }
+  upcoming = active - overdue
+  worst = overdue.map { |bill| bill.days_overdue(@today) }.max
+%>
+<section class="cartao" aria-labelledby="dados">
+  <header><h2 id="dados">Dados do cliente</h2></header>
+  <div>
+    <dl class="valores">
+      <div><dt>Documento</dt><dd><%= @customer.formatted_document %></dd></div>
+      <div><dt>Telefone</dt><dd><%= @customer.phone.presence || "—" %></dd></div>
+      <div><dt>E-mail</dt><dd><%= @customer.email.presence || "—" %></dd></div>
+      <div><dt>Faixa de atraso</dt><dd><%= worst ? "#{@brackets.label(@brackets.index_for(worst))} dias" : "Sem atraso" %></dd></div>
+    </dl>
+  </div>
+</section>
+
+<section class="cartao" aria-labelledby="totais">
+  <header><h2 id="totais">Em cobrança</h2></header>
+  <div>
+    <dl class="valores">
+      <div><dt>Vencido</dt><dd><%= money(overdue.sum(&:balance_cents)) %></dd></div>
+      <% unless @setting.upcoming_display == "detail_only" %>
+        <div><dt>A vencer</dt><dd><%= money(upcoming.sum(&:balance_cents)) %></dd></div>
+      <% end %>
+      <div><dt>Títulos em cobrança</dt><dd><%= number_br(active.size) %></dd></div>
+    </dl>
+  </div>
+</section>
+
+<section class="cartao" aria-labelledby="titulos">
+  <header><h2 id="titulos">Títulos</h2></header>
+  <% if @bills.empty? %>
+    <p class="vazio">Este cliente não tem títulos.</p>
+  <% else %>
+    <div class="tabela">
+      <table>
+        <caption class="apenas-leitor-de-tela">Títulos do cliente</caption>
+        <thead>
+          <tr>
+            <th scope="col">Número</th><th scope="col">Contrato</th><th scope="col">Vencimento</th>
+            <th scope="col" data-numerico>Valor</th><th scope="col" data-numerico>Saldo</th>
+            <th scope="col" data-numerico>Dias de atraso</th><th scope="col">Situação</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @bills.each do |bill| %>
+            <tr>
+              <th scope="row"><%= bill.number %></th>
+              <td><%= bill.contract.code.presence || "—" %></td>
+              <td><%= date_br(bill.due_date) %></td>
+              <td data-numerico><%= money(bill.amount_cents) %></td>
+              <td data-numerico><%= money(bill.balance_cents) %></td>
+              <td data-numerico><%= bill.active? && bill.due_date < @today ? number_br(bill.days_overdue(@today)) : "—" %></td>
+              <td>
+                <% if bill.withdrawn? %><%= situacao "Retirado", tom: :neutral %>
+                <% elsif bill.paid? %><%= situacao "Pago", tom: :success %>
+                <% elsif bill.due_date < @today %><%= situacao "Vencido", tom: :danger %>
+                <% else %><%= situacao "A vencer", tom: :info %><% end %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
+</section>

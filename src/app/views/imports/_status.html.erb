@@ -1,0 +1,3 @@
+<% tone = { "received" => :info, "checking" => :info, "checked" => :warning, "confirming" => :info, "confirmed" => :success,
+            "discarded" => :neutral, "rejected" => :danger, "failed" => :danger }.fetch(import.status) %>
+<%= situacao t("imports.statuses.#{import.status}"), tom: tone %><% if import.working? %> <small><%= import.progress_percent %>%</small><% end %>

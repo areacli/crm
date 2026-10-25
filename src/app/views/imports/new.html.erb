@@ -1,0 +1,35 @@
+<% content_for :title, "Importar carteira" %>
+<% content_for :cable_channels, import_cable_channels %>
+<header class="cabecalho-da-pagina">
+  <div><h1>Importar carteira</h1><p>Envie a planilha em CSV com ponto e vírgula. O sistema confere o arquivo e só grava depois da confirmação.</p></div>
+  <div class="acoes"><%= link_to "Baixar planilha modelo", template_imports_path, class: "botao", data: { variant: "secondary" }, "hx-boost": "false" %></div>
+</header>
+
+<section class="cartao" aria-labelledby="envio">
+  <header><h2 id="envio">Arquivo</h2></header>
+  <div>
+    <% if @error %><%= aviso(tom: :danger) { tag.p @error } %><% end %>
+    <%= form_with scope: :import, url: imports_path, multipart: true, html: { "hx-boost": "false" } do |form| %>
+      <% if @tenants.size > 1 %>
+        <div class="campo">
+          <%= form.label :tenant_id, "Credor" %>
+          <%= form.select :tenant_id, @tenants.map { |tenant| [ tenant.name, tenant.id ] }, { selected: @selected_tenant }, required: true %>
+        </div>
+      <% else %>
+        <%= form.hidden_field :tenant_id, value: @tenants.first&.id %>
+        <p><strong><%= @tenants.first&.name %></strong></p>
+      <% end %>
+      <div class="campo">
+        <%= form.label :file, "Arquivo CSV" %>
+        <%= form.file_field :file, accept: ".csv,text/csv", required: true %>
+        <small>Até 50 MB e 200 mil linhas. Colunas obrigatórias: documento, nome, titulo, vencimento e valor.</small>
+      </div>
+      <fieldset>
+        <legend>Modo</legend>
+        <label><%= form.radio_button :mode, "incremental", checked: true %> Incremental: acrescenta e atualiza; o que não vier no arquivo fica como está</label>
+        <label><%= form.radio_button :mode, "full_sync", checked: false %> Carga completa: o que não vier no arquivo sai da cobrança</label>
+      </fieldset>
+      <div class="acoes"><button type="submit">Enviar e conferir</button></div>
+    <% end %>
+  </div>
+</section>

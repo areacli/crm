@@ -1,0 +1,101 @@
+/* Componentes do catálogo (design system, seção 6): elementos nativos com o papel no nome da classe e a variante em data-*. */
+@layer componentes {
+  /* Botão e link com cara de botão. Variantes: data-variant="primary" (padrão), "secondary", "danger", "danger-outline", "link". */
+  button, .botao {
+    display: inline-flex; align-items: center; justify-content: center; gap: var(--espaco-2);
+    min-height: var(--altura-controle); padding: 0 var(--espaco-4);
+    font: inherit; font-weight: 600; white-space: nowrap; cursor: pointer; text-decoration: none;
+    border: 1px solid transparent; border-radius: var(--raio-controle);
+    background: var(--cor-azul); color: var(--cor-branco);
+    transition: background-color 120ms;
+  }
+  button:hover, .botao:hover { background: var(--cor-azul-escuro); color: var(--cor-branco); }
+  :is(button, .botao)[data-variant="secondary"] { background: var(--cor-branco); color: var(--cor-texto); border-color: var(--cor-linha-forte); }
+  :is(button, .botao)[data-variant="secondary"]:hover { background: var(--cor-superficie); color: var(--cor-texto); }
+  :is(button, .botao)[data-variant="danger"] { background: var(--cor-perigo); }
+  :is(button, .botao)[data-variant="danger"]:hover { background: var(--cor-perigo-texto); }
+  :is(button, .botao)[data-variant="danger-outline"] { background: var(--cor-branco); color: var(--cor-perigo); border-color: var(--cor-perigo); }
+  :is(button, .botao)[data-variant="danger-outline"]:hover { background: var(--cor-perigo-fundo); color: var(--cor-perigo); }
+  :is(button, .botao)[data-variant="link"] { background: transparent; color: var(--cor-azul); text-decoration: underline; padding-inline: var(--espaco-1); border: 0; }
+  :is(button, .botao)[data-variant="link"]:hover { background: transparent; color: var(--cor-azul-escuro); }
+  :is(button, .botao)[data-size="small"] { min-height: var(--altura-controle-pequeno); padding-inline: var(--espaco-3); }
+
+  /* Campo de formulário: rótulo, controle, ajuda e erro juntos. */
+  .campo { display: grid; gap: var(--espaco-1); max-width: var(--largura-formulario); }
+  .campo label { font-weight: 600; }
+  .campo .obrigatorio { color: var(--cor-perigo); }
+  .campo small { color: var(--cor-texto-suave); }
+  .campo .erro { display: flex; gap: var(--espaco-1); align-items: flex-start; color: var(--cor-perigo); font-weight: 600; }
+  input, select, textarea {
+    width: 100%; min-height: var(--altura-controle); padding: var(--espaco-2) var(--espaco-3);
+    font: inherit; color: var(--cor-texto); background: var(--cor-branco);
+    border: 1px solid var(--cor-linha-forte); border-radius: var(--raio-controle);
+  }
+  textarea { min-height: 6rem; resize: vertical; }
+  input[type="checkbox"], input[type="radio"] { width: 1.25rem; min-height: 1.25rem; accent-color: var(--cor-azul); }
+  fieldset { border: 1px solid var(--cor-linha); border-radius: var(--raio-cartao); padding: var(--espaco-4); }
+  legend { font-weight: 600; padding-inline: var(--espaco-2); }
+  form { display: grid; gap: var(--espaco-4); }
+
+  /* Cartão: seção com título e ações. */
+  .cartao { background: var(--cor-branco); border: 1px solid var(--cor-linha); border-radius: var(--raio-cartao); }
+  .cartao > header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--espaco-3); padding: var(--espaco-3) var(--espaco-4); border-bottom: 1px solid var(--cor-linha); }
+  .cartao > header p { margin: 0; color: var(--cor-texto-suave); }
+  .cartao > div, .cartao > :not(header) { padding: var(--espaco-4); }
+
+  /* Tabela de dados: números à direita, cabeçalho em superfície, linha com destaque ao apontar. */
+  .tabela { overflow-x: auto; background: var(--cor-branco); border: 1px solid var(--cor-linha); border-radius: var(--raio-cartao); }
+  table { width: 100%; border-collapse: collapse; }
+  caption { text-align: left; padding: var(--espaco-3) var(--espaco-4); font-weight: 600; }
+  th { text-align: left; font-weight: 600; color: var(--cor-texto-suave); background: var(--cor-superficie); white-space: nowrap; }
+  th, td { padding: var(--espaco-3) var(--espaco-4); border-bottom: 1px solid var(--cor-linha); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr:hover { background: var(--cor-superficie); }
+  [data-numerico] { text-align: right; }
+  th a { color: inherit; text-decoration: none; display: inline-flex; align-items: center; gap: var(--espaco-1); }
+  tfoot td { color: var(--cor-texto-suave); font-size: var(--texto-legenda); }
+
+  /* Situação: selo de texto e tom (data-tone: success, warning, danger, info, neutral); a cor nunca fala sozinha. */
+  .situacao { display: inline-flex; align-items: center; padding: 0 var(--espaco-3); border-radius: 999px; font-size: var(--texto-legenda); font-weight: 600; background: var(--cor-neutro-fundo); color: var(--cor-neutro-texto); }
+  .situacao[data-tone="success"] { background: var(--cor-sucesso-fundo); color: var(--cor-sucesso-texto); }
+  .situacao[data-tone="warning"] { background: var(--cor-atencao-fundo); color: var(--cor-atencao-texto); }
+  .situacao[data-tone="danger"] { background: var(--cor-perigo-fundo); color: var(--cor-perigo-texto); }
+  .situacao[data-tone="info"] { background: var(--cor-info-fundo); color: var(--cor-info-texto); }
+
+  /* Aviso em bloco: ícone e texto; o tom vem em data-tone. */
+  .aviso { display: flex; gap: var(--espaco-3); align-items: flex-start; padding: var(--espaco-3) var(--espaco-4); border: 1px solid var(--cor-azul); border-radius: var(--raio-cartao); background: var(--cor-info-fundo); color: var(--cor-info-texto); }
+  .aviso[data-tone="danger"] { border-color: var(--cor-perigo); background: var(--cor-perigo-fundo); color: var(--cor-perigo-texto); }
+  .aviso[data-tone="warning"] { border-color: var(--cor-atencao); background: var(--cor-atencao-fundo); color: var(--cor-atencao-texto); }
+  .aviso[data-tone="success"] { border-color: var(--cor-sucesso); background: var(--cor-sucesso-fundo); color: var(--cor-sucesso-texto); }
+  .aviso p { margin: 0; }
+
+  /* Valores: pares rótulo e valor (dl), em colunas que se ajustam à largura. */
+  .valores { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: var(--espaco-4); margin: 0; }
+  .valores dt { color: var(--cor-texto-suave); }
+  .valores dd { margin: 0; font-weight: 700; font-size: var(--texto-titulo); line-height: 1.2; overflow-wrap: anywhere; }
+  .valores dd small { display: block; font-weight: 400; color: var(--cor-texto-suave); font-size: var(--texto-legenda); }
+
+  .vazio { padding: var(--espaco-8); text-align: center; color: var(--cor-texto-suave); background: var(--cor-branco); border: 1px dashed var(--cor-linha-forte); border-radius: var(--raio-cartao); }
+
+  /* Abas por assunto: cada aba é uma página; a atual leva aria-current="page". */
+  .abas { display: flex; flex-wrap: wrap; gap: var(--espaco-1); border-bottom: 1px solid var(--cor-linha); }
+  .abas a { padding: var(--espaco-2) var(--espaco-4); text-decoration: none; font-weight: 600; color: var(--cor-texto-suave); border-bottom: 4px solid transparent; margin-bottom: -1px; }
+  .abas a:hover { color: var(--cor-azul-escuro); }
+  .abas a[aria-current="page"] { color: var(--cor-texto); border-bottom-color: var(--cor-azul); background: var(--cor-branco); border-radius: var(--raio-controle) var(--raio-controle) 0 0; }
+
+  /* Janela e confirmação: <dialog> nativo; o cabeçalho e o rodapé ficam à vista e só o corpo rola. */
+  dialog { padding: 0; border: 0; border-radius: var(--raio-janela); box-shadow: var(--sombra-janela); width: min(40rem, calc(100vw - 2rem)); max-height: min(92vh, 48rem); color: var(--cor-texto); }
+  dialog[open] { display: flex; flex-direction: column; }
+  dialog::backdrop { background: var(--cor-fundo-da-janela); }
+  dialog > header { padding: var(--espaco-4); border-bottom: 1px solid var(--cor-linha); display: flex; justify-content: space-between; gap: var(--espaco-4); align-items: flex-start; }
+  dialog > header p { margin: var(--espaco-1) 0 0; color: var(--cor-texto-suave); }
+  dialog > div, dialog > form > div { padding: var(--espaco-4); overflow-y: auto; }
+  dialog > footer, dialog > form > footer { padding: var(--espaco-3) var(--espaco-4); border-top: 1px solid var(--cor-linha); display: flex; justify-content: flex-end; gap: var(--espaco-2); flex-wrap: wrap; }
+  dialog > form { display: flex; flex-direction: column; min-height: 0; gap: 0; }
+
+  .icone { width: 1.25rem; height: 1.25rem; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+  .icone[data-size="small"] { width: 1rem; height: 1rem; }
+
+  /* Contador do sino: o único texto abaixo do corpo no cabeçalho. */
+  .contador { position: absolute; top: 0; right: 0; min-width: 1.25rem; padding: 0 var(--espaco-1); border-radius: 999px; background: var(--cor-amarelo); color: var(--cor-marinho); font-size: var(--texto-legenda); font-weight: 700; line-height: 1.25rem; text-align: center; }
+}

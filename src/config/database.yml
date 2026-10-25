@@ -1,0 +1,20 @@
+# PostgreSQL 19. Conexão por variáveis de ambiente (compose); um banco por ambiente.
+default: &default
+  adapter: postgresql
+  encoding: unicode
+  host: <%= ENV.fetch("DB_HOST", "localhost") %>
+  username: <%= ENV.fetch("DB_USERNAME", "crm") %>
+  password: <%= ENV["DB_PASSWORD"] %>
+  max_connections: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+
+development:
+  <<: *default
+  database: crm_development
+
+test:
+  <<: *default
+  database: crm_test
+
+production:
+  <<: *default
+  database: <%= ENV.fetch("DB_DATABASE", "crm") %>
