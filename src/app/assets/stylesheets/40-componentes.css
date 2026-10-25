@@ -58,6 +58,7 @@
   table { width: 100%; border-collapse: collapse; }
   caption { text-align: left; padding: var(--espaco-3) var(--espaco-4); font-weight: 600; }
   th { text-align: left; font-weight: 600; color: var(--cor-texto-suave); background: var(--cor-superficie); white-space: nowrap; }
+  table[data-compacta] :is(th, td) { padding-inline: var(--espaco-3); }
   th, td { padding: var(--espaco-3) var(--espaco-4); border-bottom: 1px solid var(--cor-linha); vertical-align: top; }
   tbody tr:last-child td { border-bottom: 0; }
   tbody tr:hover { background: var(--cor-superficie); }
@@ -81,6 +82,10 @@
   .aviso[data-tone="warning"] { border-color: var(--cor-atencao); background: var(--cor-atencao-fundo); color: var(--cor-atencao-texto); }
   .aviso[data-tone="success"] { border-color: var(--cor-sucesso); background: var(--cor-sucesso-fundo); color: var(--cor-sucesso-texto); }
   .aviso p { margin: 0; }
+
+  /* Usuários da demonstração (CRM_DEMO=1) na tela de entrada: o e-mail longo quebra em vez de alargar a página no celular. */
+  section[aria-labelledby="usuarios-demonstracao"] dt { font-weight: 600; margin-top: var(--espaco-2); }
+  section[aria-labelledby="usuarios-demonstracao"] dd { margin: 0; overflow-wrap: anywhere; }
 
   /* Valores: pares rótulo e valor (dl), em colunas que se ajustam à largura. */
   .valores { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: var(--espaco-4); margin: 0; }
@@ -132,4 +137,13 @@
   ul.caixas { display: grid; gap: var(--espaco-2); margin: 0; padding: 0; list-style: none; }
   ul.caixas label { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espaco-2); }
   ul.caixas small { color: var(--cor-texto-suave); }
+}
+
+/* Botão do menu no cabeçalho: só existe na tela estreita (o menu é um popover, ver 30-layout.css). Fica aqui, na camada dos botões, para vencer a regra geral. */
+@layer componentes {
+  button.botao-menu { display: none; }
+  @media (max-width: 48rem) {
+    button.botao-menu { display: grid; place-items: center; width: var(--altura-controle); height: var(--altura-controle); padding: 0; background: transparent; color: var(--cor-branco); border: 0; }
+    button.botao-menu:hover { background: var(--cor-azul-escuro); }
+  }
 }

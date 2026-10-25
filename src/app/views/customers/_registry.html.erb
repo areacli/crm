@@ -18,7 +18,7 @@
     <% if listed.any? %>
       <details id="todos-os-contatos">
         <summary>Ver todos (<%= number_br(listed.size) %>)<%= " e editar" if can_edit %></summary>
-        <div class="tabela">
+        <div class="tabela" tabindex="0">
           <table>
             <caption class="apenas-leitor-de-tela">Todos os contatos do cliente</caption>
             <thead>

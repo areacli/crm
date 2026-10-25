@@ -68,7 +68,7 @@
   <% if @events.empty? %>
     <p class="vazio">Nenhum registro ainda.</p>
   <% else %>
-    <div class="tabela">
+    <div class="tabela" tabindex="0">
       <table>
         <caption class="apenas-leitor-de-tela">Histórico de <%= user.name %></caption>
         <thead><tr><th scope="col">Quando</th><th scope="col">O que aconteceu</th><th scope="col">Por quem</th><th scope="col">Endereço</th></tr></thead>

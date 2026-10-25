@@ -18,7 +18,7 @@
       <% if @bills.empty? %>
         <p class="vazio">Este cliente não tem título em cobrança.</p>
       <% else %>
-        <div class="tabela">
+        <div class="tabela" tabindex="0">
           <table>
             <caption class="apenas-leitor-de-tela">Títulos em cobrança do cliente</caption>
             <thead><tr><th scope="col">Escolher</th><th scope="col">Título</th><th scope="col">Contrato</th><th scope="col">Vencimento</th><th scope="col" data-numerico>Saldo</th><th scope="col">Situação</th></tr></thead>

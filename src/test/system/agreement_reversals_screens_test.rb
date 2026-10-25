@@ -62,7 +62,7 @@ class AgreementReversalsScreensSystemTest < ApplicationSystemTestCase
 
   test "o painel traz o cartão de acordos do credor" do
     visit root_path
-    assert_selector "h2", text: /Acordos — Escola Alfa/
+    assert_selector "h2", text: "Acordos"
     assert_selector "dt", text: "Dos quais em acordo"
     assert_acessivel
     sem_rolagem_horizontal

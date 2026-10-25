@@ -58,7 +58,7 @@
     <div>
       <%= form_with url: settings_promise_limits_path, method: :patch, html: { "hx-boost": "false" } do |form| %>
         <%= hidden_field_tag :tenant_id, tenant.id %>
-        <div class="tabela">
+        <div class="tabela" tabindex="0">
           <table>
             <caption class="apenas-leitor-de-tela">Prazo máximo do segmento e alçada de cada perfil em <%= tenant.name %></caption>
             <thead>
@@ -93,7 +93,7 @@
     <% if entries.empty? %>
       <p class="vazio">Nenhuma alteração registrada.</p>
     <% else %>
-      <div class="tabela">
+      <div class="tabela" tabindex="0">
         <table>
           <caption class="apenas-leitor-de-tela">Alterações das promessas em <%= tenant.name %></caption>
           <thead><tr><th scope="col">Quando</th><th scope="col">Quem</th><th scope="col">O que mudou</th><th scope="col">Antes</th><th scope="col">Depois</th></tr></thead>

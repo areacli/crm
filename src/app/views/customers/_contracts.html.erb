@@ -1,7 +1,7 @@
 <%# Contratos em que o cliente figura (06, R124a), só para leitura: o papel dele, os clientes do contrato e o crédito. Locais: customer, contracts, members, credit_totals, brackets, overdue (dias de atraso por contrato), segments, history (08, R159). %>
 <section class="cartao" id="contratos" aria-labelledby="contratos-titulo">
   <header><div><h2 id="contratos-titulo">Contratos</h2><p>Os contratos em que este cliente figura e o papel de cada cliente neles.</p></div></header>
-  <div class="tabela">
+  <div class="tabela" tabindex="0">
     <table>
       <caption class="apenas-leitor-de-tela">Contratos do cliente e os clientes de cada um</caption>
       <thead><tr><th scope="col">Contrato</th><th scope="col">Papel deste cliente</th><th scope="col">Clientes do contrato</th><th scope="col">Faixa de atraso</th><th scope="col">Segmento</th><th scope="col" data-numerico>Crédito</th></tr></thead>
@@ -31,7 +31,7 @@
 <% if history.values.flatten.any? %>
   <section class="cartao" id="historico-de-segmento" aria-labelledby="historico-de-segmento-titulo">
     <header><div><h2 id="historico-de-segmento-titulo">Histórico de segmento</h2><p>As mudanças de segmento de cada contrato, da mais recente para a mais antiga.</p></div></header>
-    <div class="tabela">
+    <div class="tabela" tabindex="0">
       <table>
         <caption class="apenas-leitor-de-tela">Mudanças de segmento dos contratos do cliente</caption>
         <thead><tr><th scope="col">Contrato</th><th scope="col">Segmento</th><th scope="col">Desde</th></tr></thead>

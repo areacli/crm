@@ -188,15 +188,14 @@ class PromisesScreensTest < ActionDispatch::IntegrationTest
     assert_equal other.tenant, @alfa
   end
 
-  test "R205: o painel traz um cartão de promessas por credor, sem percentual geral" do
+  test "R205: o painel traz um só cartão de promessas, somado sobre os credores visíveis" do
     register_promise(@customer, [ @nf1 ])
     insert_attempt(@customer, result: result_of(@alfa, :promised))
     entrar(users(:ana))
     get root_path
-    assert_select "h2", text: "Promessas — Escola Alfa"
-    assert_select "h2", text: "Promessas — Clínica Beta"
-    assert_select "section[aria-labelledby=promessas-#{@alfa.id}] td", text: /1 de 1/
-    assert_select "h2", text: /Promessas — Todos/, count: 0
+    assert_select "h2", text: "Promessas"
+    assert_select "h2", text: /Promessas — /, count: 0
+    assert_select "section[aria-labelledby=promessas] td", text: /1 de 1/
   end
 
   test "R206: a aba Promessas mostra políticas, prazo e alçada; mudar vale e fica registrado; baixar o prazo baixa a alçada" do

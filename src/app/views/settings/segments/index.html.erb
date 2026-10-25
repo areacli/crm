@@ -32,7 +32,7 @@
         <% elsif status[:calculated_on] %>
           <p><small>Valores atualizados calculados em <%= date_br(status[:calculated_on]) %> (<%= number_br(status[:last]&.processed.to_i) %> títulos).</small></p>
         <% end %>
-        <div class="tabela">
+        <div class="tabela" tabindex="0">
           <table>
             <caption class="apenas-leitor-de-tela">Segmentos de <%= tenant.name %>, em ordem</caption>
             <thead><tr><th scope="col">Segmento</th><th scope="col">Critérios</th><th scope="col">Encargos</th><th scope="col" data-numerico>Contratos</th><th scope="col" data-numerico>Saldo</th><th scope="col">Situação</th><% if can_change %><th scope="col">Ações</th><% end %></tr></thead>

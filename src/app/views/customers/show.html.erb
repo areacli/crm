@@ -85,7 +85,7 @@
   <% if @bills.empty? %>
     <p class="vazio">Este cliente não tem títulos.</p>
   <% else %>
-    <div class="tabela">
+    <div class="tabela" tabindex="0">
       <table>
         <caption class="apenas-leitor-de-tela">Títulos do cliente</caption>
         <thead>
@@ -163,7 +163,7 @@
 <% if @payments.any? %>
   <section class="cartao" aria-labelledby="pagos">
     <header><h2 id="pagos">Pagos</h2><p>Pagamentos aplicados aos títulos deste cliente.</p></header>
-    <div class="tabela">
+    <div class="tabela" tabindex="0">
       <table>
         <caption class="apenas-leitor-de-tela">Pagamentos do cliente</caption>
         <thead>
@@ -217,7 +217,7 @@
           </details>
         <% end %>
         <% if excess.any? %>
-          <div class="tabela">
+          <div class="tabela" tabindex="0">
             <table>
               <caption class="apenas-leitor-de-tela">Excedente por valor reduzido do contrato <%= contract.label %></caption>
               <thead><tr><th scope="col">Título</th><th scope="col">Motivo</th><th scope="col" data-numerico>Valor do título</th><th scope="col" data-numerico>Pago</th><th scope="col" data-numerico>Excedente</th></tr></thead>
@@ -236,7 +236,7 @@
           </div>
         <% end %>
         <% if entries.any? %>
-        <div class="tabela">
+        <div class="tabela" tabindex="0">
           <table>
             <caption class="apenas-leitor-de-tela">Lançamentos de crédito do contrato <%= contract.label %></caption>
             <thead><tr><th scope="col">Data</th><th scope="col">Origem</th><th scope="col">Motivo</th><th scope="col" data-numerico>Valor</th></tr></thead>

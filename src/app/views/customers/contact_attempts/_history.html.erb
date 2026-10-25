@@ -9,7 +9,7 @@
     <p class="vazio">Nenhum acionamento registrado para este cliente.</p>
   <% else %>
     <p><small>Mostrando <%= number_br(history.first_item) %> a <%= number_br(history.last_item) %> de <%= number_br(history.total) %> acionamentos.</small></p>
-    <div class="tabela">
+    <div class="tabela" tabindex="0">
       <table>
         <caption class="apenas-leitor-de-tela">Acionamentos do cliente</caption>
         <thead>

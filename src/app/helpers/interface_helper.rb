@@ -3,6 +3,7 @@ module InterfaceHelper
   # Heroicons (outline 24, licença MIT) em SVG embutido: o conjunto fica na árvore, sem CDN e sem JavaScript.
   ICONES = {
     "x-mark" => "M6 18 18 6M6 6l12 12",
+    "bars-3" => "M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5",
     "chevron-down" => "m19.5 8.25-7.5 7.5-7.5-7.5",
     "chevron-up" => "m4.5 15.75 7.5-7.5 7.5 7.5",
     "check-circle" => "M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z",

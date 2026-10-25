@@ -4,7 +4,7 @@
     <p class="vazio"><%= @status == "open" ? "Nenhuma divergência aberta. Quando uma carga mudar o valor de um título com pagamento, ela aparece aqui." : "Nenhuma divergência encontrada." %></p>
   <% else %>
     <p><small>Mostrando <%= number_br(@pagination.first_item) %> a <%= number_br(@pagination.last_item) %> de <%= number_br(@pagination.total) %> divergências.</small></p>
-    <div class="tabela">
+    <div class="tabela" tabindex="0">
       <table>
         <caption class="apenas-leitor-de-tela">Divergências de valor</caption>
         <thead>

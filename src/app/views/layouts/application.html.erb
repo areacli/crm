@@ -16,11 +16,22 @@
 
   <body hx-boost="true">
     <a href="#conteudo" class="pular-para-o-conteudo">Ir para o conteúdo</a>
+    <% if Demo.enabled? %>
+      <aside class="demonstracao" aria-label="Aviso da demonstração">
+        <p>Demonstração: os dados são fictícios e recriados todo dia às <%= Demo.reset_at %>, horário de Brasília. Os arquivos que você enviar são descartados sem ser lidos.</p>
+      </aside>
+    <% end %>
     <header>
-      <a href="<%= root_path %>" class="marca">
-        <%= image_tag "logotipo-negativo.svg", alt: "AreaCli" %>
-        <strong>CRM</strong>
-      </a>
+      <div class="identidade">
+        <%# Tela estreita: o menu fica fechado e abre por este botão (popover nativo: Esc e clique fora fecham). %>
+        <% if authenticated? && menu_sections.present? %>
+          <button type="button" class="botao-menu" command="toggle-popover" commandfor="menu-principal" aria-label="Menu"><%= icone "bars-3" %></button>
+        <% end %>
+        <a href="<%= root_path %>" class="marca">
+          <%= image_tag "logotipo-negativo.svg", alt: "AreaCli" %>
+          <strong>CRM</strong>
+        </a>
+      </div>
       <% if authenticated? %>
         <div class="conta">
           <%= render "notices/bell" unless Current.user.temporary_password? %>
@@ -28,7 +39,7 @@
             <summary><span class="iniciais" aria-hidden="true"><%= Current.user.name.first.upcase %></span> <span><%= Current.user.name %></span></summary>
             <div>
               <p><small><%= Current.user.email_address %></small></p>
-              <%= link_to "Trocar a senha", edit_password_path, class: "botao", data: { variant: "secondary", size: "small" } %>
+              <%= link_to "Trocar a senha", edit_password_path, class: "botao", data: { variant: "secondary", size: "small" } unless Demo.enabled? %>
               <%= button_to "Sair", session_path, method: :delete, data: { variant: "secondary", size: "small" } %>
             </div>
           </details>

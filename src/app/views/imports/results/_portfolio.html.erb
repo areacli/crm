@@ -24,7 +24,7 @@
   <% warnings = import.warnings.order(:line, :id).limit(50) %>
   <section class="cartao" id="contatos-da-conferencia" aria-labelledby="avisos-de-contato">
     <header><div><h2 id="avisos-de-contato">Contatos com aviso: <%= number_br(data[:contact_warnings]) %></h2><p>Os títulos e os demais dados da linha entram; só o contato avisado é ignorado ou entra inválido. Mostrando os primeiros <%= number_br(warnings.size) %>.</p></div></header>
-    <div class="tabela">
+    <div class="tabela" tabindex="0">
       <table>
         <caption class="apenas-leitor-de-tela">Avisos de contato da conferência</caption>
         <thead><tr><th scope="col">Aviso</th></tr></thead>
@@ -44,7 +44,7 @@
         <p>Dados corrigidos ou decididos na tela que a carga queria mudar. Política do credor: <%= t("registry.correction_policies.#{data[:correction_policy]}").downcase %>. Mostrando até 50 de cada.</p>
       </div>
     </header>
-    <div class="tabela">
+    <div class="tabela" tabindex="0">
       <table>
         <caption class="apenas-leitor-de-tela">Dados mantidos pelo credor que a carga queria mudar</caption>
         <thead><tr><th scope="col">Cliente</th><th scope="col">Dado</th><th scope="col">Hoje</th><th scope="col">A carga traz</th><th scope="col">Efeito</th></tr></thead>
@@ -71,7 +71,7 @@
         <% if discrepancies[:count].to_i > discrepancies[:items].size %>Mostrando os primeiros <%= number_br(discrepancies[:items].size) %>.<% end %></p>
       </div>
     </header>
-    <div class="tabela">
+    <div class="tabela" tabindex="0">
       <table>
         <caption class="apenas-leitor-de-tela">Títulos com divergência de valor</caption>
         <thead>

@@ -25,7 +25,7 @@
 <section class="cartao" aria-labelledby="contatos">
   <header><h2 id="contatos">Contatos</h2></header>
   <% if d[:contatos].empty? %><p class="vazio">Nenhum contato.</p><% else %>
-    <div class="tabela"><table>
+    <div class="tabela" tabindex="0"><table>
       <caption class="apenas-leitor-de-tela">Contatos</caption>
       <thead><tr><th scope="col">Tipo</th><th scope="col">Contato</th><th scope="col">Situação</th><th scope="col">Origem</th><th scope="col">Motivo</th></tr></thead>
       <tbody><% d[:contatos].each do |c| %><tr><td><%= contact_kind(c[:tipo]) %></td><th scope="row"><%= c[:contato] %></th><td><%= t("registry.statuses.#{c[:situacao]}", default: c[:situacao]) %></td><td><%= contact_origin(c[:origem]) %></td><td><%= c[:motivo].presence || "—" %></td></tr><% end %></tbody>
@@ -36,7 +36,7 @@
 <section class="cartao" aria-labelledby="contratos">
   <header><h2 id="contratos">Contratos</h2></header>
   <% if d[:contratos].empty? %><p class="vazio">Nenhum contrato.</p><% else %>
-    <div class="tabela"><table>
+    <div class="tabela" tabindex="0"><table>
       <caption class="apenas-leitor-de-tela">Contratos</caption>
       <thead><tr><th scope="col">Contrato</th><th scope="col">Papéis</th><th scope="col">Outros clientes</th><th scope="col" data-numerico>Crédito do contrato</th></tr></thead>
       <tbody><% d[:contratos].each do |c| %><tr><th scope="row"><%= c[:codigo].presence || "Sem código" %></th><td><%= c[:papeis].map { |r| t("titular.export.roles.#{r}", default: r) }.join(", ").presence || "—" %></td><td><%= c[:outros_clientes].zero? ? "—" : "mais #{c[:outros_clientes]} #{c[:outros_clientes] == 1 ? 'cliente' : 'clientes'}" %></td><td data-numerico><%= money(c[:credito_do_contrato_centavos]) %></td></tr><% end %></tbody>
@@ -47,7 +47,7 @@
 <section class="cartao" aria-labelledby="titulos">
   <header><h2 id="titulos">Títulos</h2></header>
   <% if d[:titulos].empty? %><p class="vazio">Nenhum título.</p><% else %>
-    <div class="tabela"><table>
+    <div class="tabela" tabindex="0"><table>
       <caption class="apenas-leitor-de-tela">Títulos</caption>
       <thead><tr><th scope="col">Número</th><th scope="col">Contrato</th><th scope="col">Vencimento</th><th scope="col" data-numerico>Valor</th><th scope="col" data-numerico>Pago</th><th scope="col">Situação</th><th scope="col">Versões do valor</th></tr></thead>
       <tbody><% d[:titulos].each do |b| %><tr><th scope="row"><%= b[:numero] %><% if b[:descricao].present? %><small><%= b[:descricao] %></small><% end %></th><td><%= b[:contrato].presence || "—" %></td><td><%= date_br(Date.iso8601(b[:vencimento])) %></td><td data-numerico><%= money(b[:valor_centavos]) %></td><td data-numerico><%= money(b[:pago_centavos]) %></td><td><%= t("titular.export.bill_status.#{b[:situacao]}") %></td><td><%= b[:versoes_do_valor].map { |v| money(v[:valor_centavos]) }.join(" → ") %></td></tr><% end %></tbody>
@@ -58,14 +58,14 @@
 <section class="cartao" aria-labelledby="pagamentos">
   <header><h2 id="pagamentos">Pagamentos e estornos</h2></header>
   <% if d[:pagamentos].empty? %><p class="vazio">Nenhum pagamento.</p><% else %>
-    <div class="tabela"><table>
+    <div class="tabela" tabindex="0"><table>
       <caption class="apenas-leitor-de-tela">Pagamentos</caption>
       <thead><tr><th scope="col">Identificador</th><th scope="col">Título</th><th scope="col">Data</th><th scope="col" data-numerico>Valor</th><th scope="col" data-numerico>Estornado</th><th scope="col">Canal</th></tr></thead>
       <tbody><% d[:pagamentos].each do |p| %><tr><th scope="row"><%= p[:identificador] %></th><td><%= p[:titulo].presence || "—" %></td><td><%= date_br(Date.iso8601(p[:pago_em])) %></td><td data-numerico><%= money(p[:valor_centavos]) %></td><td data-numerico><%= money(p[:estornado_centavos]) %></td><td><%= p[:canal] %></td></tr><% end %></tbody>
     </table></div>
   <% end %>
   <% if d[:estornos].any? %>
-    <div class="tabela"><table>
+    <div class="tabela" tabindex="0"><table>
       <caption class="apenas-leitor-de-tela">Estornos</caption>
       <thead><tr><th scope="col">Estorno</th><th scope="col">Data</th><th scope="col" data-numerico>Valor</th><th scope="col">Motivo</th></tr></thead>
       <tbody><% d[:estornos].each do |r| %><tr><th scope="row"><%= r[:identificador] %></th><td><%= date_br(Date.iso8601(r[:estornado_em])) %></td><td data-numerico><%= money(r[:valor_centavos]) %></td><td><%= r[:motivo].presence || "—" %></td></tr><% end %></tbody>
@@ -77,14 +77,14 @@
   <header><h2 id="creditos">Crédito dos contratos e divergências de valor</h2></header>
   <% if d[:creditos].empty? && d[:divergencias_de_valor].empty? %><p class="vazio">Nada a mostrar.</p><% end %>
   <% if d[:creditos].any? %>
-    <div class="tabela"><table>
+    <div class="tabela" tabindex="0"><table>
       <caption class="apenas-leitor-de-tela">Lançamentos de crédito</caption>
       <thead><tr><th scope="col">Data</th><th scope="col">Contrato</th><th scope="col">Motivo</th><th scope="col" data-numerico>Valor</th></tr></thead>
       <tbody><% d[:creditos].each do |c| %><tr><td><%= datetime_br(Time.zone.parse(c[:em])) %></td><th scope="row"><%= c[:contrato].presence || "Sem código" %></th><td><%= c[:descricao] || t("payments.credit_reasons.#{c[:motivo]}") %><%= " — #{c[:nota]}" if c[:nota].present? %></td><td data-numerico><%= money(c[:valor_centavos]) %></td></tr><% end %></tbody>
     </table></div>
   <% end %>
   <% if d[:divergencias_de_valor].any? %>
-    <div class="tabela"><table>
+    <div class="tabela" tabindex="0"><table>
       <caption class="apenas-leitor-de-tela">Divergências de valor</caption>
       <thead><tr><th scope="col">Título</th><th scope="col" data-numerico>Valor anterior</th><th scope="col" data-numerico>Valor informado</th><th scope="col">Nota</th></tr></thead>
       <tbody><% d[:divergencias_de_valor].each do |v| %><tr><th scope="row"><%= v[:titulo] %></th><td data-numerico><%= money(v[:valor_anterior_centavos]) %></td><td data-numerico><%= money(v[:valor_informado_centavos]) %></td><td><%= v[:nota].presence || "—" %></td></tr><% end %></tbody>
@@ -95,7 +95,7 @@
 <section class="cartao" aria-labelledby="acionamentos">
   <header><h2 id="acionamentos">Acionamentos</h2></header>
   <% if d[:acionamentos].empty? %><p class="vazio">Nenhum acionamento.</p><% else %>
-    <div class="tabela"><table>
+    <div class="tabela" tabindex="0"><table>
       <caption class="apenas-leitor-de-tela">Acionamentos</caption>
       <thead><tr><th scope="col">Data</th><th scope="col">Canal</th><th scope="col">Resultado</th><th scope="col">Contato usado</th><th scope="col">Texto</th></tr></thead>
       <tbody><% d[:acionamentos].each do |a| %><tr><td><%= datetime_br(Time.zone.parse(a[:em])) %></td><td><%= t("contacts.channels.#{a[:canal]}", default: a[:canal]) %></td><td><%= a[:resultado] %></td><td><%= a[:contato_usado].presence || "—" %></td><td><%= a[:texto].presence || "—" %></td></tr><% end %></tbody>
@@ -106,7 +106,7 @@
 <section class="cartao" aria-labelledby="historico">
   <header><h2 id="historico">Histórico de alterações</h2></header>
   <% if d[:historico].empty? %><p class="vazio">Nenhuma alteração.</p><% else %>
-    <div class="tabela"><table>
+    <div class="tabela" tabindex="0"><table>
       <caption class="apenas-leitor-de-tela">Histórico de alterações</caption>
       <thead><tr><th scope="col">Data</th><th scope="col">O quê</th><th scope="col">Antes</th><th scope="col">Depois</th><th scope="col">Motivo</th></tr></thead>
       <tbody><% d[:historico].each do |c| %><tr><td><%= datetime_br(Time.zone.parse(c[:em])) %></td><td><%= c[:tipo] %> · <%= c[:evento] %><%= " · #{c[:campo]}" if c[:campo].present? %></td><td><%= c[:antes].presence || "—" %></td><td><%= c[:depois].presence || "—" %></td><td><%= c[:motivo].presence || "—" %></td></tr><% end %></tbody>

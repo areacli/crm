@@ -22,7 +22,7 @@
       <% segments.each do |segment| %>
         <details>
           <summary><%= segment.name %>: até <%= segment.agreement_max_installments %> parcelas, parcela mínima de <%= money(segment.agreement_min_installment_cents) %>, entrada de <%= segment.agreement_min_down_payment_pct %>%</summary>
-          <div class="tabela">
+          <div class="tabela" tabindex="0">
             <table>
               <caption class="apenas-leitor-de-tela">Teto de desconto por componente em <%= segment.name %></caption>
               <thead><tr><th scope="col">Componente</th><th scope="col" data-numerico>Parcelado (%)</th><th scope="col" data-numerico>À vista (%)</th></tr></thead>
@@ -65,7 +65,7 @@
           <% base = "limits[#{segment.id}][#{profile.id}]" %>
           <details>
             <summary><%= profile.name %> em <%= segment.name %>: até <%= limit.max_installments %> parcelas, entrada de <%= limit.min_down_payment_pct %>%<%= ", valor líquido até #{money(limit.ceiling_value_cents)}" if limit.ceiling_value_cents %></summary>
-            <div class="tabela">
+            <div class="tabela" tabindex="0">
               <table>
                 <caption class="apenas-leitor-de-tela">Limite de desconto de <%= profile.name %> em <%= segment.name %></caption>
                 <thead><tr><th scope="col">Componente</th><th scope="col" data-numerico>Parcelado (%)</th><th scope="col" data-numerico>À vista (%)</th></tr></thead>

@@ -5,6 +5,7 @@ module Indexes
   class << self
     attr_writer :client
 
-    def client = @client || BcbClient.new
+    # Na demonstração (CRM_DEMO=1) nunca se chama o Banco Central: o cliente é o fictício.
+    def client = @client || (Demo.enabled? ? Demo::IndexClient.new : BcbClient.new)
   end
 end

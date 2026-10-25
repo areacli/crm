@@ -18,3 +18,18 @@
     <% end %>
   </div>
 </section>
+<% if Demo.enabled? %>
+  <section class="cartao" aria-labelledby="usuarios-demonstracao">
+    <header><h2 id="usuarios-demonstracao">Usuários da demonstração</h2></header>
+    <div>
+      <p>Os dados são fictícios. Entre com um dos usuários abaixo.</p>
+      <dl>
+        <% Demo::WHO.each do |who| %>
+          <dt><%= who.capitalize %></dt>
+          <dd>E-mail <code><%= Demo.email(who) %></code>, senha <code><%= Demo.password(who) %></code></dd>
+        <% end %>
+      </dl>
+      <p><small>O gestor tem perfil de gestor na Escola Alfa e de operador na Clínica Beta; o operador só vê a Escola Alfa.</small></p>
+    </div>
+  </section>
+<% end %>

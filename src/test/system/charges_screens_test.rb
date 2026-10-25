@@ -28,7 +28,7 @@ class ChargesSystemScreensTest < ApplicationSystemTestCase
     travel_to(TODAY.in_time_zone.change(hour: 10)) do
       entrar
       assert_selector "dt", text: "Atualizado"
-      assert_selector "h2", text: "Segmentos — Escola Alfa"
+      assert_selector "h2", text: "Segmentos"
       assert_acessivel
       sem_rolagem_horizontal
 

@@ -59,6 +59,11 @@ module Crm
     config.x.payments.webhook_ips = ENV.fetch("PAYMENTS_WEBHOOK_IPS", "34.193.116.226").split(",").map(&:strip).compact_blank
     config.x.payments.trust_mtls_header = ENV["PAYMENTS_TRUST_MTLS_HEADER"] == "1"
     config.x.payments.reconcile_after_days = Integer(ENV.fetch("PAYMENTS_RECONCILE_AFTER_DAYS", 3))
+    # Modo de demonstração pública (CRM_DEMO=1; marco B, decisão da demonstração isolada): ligado só na instalação da vitrine.
+    config.x.demo.enabled = ENV["CRM_DEMO"] == "1"
+    config.x.demo.domain = ENV.fetch("CRM_DEMO_DOMAIN", "demo.crm.areacli.com")
+    config.x.demo.customers = Integer(ENV.fetch("CRM_DEMO_CUSTOMERS", 10_000))
+    config.x.demo.reset_at = ENV.fetch("CRM_DEMO_RESET_AT", "04:00")
     config.x.payments.reconcile_per_minute = Integer(ENV.fetch("PAYMENTS_RECONCILE_PER_MINUTE", 120))
 
     # Configuration for the application, engines, and railties goes here.

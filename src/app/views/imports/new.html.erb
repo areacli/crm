@@ -15,10 +15,13 @@
   </div>
   <div class="acoes"><%= link_to "Baixar planilha modelo", template_imports_path(kind: @kind), class: "botao", data: { variant: "secondary" }, "hx-boost": "false" %></div>
 </header>
+<% if Demo.enabled? %>
+  <%= aviso(tom: :warning) { tag.p "Demonstração: o arquivo que você enviar é descartado sem ser lido e trocado por um arquivo fictício de exemplo." } %>
+<% end %>
 
 <section class="cartao" aria-labelledby="colunas">
   <header><h2 id="colunas">Colunas da planilha</h2><p>Separador ponto e vírgula, UTF-8 ou Windows-1252. A ordem das colunas é livre; o cabeçalho é obrigatório.</p></header>
-  <div class="tabela">
+  <div class="tabela" tabindex="0">
     <table>
       <caption class="apenas-leitor-de-tela">Colunas da planilha</caption>
       <thead><tr><th scope="col">Coluna</th><th scope="col">Obrigatória</th><th scope="col">Formato</th><th scope="col">Exemplo</th></tr></thead>
