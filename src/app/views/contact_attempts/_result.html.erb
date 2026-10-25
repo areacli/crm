@@ -4,7 +4,7 @@
     <p class="vazio">Nenhum acionamento no período.</p>
   <% else %>
     <p><small>Mostrando <%= number_br(@pagination.first_item) %> a <%= number_br(@pagination.last_item) %> de <%= number_br(@pagination.total) %> acionamentos, de <%= date_br(@from) %> a <%= date_br(@to) %>.</small></p>
-    <div class="tabela">
+    <div class="tabela" tabindex="0">
       <table>
         <caption class="apenas-leitor-de-tela">Acionamentos</caption>
         <thead>

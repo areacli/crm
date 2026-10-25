@@ -15,6 +15,17 @@ module FakeData
     digits.join
   end
 
+  # CNPJ numérico válido (oito dígitos da raiz, filial 0001 e os dois verificadores), sem dono conhecido.
+  def cnpj(seed)
+    digits = ((10_000_000 + (seed * 104_729) % 89_999_999).to_s.rjust(8, "0") + "0001").chars.map(&:to_i)
+    [ [ 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2 ], [ 6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2 ] ].each do |weights|
+      sum = digits.each_with_index.sum { |digit, index| digit * weights[index] }
+      rest = sum % 11
+      digits << (rest < 2 ? 0 : 11 - rest)
+    end
+    digits.join
+  end
+
   def name(seed)
     "#{FIRST_NAMES[seed % 12]} #{LAST_NAMES[(seed / 12) % 12]} #{LAST_NAMES[(seed / 144) % 12]} #{seed / 1728}"
   end

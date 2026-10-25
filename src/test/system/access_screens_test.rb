@@ -89,6 +89,9 @@ class AccessScreensSystemTest < ApplicationSystemTestCase
   test "o sino mostra o aviso novo quando o evento chega, sem recarregar a página, e marca como lido" do
     sign_in users(:carlos)
     assert_no_selector "#sino .contador"
+    # O sino se refaz uma vez quando o WebSocket conecta; espera essa busca terminar para o evento do teste não correr contra ela.
+    assert_selector "html[data-cable='conectado']"
+    page.driver.wait_for_network_idle
     page.execute_script("window.marcaDaPagina = 1")
 
     Notice.create!(user: users(:carlos), kind: "linked_to_tenant", data: { tenant_name: "Clínica Beta", actor_name: "Ana Prado", profile_name: "Gestor" })

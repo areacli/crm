@@ -241,7 +241,7 @@ class PaymentsScreensTest < ActionDispatch::IntegrationTest
     assert_equal 1, Credit.count
   end
 
-  test "resumo: recuperado por meio, créditos e pendentes, um cartão por credor e o total só dos reais pagos (R58, R58a)" do
+  test "resumo: recuperado por meio, créditos e pendentes, somados sobre os credores visíveis, sem cartão por credor (R58, 25/10/2026)" do
     make_bill(@alfa, amount_cents: 100_000)
     make_bill(@beta, amount_cents: 20_000)
     make_channel(@beta)
@@ -249,9 +249,8 @@ class PaymentsScreensTest < ActionDispatch::IntegrationTest
     Membership.create!(user: users(:joana), tenant: @beta, profile: profiles(:beta_operator))
     entrar(users(:joana))
     get root_path
-    assert_select "h2", text: /Recuperado — Escola Alfa/
-    assert_select "h2", text: /Recuperado — Clínica Beta/
-    assert_select "h2", "Todos os credores"
+    assert_select "h2", "Recuperado"
+    assert_select "h2", text: /Escola Alfa|Clínica Beta|Todos os credores/, count: 0
     assert_includes response.body, "R$ 1.000,00"
     assert_includes response.body, "Pix R$ 1.000,00"
     assert_select "dt", text: "Pagamentos pendentes"

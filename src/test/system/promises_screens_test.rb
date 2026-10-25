@@ -81,6 +81,7 @@ class PromisesScreensSystemTest < ApplicationSystemTestCase
   test "a promessa registrada por outro aparece ao vivo na ficha, pelo WebSocket, sem recarregar" do
     visit customer_path(@customer)
     assert_no_selector "ul.promessas"
+    assert_selector "html[data-cable='conectado']"
     register_promise(@customer, [ @nf1 ], user: users(:carlos))
     assert_selector "ul.promessas li", text: /PRM-000001/, wait: 10
   end
@@ -106,7 +107,7 @@ class PromisesScreensSystemTest < ApplicationSystemTestCase
     sem_rolagem_horizontal
 
     visit root_path
-    assert_selector "h2", text: /Promessas — Escola Alfa/
+    assert_selector "h2", text: "Promessas"
     assert_acessivel
     visit settings_contact_results_path
     assert_selector "th", text: "Admite promessa"

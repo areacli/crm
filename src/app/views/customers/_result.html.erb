@@ -12,7 +12,7 @@
     <p class="vazio">Nenhum cliente encontrado.</p>
   <% else %>
     <p><small>Mostrando <%= number_br(@pagination.first_item) %> a <%= number_br(@pagination.last_item) %> de <%= number_br(@pagination.total) %> clientes.</small></p>
-    <div class="tabela">
+    <div class="tabela" tabindex="0">
       <table>
         <caption class="apenas-leitor-de-tela">Clientes da carteira</caption>
         <thead>

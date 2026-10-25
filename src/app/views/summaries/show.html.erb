@@ -1,45 +1,28 @@
 <% content_for :title, "Resumo da carteira" %>
 <header class="cabecalho-da-pagina"><h1>Resumo da carteira</h1></header>
 
-<% if @summaries.empty? %>
+<% if @summary.nil? %>
   <p class="vazio">Nenhuma carteira para mostrar. Importe a carteira para ver o resumo.</p>
-<% end %>
-
-<% if @summaries.size > 1 %>
-  <section class="cartao" aria-labelledby="total-pago">
-    <header><h2 id="total-pago">Todos os credores</h2></header>
-    <div>
-      <dl class="valores">
-        <% @summaries.first[:recovered].each_index do |index| %>
-          <div><dt>Pago em <%= @summaries.first[:recovered][index][:label] %></dt><dd><%= money(@summaries.sum { |summary| summary[:recovered][index][:gross_cents] }) %></dd></div>
-        <% end %>
-      </dl>
-      <p><small>Soma só dos valores em reais pagos e aplicados a títulos. O recuperado, os créditos e os encargos dependem das políticas de cada credor e ficam separados.</small></p>
-    </div>
-  </section>
-<% end %>
-
-<% @summaries.each do |summary| %>
-  <% detail_only = summary[:upcoming_display] == "detail_only" %>
-  <section class="cartao" aria-labelledby="carteira-<%= summary[:tenant].id %>">
+<% else %>
+<% summary = @summary %>
+<% hide_upcoming = summary[:upcoming_display] != "separate" && summary[:upcoming_display] != "summed" %>
+  <section class="cartao" aria-labelledby="carteira">
     <header>
       <div>
-        <h2 id="carteira-<%= summary[:tenant].id %>"><%= summary[:tenant].name %></h2>
-        <% if summary[:tenant].trade_name.present? || summary[:tenant].legal_name.present? %>
-          <p><%= summary[:tenant].display_name %> · carteira de <%= number_br(summary[:customers]) %> clientes · referência <%= date_br(Date.current) %></p>
-        <% end %>
+        <h2 id="carteira">Carteira</h2>
+        <p>Referência <%= date_br(Date.current) %></p>
       </div>
     </header>
     <div>
       <dl class="valores">
-        <div><dt>Clientes em cobrança</dt><dd><%= number_br(detail_only ? summary[:customers_overdue] : summary[:customers]) %></dd></div>
+        <div><dt>Clientes em cobrança</dt><dd><%= number_br(summary[:customers]) %></dd></div>
         <div><dt>Títulos</dt><dd><%= number_br(summary[:bills]) %></dd></div>
         <div><dt>Vencido</dt><dd><%= money(summary[:overdue_cents]) %></dd></div>
-        <div><dt>A vencer</dt><dd><%= detail_only ? "—" : money(summary[:upcoming_cents]) %></dd></div>
+        <div><dt>A vencer</dt><dd><%= hide_upcoming ? "—" : money(summary[:upcoming_cents]) %></dd></div>
         <div><dt>Atualizado</dt><dd><%= money(summary[:updated][:total_cents]) %></dd></div>
       </dl>
       <% if summary[:updated][:calculated_on] %>
-        <p><small>Atualizado: principal corrigido, multa, juros e honorários dos títulos vencidos, pelas regras de <%= summary[:tenant].name %>, até <%= date_br(summary[:updated][:calculated_on]) %>. Não se soma com o de outro credor.</small></p>
+        <p><small>Atualizado: principal corrigido, multa, juros e honorários dos títulos vencidos, pelas regras de cada credor, até <%= date_br(summary[:updated][:calculated_on]) %>.</small></p>
       <% end %>
       <% if summary[:upcoming_display] == "summed" %>
         <p><small>Em cobrança, somando o a vencer: <%= money(summary[:overdue_cents] + summary[:upcoming_cents]) %> (vencido <%= money(summary[:overdue_cents]) %>).</small></p>
@@ -47,8 +30,8 @@
     </div>
   </section>
 
-  <section class="cartao" aria-labelledby="recebimentos-<%= summary[:tenant].id %>">
-    <header><h2 id="recebimentos-<%= summary[:tenant].id %>">Recuperado — <%= summary[:tenant].name %></h2></header>
+  <section class="cartao" aria-labelledby="recebimentos">
+    <header><h2 id="recebimentos">Recuperado</h2></header>
     <div>
       <dl class="valores">
         <% summary[:recovered].each do |month| %>
@@ -61,15 +44,15 @@
         <% next if month[:methods].empty? %>
         <p><small>Em <%= month[:label] %>, por meio: <%= month[:methods].sort_by { |_, cents| -cents }.map { |method, cents| "#{t("payments.methods.#{method}")} #{money(cents)}" }.join("; ") %>.</small></p>
       <% end %>
-      <p><small>Recuperado é o que foi aplicado a títulos, pela data do pagamento, menos os estornos conforme a política do credor. Crédito (inclusive o excedente de título com valor reduzido) e pendente não entram.</small></p>
+      <p><small>Recuperado é o que foi aplicado a títulos, pela data do pagamento, menos os estornos conforme a política de cada credor. Crédito (inclusive o excedente de título com valor reduzido) e pendente não entram.</small></p>
     </div>
   </section>
 
-  <section class="cartao" aria-labelledby="acionamentos-<%= summary[:tenant].id %>">
-    <header><div><h2 id="acionamentos-<%= summary[:tenant].id %>">Acionamentos — <%= summary[:tenant].name %></h2><p>Pela data do contato. O cliente acionado mais de uma vez conta uma vez em cada tipo.</p></div></header>
-    <div class="tabela">
+  <section class="cartao" aria-labelledby="acionamentos">
+    <header><div><h2 id="acionamentos">Acionamentos</h2><p>Pela data do contato. O cliente acionado mais de uma vez conta uma vez em cada tipo.</p></div></header>
+    <div class="tabela" tabindex="0">
       <table>
-        <caption class="apenas-leitor-de-tela">Acionamentos de <%= summary[:tenant].name %> nos últimos 7 e 30 dias</caption>
+        <caption class="apenas-leitor-de-tela">Acionamentos nos últimos 7 e 30 dias</caption>
         <thead>
           <tr>
             <th scope="col">Tipo do resultado</th>
@@ -94,11 +77,11 @@
     </div>
   </section>
 
-  <section class="cartao" aria-labelledby="promessas-<%= summary[:tenant].id %>">
-    <header><div><h2 id="promessas-<%= summary[:tenant].id %>">Promessas — <%= summary[:tenant].name %></h2><p>Promessas registradas e encerradas no período. Canceladas, recusadas e não aprovadas ficam fora das taxas; não se somam com as de outro credor.</p></div></header>
-    <div class="tabela">
+  <section class="cartao" aria-labelledby="promessas">
+    <header><div><h2 id="promessas">Promessas</h2><p>Promessas registradas e encerradas no período. Canceladas, recusadas e não aprovadas ficam fora das taxas.</p></div></header>
+    <div class="tabela" tabindex="0">
       <table>
-        <caption class="apenas-leitor-de-tela">Promessas de <%= summary[:tenant].name %> nos últimos 7 e 30 dias</caption>
+        <caption class="apenas-leitor-de-tela">Promessas nos últimos 7 e 30 dias</caption>
         <thead><tr><th scope="col">Indicador</th><% summary[:promises].each do |window| %><th scope="col" data-numerico>Últimos <%= window[:days] %> dias</th><% end %></tr></thead>
         <tbody>
           <tr>
@@ -133,8 +116,8 @@
   </section>
 
   <% agr = summary[:agreements] %>
-  <section class="cartao" aria-labelledby="acordos-<%= summary[:tenant].id %>">
-    <header><div><h2 id="acordos-<%= summary[:tenant].id %>">Acordos — <%= summary[:tenant].name %></h2><p>Em <%= agr[:label] %>. O valor em acordo já está no total em cobrança acima; não se soma duas vezes. Não se soma com o de outro credor.</p></div></header>
+  <section class="cartao" aria-labelledby="acordos">
+    <header><div><h2 id="acordos">Acordos</h2><p>Em <%= agr[:label] %>. O valor em acordo já está no total em cobrança acima; não se soma duas vezes.</p></div></header>
     <div>
       <dl class="valores">
         <div><dt>Dos quais em acordo</dt><dd><%= money(agr[:in_agreement_cents]) %> <small>(<%= number_br(agr[:in_agreement_count]) %> acordos)</small></dd></div>
@@ -156,15 +139,21 @@
     </div>
   </section>
 
+  <% if summary[:labels].nil? %>
+    <section class="cartao" aria-labelledby="faixas-diferem">
+      <header><h2 id="faixas-diferem">Faixas de atraso</h2></header>
+      <div><p>As faixas de atraso são configuradas por credor e diferem entre os credores que você consulta; por isso as tabelas por faixa não são mostradas. Os totais acima valem para todos.</p></div>
+    </section>
+  <% else %>
   <div class="duas-colunas">
     <% [ [ "Por cliente", "Cada cliente na faixa do título mais atrasado, com todo o seu vencido.", summary[:by_customer], "Clientes" ],
          [ "Por título", "Cada título vencido na faixa do próprio atraso.", summary[:by_bill], "Títulos" ] ].each do |title, help, rows, unit| %>
       <% maximum = [ rows.sum { |row| row[:cents] }, 1 ].max %>
-      <section class="cartao" aria-labelledby="faixas-<%= summary[:tenant].id %>-<%= title.parameterize %>">
+      <section class="cartao" aria-labelledby="faixas-<%= title.parameterize %>">
         <header>
-          <div><h2 id="faixas-<%= summary[:tenant].id %>-<%= title.parameterize %>">Faixas de atraso — <%= title %></h2><p><%= help %></p></div>
+          <div><h2 id="faixas-<%= title.parameterize %>">Faixas de atraso — <%= title %></h2><p><%= help %></p></div>
         </header>
-        <div class="tabela">
+        <div class="tabela" tabindex="0">
           <table>
             <thead><tr><th scope="col">Faixa (dias)</th><th scope="col" data-numerico><%= unit %></th><th scope="col" data-numerico>Valor vencido</th><th scope="col" data-numerico>Atualizado</th><th scope="col"><span class="apenas-leitor-de-tela">Proporção do vencido</span></th></tr></thead>
             <tbody>
@@ -183,13 +172,14 @@
       </section>
     <% end %>
   </div>
+  <% end %>
 
   <% if summary[:updated][:segments].any? %>
-    <section class="cartao" aria-labelledby="segmentos-<%= summary[:tenant].id %>">
-      <header><div><h2 id="segmentos-<%= summary[:tenant].id %>">Segmentos — <%= summary[:tenant].name %></h2><p>Clientes, saldo e valor atualizado dos títulos vencidos de cada segmento de contrato.</p></div></header>
-      <div class="tabela">
+    <section class="cartao" aria-labelledby="segmentos">
+      <header><div><h2 id="segmentos">Segmentos</h2><p>Clientes, saldo e valor atualizado dos títulos vencidos de cada segmento de contrato.</p></div></header>
+      <div class="tabela" tabindex="0">
         <table>
-          <caption class="apenas-leitor-de-tela">Segmentos de <%= summary[:tenant].name %></caption>
+          <caption class="apenas-leitor-de-tela">Segmentos</caption>
           <thead><tr><th scope="col">Segmento</th><th scope="col" data-numerico>Clientes</th><th scope="col" data-numerico>Saldo</th><th scope="col" data-numerico>Atualizado</th></tr></thead>
           <tbody>
             <% summary[:updated][:segments].each do |row| %>

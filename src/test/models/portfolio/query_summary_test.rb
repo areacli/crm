@@ -77,12 +77,11 @@ class Portfolio::QuerySummaryTest < ActiveSupport::TestCase
     assert_equal [ 20, 20 ], [ Pagination.new(Customer.all, page: 1, per_page: 33).per_page, Pagination.new(Customer.all, page: 0, per_page: nil).per_page ]
   end
 
-  test "o resumo de cada credor conta cada título uma vez e distribui por faixa (R23)" do
-    summaries = Portfolio::Summary.new(users(:ana), reference: REFERENCE).per_tenant
-    alfa = summaries.find { |s| s[:tenant] == @alfa }
-    beta = summaries.find { |s| s[:tenant] == @beta }
+  test "o resumo de um credor conta cada título uma vez e distribui por faixa (R23)" do
+    summary = Portfolio::Summary.new(users(:ana), reference: REFERENCE)
+    alfa = summary.for_tenant(@alfa)
+    beta = summary.for_tenant(@beta)
 
-    assert_equal [ "Escola Alfa", "Clínica Beta" ].sort, summaries.map { |s| s[:tenant].name }.sort
     assert_equal [ 2, 4, 150_000, 100_000, 1 ], [ alfa[:customers], alfa[:bills], alfa[:overdue_cents], alfa[:upcoming_cents], alfa[:customers_overdue] ]
     assert_equal [ 0, 1, 0, 1, 0, 0 ], alfa[:by_bill].map { |row| row[:count] }
     assert_equal [ 0, 0, 0, 1, 0, 0 ], alfa[:by_customer].map { |row| row[:count] }
@@ -91,15 +90,41 @@ class Portfolio::QuerySummaryTest < ActiveSupport::TestCase
     assert_equal [ 70_000, 0 ], beta[:by_bill].map { |row| row[:cents] }
   end
 
-  test "o resumo só traz os credores do usuário" do
-    assert_equal [ @alfa ], Portfolio::Summary.new(users(:joana), reference: REFERENCE).per_tenant.map { |s| s[:tenant] }
+  test "o resumo soma os credores visíveis; com faixas diferentes traz os totais e não as tabelas por faixa (25/10/2026)" do
+    total = Portfolio::Summary.new(users(:ana), reference: REFERENCE).totals
+
+    assert_equal 2, total[:tenants]
+    assert_equal [ 3, 5, 220_000, 100_000 ], [ total[:customers], total[:bills], total[:overdue_cents], total[:upcoming_cents] ]
+    assert_equal false, total[:same_brackets]
+    assert_nil total[:labels]
+    assert_nil total[:by_bill]
+    assert_nil total[:by_customer]
+  end
+
+  test "com as mesmas faixas nos credores, as tabelas por faixa somam os credores" do
+    @beta.setting.update!(aging_brackets: @alfa.setting.aging_brackets)
+    total = Portfolio::Summary.new(users(:ana), reference: REFERENCE).totals
+
+    assert total[:same_brackets]
+    assert_equal [ 0, 2, 0, 1, 0, 0 ], total[:by_bill].map { |row| row[:count] }
+    assert_equal 170_000, total[:by_bill][1][:cents]
+    assert_equal [ 0, 1, 0, 1, 0, 0 ], total[:by_customer].map { |row| row[:count] }
+    assert_equal 220_000, total[:by_customer].sum { |row| row[:cents] }
+  end
+
+  test "o resumo só soma os credores em que o usuário consulta a carteira (V10) e quem tem um credor vê o dele" do
+    only_alfa = Portfolio::Summary.new(users(:joana), reference: REFERENCE).totals
+    assert_equal 1, only_alfa[:tenants]
+    assert_equal [ 2, 4, 150_000 ], [ only_alfa[:customers], only_alfa[:bills], only_alfa[:overdue_cents] ]
+    assert only_alfa[:same_brackets]
+    assert_equal Portfolio::Summary.new(users(:joana), reference: REFERENCE).for_tenant(@alfa).except(:agreements), only_alfa.except(:agreements)
   end
 
   test "mudar as faixas vale na hora e fica registrado; só a configuração do credor muda (R18)" do
     service = Portfolio::SettingsService.new
     service.update_brackets(@alfa, [ { from: 1, to: 60 }, { from: 61, to: nil } ], users(:joana))
 
-    assert_equal [ "1–60", "mais de 60" ], Portfolio::Summary.new(users(:joana), reference: REFERENCE).per_tenant.first[:labels]
+    assert_equal [ "1–60", "mais de 60" ], Portfolio::Summary.new(users(:joana), reference: REFERENCE).totals[:labels]
     change = Change.find_by!(subject_type: "settings", subject_id: @alfa.id, field: "aging_brackets")
     assert_equal users(:joana), change.user
     assert_includes change.before, "361"

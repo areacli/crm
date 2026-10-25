@@ -56,7 +56,7 @@
       <% end %>
       <% quote = form.promise_quote %>
       <% if quote %>
-        <div class="tabela">
+        <div class="tabela" tabindex="0">
           <table>
             <caption>Valor da promessa para <%= date_br(quote.promised_on) %></caption>
             <thead><tr><th scope="col">Título</th><th scope="col" data-numerico>Principal</th><th scope="col" data-numerico>Correção</th><th scope="col" data-numerico>Multa</th><th scope="col" data-numerico>Juros</th><th scope="col" data-numerico>Honorários</th><th scope="col" data-numerico>Total</th></tr></thead>

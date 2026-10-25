@@ -19,7 +19,7 @@
 
     <section class="cartao" aria-labelledby="base-do-acordo">
       <header><div><h2 id="base-do-acordo">Base e descontos</h2><p>Valor atualizado de cada título hoje, por componente, e o que o desconto tira. Desconto: <%= discounts_text(quote.discounts) %>.</p></div></header>
-      <div class="tabela">
+      <div class="tabela" tabindex="0">
         <table>
           <caption class="apenas-leitor-de-tela">Base, desconto e valor de cada título no acordo</caption>
           <thead>
@@ -67,7 +67,7 @@
           <% end %>
           <div><dt>Soma total a pagar</dt><dd><%= money(quote.total_cents) %></dd></div>
         </dl>
-        <div class="tabela">
+        <div class="tabela" tabindex="0">
           <table>
             <caption class="apenas-leitor-de-tela">Entrada e parcelas do acordo</caption>
             <thead><tr><th scope="col">Título de acordo</th><th scope="col">Vencimento</th><th scope="col" data-numerico>Valor</th><th scope="col" data-numerico>Juros do parcelamento</th><th scope="col" data-numerico>Amortização</th><th scope="col" data-numerico>Falta amortizar</th></tr></thead>

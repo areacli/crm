@@ -36,7 +36,7 @@ class ContactAttemptsScreensSystemTest < ApplicationSystemTestCase
     sem_rolagem_horizontal
 
     visit root_path
-    assert_selector "h2", text: /Acionamentos — Escola Alfa/
+    assert_selector "h2", text: "Acionamentos"
     assert_acessivel
 
     visit settings_contact_results_path
@@ -88,6 +88,7 @@ class ContactAttemptsScreensSystemTest < ApplicationSystemTestCase
     select "Pediu para retornar depois", from: "Resultado"
     fill_in "Texto (opcional)", with: "texto que fica"
     # O atributo `required` barra o envio no navegador; tira-se para provar que o servidor recusa e devolve o formulário preenchido.
+    assert_selector "#contact_attempt_return_at" # o campo chega por htmx depois de escolher o resultado
     page.execute_script("document.querySelector('#contact_attempt_return_at').required = false")
     click_button "Registrar acionamento"
 

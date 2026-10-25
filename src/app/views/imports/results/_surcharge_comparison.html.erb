@@ -2,7 +2,7 @@
 <section class="cartao" aria-labelledby="comparacao-acrescimos">
   <header><div><h2 id="comparacao-acrescimos">Acréscimos informados e calculados pelo CRM</h2><p><%= comparison[:moment] == "after" ? "Com o valor atualizado já recalculado e o segmento exato." : "Aproximação com o segmento atual do contrato (\"Demais\" para contrato novo): aparece a tempo de desistir da carga." %> Só para conferência: o valor e o saldo dos títulos não mudam.</p></div></header>
   <div>
-    <div class="tabela">
+    <div class="tabela" tabindex="0">
       <table>
         <caption class="apenas-leitor-de-tela">Total por componente: informado e calculado</caption>
         <thead><tr><th scope="col">Componente</th><th scope="col" data-numerico>Informado pelo credor</th><th scope="col" data-numerico>Calculado pelo CRM</th><th scope="col" data-numerico>Diferença</th></tr></thead>
@@ -15,7 +15,7 @@
     </div>
     <% if comparison[:largest].any? %>
       <p><small>As <%= comparison[:largest].size %> maiores diferenças entre <%= number_br(comparison[:lines]) %> títulos com acréscimos.</small></p>
-      <div class="tabela">
+      <div class="tabela" tabindex="0">
         <table>
           <caption class="apenas-leitor-de-tela">Maiores diferenças entre o informado e o calculado</caption>
           <thead><tr><th scope="col">Título</th><% if comparison[:largest].first[:line] %><th scope="col" data-numerico>Linha</th><% end %><th scope="col" data-numerico>Informado</th><th scope="col" data-numerico>Calculado</th><th scope="col" data-numerico>Diferença</th></tr></thead>

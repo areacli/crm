@@ -36,6 +36,19 @@ class PortfolioScreensTest < ActionDispatch::IntegrationTest
     assert_select "h1", "Maria Souza"
   end
 
+  test "o resumo é um conjunto só de totais: sem nome de credor e, com faixas diferentes, só a nota das faixas (25/10/2026)" do
+    entrar(users(:ana))
+    get root_path
+    assert_select "h2", text: /Escola Alfa|Clínica Beta/, count: 0
+    assert_select "section h2", text: "Carteira", count: 1
+    assert_select "h2", text: /Faixas de atraso — /, count: 2 # faixas iguais: duas tabelas, somadas
+    tenants(:beta).setting.update!(aging_brackets: [ { from: 1, to: 60 }, { from: 61, to: nil } ])
+    get root_path
+    assert_select "section h2", text: "Faixas de atraso", count: 1
+    assert_select "p", text: /diferem entre os credores/
+    assert_select "table caption", text: /Faixas/, count: 0
+  end
+
   test "a busca pelo htmx devolve só o trecho" do
     entrar(@joana)
     get customers_path(q: "maria"), headers: { "HX-Request" => "true" }

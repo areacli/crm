@@ -49,7 +49,7 @@
       <div><dt>Aprovada por</dt><dd><%= agreement.decided_by ? "#{agreement.decided_by.name} em #{datetime_br(agreement.decided_at)}" : "—" %></dd></div>
       <% unless agreement.accepted_at %><div><dt>Vale até</dt><dd><%= date_br(agreement.valid_until) %></dd></div><% end %>
     </dl>
-    <div class="tabela">
+    <div class="tabela" tabindex="0">
       <table>
         <caption class="apenas-leitor-de-tela">Títulos do acordo, base e desconto por componente</caption>
         <thead>
@@ -78,7 +78,7 @@
 
 <section class="cartao" aria-labelledby="entrada-e-parcelas">
   <header><h2 id="entrada-e-parcelas">Entrada e parcelas</h2></header>
-  <div class="tabela">
+  <div class="tabela" tabindex="0">
     <table>
       <caption class="apenas-leitor-de-tela">Entrada e parcelas do acordo</caption>
       <thead><tr><th scope="col">Título de acordo</th><th scope="col">Vencimento</th><th scope="col" data-numerico>Valor</th><th scope="col" data-numerico>Juros do parcelamento</th><th scope="col" data-numerico>Amortização</th><th scope="col" data-numerico>Falta amortizar</th></tr></thead>
@@ -110,7 +110,7 @@
 <% if @titles.any? %>
   <section class="cartao" aria-labelledby="titulos-de-acordo">
     <header><div><h2 id="titulos-de-acordo">Títulos de acordo</h2><p>Existem desde o aceite e entram na cobrança com a efetivação<%= agreement.effectuated? ? " (efetivado em #{date_br(agreement.effectuated_at.to_date)} #{t("agreements.effectuated_by.#{agreement.effectuated_by}")})" : "" %>. O devido de hoje tem a mora dos parâmetros congelados no acordo e os juros do parcelamento já corridos.</p></div></header>
-    <div class="tabela">
+    <div class="tabela" tabindex="0">
       <table>
         <caption class="apenas-leitor-de-tela">Títulos de acordo, valor, pago e devido hoje</caption>
         <thead><tr><th scope="col">Título</th><th scope="col">Vencimento</th><th scope="col" data-numerico>Valor</th><th scope="col" data-numerico>Pago</th><th scope="col" data-numerico>Mora de hoje</th><th scope="col" data-numerico>Devido hoje</th><th scope="col">Situação</th></tr></thead>
@@ -137,7 +137,7 @@
 <% if @reversal_titles.present? %>
   <section class="cartao" aria-labelledby="titulos-de-estorno">
     <header><div><h2 id="titulos-de-estorno">Títulos de estorno</h2><p>Títulos comuns do cliente criados quando um estorno mudou a base em que o acordo foi aceito. Ficam fora do acordo: não o quebram, não impedem a quitação e não entram no mínimo.</p></div></header>
-    <div class="tabela">
+    <div class="tabela" tabindex="0">
       <table>
         <caption class="apenas-leitor-de-tela">Títulos de estorno do acordo</caption>
         <thead><tr><th scope="col">Título</th><th scope="col">Vencimento</th><th scope="col" data-numerico>Valor</th><th scope="col" data-numerico>Pago</th><th scope="col">Situação</th></tr></thead>
@@ -280,7 +280,7 @@
 
 <section class="cartao" aria-labelledby="historico-do-acordo">
   <header><h2 id="historico-do-acordo">Histórico</h2></header>
-  <div class="tabela">
+  <div class="tabela" tabindex="0">
     <table>
       <caption class="apenas-leitor-de-tela">Eventos do acordo</caption>
       <thead><tr><th scope="col">Quando</th><th scope="col">O que aconteceu</th><th scope="col">Quem</th></tr></thead>

@@ -338,7 +338,7 @@ class RegistryScreensTest < ActionDispatch::IntegrationTest
     assert_select "input[name='tenant[cnpj]'][value='11.222.333/0001-81']"
     assert_select "p", text: /Última alteração: Joana Souza/
     get root_path
-    assert_select "section header p", text: /Exemplo · carteira de .* clientes · referência/
+    assert_select "section header p", text: /Exemplo/, count: 0 # o resumo só tem totais, sem nome de credor (25/10/2026)
   end
 
   test "R106 e R106a (critério de aceite): Marta com a 4 nas duas vê e edita o cadastro de cada credor separadamente; a edição de outro credor é recusada" do

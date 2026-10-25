@@ -371,26 +371,24 @@ class ContactAttemptsScreensTest < ActionDispatch::IntegrationTest
     entrar(users(:joana))
 
     get root_path
-    rows = css_select("section[aria-labelledby='acionamentos-#{@alfa.id}'] tbody tr").map { |row| row.css("th, td").map { |cell| cell.text.strip } }
+    rows = css_select("section[aria-labelledby='acionamentos'] tbody tr").map { |row| row.css("th, td").map { |cell| cell.text.strip } }
     assert_equal [ [ "Total", "4", "2", "5", "2" ], [ "Falou com o cliente", "1", "1", "1", "1" ], [ "Falou com terceiro", "1", "1", "1", "1" ],
                    [ "Sem contato", "2", "1", "3", "2" ] ], rows
   end
 
-  test "R79 e MT-9: um bloco por credor, sem total único, e o mesmo CPF acionado nos dois conta um em cada" do
+  test "R79 e MT-9: um bloco só, somado, e o mesmo CPF acionado nos dois credores conta um cliente em cada (clientes são por credor)" do
     insert_attempt(@maria)
     insert_attempt(@beta_customer, user: users(:ana))
     entrar(users(:ana))
 
     get root_path
-    assert_select "section[aria-labelledby='acionamentos-#{@alfa.id}'] tbody tr:first-child", text: /Total\s*1\s*1/
-    assert_select "section[aria-labelledby='acionamentos-#{@beta.id}'] tbody tr:first-child", text: /Total\s*1\s*1/
-    assert_select "section", text: /Acionamentos — Todos/, count: 0
+    assert_select "section[aria-labelledby='acionamentos'] tbody tr:first-child", text: /Total\s*2\s*2/
+    assert_select "section", text: /Acionamentos — /, count: 0
 
     delete session_path
     entrar(users(:marta))
     get root_path
-    assert_select "section[aria-labelledby='acionamentos-#{@alfa.id}']", 0
-    assert_select "section[aria-labelledby='acionamentos-#{@beta.id}']", 1
+    assert_select "section[aria-labelledby='acionamentos'] tbody tr:first-child", text: /Total\s*1\s*1/
   end
 
   # ---- Resultados de acionamento (configuração) ----

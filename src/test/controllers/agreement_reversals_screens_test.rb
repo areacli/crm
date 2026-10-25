@@ -121,7 +121,7 @@ class AgreementReversalsScreensTest < ActionDispatch::IntegrationTest
     entrar(users(:joana))
     get root_path
     assert_response :success
-    assert_select "h2", text: /Acordos — Escola Alfa/
+    assert_select "h2", text: "Acordos"
     assert_select "dt", text: "Dos quais em acordo"
     assert_select "dd", text: /R\$ 1.200,00/
     assert_select "dd", text: /R\$ 36,27/

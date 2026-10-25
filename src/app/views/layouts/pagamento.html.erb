@@ -14,6 +14,11 @@
 
   <body data-pagina="pagamento">
     <a href="#conteudo" class="pular-para-o-conteudo">Ir para o conteúdo</a>
+    <% if Demo.enabled? %>
+      <aside class="demonstracao" aria-label="Aviso da demonstração">
+        <p>Demonstração: nenhum pagamento é real e nenhum fornecedor é chamado. No cartão de teste, o último dígito do número escolhe o resultado: 1 dados inválidos, 2 recusa, 3 recusa que pode repetir; qualquer outro aprova.</p>
+      </aside>
+    <% end %>
     <header>
       <p class="marca"><strong><%= @checkout&.tenant&.display_name || "Pagamento" %></strong></p>
     </header>

@@ -8,6 +8,11 @@
     min-height: 100vh;
   }
 
+  /* Faixa da demonstração pública (CRM_DEMO=1): uma linha a mais no alto da página, discreta. */
+  body:has(> .demonstracao) { grid-template-rows: auto var(--altura-cabecalho) 1fr; grid-template-areas: "demonstracao demonstracao" "cabecalho cabecalho" "menu conteudo"; }
+  .demonstracao { grid-area: demonstracao; padding: var(--espaco-1) var(--espaco-4); background: var(--cor-amarelo); color: var(--cor-marinho); text-align: center; font-size: var(--texto-legenda); }
+  .demonstracao p { margin: 0; }
+
   body > header {
     grid-area: cabecalho;
     position: sticky;
@@ -35,9 +40,20 @@
   .usuario summary:hover { background: var(--cor-azul-escuro); }
   .iniciais { display: grid; place-items: center; width: 2.5rem; height: 2.5rem; border-radius: 50%; background: var(--cor-amarelo); color: var(--cor-marinho); font-weight: 700; }
 
+  .identidade { display: flex; align-items: center; gap: var(--espaco-2); }
   body > nav {
     grid-area: menu;
+    /* O menu é um popover: na tela larga fica sempre à mostra, na estreita abre pelo botão do cabeçalho. */
+    display: block;
+    position: static;
+    inset: auto;
+    width: auto;
+    height: auto;
+    margin: 0;
+    overflow: visible;
+    color: inherit;
     background: var(--cor-branco);
+    border: 0;
     border-right: 1px solid var(--cor-linha);
     padding: var(--espaco-3);
   }
@@ -73,12 +89,23 @@
 
   /* Tela estreita: o menu vira uma faixa acima do conteúdo e o conteúdo usa menos espaço. */
   @media (max-width: 48rem) {
-    body { grid-template-columns: minmax(0, 1fr); grid-template-rows: var(--altura-cabecalho) auto 1fr; grid-template-areas: "cabecalho" "menu" "conteudo"; }
-    body > nav { border-right: 0; border-bottom: 1px solid var(--cor-linha); overflow-x: auto; }
-    body > nav ul { display: flex; gap: var(--espaco-1); }
-    body > nav h2 { display: none; }
+    body { grid-template-columns: minmax(0, 1fr); grid-template-rows: var(--altura-cabecalho) 1fr; grid-template-areas: "cabecalho" "conteudo"; }
+    /* Fechado até o botão abrir; aberto, cobre a página abaixo do cabeçalho com rolagem própria. */
+    body > nav:not(:popover-open) { display: none; }
+    body > nav:popover-open { position: fixed; inset: var(--altura-cabecalho) 0 auto 0; max-height: calc(100dvh - var(--altura-cabecalho)); overflow-y: auto; z-index: 45; border-bottom: 1px solid var(--cor-linha-forte); box-shadow: var(--sombra-menu); }
+    body > nav::backdrop { background: transparent; }
+    /* Cabeçalho estreito: só as iniciais no menu do usuário, para a marca, o sino e o menu caberem. */
+    .usuario summary > span:not(.iniciais) { position: absolute; left: 0; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+    .marca strong { white-space: nowrap; }
+    .conta { gap: var(--espaco-2); }
     body > main { padding: var(--espaco-4); }
     .marca strong { font-size: var(--texto-subtitulo); }
+  }
+
+  /* A faixa da demonstração acrescenta a primeira linha nas três disposições (com menu, sem menu e estreita). */
+  body:has(> .demonstracao):not(:has(> nav)) { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto var(--altura-cabecalho) 1fr; grid-template-areas: "demonstracao" "cabecalho" "conteudo"; }
+  @media (max-width: 48rem) {
+    body:has(> .demonstracao) { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto var(--altura-cabecalho) 1fr; grid-template-areas: "demonstracao" "cabecalho" "conteudo"; }
   }
 }
 
@@ -108,15 +135,16 @@
   .filtros { display: flex; flex-wrap: wrap; align-items: end; gap: var(--espaco-3); margin-block: var(--espaco-4); }
   .filtros .campo { margin: 0; }
   .duas-colunas { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 28rem), 1fr)); gap: var(--espaco-4); align-items: start; }
+  .duas-colunas > * { min-width: 0; }
   .paginacao { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: var(--espaco-4); margin-block: var(--espaco-4); }
   .paginacao [aria-disabled="true"] { color: var(--cor-texto-suave); }
-  .apenas-leitor-de-tela { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .apenas-leitor-de-tela { position: absolute; left: 0; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   progress { width: 100%; max-width: 20rem; height: var(--espaco-3); vertical-align: middle; accent-color: var(--cor-azul); }
 }
 
 /* Páginas feitas de seções (guarda de dados) e a página para imprimir (07, R128): sem menu e sem botões ao imprimir. */
 @layer layout {
-  .pagina-em-secoes { display: grid; gap: var(--espaco-6); }
+  .pagina-em-secoes { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--espaco-6); }
   body[data-pagina="impressao"] { display: block; }
   /* Página pública de pagamento (12, parte C): uma coluna só, sem menu, para o celular do cliente. */
   body[data-pagina="pagamento"] { display: block; }

@@ -25,7 +25,7 @@ class PaymentsScreensSystemTest < ApplicationSystemTestCase
   end
 
   test "resumo, canais, políticas, importações e ficha passam no axe" do
-    assert_text "Recuperado —"
+    assert_text "Recuperado em"
     assert_acessivel
 
     visit settings_channels_path

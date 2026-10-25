@@ -43,7 +43,7 @@
   <% if rejections.any? %>
     <section class="cartao" aria-labelledby="recusadas">
       <header><h2 id="recusadas">Linhas recusadas<%= " e ignoradas" if import.rejections.where(ignored: true).exists? %></h2><p>Mostrando as primeiras <%= rejections.size %> de <%= number_br(import.rejections.count) %>.</p></header>
-      <div class="tabela">
+      <div class="tabela" tabindex="0">
         <table>
           <caption class="apenas-leitor-de-tela">Linhas recusadas</caption>
           <thead><tr><th scope="col" data-numerico>Linha</th><th scope="col">Motivo</th></tr></thead>

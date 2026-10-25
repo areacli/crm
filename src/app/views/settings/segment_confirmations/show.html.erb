@@ -18,7 +18,7 @@
       <% if @impact.mixed.positive? %>
         <p><small>Entre eles, <%= number_br(@impact.mixed) %> contratos mistos (responsáveis PF e PJ), que só casam com o critério "Misto" ou "tanto faz".</small></p>
       <% end %>
-      <div class="tabela">
+      <div class="tabela" tabindex="0">
         <table>
           <caption class="apenas-leitor-de-tela">Contratos que mudam de segmento</caption>
           <thead><tr><th scope="col">De</th><th scope="col">Para</th><th scope="col" data-numerico>Contratos</th><th scope="col" data-numerico>Saldo</th></tr></thead>
@@ -46,7 +46,7 @@
       <% if @charges_impact.rows.empty? %>
         <p class="vazio">Nenhum título em cobrança é afetado.</p>
       <% else %>
-        <div class="tabela">
+        <div class="tabela" tabindex="0">
           <table>
             <caption class="apenas-leitor-de-tela">Valor atualizado por segmento, antes e depois</caption>
             <thead><tr><th scope="col">Segmento</th><th scope="col" data-numerico>Clientes afetados</th><th scope="col" data-numerico>Antes</th><th scope="col" data-numerico>Depois</th><th scope="col" data-numerico>Diferença</th></tr></thead>

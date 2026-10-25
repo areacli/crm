@@ -54,7 +54,7 @@ namespace :crm do
     measure.call("lista de clientes (primeira página)") { query.customers.limit(20).to_a }
     measure.call("lista de clientes (contagem total)") { query.customers.except(:select, :order).count }
     measure.call("lista de clientes (busca por nome)") { query.customers(search: "silva").limit(20).to_a }
-    measure.call("resumo da carteira") { Portfolio::Summary.new(user).per_tenant }
+    measure.call("resumo da carteira") { Portfolio::Summary.new(user).totals }
 
     File.delete(path) if File.exist?(path)
     Portfolio::Sql.run("delete from import_rows where import_id = ?", import.id)
@@ -130,7 +130,7 @@ namespace :crm do
     puts "  resumo: #{import.reload.summary.slice('valid', 'rejected').to_json} efeito: #{import.summary['effect'].to_json}"
     measure.call("confirmação de #{count} pagamentos") { import.confirmer.run(import) }
     puts "  situação: #{import.reload.status}"
-    measure.call("resumo da carteira com recebimentos") { Portfolio::Summary.new(user).per_tenant }
+    measure.call("resumo da carteira com recebimentos") { Portfolio::Summary.new(user).totals }
 
     # Estornos de pagamentos que quitaram (índice múltiplo de 10), 30% do valor de cada um.
     reversals_path = Rails.root.join("tmp", "estornos-#{tenant.id}.csv").to_s
@@ -147,7 +147,7 @@ namespace :crm do
     puts "  resumo: #{reversal.reload.summary.slice('valid', 'rejected').to_json} efeito: #{reversal.summary['effect'].to_json}"
     measure.call("confirmação de #{reversal_count} estornos") { reversal.confirmer.run(reversal) }
     puts "  situação: #{reversal.reload.status}"
-    measure.call("resumo da carteira depois dos estornos") { Portfolio::Summary.new(user).per_tenant }
+    measure.call("resumo da carteira depois dos estornos") { Portfolio::Summary.new(user).totals }
 
     [ payments_path, reversals_path ].each { |path| File.delete(path) if File.exist?(path) }
     Portfolio::Sql.run("delete from payment_rows where import_id in (?)", Import.where(tenant_id: tenant.id).pluck(:id))
@@ -219,7 +219,7 @@ namespace :crm do
     measure.call("lista: 92 dias filtrada por operador e tipo") do
       Pagination.new(controller_scope.call(now - 92.days, now, operator: operators[1], kind: "no_contact").includes(:customer, :result, :user, :tenant).recent, page: 1, per_page: 20).records.to_a
     end
-    measure.call("resumo da carteira (inclui os acionamentos de 7 e 30 dias)") { Portfolio::Summary.new(user).per_tenant }
+    measure.call("resumo da carteira (inclui os acionamentos de 7 e 30 dias)") { Portfolio::Summary.new(user).totals }
     measure.call("registrar um acionamento (regras, gravação e histórico)") do
       Contacts::Recorder.new(user).record(heavy, { channel: "phone", result_id: results.last.id, text: "medição do registro" })
     end
@@ -292,7 +292,7 @@ namespace :crm do
     measure.call("2ª carga: confirmação") { import.confirmer.run(import) }
     puts "  situação: #{import.reload.status}; divergências abertas: #{ValueDiscrepancy.where(tenant_id: t, status: 'open').count}; versões: #{BillValueVersion.where(tenant_id: t).count}"
 
-    measure.call("resumo da carteira (crédito, excedente e recuperado)") { Portfolio::Summary.new(user).per_tenant }
+    measure.call("resumo da carteira (crédito, excedente e recuperado)") { Portfolio::Summary.new(user).totals }
     measure.call("lista de clientes (primeira página)") { Portfolio::Query.new(user).customers.limit(20).to_a }
     measure.call("lista de divergências (primeira página)") { Pagination.new(ValueDiscrepancy.visible_to(user, "confirm_payments").includes(bill: :customer).recent, page: 1, per_page: 20).records.to_a }
     measure.call("lista de divergências (contagem das abertas)") { ValueDiscrepancy.where(tenant_id: t, status: "open").count }
@@ -396,7 +396,7 @@ namespace :crm do
     measure.call("sugestões do acionamento (contatos válidos do canal)") { some.contacts.status_valid.where(kind: "phone").order(:kind, :id).pluck(:value) }
     measure.call("R126: o credor muda o telefone (varre os contatos do credor)") { Registry::TenantEditor.new(user).update(tenant, phone: "(11) 3000-1000".sub("3000", "3001")) }
     measure.call("lista de clientes (primeira página)") { Portfolio::Query.new(user).customers.limit(20).to_a }
-    measure.call("resumo da carteira") { Portfolio::Summary.new(user).per_tenant }
+    measure.call("resumo da carteira") { Portfolio::Summary.new(user).totals }
 
     [ first, second ].each { |path| File.delete(path) if File.exist?(path) }
     sql.run("delete from import_rows where import_id in (select id from imports where tenant_id = ?)", t)
@@ -621,7 +621,7 @@ namespace :crm do
 
     query = Portfolio::Query.new(user)
     measure.call("lista de clientes com a coluna Atualizado (primeira página)", 3) { query.customers.limit(20).to_a.tap { |page| query.updated_totals(page.map(&:id)); query.segment_names(page.map(&:id)) } }
-    measure.call("resumo com atualizado, faixas e segmentos", 10) { Portfolio::Summary.new(user).per_tenant }
+    measure.call("resumo com atualizado, faixas e segmentos", 10) { Portfolio::Summary.new(user).totals }
     some = Bill.where(tenant_id: t).order(:id).first
     measure.call("ficha: memória de cálculo de um título", 1) do
       input = Charges::Reader.new(tenant, today: Date.current, bill_ids: [ some.id ]).to_enum(:each_batch).flat_map(&:itself).first
@@ -763,7 +763,7 @@ namespace :crm do
     ContractCustomer.create!(contract: contract, customer: big)
     ten = (1..10).map { |n| Bill.create!(tenant: tenant, contract: contract, customer: big, number: "T-#{n}", due_date: Date.current - n * 20, amount_cents: 50_000 + n * 1_000) }
     measure.call("formulário: valor da promessa de 10 títulos", 1) { Promises::Pricing.quote(tenant, ten, Date.current + 20) }
-    measure.call("painel: resumo do credor com as promessas", 10) { Portfolio::Summary.new(user).per_tenant }
+    measure.call("painel: resumo do credor com as promessas", 10) { Portfolio::Summary.new(user).totals }
     measure.call("lista de pendentes e número do menu", 1) { Promises::Pending.for(user).count }
 
     File.delete(path) if File.exist?(path)

@@ -1,5 +1,5 @@
 <%# Menu lateral: só texto, o item atual com aria-current="page". `menu_sections` vem do NavigationHelper. %>
-<nav aria-label="Menu">
+<nav aria-label="Menu" id="menu-principal" popover>
   <% menu_sections.each do |secao| %>
     <% if secao[:titulo].present? %><h2><%= secao[:titulo] %></h2><% end %>
     <ul>

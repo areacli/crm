@@ -23,7 +23,7 @@
     <% if @forecast.total.zero? %>
       <p class="vazio">Ninguém será anonimizado nos próximos 30 dias.</p>
     <% else %>
-      <div class="tabela">
+      <div class="tabela" tabindex="0">
         <table>
           <caption class="apenas-leitor-de-tela">Clientes com anonimização prevista</caption>
           <thead><tr><% if @several_tenants %><th scope="col">Credor</th><% end %><th scope="col">Cliente</th><th scope="col">Fim da última relação</th><th scope="col">Anonimização em</th><th scope="col">Reter</th></tr></thead>
@@ -57,7 +57,7 @@
     <% if @retained.total.zero? %>
       <p class="vazio">Nenhum cliente retido.</p>
     <% else %>
-      <div class="tabela">
+      <div class="tabela" tabindex="0">
         <table>
           <caption class="apenas-leitor-de-tela">Clientes retidos</caption>
           <thead><tr><% if @several_tenants %><th scope="col">Credor</th><% end %><th scope="col">Cliente</th><th scope="col">Motivo</th><th scope="col">Retido por</th><th scope="col">Desfazer</th></tr></thead>
@@ -91,7 +91,7 @@
     <% if @runs.empty? %>
       <p class="vazio">A tarefa ainda não rodou.</p>
     <% else %>
-      <div class="tabela">
+      <div class="tabela" tabindex="0">
         <table>
           <caption class="apenas-leitor-de-tela">Últimas execuções</caption>
           <thead><tr><th scope="col">Quando</th><% if @several_tenants %><th scope="col">Credor</th><% end %><th scope="col">Resultado</th><th scope="col" data-numerico>Anonimizados</th><th scope="col" data-numerico>Falhas</th></tr></thead>

@@ -70,7 +70,7 @@ class ChargesScreensTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "R176, R176a e critério de aceite: o resumo traz um cartão por credor com o atualizado, as faixas e os segmentos, sem somar o atualizado entre credores" do
+  test "R176, R176a e critério de aceite: o resumo traz um só conjunto de totais com o atualizado somado, as faixas e os segmentos (25/10/2026)" do
     configure_charges(@beta, fine: 0, interest: 2, index: "none")
     make_bill(@beta, due: DUE, document: PaymentsHelper::JOAO)
     recalc_values(@beta)
@@ -78,13 +78,12 @@ class ChargesScreensTest < ActionDispatch::IntegrationTest
       entrar(users(:ana))
       get root_path
       assert_response :success
-      assert_select "h2", text: "Escola Alfa"
-      assert_select "h2", text: "Clínica Beta"
-      assert_select "dt", text: "Atualizado", count: 2
-      assert_select "h2", text: /Segmentos — Escola Alfa/
-      assert_select "h2", text: /Segmentos — Clínica Beta/
-      assert_select "th", text: "Atualizado", minimum: 4
-      assert_select "dd", text: "R$ 1.057,56"
+      assert_select "h2", text: /Escola Alfa|Clínica Beta/, count: 0
+      assert_select "dt", text: "Atualizado", count: 1
+      assert_select "h2", text: "Segmentos"
+      assert_select "th", text: "Atualizado", minimum: 1
+      assert_select "h2", text: /Faixas de atraso/ # Alfa e Beta têm as mesmas faixas: as tabelas somam os dois (25/10/2026)
+      assert_select "dd", text: "R$ 2.121,43" # soma dos dois credores
     end
   end
 
