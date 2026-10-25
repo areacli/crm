@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_24_100400) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_24_100500) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -25,6 +25,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_100400) do
     t.datetime "occurred_at", precision: nil, default: -> { "CURRENT_TIMESTAMP" }, null: false
     t.index ["tenant_id", "occurred_at"], name: "index_access_events_on_tenant_id_and_occurred_at"
     t.index ["user_id", "occurred_at"], name: "index_access_events_on_user_id_and_occurred_at"
+  end
+
+  create_table "bill_value_versions", force: :cascade do |t|
+    t.bigint "tenant_id", null: false
+    t.bigint "bill_id", null: false
+    t.bigint "import_id"
+    t.bigint "user_id"
+    t.bigint "amount_cents", null: false
+    t.datetime "created_at", default: -> { "CURRENT_TIMESTAMP" }, null: false
+    t.index ["bill_id", "id"], name: "index_bill_value_versions_on_bill_id_and_id"
+    t.check_constraint "amount_cents > 0", name: "bill_value_versions_amount_positive"
   end
 
   create_table "bills", force: :cascade do |t|
@@ -43,10 +54,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_100400) do
     t.datetime "withdrawn_at", precision: nil
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "product", limit: 100
     t.index ["contract_id"], name: "index_bills_on_contract_id"
     t.index ["customer_id"], name: "index_bills_on_customer_id"
     t.index ["tenant_id", "customer_id", "number"], name: "index_bills_on_tenant_id_and_customer_id_and_number", unique: true
     t.index ["tenant_id", "status", "due_date"], name: "index_bills_on_tenant_id_and_status_and_due_date"
+    t.index ["tenant_id"], name: "index_bills_with_excess_by_tenant", where: "(paid_cents > amount_cents)"
     t.check_constraint "amount_cents > 0", name: "bills_amount_positive"
     t.check_constraint "paid_cents >= 0", name: "bills_paid_not_negative"
   end
@@ -166,6 +179,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_100400) do
     t.string "description", limit: 300
     t.boolean "ok", default: true, null: false
     t.boolean "keep_document", default: false, null: false
+    t.string "product", limit: 100
+    t.bigint "penalty_cents"
+    t.bigint "interest_cents"
+    t.bigint "correction_cents"
+    t.bigint "other_cents"
     t.index ["import_id", "document", "number"], name: "index_import_rows_on_import_id_and_document_and_number"
   end
 
@@ -186,8 +204,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_100400) do
     t.datetime "finished_at", precision: nil
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "confirmed_by_id"
     t.index ["tenant_id", "status"], name: "index_imports_on_tenant_id_and_status"
-    t.index ["tenant_id"], name: "index_imports_one_running_per_tenant", unique: true, where: "((status)::text = ANY ((ARRAY['received'::character varying, 'checking'::character varying, 'checked'::character varying, 'confirming'::character varying])::text[]))"
+    t.index ["tenant_id"], name: "index_imports_one_running_per_tenant", unique: true, where: "((status)::text = ANY (ARRAY[('received'::character varying)::text, ('checking'::character varying)::text, ('checked'::character varying)::text, ('confirming'::character varying)::text]))"
     t.index ["user_id"], name: "index_imports_on_user_id"
     t.check_constraint "progress_percent >= 0 AND progress_percent <= 100", name: "imports_progress_percent_range"
   end
@@ -299,6 +318,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_100400) do
     t.index ["tenant_id", "name"], name: "index_profiles_on_tenant_id_and_name", unique: true
   end
 
+  create_table "reported_surcharges", force: :cascade do |t|
+    t.bigint "tenant_id", null: false
+    t.bigint "bill_id", null: false
+    t.bigint "import_id"
+    t.bigint "penalty_cents", default: 0, null: false
+    t.bigint "interest_cents", default: 0, null: false
+    t.bigint "correction_cents", default: 0, null: false
+    t.bigint "other_cents", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["bill_id"], name: "index_reported_surcharges_on_bill_id", unique: true
+  end
+
   create_table "sessions", force: :cascade do |t|
     t.bigint "user_id", null: false
     t.string "ip_address", limit: 45
@@ -318,6 +350,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_100400) do
     t.string "reversal_month_policy", limit: 20, default: "reversal", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "discrepancy_policy", limit: 20, default: "follow", null: false
     t.index ["tenant_id"], name: "index_tenant_settings_on_tenant_id", unique: true
   end
 
@@ -343,6 +376,29 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_100400) do
     t.check_constraint "failed_attempts >= 0", name: "users_failed_attempts_not_negative"
   end
 
+  create_table "value_discrepancies", force: :cascade do |t|
+    t.bigint "tenant_id", null: false
+    t.bigint "bill_id", null: false
+    t.bigint "import_id"
+    t.bigint "previous_cents", null: false
+    t.bigint "reported_cents", null: false
+    t.bigint "allocated_cents", null: false
+    t.bigint "balance_before_cents", null: false
+    t.bigint "balance_after_cents", null: false
+    t.bigint "excess_cents", default: 0, null: false
+    t.string "effect", limit: 20, null: false
+    t.string "policy", limit: 20, null: false
+    t.string "status", limit: 20, default: "open", null: false
+    t.bigint "handled_by_id"
+    t.datetime "handled_at"
+    t.string "note", limit: 500
+    t.string "choice", limit: 20
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["bill_id"], name: "index_value_discrepancies_on_bill_id"
+    t.index ["tenant_id", "status", "id"], name: "index_value_discrepancies_on_tenant_id_and_status_and_id"
+  end
+
   create_table "webhook_events", force: :cascade do |t|
     t.bigint "tenant_id", null: false
     t.bigint "channel_id", null: false
@@ -358,6 +414,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_100400) do
   add_foreign_key "access_events", "tenants", on_delete: :nullify
   add_foreign_key "access_events", "users", column: "actor_id", on_delete: :nullify
   add_foreign_key "access_events", "users", on_delete: :nullify
+  add_foreign_key "bill_value_versions", "bills", on_delete: :restrict
+  add_foreign_key "bill_value_versions", "imports", on_delete: :nullify
+  add_foreign_key "bill_value_versions", "tenants"
+  add_foreign_key "bill_value_versions", "users", on_delete: :nullify
   add_foreign_key "bills", "contracts", on_delete: :restrict
   add_foreign_key "bills", "customers", on_delete: :restrict
   add_foreign_key "bills", "imports", column: "last_import_id", on_delete: :nullify
@@ -383,6 +443,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_100400) do
   add_foreign_key "customers", "tenants"
   add_foreign_key "import_rejections", "imports", on_delete: :cascade
   add_foreign_key "imports", "tenants"
+  add_foreign_key "imports", "users", column: "confirmed_by_id", on_delete: :nullify
   add_foreign_key "imports", "users", on_delete: :nullify
   add_foreign_key "memberships", "profiles", on_delete: :restrict
   add_foreign_key "memberships", "tenants"
@@ -398,8 +459,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_100400) do
   add_foreign_key "payments", "payment_channels", column: "channel_id", on_delete: :restrict
   add_foreign_key "payments", "tenants"
   add_foreign_key "profiles", "tenants"
+  add_foreign_key "reported_surcharges", "bills", on_delete: :cascade
+  add_foreign_key "reported_surcharges", "imports", on_delete: :nullify
+  add_foreign_key "reported_surcharges", "tenants"
   add_foreign_key "sessions", "users"
   add_foreign_key "tenant_settings", "tenants"
+  add_foreign_key "value_discrepancies", "bills", on_delete: :restrict
+  add_foreign_key "value_discrepancies", "imports", on_delete: :nullify
+  add_foreign_key "value_discrepancies", "tenants"
+  add_foreign_key "value_discrepancies", "users", column: "handled_by_id", on_delete: :nullify
   add_foreign_key "webhook_events", "payment_channels", column: "channel_id", on_delete: :restrict
   add_foreign_key "webhook_events", "tenants"
 end

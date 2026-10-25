@@ -5,9 +5,9 @@ module Portfolio
     COLUMNS = (CsvFile::REQUIRED + CsvFile::OPTIONAL).freeze
 
     ROWS = [
-      %w[529.982.247-25 Maria\ Souza 2026-001 10/09/2026 1.250,00] + [ "(11) 99999-0000", "maria@exemplo.com.br", "CT-100", "Mensalidade de setembro", "titular" ],
-      %w[390.533.447-05 João\ Pereira 2026-002 10/10/2026 980,50] + [ "", "joao@exemplo.com.br", "CT-101", "Mensalidade de outubro", "" ],
-      %w[111.444.777-35 Ana\ Lima 2026-003 15/11/2026 2.340,00] + [ "(21) 98888-7777", "", "CT-102", "Parcela do acordo", "responsável financeiro" ]
+      %w[529.982.247-25 Maria\ Souza 2026-001 10/09/2026 1.250,00] + [ "(11) 99999-0000", "maria@exemplo.com.br", "CT-100", "Mensalidade de setembro", "titular", "CARTAO-GOLD", "25,00", "", "", "" ],
+      %w[390.533.447-05 João\ Pereira 2026-002 10/10/2026 980,50] + [ "", "joao@exemplo.com.br", "CT-101", "Mensalidade de outubro", "", "", "", "12,40", "3,10", "" ],
+      %w[111.444.777-35 Ana\ Lima 2026-003 15/11/2026 2.340,00] + [ "(21) 98888-7777", "", "CT-102", "Parcela do acordo", "responsável financeiro", "financiamento veicular", "", "", "", "8,00" ]
     ].freeze
 
     def self.required?(column) = CsvFile::REQUIRED.include?(column)

@@ -1,0 +1,41 @@
+<%# Trecho que o htmx refaz a cada filtro ou página: contagem, tabela e paginação. %>
+<div id="resultado" aria-live="polite">
+  <% if @discrepancies.empty? %>
+    <p class="vazio"><%= @status == "open" ? "Nenhuma divergência aberta. Quando uma carga mudar o valor de um título com pagamento, ela aparece aqui." : "Nenhuma divergência encontrada." %></p>
+  <% else %>
+    <p><small>Mostrando <%= number_br(@pagination.first_item) %> a <%= number_br(@pagination.last_item) %> de <%= number_br(@pagination.total) %> divergências.</small></p>
+    <div class="tabela">
+      <table>
+        <caption class="apenas-leitor-de-tela">Divergências de valor</caption>
+        <thead>
+          <tr>
+            <th scope="col">Título</th><th scope="col">Cliente</th>
+            <% if @several_tenants %><th scope="col">Credor</th><% end %>
+            <th scope="col">Data</th><th scope="col" data-numerico>Valor anterior</th><th scope="col" data-numerico>Informado</th><th scope="col" data-numerico>Pago</th>
+            <th scope="col" data-numerico>Saldo antes</th><th scope="col" data-numerico>Saldo depois</th><th scope="col">Efeito</th><th scope="col">Situação</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @discrepancies.each do |item| %>
+            <tr>
+              <th scope="row"><%= link_to item.bill.number, value_discrepancy_path(item) %></th>
+              <td>
+                <% if @view_customer_tenants.include?(item.tenant_id) %><%= link_to item.bill.customer.name, customer_path(item.bill.customer) %><% else %><%= item.bill.customer.name %><% end %>
+              </td>
+              <% if @several_tenants %><td><%= item.tenant.name %></td><% end %>
+              <td><%= date_br(item.created_at.to_date) %></td>
+              <td data-numerico><%= money(item.previous_cents) %></td>
+              <td data-numerico><%= money(item.reported_cents) %></td>
+              <td data-numerico><%= money(item.allocated_cents) %></td>
+              <td data-numerico><%= money(item.balance_before_cents) %></td>
+              <td data-numerico><%= money(item.balance_after_cents) %></td>
+              <td><%= t("discrepancies.effects.#{item.effect}") %></td>
+              <td><%= item.open? ? situacao("Aberta", tom: :warning) : situacao("Tratada", tom: :success) %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+    <%= render "shared/paginacao", pagination: @pagination, path: ->(page) { value_discrepancies_path(request.query_parameters.merge("page" => page)) } %>
+  <% end %>
+</div>

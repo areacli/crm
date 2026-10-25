@@ -1,0 +1,30 @@
+<% content_for :title, "Divergências de valor" %>
+<header class="cabecalho-da-pagina">
+  <div>
+    <h1>Divergências de valor</h1>
+    <p>Títulos com pagamento cujo valor o credor mudou numa carga. Trate cada uma com uma nota: mantenha o que está ou, na política "manter e registrar", aplique o valor informado.</p>
+  </div>
+</header>
+
+<form class="filtros" role="search" action="<%= value_discrepancies_path %>" method="get"
+      hx-get="<%= value_discrepancies_path %>" hx-trigger="change, submit" hx-target="#resultado" hx-push-url="true" hx-swap="outerHTML">
+  <div class="campo">
+    <label for="status">Situação</label>
+    <select id="status" name="status">
+      <%= options_for_select([ [ "Abertas", "open" ], [ "Tratadas", "handled" ], [ "Todas", "all" ] ], params[:status].presence || "open") %>
+    </select>
+  </div>
+  <% if @several_tenants %>
+    <div class="campo">
+      <label for="tenant">Credor</label>
+      <select id="tenant" name="tenant"><option value="">Todos</option><%= options_for_select(@tenants, params[:tenant]) %></select>
+    </div>
+  <% end %>
+  <div class="campo">
+    <label for="per_page">Por página</label>
+    <select id="per_page" name="per_page"><%= options_for_select(Pagination::PER_PAGE_OPTIONS, @pagination.per_page) %></select>
+  </div>
+  <button type="submit" data-variant="secondary">Filtrar</button>
+</form>
+
+<%= render "value_discrepancies/result" %>

@@ -232,4 +232,87 @@ namespace :crm do
     tenant.destroy
     puts "credor de medição apagado"
   end
+
+  desc "V4 da carteira revista (05): carteira de N linhas, 10% com pagamento e mudança de valor na segunda carga: crm:measure_discrepancies[linhas]"
+  task :measure_discrepancies, %i[lines] => :environment do |_task, args|
+    abort "Recusado em produção." if Rails.env.production?
+
+    lines = (args[:lines].presence || 10_000).to_i
+    tenant = Tenant.provision!("Medição de divergências #{Time.current.strftime('%H%M%S')}")
+    t = tenant.id
+    user = User.create!(name: "Medição", email_address: "medicao#{t}@exemplo.com.br", password: SecureRandom.base58(24))
+    Membership.create!(user: user, tenant: tenant, profile: tenant.profiles.find_by!(name: "Gestor"))
+    ActiveJob::Base.queue_adapter = :test
+    sql = Portfolio::Sql
+
+    measure = lambda do |label, &work|
+      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      result = work.call
+      elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+      peak = (File.read("/proc/self/status")[/VmHWM:\s+(\d+)/, 1].to_i / 1024 rescue 0)
+      puts format("%-55s %8.2f s   (pico de memória %d MB)", label, elapsed, peak)
+      result
+    end
+
+    # Segunda carga: 10% dos títulos mudam de valor (metade cai abaixo do pago), os demais vêm iguais.
+    write_file = lambda do |path, changed|
+      today = Date.current
+      File.open(path, "wb") do |file|
+        file.write "documento;nome;telefone;email;contrato;titulo;vencimento;valor;descricao\n"
+        lines.times do |i|
+          customer = i / 2
+          days = 1 + ((customer * 37 + i * 11) % 500)
+          cents = 5000 + ((i * 7919) % 250_000)
+          cents = ((i % 20).zero? ? cents / 4 : cents * 2 / 3) if changed && (i % 10).zero?
+          file.write [ FakeData.cpf(customer), FakeData.name(customer), "(11) 9#{(customer % 100_000_000).to_s.rjust(8, '0')}", "cliente#{customer}@exemplo.com.br",
+                       "CT-#{customer.to_s.rjust(7, '0')}", "NF-#{customer}/#{i % 2 + 1}", (today - (days - 20)).strftime("%d/%m/%Y"), Money.format(cents), "Mensalidade" ].join(";") + "\n"
+        end
+      end
+    end
+
+    first = Rails.root.join("tmp", "div1-#{t}.csv").to_s
+    second = Rails.root.join("tmp", "div2-#{t}.csv").to_s
+    write_file.call(first, false)
+    write_file.call(second, true)
+    service = Portfolio::ImportService.new
+    import = service.start(tenant: tenant, user: user, file: first, mode: :incremental)
+    measure.call("1ª carga: conferência de #{lines} linhas (sem pagamentos)") { import.checker.run(import) }
+    measure.call("1ª carga: confirmação de #{lines} linhas") { import.confirmer.run(import) }
+    puts "  situação: #{import.reload.status}"
+
+    # Pagamento parcial (um terço) em 10% dos títulos, direto no banco: o que se mede aqui é a carga, não o pagamento (V4 da camada 6).
+    # São os títulos das linhas múltiplas de 10 do arquivo (número `NF-<cliente>/1` com cliente múltiplo de 5).
+    sql.run("update bills set paid_cents = amount_cents / 3 where tenant_id = ? and number like '%/1' and split_part(substring(number from 4), '/', 1)::int % 5 = 0", t)
+    sql.connection.execute("analyze bills")
+
+    import = service.start(tenant: tenant, user: user, file: second, mode: :incremental)
+    measure.call("2ª carga: conferência (10% com pagamento e valor novo)") { import.checker.run(import) }
+    puts "  divergências: #{import.reload.summary['discrepancies']['count']}"
+    measure.call("2ª carga: confirmação") { import.confirmer.run(import) }
+    puts "  situação: #{import.reload.status}; divergências abertas: #{ValueDiscrepancy.where(tenant_id: t, status: 'open').count}; versões: #{BillValueVersion.where(tenant_id: t).count}"
+
+    measure.call("resumo da carteira (crédito, excedente e recuperado)") { Portfolio::Summary.new(user).per_tenant }
+    measure.call("lista de clientes (primeira página)") { Portfolio::Query.new(user).customers.limit(20).to_a }
+    measure.call("lista de divergências (primeira página)") { Pagination.new(ValueDiscrepancy.visible_to(user, "confirm_payments").includes(bill: :customer).recent, page: 1, per_page: 20).records.to_a }
+    measure.call("lista de divergências (contagem das abertas)") { ValueDiscrepancy.where(tenant_id: t, status: "open").count }
+    some = Customer.where(tenant_id: t).order(:id).offset(5).first
+    measure.call("ficha do cliente (títulos e excedente do contrato)") do
+      bills = Bill.where(customer: some).to_a
+      BillValueVersion.where(bill_id: bills.map(&:id)).group(:bill_id).count
+      Bill.where(contract_id: some.contracts.ids).where("paid_cents > amount_cents").to_a
+    end
+    measure.call("histórico de um título") { Portfolio::BillHistory.new(Bill.where(customer: some).first).events }
+
+    [ first, second ].each { |path| File.delete(path) if File.exist?(path) }
+    %w[value_discrepancies reported_surcharges bill_value_versions changes].each { |table| sql.run("delete from #{table} where tenant_id = ?", t) }
+    sql.run("delete from import_rows where import_id in (select id from imports where tenant_id = ?)", t)
+    ContractCustomer.where(customer_id: Customer.where(tenant_id: t)).delete_all
+    [ Bill, Customer, Contract ].each { |model| model.where(tenant_id: t).delete_all }
+    Import.where(tenant_id: t).destroy_all
+    tenant.contact_results.delete_all
+    Membership.where(tenant_id: t).delete_all
+    user.destroy
+    tenant.destroy
+    puts "credor de medição apagado"
+  end
 end

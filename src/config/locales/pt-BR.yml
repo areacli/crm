@@ -40,6 +40,11 @@ pt-BR:
         contrato: "Código do contrato, até 100 caracteres; vazio cria um contrato só para o cliente"
         descricao: "Texto, até 300 caracteres"
         papel: "titular, responsável financeiro ou os dois separados por barra; vazio vale os dois"
+        produto: "Texto, até 100 caracteres; vazio não apaga o produto que o título já tem"
+        multa_credor: "Multa que o credor já aplicou, em reais; só para conferência, não muda o valor"
+        juros_credor: "Juros que o credor já aplicou, em reais; só para conferência"
+        correcao_credor: "Correção que o credor já aplicou, em reais; só para conferência"
+        outros_credor: "Outros acréscimos do credor, em reais; só para conferência"
   payments:
     sheet:
       payments:
@@ -97,6 +102,35 @@ pt-BR:
       reversal_month_policy:
         reversal: "No mês do estorno (meses anteriores não mudam)"
         payment: "No mês do pagamento estornado"
+  discrepancies:
+    note_required: "Informe a nota."
+    invalid_choice: "Escolha manter ou aplicar o valor informado."
+    already_handled: "Esta divergência já foi tratada."
+    cannot_apply: "Só se aplica o valor informado numa divergência da política \"manter e registrar\" em título que não está pago."
+    value_changed: "O valor do título mudou depois desta divergência; ela só pode ser mantida."
+    effects:
+      becomes_paid: "Passa a pago"
+      returns_paid: "Volta como pago"
+      balance_up: "Saldo sobe"
+      balance_down: "Saldo cai"
+      kept: "Mantido"
+      record_only: "Só registro"
+    policies:
+      follow: "Seguir o valor novo"
+      keep: "Manter e registrar"
+    policy_help:
+      follow: "O valor informado vira o valor do título. Se o saldo zerar, o título passa a pago e o excedente aparece como crédito do contrato. Exemplo: título de R$ 1.000,00 com R$ 400,00 pagos; a carga traz R$ 300,00; o título fica pago, com R$ 100,00 de excedente."
+      keep: "O valor do título não muda; a divergência guarda o valor informado e o financeiro decide. Exemplo: o mesmo título continua com R$ 1.000,00 e saldo de R$ 600,00, e a divergência registra R$ 300,00 informados."
+    choices:
+      keep: "Manter"
+      apply: "Aplicar o valor informado"
+    choice_help:
+      keep: "Manter: nada muda no título; a divergência fica tratada, com a nota."
+      apply: "Aplicar o valor informado (%{amount}): o título ganha a versão nova do valor e, se o saldo zerar, passa a pago."
+  value_discrepancies:
+    handlings:
+      create:
+        done: "Divergência tratada."
   contacts:
     channels:
       phone: "Telefone"

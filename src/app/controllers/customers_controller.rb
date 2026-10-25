@@ -21,6 +21,9 @@ class CustomersController < ApplicationController
     @setting = @customer.tenant.setting
     @brackets = Portfolio::AgingBrackets.from_stored(@setting.aging_brackets)
     @bills = Bill.where(customer: @customer).includes(:contract).order(:due_date)
+    # Aviso do valor mudado (R100): título com mais de uma versão ou com divergência aberta leva ao histórico.
+    @version_counts = BillValueVersion.where(bill_id: @bills.map(&:id)).group(:bill_id).count
+    @open_discrepancies = ValueDiscrepancy.where(bill_id: @bills.map(&:id), status: "open").distinct.pluck(:bill_id)
     @today = Date.current
     load_payments_and_credits
     load_contact_attempts
@@ -39,6 +42,9 @@ class CustomersController < ApplicationController
       @contracts = @customer.contracts.order(:code, :id).to_a
       @credit_totals = Credit.where(contract_id: @contracts.map(&:id)).group(:contract_id).sum(:amount_cents)
       @credit_entries = Credit.where(contract_id: @contracts.map(&:id)).includes(:payment, :related_contract).recent.limit(100).group_by(&:contract_id)
+      # Excedente de título com valor reduzido (05, R90): crédito calculado do contrato, de qualquer título dele. Índice: `bills (contract_id)`.
+      @excess_bills = Bill.where(contract_id: @contracts.map(&:id)).where("paid_cents > amount_cents").order(:number).group_by(&:contract_id)
+      @excess_totals = @excess_bills.transform_values { |bills| bills.sum(&:excess_cents) }
       @can_transfer = CreditTransferPolicy.new(Current.user, @customer).create? && @credit_totals.values.any?(&:positive?)
     end
 

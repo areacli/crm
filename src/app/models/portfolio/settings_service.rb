@@ -17,6 +17,14 @@ module Portfolio
       log(tenant, user, "upcoming_display_changed", "upcoming_display", before, setting.upcoming_display) if before != setting.upcoming_display
     end
 
+    # Política de divergência de valor (05, R94, R104): vale para as cargas seguintes; divergências já registradas não mudam.
+    def update_discrepancy_policy(tenant, policy, user)
+      setting = tenant.setting
+      before = setting.discrepancy_policy
+      setting.update!(discrepancy_policy: policy)
+      log(tenant, user, "discrepancy_policy_changed", "discrepancy_policy", before, setting.discrepancy_policy) if before != setting.discrepancy_policy
+    end
+
     private
       def log(tenant, user, event, field, before, after)
         Change.create!(tenant: tenant, user: user, subject_type: "settings", subject_id: tenant.id, event: event, field: field, before: before, after: after)

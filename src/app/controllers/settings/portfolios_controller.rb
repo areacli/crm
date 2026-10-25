@@ -1,4 +1,4 @@
-# Configuração da carteira, por credor: faixas de atraso (R18) e tratamento do a vencer (R20). Sem seleção de credor: cada um tem o seu bloco.
+# Configuração da carteira, por credor: faixas de atraso (R18), tratamento do a vencer (R20) e política de divergência de valor (05, R94, R104). Sem seleção de credor: cada um tem o seu bloco.
 module Settings
   class PortfoliosController < ApplicationController
     def show
@@ -8,7 +8,8 @@ module Settings
 
     def update
       tenant = Tenant.find(params[:tenant_id])
-      authorize tenant.setting, :update?
+      # A política de divergência é financeira (permissão 14, no credor); faixas e a vencer são da permissão 4.
+      authorize tenant.setting, :update?, policy_class: (params[:section] == "discrepancy" ? PaymentSettingPolicy : TenantSettingPolicy)
       service = Portfolio::SettingsService.new
       case params[:section]
       when "brackets"
@@ -16,6 +17,8 @@ module Settings
         service.update_brackets(tenant, rows, Current.user)
       when "upcoming"
         service.update_upcoming_display(tenant, params[:upcoming_display], Current.user)
+      when "discrepancy"
+        service.update_discrepancy_policy(tenant, params[:discrepancy_policy], Current.user)
       else
         return head :bad_request
       end

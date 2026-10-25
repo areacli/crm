@@ -27,6 +27,41 @@
         <div class="acoes"><button type="submit">Salvar faixas</button></div>
       <% end %>
 
+      <%# Divergência de valor (05, R104): cartão de política com o efeito e o exemplo de cada opção. Sem a permissão 14, texto sem campo (P20). %>
+      <% can_change_policy = Current.user.permitted?("change_financial_policies", tenant) %>
+      <% policy_body = capture do %>
+        <fieldset>
+          <legend>Divergência de valor</legend>
+          <p><small>O que fazer quando uma carga traz outro valor para um título que já tem pagamento. Vale para as cargas seguintes; as divergências já registradas não mudam.</small></p>
+          <% TenantSetting.defined_enums.fetch("discrepancy_policy").each_key do |value| %>
+            <% if can_change_policy %>
+              <label>
+                <%= radio_button_tag :discrepancy_policy, value, setting.discrepancy_policy == value, id: "discrepancy-#{tenant.id}-#{value}" %>
+                <strong><%= t("discrepancies.policies.#{value}") %></strong>
+                <small><%= t("discrepancies.policy_help.#{value}") %></small>
+              </label>
+            <% else %>
+              <p>
+                <strong><%= t("discrepancies.policies.#{value}") %></strong>
+                <% if setting.discrepancy_policy == value %><%= situacao "Escolha atual", tom: :info %><% end %>
+                <br><small><%= t("discrepancies.policy_help.#{value}") %></small>
+              </p>
+            <% end %>
+          <% end %>
+          <% unless can_change_policy %><p><small>Só quem altera políticas financeiras muda esta política.</small></p><% end %>
+        </fieldset>
+      <% end %>
+      <% if can_change_policy %>
+        <%= form_with url: settings_portfolio_path, method: :patch, html: { "hx-boost": "false" } do |form| %>
+          <%= hidden_field_tag :tenant_id, tenant.id %>
+          <%= hidden_field_tag :section, "discrepancy" %>
+          <%= policy_body %>
+          <div class="acoes"><button type="submit">Salvar política de divergência</button></div>
+        <% end %>
+      <% else %>
+        <%= policy_body %>
+      <% end %>
+
       <%= form_with url: settings_portfolio_path, method: :patch, html: { "hx-boost": "false" } do |form| %>
         <%= hidden_field_tag :tenant_id, tenant.id %>
         <%= hidden_field_tag :section, "upcoming" %>

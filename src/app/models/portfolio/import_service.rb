@@ -21,13 +21,28 @@ module Portfolio
       import
     end
 
-    def confirm(import)
+    def confirm(import, by: nil)
       raise ImportRefused, "só uma importação conferida pode ser confirmada" unless import.checked?
+      recheck_if_policy_changed(import)
 
-      import.update!(status: :confirming, progress_percent: 0)
+      import.update!(status: :confirming, progress_percent: 0, confirmed_by: by)
       ConfirmImportJob.perform_later(import)
       import
     end
+
+    # Política trocada entre a conferência e a confirmação (05, casos de exceção): a confirmação usa a política da hora, então a conferência é
+    # refeita (o arquivo continua guardado) e a confirmação é recusada até a pessoa ver o novo efeito.
+    def recheck_if_policy_changed(import)
+      return unless import.portfolio?
+
+      checked_with = import.summary_data[:discrepancy_policy]
+      return if checked_with.nil? || checked_with == import.tenant.setting.discrepancy_policy
+
+      import.update!(status: :received, progress_percent: 0, summary: nil)
+      CheckImportJob.perform_later(import)
+      raise ImportRefused, "a política de divergência mudou; a conferência foi refeita, confira de novo"
+    end
+    private :recheck_if_policy_changed
 
     def discard(import)
       raise ImportRefused, "só uma importação conferida pode ser descartada" unless import.checked?

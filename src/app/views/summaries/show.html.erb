@@ -50,7 +50,7 @@
         <% next if month[:methods].empty? %>
         <p><small>Em <%= month[:label] %>, por meio: <%= month[:methods].sort_by { |_, cents| -cents }.map { |method, cents| "#{t("payments.methods.#{method}")} #{money(cents)}" }.join("; ") %>.</small></p>
       <% end %>
-      <p><small>Recuperado é o que foi aplicado a títulos, pela data do pagamento, menos os estornos conforme a política do credor. Crédito e pendente não entram.</small></p>
+      <p><small>Recuperado é o que foi aplicado a títulos, pela data do pagamento, menos os estornos conforme a política do credor. Crédito (inclusive o excedente de título com valor reduzido) e pendente não entram.</small></p>
     </div>
   </section>
 

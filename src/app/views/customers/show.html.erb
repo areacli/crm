@@ -51,17 +51,22 @@
         <thead>
           <tr>
             <th scope="col">Número</th><th scope="col">Contrato</th><th scope="col">Vencimento</th>
-            <th scope="col" data-numerico>Valor</th><th scope="col" data-numerico>Saldo</th>
+            <th scope="col" data-numerico>Valor</th><th scope="col" data-numerico>Pago</th><th scope="col" data-numerico>Saldo</th>
             <th scope="col" data-numerico>Dias de atraso</th><th scope="col">Situação</th>
           </tr>
         </thead>
         <tbody>
           <% @bills.each do |bill| %>
             <tr>
-              <th scope="row"><%= bill.number %></th>
+              <th scope="row">
+                <%= link_to bill.number, bill_path(bill) %>
+                <% if @open_discrepancies.include?(bill.id) %><small>Divergência de valor aberta. <%= link_to "Ver histórico", bill_path(bill) %></small>
+                <% elsif @version_counts.fetch(bill.id, 1) > 1 %><small>O valor mudou <%= @version_counts[bill.id] - 1 %> vez(es). <%= link_to "Ver histórico", bill_path(bill) %></small><% end %>
+              </th>
               <td><%= bill.contract.code.presence || "—" %></td>
               <td><%= date_br(bill.due_date) %></td>
               <td data-numerico><%= money(bill.amount_cents) %></td>
+              <td data-numerico><%= money(bill.paid_cents) %></td>
               <td data-numerico><%= money(bill.balance_cents) %></td>
               <td data-numerico><%= bill.active? && bill.due_date < @today ? number_br(bill.days_overdue(@today)) : "—" %></td>
               <td>
@@ -108,7 +113,7 @@
   </section>
 <% end %>
 
-<% if @credit_entries.any? %>
+<% if @credit_entries.any? || @excess_bills.any? %>
   <section class="cartao" aria-labelledby="credito">
     <header>
       <div><h2 id="credito">Crédito por contrato</h2><p>O crédito é do contrato, e todos os clientes do contrato o veem.</p></div>
@@ -116,9 +121,30 @@
     </header>
     <div>
       <% @contracts.each do |contract| %>
-        <% entries = @credit_entries[contract.id] %>
-        <% next if entries.blank? %>
-        <h3><%= contract.label %>: <%= money(@credit_totals.fetch(contract.id, 0)) %></h3>
+        <% entries = @credit_entries[contract.id].to_a %>
+        <% excess = @excess_bills[contract.id].to_a %>
+        <% next if entries.empty? && excess.empty? %>
+        <h3><%= contract.label %>: <%= money(@credit_totals.fetch(contract.id, 0) + @excess_totals.fetch(contract.id, 0)) %></h3>
+        <% if excess.any? %>
+          <div class="tabela">
+            <table>
+              <caption class="apenas-leitor-de-tela">Excedente por valor reduzido do contrato <%= contract.label %></caption>
+              <thead><tr><th scope="col">Título</th><th scope="col">Motivo</th><th scope="col" data-numerico>Valor do título</th><th scope="col" data-numerico>Pago</th><th scope="col" data-numerico>Excedente</th></tr></thead>
+              <tbody>
+                <% excess.each do |bill| %>
+                  <tr>
+                    <th scope="row"><%= link_to bill.number, bill_path(bill) %></th>
+                    <td>Valor do título reduzido <small>(calculado: some se o valor voltar a subir ou um estorno reduzir o pago)</small></td>
+                    <td data-numerico><%= money(bill.amount_cents) %></td>
+                    <td data-numerico><%= money(bill.paid_cents) %></td>
+                    <td data-numerico><%= money(bill.excess_cents) %></td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+        <% end %>
+        <% if entries.any? %>
         <div class="tabela">
           <table>
             <caption class="apenas-leitor-de-tela">Lançamentos de crédito do contrato <%= contract.label %></caption>
@@ -139,6 +165,7 @@
             </tbody>
           </table>
         </div>
+        <% end %>
       <% end %>
     </div>
   </section>
@@ -148,7 +175,7 @@
   <dialog id="transferir-credito" aria-labelledby="transferir-credito-titulo">
     <%= form_with scope: :credit_transfer, url: customer_credit_transfers_path(@customer), html: { "hx-boost": "false" } do |form| %>
       <header>
-        <div><h2 id="transferir-credito-titulo">Transferir crédito</h2><p>Entre contratos do mesmo credor. Fica registrado nos dois contratos.</p></div>
+        <div><h2 id="transferir-credito-titulo">Transferir crédito</h2><p>Entre contratos do mesmo credor. Fica registrado nos dois contratos. Só o crédito lançado se transfere; o excedente de valor reduzido é calculado e não entra.</p></div>
         <button type="button" command="close" commandfor="transferir-credito" data-variant="link" aria-label="Fechar a janela"><%= icone("x-mark") %></button>
       </header>
       <div>
