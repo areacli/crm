@@ -37,10 +37,40 @@ module Portfolio
       SQL
       { tenant: tenant, customers: totals["customers"].to_i, customers_overdue: totals["customers_overdue"].to_i, bills: totals["bills"].to_i,
         overdue_cents: totals["overdue_cents"].to_i, upcoming_cents: totals["upcoming_cents"].to_i, upcoming_display: tenant.setting.upcoming_display,
-        labels: brackets.labels, by_customer: distribution(brackets, by_customer), by_bill: distribution(brackets, by_bill) }
+        labels: brackets.labels, by_customer: distribution(brackets, by_customer), by_bill: distribution(brackets, by_bill) }.merge(payments(tenant))
     end
 
     private
+      # Valor recuperado no mês corrente e no anterior, por meio de pagamento (R58, R64), crédito do credor (cada contrato uma vez, R55b)
+      # e pagamentos pendentes. Crédito e pendente não contam como recuperado. O estorno desconta no mês que o credor escolheu (R64).
+      # Consultas: `payments (tenant_id, paid_on)` e `payment_reversals (tenant_id, reversed_on)`; o pendente usa o índice parcial.
+      def payments(tenant)
+        months = [ @reference.beginning_of_month, @reference.beginning_of_month.prev_month ]
+        since = months.last
+        recovered = months.map { |month| { month: month, label: I18n.l(month, format: "%B de %Y"), gross_cents: 0, total_cents: 0, methods: {} } }
+        add = lambda do |method, month, cents, gross|
+          entry = recovered.find { |item| item[:month] == month } or next
+          entry[:methods][method] = entry[:methods].fetch(method, 0) + cents
+          entry[:total_cents] += cents
+          entry[:gross_cents] += cents if gross
+        end
+
+        Sql.rows(<<~SQL, tenant.id, since).each { |row| add.call(row["payment_method"], Date.parse(row["month"].to_s), row["cents"].to_i, true) }
+          select payment_method, date_trunc('month', paid_on)::date as month, sum(applied_cents) as cents from payments
+          where tenant_id = ? and status = 'applied' and paid_on >= ? group by 1, 2
+        SQL
+        by_reversal = tenant.setting.reversal_month_policy_reversal?
+        column = by_reversal ? "r.reversed_on" : "p.paid_on"
+        Sql.rows(<<~SQL, tenant.id, since).each { |row| add.call(row["payment_method"], Date.parse(row["month"].to_s), -row["cents"].to_i, false) }
+          select p.payment_method, date_trunc('month', #{column})::date as month, sum(r.from_bill_cents) as cents
+          from payment_reversals r join payments p on p.id = r.payment_id
+          where r.tenant_id = ? and #{column} >= ? group by 1, 2
+        SQL
+        pending = Sql.one("select count(*) as n, coalesce(sum(amount_cents - reversed_cents), 0) as cents from payments where tenant_id = ? and status = 'pending'", tenant.id)
+        { recovered: recovered, credit_cents: Sql.one("select coalesce(sum(amount_cents), 0) as cents from credits where tenant_id = ?", tenant.id)["cents"].to_i,
+          pending_count: pending["n"].to_i, pending_cents: pending["cents"].to_i }
+      end
+
       def distribution(brackets, rows)
         by_index = rows.index_by { |row| row["idx"].to_i }
         brackets.brackets.each_index.map do |index|

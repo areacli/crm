@@ -6,6 +6,6 @@ class CheckImportJob < ApplicationJob
   discard_on ActiveJob::DeserializationError
 
   def perform(import)
-    Portfolio::ImportChecker.new.run(import)
+    import.checker.run(import)
   end
 end

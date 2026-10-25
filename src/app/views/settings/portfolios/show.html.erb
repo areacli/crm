@@ -1,5 +1,6 @@
-<% content_for :title, "Configuração da carteira" %>
-<header class="cabecalho-da-pagina"><h1>Configuração da carteira</h1></header>
+<% content_for :title, "Configuração · Carteira" %>
+<header class="cabecalho-da-pagina"><h1>Carteira</h1></header>
+<%= render "settings/abas" %>
 
 <% @settings.each do |setting| %>
   <% tenant = setting.tenant %>

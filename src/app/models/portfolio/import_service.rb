@@ -33,6 +33,7 @@ module Portfolio
       raise ImportRefused, "só uma importação conferida pode ser descartada" unless import.checked?
 
       Sql.run("delete from import_rows where import_id = ?", import.id)
+      Sql.run("delete from payment_rows where import_id = ?", import.id)
       FileUtils.rm_f(import.file_path)
       import.update!(status: :discarded, finished_at: Time.current)
       import

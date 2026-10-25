@@ -2,6 +2,10 @@
 <% content_for :cable_channels, import_cable_channels %>
 <header class="cabecalho-da-pagina">
   <h1>Importações</h1>
-  <% if policy(Import).new? %><div class="acoes"><%= link_to "Importar carteira", new_import_path, class: "botao" %></div><% end %>
+  <div class="acoes">
+    <% { "portfolio" => "Importar carteira", "payments" => "Importar pagamentos", "reversals" => "Importar estornos" }.each do |kind, label| %>
+      <% if policy(Import.new(kind: kind)).new? %><%= link_to label, new_import_path(kind: kind), class: "botao", data: { variant: (kind == "portfolio" ? nil : "secondary") } %><% end %>
+    <% end %>
+  </div>
 </header>
 <%= render "imports/list" %>

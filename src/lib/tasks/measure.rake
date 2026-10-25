@@ -68,4 +68,97 @@ namespace :crm do
     tenant.destroy
     puts "credor de medição apagado"
   end
+
+  desc "V4 de pagamentos: carteira fictícia de uma linha por cliente, importa pagamentos e estornos e mede: crm:measure_payments[pagamentos,estornos]"
+  task :measure_payments, %i[payments reversals] => :environment do |_task, args|
+    abort "Recusado em produção." if Rails.env.production?
+
+    count = (args[:payments].presence || 10_000).to_i
+    reversal_count = (args[:reversals].presence || count / 10).to_i
+    tenant = Tenant.provision!("Medição de pagamentos #{Time.current.strftime('%H%M%S')}")
+    user = User.create!(name: "Medição", email_address: "medicao#{tenant.id}@exemplo.com.br", password: SecureRandom.base58(24))
+    Membership.create!(user: user, tenant: tenant, profile: tenant.profiles.find_by!(name: "Gestor"))
+    channel = PaymentChannel.create!(tenant: tenant, kind: :account, code: "341-1234-56789", description: "Conta de medição")
+    ActiveJob::Base.queue_adapter = :test
+
+    measure = lambda do |label, &work|
+      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      result = work.call
+      elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+      peak = (File.read("/proc/self/status")[/VmHWM:\s+(\d+)/, 1].to_i / 1024 rescue 0)
+      puts format("%-45s %8.2f s   (pico de memória %d MB)", label, elapsed, peak)
+      result
+    end
+
+    # Carteira: um cliente, um contrato e um título por pagamento previsto (valor conhecido, para os perfis abaixo).
+    measure.call("carteira de #{count} títulos (inserção em lote)") do
+      (0...count).each_slice(10_000) do |slice|
+        Customer.insert_all!(slice.map { |index| { tenant_id: tenant.id, document: FakeData.cpf(index), name: FakeData.name(index) } })
+        ids = Customer.where(tenant_id: tenant.id, document: slice.map { |index| FakeData.cpf(index) }).pluck(:document, :id).to_h
+        Contract.insert_all!(slice.map { |index| { tenant_id: tenant.id, code: "CT-#{index}" } })
+        contracts = Contract.where(tenant_id: tenant.id, code: slice.map { |index| "CT-#{index}" }).pluck(:code, :id).to_h
+        ContractCustomer.insert_all!(slice.map { |index| { contract_id: contracts.fetch("CT-#{index}"), customer_id: ids.fetch(FakeData.cpf(index)) } })
+        Bill.insert_all!(slice.map do |index|
+          { tenant_id: tenant.id, contract_id: contracts.fetch("CT-#{index}"), customer_id: ids.fetch(FakeData.cpf(index)), number: "NF-#{index}",
+            due_date: Date.current - 30, amount_cents: 10_000 + ((index * 7919) % 200_000) }
+        end)
+      end
+    end
+    Portfolio::Sql.connection.execute("analyze bills")
+    Portfolio::Sql.connection.execute("analyze customers")
+
+    methods = %w[pix boleto cartão\ de\ crédito transferência]
+    payments_path = Rails.root.join("tmp", "pagamentos-#{tenant.id}.csv").to_s
+    File.open(payments_path, "wb") do |file|
+      file.write "canal;identificador;documento;titulo;data_pagamento;valor;meio\n"
+      count.times do |index|
+        amount = 10_000 + ((index * 7919) % 200_000)
+        # 60% quitam, 20% parciais, 10% a mais, 10% de título inexistente.
+        value, number = case index % 10
+        when 0..5 then [ amount, "NF-#{index}" ]
+        when 6, 7 then [ amount / 2, "NF-#{index}" ]
+        when 8 then [ amount + 5_000, "NF-#{index}" ]
+        else [ amount, "NF-X#{index}" ]
+        end
+        file.write [ channel.code, "ID-#{index}", FakeData.cpf(index), number, (Date.current - 1).strftime("%d/%m/%Y"), Money.format(value), methods[index % 4] ].join(";") + "\n"
+      end
+    end
+    service = Portfolio::ImportService.new
+    import = measure.call("envio do arquivo de #{count} pagamentos") { service.start(tenant: tenant, user: user, file: payments_path, mode: :incremental, kind: "payments") }
+    measure.call("conferência de #{count} pagamentos") { import.checker.run(import) }
+    puts "  resumo: #{import.reload.summary.slice('valid', 'rejected').to_json} efeito: #{import.summary['effect'].to_json}"
+    measure.call("confirmação de #{count} pagamentos") { import.confirmer.run(import) }
+    puts "  situação: #{import.reload.status}"
+    measure.call("resumo da carteira com recebimentos") { Portfolio::Summary.new(user).per_tenant }
+
+    # Estornos de pagamentos que quitaram (índice múltiplo de 10), 30% do valor de cada um.
+    reversals_path = Rails.root.join("tmp", "estornos-#{tenant.id}.csv").to_s
+    File.open(reversals_path, "wb") do |file|
+      file.write "canal;identificador_pagamento;identificador_estorno;data_estorno;valor;motivo\n"
+      reversal_count.times do |position|
+        index = position * 10
+        amount = 10_000 + ((index * 7919) % 200_000)
+        file.write [ channel.code, "ID-#{index}", "EST-#{index}", Date.current.strftime("%d/%m/%Y"), Money.format(amount * 3 / 10), "contestação" ].join(";") + "\n"
+      end
+    end
+    reversal = measure.call("envio do arquivo de #{reversal_count} estornos") { service.start(tenant: tenant, user: user, file: reversals_path, mode: :incremental, kind: "reversals") }
+    measure.call("conferência de #{reversal_count} estornos") { reversal.checker.run(reversal) }
+    puts "  resumo: #{reversal.reload.summary.slice('valid', 'rejected').to_json} efeito: #{reversal.summary['effect'].to_json}"
+    measure.call("confirmação de #{reversal_count} estornos") { reversal.confirmer.run(reversal) }
+    puts "  situação: #{reversal.reload.status}"
+    measure.call("resumo da carteira depois dos estornos") { Portfolio::Summary.new(user).per_tenant }
+
+    [ payments_path, reversals_path ].each { |path| File.delete(path) if File.exist?(path) }
+    Portfolio::Sql.run("delete from payment_rows where import_id in (?)", Import.where(tenant_id: tenant.id).pluck(:id))
+    [ Credit, PaymentReversal, Payment, Change ].each { |model| model.unscoped.where(tenant_id: tenant.id).delete_all }
+    Bill.where(tenant_id: tenant.id).delete_all
+    ContractCustomer.where(customer_id: Customer.where(tenant_id: tenant.id)).delete_all
+    Customer.where(tenant_id: tenant.id).delete_all
+    Contract.where(tenant_id: tenant.id).delete_all
+    Import.where(tenant_id: tenant.id).destroy_all
+    PaymentChannel.where(tenant_id: tenant.id).delete_all
+    user.destroy
+    tenant.destroy
+    puts "credor de medição apagado"
+  end
 end

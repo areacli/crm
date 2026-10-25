@@ -1,23 +1,34 @@
-<% content_for :title, "Importar carteira" %>
+<%
+  titles = { "portfolio" => "Importar carteira", "payments" => "Importar pagamentos", "reversals" => "Importar estornos" }
+  columns = if @kind == "portfolio"
+              Portfolio::SheetModel::COLUMNS.map { |column| [ column, Portfolio::SheetModel.required?(column), Portfolio::SheetModel.format_text(column), Portfolio::SheetModel.example(column) ] }
+            else
+              Payments::SheetModel.columns(@kind).map { |column| [ column, Payments::SheetModel.required?(@kind, column), Payments::SheetModel.format_text(@kind, column), Payments::SheetModel.example(@kind, column) ] }
+            end
+%>
+<% content_for :title, titles.fetch(@kind) %>
 <% content_for :cable_channels, import_cable_channels %>
 <header class="cabecalho-da-pagina">
-  <div><h1>Importar carteira</h1><p>Envie a planilha em CSV com ponto e vírgula, no formato abaixo; a planilha modelo, sem alteração, é aceita na conferência. O sistema confere o arquivo e só grava depois da confirmação.</p></div>
-  <div class="acoes"><%= link_to "Baixar planilha modelo", template_imports_path, class: "botao", data: { variant: "secondary" }, "hx-boost": "false" %></div>
+  <div>
+    <h1><%= titles.fetch(@kind) %></h1>
+    <p>Envie a planilha em CSV com ponto e vírgula, no formato abaixo; a planilha modelo<%= ", sem alteração, é aceita na conferência" if @kind == "portfolio" %>. O sistema confere o arquivo e só grava depois da confirmação.</p>
+  </div>
+  <div class="acoes"><%= link_to "Baixar planilha modelo", template_imports_path(kind: @kind), class: "botao", data: { variant: "secondary" }, "hx-boost": "false" %></div>
 </header>
 
 <section class="cartao" aria-labelledby="colunas">
   <header><h2 id="colunas">Colunas da planilha</h2><p>Separador ponto e vírgula, UTF-8 ou Windows-1252. A ordem das colunas é livre; o cabeçalho é obrigatório.</p></header>
   <div class="tabela">
     <table>
-      <caption class="apenas-leitor-de-tela">Colunas da planilha de carteira</caption>
+      <caption class="apenas-leitor-de-tela">Colunas da planilha</caption>
       <thead><tr><th scope="col">Coluna</th><th scope="col">Obrigatória</th><th scope="col">Formato</th><th scope="col">Exemplo</th></tr></thead>
       <tbody>
-        <% Portfolio::SheetModel::COLUMNS.each do |column| %>
+        <% columns.each do |name, required, format_text, example| %>
           <tr>
-            <th scope="row"><code><%= column %></code></th>
-            <td><%= Portfolio::SheetModel.required?(column) ? "Sim" : "Não" %></td>
-            <td><%= Portfolio::SheetModel.format_text(column) %></td>
-            <td><%= Portfolio::SheetModel.example(column) %></td>
+            <th scope="row"><code><%= name %></code></th>
+            <td><%= required ? "Sim" : "Não" %></td>
+            <td><%= format_text %></td>
+            <td><%= example %></td>
           </tr>
         <% end %>
       </tbody>
@@ -30,6 +41,7 @@
   <div>
     <% if @error %><%= aviso(tom: :danger) { tag.p @error } %><% end %>
     <%= form_with scope: :import, url: imports_path, multipart: true, html: { "hx-boost": "false" } do |form| %>
+      <%= form.hidden_field :kind, value: @kind %>
       <% if @tenants.size > 1 %>
         <div class="campo">
           <%= form.label :tenant_id, "Credor" %>
@@ -42,13 +54,15 @@
       <div class="campo">
         <%= form.label :file, "Arquivo CSV" %>
         <%= form.file_field :file, accept: ".csv,text/csv", required: true %>
-        <small>Até 50 MB e 200 mil linhas. Colunas obrigatórias: documento, nome, titulo, vencimento e valor.</small>
+        <small>Até 50 MB e 200 mil linhas. Colunas obrigatórias: <%= columns.select { |_, required, _, _| required }.map(&:first).to_sentence(two_words_connector: " e ", last_word_connector: " e ") %>.</small>
       </div>
+      <% if @kind == "portfolio" %>
       <fieldset>
         <legend>Modo</legend>
         <label><%= form.radio_button :mode, "incremental", checked: true %> Incremental: acrescenta e atualiza; o que não vier no arquivo fica como está</label>
         <label><%= form.radio_button :mode, "full_sync", checked: false %> Carga completa: o que não vier no arquivo sai da cobrança</label>
       </fieldset>
+      <% end %>
       <div class="acoes"><button type="submit">Enviar e conferir</button></div>
     <% end %>
   </div>

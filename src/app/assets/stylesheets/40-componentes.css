@@ -87,8 +87,8 @@
   dialog { padding: 0; border: 0; border-radius: var(--raio-janela); box-shadow: var(--sombra-janela); width: min(40rem, calc(100vw - 2rem)); max-height: min(92vh, 48rem); color: var(--cor-texto); }
   dialog[open] { display: flex; flex-direction: column; }
   dialog::backdrop { background: var(--cor-fundo-da-janela); }
-  dialog > header { padding: var(--espaco-4); border-bottom: 1px solid var(--cor-linha); display: flex; justify-content: space-between; gap: var(--espaco-4); align-items: flex-start; }
-  dialog > header p { margin: var(--espaco-1) 0 0; color: var(--cor-texto-suave); }
+  dialog > header, dialog > form > header { padding: var(--espaco-4); border-bottom: 1px solid var(--cor-linha); display: flex; justify-content: space-between; gap: var(--espaco-4); align-items: flex-start; }
+  dialog > header p, dialog > form > header p { margin: var(--espaco-1) 0 0; color: var(--cor-texto-suave); }
   dialog > div, dialog > form > div { padding: var(--espaco-4); overflow-y: auto; }
   dialog > footer, dialog > form > footer { padding: var(--espaco-3) var(--espaco-4); border-top: 1px solid var(--cor-linha); display: flex; justify-content: flex-end; gap: var(--espaco-2); flex-wrap: wrap; }
   dialog > form { display: flex; flex-direction: column; min-height: 0; gap: 0; }

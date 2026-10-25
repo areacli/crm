@@ -74,3 +74,103 @@
     </div>
   <% end %>
 </section>
+
+<% if @payments.any? %>
+  <section class="cartao" aria-labelledby="pagos">
+    <header><h2 id="pagos">Pagos</h2><p>Pagamentos aplicados aos títulos deste cliente.</p></header>
+    <div class="tabela">
+      <table>
+        <caption class="apenas-leitor-de-tela">Pagamentos do cliente</caption>
+        <thead>
+          <tr>
+            <th scope="col">Título</th><th scope="col">Data</th><th scope="col" data-numerico>Valor pago</th><th scope="col" data-numerico>Aplicado ao título</th>
+            <th scope="col" data-numerico>Estornado</th><th scope="col">Meio</th><th scope="col">Canal</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @payments.each do |payment| %>
+            <tr>
+              <th scope="row"><%= payment.bill.number %></th>
+              <td><%= date_br(payment.paid_on) %></td>
+              <td data-numerico><%= money(payment.amount_cents) %></td>
+              <td data-numerico><%= money(payment.applied_cents) %></td>
+              <td data-numerico><%= payment.reversed_cents.positive? ? money(payment.reversed_cents) : "—" %></td>
+              <td><%= t("payments.methods.#{payment.payment_method}") %></td>
+              <td><%= payment.channel.description %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </section>
+<% end %>
+
+<% if @credit_entries.any? %>
+  <section class="cartao" aria-labelledby="credito">
+    <header>
+      <div><h2 id="credito">Crédito por contrato</h2><p>O crédito é do contrato, e todos os clientes do contrato o veem.</p></div>
+      <% if @can_transfer %><button type="button" command="show-modal" commandfor="transferir-credito" data-variant="secondary" data-size="small">Transferir crédito</button><% end %>
+    </header>
+    <div>
+      <% @contracts.each do |contract| %>
+        <% entries = @credit_entries[contract.id] %>
+        <% next if entries.blank? %>
+        <h3><%= contract.label %>: <%= money(@credit_totals.fetch(contract.id, 0)) %></h3>
+        <div class="tabela">
+          <table>
+            <caption class="apenas-leitor-de-tela">Lançamentos de crédito do contrato <%= contract.label %></caption>
+            <thead><tr><th scope="col">Data</th><th scope="col">Origem</th><th scope="col">Motivo</th><th scope="col" data-numerico>Valor</th></tr></thead>
+            <tbody>
+              <% entries.each do |entry| %>
+                <tr>
+                  <td><%= datetime_br(entry.occurred_at) %></td>
+                  <td>
+                    <% if entry.payment %>Pagamento <%= entry.payment.identifier %> de <%= date_br(entry.payment.paid_on) %>
+                    <% elsif entry.related_contract %><%= entry.transfer_out? ? "Transferido para" : "Recebido de" %> <%= entry.related_contract.label %>
+                    <% else %>—<% end %>
+                  </td>
+                  <td><%= t("payments.credit_reasons.#{entry.reason}") %><%= " — #{entry.note}" if entry.note.present? %></td>
+                  <td data-numerico><%= money(entry.amount_cents) %></td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      <% end %>
+    </div>
+  </section>
+<% end %>
+
+<% if @can_transfer %>
+  <dialog id="transferir-credito" aria-labelledby="transferir-credito-titulo">
+    <%= form_with scope: :credit_transfer, url: customer_credit_transfers_path(@customer), html: { "hx-boost": "false" } do |form| %>
+      <header>
+        <div><h2 id="transferir-credito-titulo">Transferir crédito</h2><p>Entre contratos do mesmo credor. Fica registrado nos dois contratos.</p></div>
+        <button type="button" command="close" commandfor="transferir-credito" data-variant="link" aria-label="Fechar a janela"><%= icone("x-mark") %></button>
+      </header>
+      <div>
+        <div class="campo">
+          <%= form.label :from_contract_id, "Contrato de origem" %>
+          <%= form.select :from_contract_id, @contracts.select { |contract| @credit_totals.fetch(contract.id, 0).positive? }.map { |contract| [ "#{contract.label} (#{money(@credit_totals[contract.id])})", contract.id ] }, { include_blank: false } %>
+        </div>
+        <div class="campo">
+          <%= form.label :to_code, "Código do contrato de destino" %>
+          <%= form.text_field :to_code, required: true, maxlength: 100 %>
+        </div>
+        <div class="campo">
+          <%= form.label :amount, "Valor" %>
+          <%= form.text_field :amount, required: true, inputmode: "decimal", autocomplete: "off" %>
+          <small>Em reais, com vírgula nos centavos, até o crédito do contrato de origem.</small>
+        </div>
+        <div class="campo">
+          <%= form.label :reason, "Motivo" %>
+          <%= form.text_field :reason, required: true, maxlength: 300 %>
+        </div>
+      </div>
+      <footer>
+        <button type="button" command="close" commandfor="transferir-credito" data-variant="secondary">Cancelar</button>
+        <button type="submit">Transferir</button>
+      </footer>
+    <% end %>
+  </dialog>
+<% end %>

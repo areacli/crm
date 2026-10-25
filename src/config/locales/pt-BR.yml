@@ -3,6 +3,18 @@ pt-BR:
     invalid: "E-mail ou senha incorretos."
     too_many: "Muitas tentativas. Aguarde alguns minutos."
   imports:
+    kinds:
+      portfolio: "Carteira"
+      payments: "Pagamentos"
+      reversals: "Estornos"
+    confirm_message:
+      portfolio: "Os títulos válidos entram na carteira."
+      payments: "Os pagamentos válidos baixam os títulos, geram crédito ou ficam pendentes, conforme as políticas do credor."
+      reversals: "Os estornos válidos devolvem o valor ao crédito e ao título, que volta à cobrança se estava pago."
+    discard_message:
+      portfolio: "O arquivo conferido é descartado e nada entra na carteira."
+      payments: "O arquivo conferido é descartado e nenhum pagamento é registrado."
+      reversals: "O arquivo conferido é descartado e nenhum estorno é registrado."
     modes:
       incremental: "Incremental"
       full_sync: "Carga completa"
@@ -28,6 +40,79 @@ pt-BR:
         contrato: "Código do contrato, até 100 caracteres; vazio cria um contrato só para o cliente"
         descricao: "Texto, até 300 caracteres"
         papel: "titular, responsável financeiro ou os dois separados por barra; vazio vale os dois"
+  payments:
+    sheet:
+      payments:
+        canal: "Código de um canal cadastrado e ativo"
+        identificador: "Código do evento no canal, único dentro dele"
+        documento: "CPF ou CNPJ de quem pagou"
+        titulo: "Número do título pago; sem ele a linha é recusada"
+        data_pagamento: "Data dd/mm/aaaa, não futura"
+        valor: "Reais, com vírgula nos centavos, maior que zero"
+        meio: "pix, boleto, cartão de crédito, cartão de débito, transferência, dinheiro ou outro"
+      reversals:
+        canal: "Código de um canal cadastrado (pode estar desativado)"
+        identificador_pagamento: "Identificador do pagamento estornado, no canal"
+        identificador_estorno: "Único dentro do canal"
+        data_estorno: "Data dd/mm/aaaa, não futura nem anterior ao pagamento"
+        valor: "Reais, com vírgula nos centavos; até o que falta estornar"
+        motivo: "Texto, até 300 caracteres"
+    methods:
+      pix: "Pix"
+      boleto: "Boleto"
+      credit_card: "Cartão de crédito"
+      debit_card: "Cartão de débito"
+      transfer: "Transferência"
+      cash: "Dinheiro"
+      other: "Outro"
+    credit_reasons:
+      already_paid: "Título já pago"
+      excess: "Excedente"
+      withdrawn: "Título retirado"
+      without_settling: "Crédito sem baixar"
+      reversed: "Estorno"
+      transfer: "Transferência"
+    credit_transfer:
+      other_tenant: "A transferência é só entre contratos do mesmo credor."
+      same_contract: "Escolha um contrato de destino diferente do de origem."
+      reason_required: "Informe o motivo da transferência."
+      invalid_amount: "O valor da transferência deve ser maior que zero."
+      above_available: "O valor é maior que o crédito disponível do contrato de origem (R$ %{available})."
+    channels:
+      in_use: "O canal tem pagamentos: só pode ser desativado."
+      kinds:
+        account: "Conta bancária"
+        agreement: "Convênio de cobrança"
+        card: "Estabelecimento de cartão"
+    policies:
+      partial_payment_policy:
+        partial: "Baixa parcial: o saldo do título diminui e ele continua em cobrança"
+        credit: "Crédito sem baixar: o título fica como está e o valor vira crédito do contrato"
+      withdrawn_payment_policy:
+        prevails: "O pagamento prevalece: é aplicado ao título retirado"
+        credit: "Vira crédito: o título continua retirado e o valor vira crédito do contrato"
+      withdrawn_reversal_policy:
+        reopen: "Volta à cobrança: o título fica ativo com o saldo reaberto"
+        withdrawn: "Volta a retirado: o título fica retirado com o saldo reaberto"
+      reversal_month_policy:
+        reversal: "No mês do estorno (meses anteriores não mudam)"
+        payment: "No mês do pagamento estornado"
+  customers:
+    credit_transfers:
+      create:
+        done: "R$ %{amount} transferidos para o contrato %{to}."
+        destination_not_found: "Contrato de destino não encontrado neste credor."
+  settings:
+    channels:
+      create:
+        done: "Canal %{code} cadastrado."
+      update:
+        done: "Canal %{code} salvo."
+      destroy:
+        done: "Canal %{code} apagado."
+    payment_policies:
+      update:
+        done: "Políticas de pagamento de %{tenant} salvas."
   passwords:
     update:
       done: "Senha alterada. As outras sessões abertas foram encerradas."

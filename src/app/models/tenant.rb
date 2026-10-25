@@ -3,6 +3,7 @@ class Tenant < ApplicationRecord
   has_one :setting, class_name: "TenantSetting", dependent: :destroy
   has_many :profiles, dependent: :destroy
   has_many :memberships, dependent: :destroy
+  has_many :payment_channels, dependent: :destroy
 
   validates :name, presence: true
 

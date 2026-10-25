@@ -1,0 +1,33 @@
+<% content_for :title, "Configuração · Políticas de pagamento" %>
+<header class="cabecalho-da-pagina">
+  <div><h1>Políticas de pagamento</h1><p>Como o pagamento baixa o título, o que fazer com o título retirado e em que mês o estorno desconta do valor recuperado. Cada credor tem as suas.</p></div>
+</header>
+<%= render "settings/abas" %>
+
+<% groups = { "partial_payment_policy" => "Pagamento menor que o saldo", "withdrawn_payment_policy" => "Pagamento de título retirado",
+              "withdrawn_reversal_policy" => "Título retirado, quitado e depois estornado", "reversal_month_policy" => "Mês em que o estorno desconta do valor recuperado" } %>
+<% @settings.each do |setting| %>
+  <% tenant = setting.tenant %>
+  <% error = @error if @error && @error[:tenant_id] == tenant.id %>
+  <section class="cartao" aria-labelledby="credor-<%= tenant.id %>">
+    <header><h2 id="credor-<%= tenant.id %>"><%= tenant.name %></h2></header>
+    <div>
+      <% if error %><%= aviso(tom: :danger) { tag.p error[:message] } %><% end %>
+      <%= form_with url: settings_payment_policy_path, method: :patch, html: { "hx-boost": "false" } do |form| %>
+        <%= hidden_field_tag :tenant_id, tenant.id %>
+        <% groups.each do |field, legend| %>
+          <fieldset>
+            <legend><%= legend %></legend>
+            <% TenantSetting.defined_enums.fetch(field).each_key do |value| %>
+              <label>
+                <%= radio_button_tag "tenant_setting[#{field}]", value, setting.public_send(field) == value, id: "#{field}-#{tenant.id}-#{value}" %>
+                <%= t("payments.policies.#{field}.#{value}") %>
+              </label>
+            <% end %>
+          </fieldset>
+        <% end %>
+        <div class="acoes"><button type="submit">Salvar políticas</button></div>
+      <% end %>
+    </div>
+  </section>
+<% end %>

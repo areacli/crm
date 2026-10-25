@@ -5,6 +5,20 @@
   <p class="vazio">Nenhuma carteira para mostrar. Importe a carteira para ver o resumo.</p>
 <% end %>
 
+<% if @summaries.size > 1 %>
+  <section class="cartao" aria-labelledby="total-pago">
+    <header><h2 id="total-pago">Todos os credores</h2></header>
+    <div>
+      <dl class="valores">
+        <% @summaries.first[:recovered].each_index do |index| %>
+          <div><dt>Pago em <%= @summaries.first[:recovered][index][:label] %></dt><dd><%= money(@summaries.sum { |summary| summary[:recovered][index][:gross_cents] }) %></dd></div>
+        <% end %>
+      </dl>
+      <p><small>Soma só dos valores em reais pagos e aplicados a títulos. O recuperado, os créditos e os encargos dependem das políticas de cada credor e ficam separados.</small></p>
+    </div>
+  </section>
+<% end %>
+
 <% @summaries.each do |summary| %>
   <% detail_only = summary[:upcoming_display] == "detail_only" %>
   <section class="cartao" aria-labelledby="carteira-<%= summary[:tenant].id %>">
@@ -19,6 +33,24 @@
       <% if summary[:upcoming_display] == "summed" %>
         <p><small>Em cobrança, somando o a vencer: <%= money(summary[:overdue_cents] + summary[:upcoming_cents]) %> (vencido <%= money(summary[:overdue_cents]) %>).</small></p>
       <% end %>
+    </div>
+  </section>
+
+  <section class="cartao" aria-labelledby="recebimentos-<%= summary[:tenant].id %>">
+    <header><h2 id="recebimentos-<%= summary[:tenant].id %>">Recuperado — <%= summary[:tenant].name %></h2></header>
+    <div>
+      <dl class="valores">
+        <% summary[:recovered].each do |month| %>
+          <div><dt>Recuperado em <%= month[:label] %></dt><dd><%= money(month[:total_cents]) %></dd></div>
+        <% end %>
+        <div><dt>Créditos dos contratos</dt><dd><%= money(summary[:credit_cents]) %></dd></div>
+        <div><dt>Pagamentos pendentes</dt><dd><%= number_br(summary[:pending_count]) %> <small>(<%= money(summary[:pending_cents]) %>)</small></dd></div>
+      </dl>
+      <% summary[:recovered].each do |month| %>
+        <% next if month[:methods].empty? %>
+        <p><small>Em <%= month[:label] %>, por meio: <%= month[:methods].sort_by { |_, cents| -cents }.map { |method, cents| "#{t("payments.methods.#{method}")} #{money(cents)}" }.join("; ") %>.</small></p>
+      <% end %>
+      <p><small>Recuperado é o que foi aplicado a títulos, pela data do pagamento, menos os estornos conforme a política do credor. Crédito e pendente não entram.</small></p>
     </div>
   </section>
 
