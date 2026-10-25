@@ -1,0 +1,41 @@
+<%# Histórico de acionamentos do cliente (R74), do contato mais recente ao mais antigo, 20 por vez. Refeito pelo htmx na paginação e a cada
+    evento do WebSocket (cable:contact-attempts-changed). Locais: customer, history, oob. %>
+<% attempts = history.records.to_a %>
+<% wrapper = { id: "historico-acionamentos", "hx-get": customer_contact_attempts_path(customer, page: history.page), "hx-swap": "outerHTML",
+               "hx-trigger": "cable:contact-attempts-changed from:body, cable:connected from:body" }.merge(local_assigns[:oob] ? { "hx-swap-oob": "true" } : {}) %>
+<%= tag.div(**wrapper) do %>
+  <h3>Histórico</h3>
+  <% if attempts.empty? %>
+    <p class="vazio">Nenhum acionamento registrado para este cliente.</p>
+  <% else %>
+    <p><small>Mostrando <%= number_br(history.first_item) %> a <%= number_br(history.last_item) %> de <%= number_br(history.total) %> acionamentos.</small></p>
+    <div class="tabela">
+      <table>
+        <caption class="apenas-leitor-de-tela">Acionamentos do cliente</caption>
+        <thead>
+          <tr>
+            <th scope="col">Contato</th><th scope="col">Canal</th><th scope="col">Resultado</th><th scope="col">Retorno</th>
+            <th scope="col">Registrado por</th><th scope="col">Texto</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% attempts.each do |attempt| %>
+            <tr>
+              <th scope="row"><%= datetime_br(attempt.contacted_at) %><% if attempt.contract %><small>Contrato <%= attempt.contract.label %></small><% end %></th>
+              <td><%= t("contacts.channels.#{attempt.channel}") %><% if attempt.contact_used.present? %><small><%= attempt.contact_used %></small><% end %></td>
+              <td>
+                <%= attempt.result.name %><small><%= t("contacts.kinds.#{attempt.result_kind}") %></small>
+              </td>
+              <td><%= attempt.return_at ? datetime_br(attempt.return_at) : "—" %></td>
+              <td><%= attempt.user&.name || "—" %><small>lançado em <%= datetime_br(attempt.created_at) %></small></td>
+              <td>
+                <% if attempt.text.present? %><p class="texto-do-operador"><%= attempt.text %></p><% end %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+    <%= render "shared/paginacao", pagination: history, path: ->(page) { customer_contact_attempts_path(customer, page: page) }, fragment: "#historico-acionamentos" %>
+  <% end %>
+<% end %>

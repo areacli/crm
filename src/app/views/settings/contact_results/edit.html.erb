@@ -1,0 +1,16 @@
+<% content_for :title, "Configuração · Resultado #{@result.name_was}" %>
+<header class="cabecalho-da-pagina"><div><h1><%= @result.name_was %></h1><p><%= @result.tenant.name %> · <%= link_to "Voltar para os resultados", settings_contact_results_path %></p></div></header>
+<%= render "settings/abas" %>
+<section class="cartao" aria-labelledby="dados">
+  <header><h2 id="dados">Dados do resultado</h2></header>
+  <div>
+    <% if @result.errors.any? %><%= aviso(tom: :danger) { tag.p @result.errors.full_messages.to_sentence } %><% end %>
+    <%= form_with model: @result, scope: :contact_result, url: settings_contact_result_path(@result), method: :patch, html: { "hx-boost": "false" } do |form| %>
+      <%= render "settings/contact_results/fields", form: form, result: @result, kind_locked: true %>
+      <div class="acoes">
+        <button type="submit">Salvar</button>
+        <%= link_to "Cancelar", settings_contact_results_path, class: "botao", data: { variant: "secondary" } %>
+      </div>
+    <% end %>
+  </div>
+</section>

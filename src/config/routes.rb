@@ -11,7 +11,12 @@ Rails.application.routes.draw do
   resources :customers, path: "clientes", only: %i[index show] do
     # Transferência de crédito entre contratos do mesmo credor (R55a).
     resources :credit_transfers, path: "transferencias-de-credito", only: :create, module: :customers
+    # Acionamentos do cliente: histórico, campos que dependem da escolha e registro (04).
+    resources :contact_attempts, path: "acionamentos", path_names: { new: "campos" }, only: %i[index new create], module: :customers
   end
+
+  # Lista de acionamentos dos credores (04, R78).
+  resources :contact_attempts, path: "acionamentos", only: :index
 
   resources :imports, path: "importacoes", path_names: { new: "nova" }, only: %i[index new create show] do
     resource :confirmation, path: "confirmacao", only: :create, module: :imports
@@ -37,6 +42,10 @@ Rails.application.routes.draw do
       resource :webhook_secret, path: "segredo-do-webhook", only: :create, module: :channels
     end
     resource :payment_policy, path: "politicas-de-pagamento", only: %i[show update]
+    resources :contact_results, path: "resultados-de-acionamento", path_names: { new: "novo", edit: "editar" }, except: %i[show destroy] do
+      resource :activation, path: "ativacao", only: %i[create destroy], module: :contact_results
+      resource :movement, path: "movimento", only: :create, module: :contact_results
+    end
   end
 
   # Webhook de pagamento de um canal (sem sessão: a autenticação é a assinatura HMAC do corpo).

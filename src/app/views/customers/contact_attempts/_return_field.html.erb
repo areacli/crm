@@ -1,0 +1,9 @@
+<%# Retorno combinado (R73): o campo só aparece quando o resultado escolhido o aceita; "exige" o torna obrigatório. Locais: form, oob. %>
+<% wrapper = { id: "campo-retorno" }.merge(local_assigns[:oob] ? { "hx-swap-oob": "true" } : {}) %>
+<%= tag.div(**wrapper) do %><% if form.show_return? %>
+    <div class="campo">
+      <label for="contact_attempt_return_at">Retorno combinado<%= form.return_rule == "required" ? "" : " (opcional)" %></label>
+      <input type="datetime-local" id="contact_attempt_return_at" name="contact_attempt[return_at]" value="<%= form.value(:return_at) %>" <%= "required" if form.return_rule == "required" %> aria-describedby="ajuda-retorno">
+      <small id="ajuda-retorno"><%= form.return_rule == "required" ? "Este resultado exige a data do retorno." : "Pode ficar vazio." %> Depois do contato e até 90 dias.</small>
+    </div>
+  <% end %><% end %>

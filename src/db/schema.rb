@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_24_100300) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_24_100400) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -64,6 +64,39 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_100300) do
     t.datetime "occurred_at", precision: nil, default: -> { "CURRENT_TIMESTAMP" }, null: false
     t.index ["subject_type", "subject_id"], name: "index_changes_on_subject_type_and_subject_id"
     t.index ["tenant_id"], name: "index_changes_on_tenant_id"
+  end
+
+  create_table "contact_attempts", force: :cascade do |t|
+    t.bigint "tenant_id", null: false
+    t.bigint "customer_id", null: false
+    t.bigint "contract_id"
+    t.bigint "user_id"
+    t.bigint "result_id", null: false
+    t.string "result_kind", limit: 30, null: false
+    t.string "channel", limit: 20, null: false
+    t.string "contact_used", limit: 300
+    t.text "text"
+    t.datetime "contacted_at", null: false
+    t.datetime "return_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["customer_id", "contacted_at"], name: "index_contact_attempts_on_customer_id_and_contacted_at"
+    t.index ["result_id"], name: "index_contact_attempts_on_result_id"
+    t.index ["tenant_id", "contacted_at"], name: "index_contact_attempts_on_tenant_id_and_contacted_at"
+  end
+
+  create_table "contact_results", force: :cascade do |t|
+    t.bigint "tenant_id", null: false
+    t.string "name", limit: 100, null: false
+    t.string "name_key", limit: 100, null: false
+    t.string "kind", limit: 30, null: false
+    t.string "return_rule", limit: 20, null: false
+    t.boolean "active", default: true, null: false
+    t.integer "position", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["tenant_id", "name_key"], name: "index_contact_results_on_tenant_id_and_name_key", unique: true
+    t.index ["tenant_id", "position"], name: "index_contact_results_on_tenant_id_and_position"
   end
 
   create_table "contract_customers", primary_key: ["contract_id", "customer_id"], force: :cascade do |t|
@@ -154,7 +187,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_100300) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["tenant_id", "status"], name: "index_imports_on_tenant_id_and_status"
-    t.index ["tenant_id"], name: "index_imports_one_running_per_tenant", unique: true, where: "((status)::text = ANY (ARRAY[('received'::character varying)::text, ('checking'::character varying)::text, ('checked'::character varying)::text, ('confirming'::character varying)::text]))"
+    t.index ["tenant_id"], name: "index_imports_one_running_per_tenant", unique: true, where: "((status)::text = ANY ((ARRAY['received'::character varying, 'checking'::character varying, 'checked'::character varying, 'confirming'::character varying])::text[]))"
     t.index ["user_id"], name: "index_imports_on_user_id"
     t.check_constraint "progress_percent >= 0 AND progress_percent <= 100", name: "imports_progress_percent_range"
   end
@@ -333,6 +366,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_100300) do
   add_foreign_key "changes", "imports", on_delete: :nullify
   add_foreign_key "changes", "tenants"
   add_foreign_key "changes", "users", on_delete: :nullify
+  add_foreign_key "contact_attempts", "contact_results", column: "result_id", on_delete: :restrict
+  add_foreign_key "contact_attempts", "contracts", on_delete: :restrict
+  add_foreign_key "contact_attempts", "customers", on_delete: :restrict
+  add_foreign_key "contact_attempts", "tenants"
+  add_foreign_key "contact_attempts", "users", on_delete: :nullify
+  add_foreign_key "contact_results", "tenants"
   add_foreign_key "contract_customers", "contracts", on_delete: :cascade
   add_foreign_key "contract_customers", "customers", on_delete: :cascade
   add_foreign_key "contracts", "tenants"

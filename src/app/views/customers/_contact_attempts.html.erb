@@ -1,0 +1,6 @@
+<%# Acionamentos na ficha (04): formulário de registro, para quem pode, e o histórico. Locais: customer, history, form. %>
+<section class="cartao" id="acionamentos" aria-labelledby="acionamentos-titulo">
+  <header><div><h2 id="acionamentos-titulo">Acionamentos</h2><p>Cada tentativa de contato com este cliente. O registro não é editado nem apagado: se algo saiu errado, registre um acionamento novo com a observação.</p></div></header>
+  <% if form %><%= render "customers/contact_attempts/form", form: form, customer: customer, notice: nil %><% end %>
+  <%= render "customers/contact_attempts/history", customer: customer, history: history, oob: false %>
+</section>
