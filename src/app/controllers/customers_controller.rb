@@ -22,9 +22,19 @@ class CustomersController < ApplicationController
     @brackets = Portfolio::AgingBrackets.from_stored(@setting.aging_brackets)
     @bills = Bill.where(customer: @customer).includes(:contract).order(:due_date)
     @today = Date.current
+    load_payments_and_credits
   end
 
   private
+    # Pagos (R54) e crédito por contrato (R55b): o crédito é do contrato, visível a todos os clientes dele, sem total por cliente.
+    def load_payments_and_credits
+      @payments = Payment.where(bill_id: @bills.map(&:id)).applied.includes(:channel, :bill).order(paid_on: :desc, id: :desc)
+      @contracts = @customer.contracts.order(:code, :id).to_a
+      @credit_totals = Credit.where(contract_id: @contracts.map(&:id)).group(:contract_id).sum(:amount_cents)
+      @credit_entries = Credit.where(contract_id: @contracts.map(&:id)).includes(:payment, :related_contract).recent.limit(100).group_by(&:contract_id)
+      @can_transfer = CreditTransferPolicy.new(Current.user, @customer).create? && @credit_totals.values.any?(&:positive?)
+    end
+
     # Opções do filtro de faixa: com um só credor, as faixas dele; com vários, as do primeiro (a lista filtra cada cliente pelas do credor dele).
     def bracket_options(settings)
       brackets = Portfolio::AgingBrackets.from_stored(settings.values.first&.aging_brackets || TenantSetting::DEFAULT_BRACKETS)

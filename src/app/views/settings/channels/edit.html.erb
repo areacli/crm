@@ -1,0 +1,54 @@
+<% content_for :title, "Configuração · Canal #{@channel.code_was || @channel.code}" %>
+<header class="cabecalho-da-pagina"><div><h1>Canal <%= @channel.code_was || @channel.code %></h1><p><%= @channel.tenant.name %> · <%= link_to "Voltar para os canais", settings_channels_path %></p></div></header>
+<%= render "settings/abas" %>
+
+<section class="cartao" aria-labelledby="dados">
+  <header><h2 id="dados">Dados do canal</h2></header>
+  <div>
+    <% if @channel.errors.any? %><%= aviso(tom: :danger) { tag.p @channel.errors.full_messages.to_sentence } %><% end %>
+    <%= form_with model: @channel, scope: :payment_channel, url: settings_channel_path(@channel), method: :patch, html: { "hx-boost": "false" } do |form| %>
+      <%= render "settings/channels/fields", form: form, channel: @channel, code_locked: @channel.used? %>
+      <div class="campo">
+        <label><%= form.check_box :active, { checked: @channel.active? }, "1", "0" %> Canal ativo</label>
+        <small>Canal desativado não recebe pagamentos novos por planilha, mas os estornos de pagamentos dele continuam aceitos.</small>
+      </div>
+      <div class="acoes">
+        <button type="submit">Salvar</button>
+        <%= link_to "Cancelar", settings_channels_path, class: "botao", data: { variant: "secondary" } %>
+      </div>
+    <% end %>
+  </div>
+</section>
+
+<section class="cartao" aria-labelledby="webhook">
+  <header><h2 id="webhook">Webhook de pagamento</h2></header>
+  <div>
+    <p>O provedor deste canal envia cada pagamento para o endereço abaixo, com o cabeçalho <code>X-Signature</code> (HMAC SHA-256 do corpo com o segredo do canal). O mesmo evento enviado de novo não é processado outra vez.</p>
+    <dl class="valores">
+      <div><dt>Endereço</dt><dd><code><%= payments_webhook_url(@channel) %></code></dd></div>
+      <div><dt>Formato</dt><dd><code><%= @channel.webhook_adapter %></code></dd></div>
+      <div><dt>Segredo</dt><dd><%= @channel.webhook_enabled? ? "Definido (não é mostrado de novo)" : "Ainda não gerado" %></dd></div>
+    </dl>
+    <% if @secret %>
+      <%= aviso(tom: :warning) do %>
+        <p><strong>Copie o segredo agora:</strong> ele só aparece desta vez. <code><%= @secret %></code></p>
+      <% end %>
+    <% end %>
+    <div class="acoes">
+      <%= render("shared/confirmacao", id: "gerar-segredo", titulo: "Gerar um novo segredo?", gatilho: "secondary",
+                 mensagem: "O segredo atual, se houver, deixa de valer na hora: o provedor precisa ser atualizado com o novo.",
+                 acao: "Gerar segredo", url: settings_channel_webhook_secret_path(@channel), variante: "primary") { @channel.webhook_enabled? ? "Trocar o segredo" : "Gerar o segredo" } %>
+    </div>
+  </div>
+</section>
+
+<% unless @channel.used? %>
+  <section class="cartao" aria-labelledby="apagar">
+    <header><h2 id="apagar">Apagar o canal</h2></header>
+    <div class="acoes">
+      <p>O canal não tem pagamentos e pode ser apagado.</p>
+      <%= render("shared/confirmacao", id: "apagar-canal", titulo: "Apagar o canal?", mensagem: "O canal #{@channel.code} deixa de existir. Isto fica registrado.",
+                 acao: "Apagar canal", url: settings_channel_path(@channel), metodo: :delete) { "Apagar" } %>
+    </div>
+  </section>
+<% end %>

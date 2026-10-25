@@ -1,0 +1,18 @@
+<%# Resultado da conferência (ou do que foi gravado) de um arquivo de estornos (R63). Locais: import, data. %>
+<% effect = (import.confirmed? ? data[:confirmed_effect] : data[:effect]) || {} %>
+<section class="cartao" aria-labelledby="resultado-da-conferencia">
+  <header><h2 id="resultado-da-conferencia"><%= import.confirmed? ? "O que foi gravado" : "Resultado da conferência" %></h2></header>
+  <div>
+    <dl class="valores">
+      <div><dt>Linhas lidas</dt><dd><%= number_br(data[:lines]) %></dd></div>
+      <div><dt>Estornos válidos</dt><dd><%= number_br(data[:valid]) %> <small>(R$ <%= data[:amount_formatted] %>)</small></dd></div>
+      <div><dt>Linhas recusadas</dt><dd><%= number_br(data[:rejected]) %></dd></div>
+      <div><dt>Já registrados, ignorados</dt><dd><%= number_br(data[:ignored]) %></dd></div>
+      <div><dt>Títulos que voltam à cobrança</dt><dd><%= number_br(effect[:reopened]) %></dd></div>
+      <div><dt>Saiu do título</dt><dd><%= money(effect[:from_bill_cents].to_i) %></dd></div>
+      <div><dt>Créditos reduzidos</dt><dd><%= number_br(effect[:credit_reduced]) %> <small>(<%= money(effect[:from_credit_cents].to_i) %>)</small></dd></div>
+      <div><dt>Pendentes afetados</dt><dd><%= number_br(effect[:pending_reduced]) %></dd></div>
+    </dl>
+    <% if data[:ignored_columns].present? %><p><small>Colunas ignoradas: <%= data[:ignored_columns].join(", ") %>.</small></p><% end %>
+  </div>
+</section>

@@ -10,6 +10,8 @@ class Import < ApplicationRecord
 
   enum :status, { received: "received", checking: "checking", checked: "checked", confirming: "confirming", confirmed: "confirmed",
                   discarded: "discarded", rejected: "rejected", failed: "failed" }, validate: true
+  # Carteira, pagamentos ou estornos: o tipo decide a planilha, a conferência, a confirmação e as permissões (2 e 3, ou 5 e 6).
+  enum :kind, { portfolio: "portfolio", payments: "payments", reversals: "reversals" }, validate: true
   enum :mode, { incremental: "incremental", full_sync: "full_sync" }, validate: true
 
   # Situações em que a importação ocupa o credor (uma por vez, R10): garantido pelo índice parcial do banco.
@@ -22,6 +24,13 @@ class Import < ApplicationRecord
 
   # Caminho do arquivo guardado (relativo a storage/), enquanto a importação o precisa.
   def file_path = Rails.root.join("storage", stored_path.to_s)
+
+  def payments_kind? = payments? || reversals?
+
+  # O conferidor e o confirmador do tipo da importação.
+  def checker = payments_kind? ? Payments::ImportChecker.new : Portfolio::ImportChecker.new
+
+  def confirmer = payments_kind? ? Payments::ImportConfirmer.new : Portfolio::ImportConfirmer.new
 
   def in_progress? = IN_PROGRESS.include?(status)
 

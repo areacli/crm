@@ -1,0 +1,21 @@
+<%# Resultado da conferência (ou do que foi gravado) de um arquivo de pagamentos (R56). Locais: import, data. %>
+<% effect = (import.confirmed? ? data[:confirmed_effect] : data[:effect]) || {} %>
+<section class="cartao" aria-labelledby="resultado-da-conferencia">
+  <header><h2 id="resultado-da-conferencia"><%= import.confirmed? ? "O que foi gravado" : "Resultado da conferência" %></h2></header>
+  <div>
+    <dl class="valores">
+      <div><dt>Linhas lidas</dt><dd><%= number_br(data[:lines]) %></dd></div>
+      <div><dt>Pagamentos válidos</dt><dd><%= number_br(data[:valid]) %> <small>(R$ <%= data[:amount_formatted] %>)</small></dd></div>
+      <div><dt>Linhas recusadas</dt><dd><%= number_br(data[:rejected]) %></dd></div>
+      <div><dt>Já registrados, ignorados</dt><dd><%= number_br(data[:ignored]) %></dd></div>
+      <div><dt>Títulos quitados</dt><dd><%= number_br(effect[:settled]) %></dd></div>
+      <div><dt>Baixas parciais</dt><dd><%= number_br(effect[:partial]) %></dd></div>
+      <div><dt>Valor aplicado aos títulos</dt><dd><%= money(effect[:applied_cents].to_i) %></dd></div>
+      <div><dt>Créditos gerados</dt><dd><%= number_br(effect[:credits]) %> <small>(<%= money(effect[:credit_cents].to_i) %>)</small></dd></div>
+      <div><dt>Pendentes novos</dt><dd><%= number_br(effect[:pending_new]) %> <small>(<%= money(effect[:pending_cents].to_i) %>)</small></dd></div>
+      <% if effect[:pending_applied].to_i.positive? %><div><dt>Pendentes de antes, aplicados</dt><dd><%= number_br(effect[:pending_applied]) %></dd></div><% end %>
+    </dl>
+    <% if data[:ignored_columns].present? %><p><small>Colunas ignoradas: <%= data[:ignored_columns].join(", ") %>.</small></p><% end %>
+    <% if effect[:pending_new].to_i.positive? %><p><small>Pendente é o pagamento cujo título ainda não está na carteira: fica sem efeito e sem crédito até uma carga de carteira trazer o título.</small></p><% end %>
+  </div>
+</section>

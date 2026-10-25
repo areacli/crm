@@ -1,0 +1,14 @@
+<%# Campos do canal. Locais: form, channel, code_locked (o código não muda enquanto o canal tem pagamento). %>
+<div class="campo">
+  <%= form.label :kind, "Tipo" %>
+  <%= form.select :kind, PaymentChannel.kinds.keys.map { |kind| [ t("payments.channels.kinds.#{kind}"), kind ] }, { selected: channel.kind }, required: true %>
+</div>
+<div class="campo">
+  <%= form.label :code, "Código" %>
+  <%= form.text_field :code, value: channel.code, required: true, maxlength: 100, disabled: code_locked, "aria-describedby": "ajuda-codigo" %>
+  <small id="ajuda-codigo"><%= code_locked ? "O código não muda depois do primeiro pagamento; o canal pode ser desativado." : "Como a planilha de pagamentos traz, por exemplo 341-1234-56789. Único dentro do credor." %></small>
+</div>
+<div class="campo">
+  <%= form.label :description, "Descrição" %>
+  <%= form.text_field :description, value: channel.description, required: true, maxlength: 200 %>
+</div>

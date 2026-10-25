@@ -135,4 +135,37 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
 
     assert_redirected_to root_url
   end
+
+  test "a sessão acaba depois de 30 minutos sem atividade (R28)" do
+    post session_url, params: { email_address: users(:joana).email_address, password: "senha-de-teste-1" }
+    travel 31.minutes do
+      get root_url
+      assert_redirected_to new_session_url
+    end
+    assert_equal 0, Session.count
+  end
+
+  test "a atividade renova os 30 minutos, mas as 8 horas continuam sendo o teto (R28)" do
+    post session_url, params: { email_address: users(:joana).email_address, password: "senha-de-teste-1" }
+    start = Time.current
+    (1..16).each do |step|
+      travel_to start + (step * 29).minutes do
+        get root_url
+        assert_response :success, "passo #{step}"
+      end
+    end
+    travel_to start + 8.hours + 10.minutes do
+      get root_url
+      assert_redirected_to new_session_url
+    end
+  end
+
+  test "a conexão do WebSocket também recusa a sessão parada por 30 minutos (R28)" do
+    post session_url, params: { email_address: users(:joana).email_address, password: "senha-de-teste-1" }
+    session = Session.sole
+    assert_not session.expired?
+    travel 31.minutes do
+      assert_predicate session.reload, :expired?
+    end
+  end
 end

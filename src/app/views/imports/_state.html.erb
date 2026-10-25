@@ -7,7 +7,7 @@
       <dl class="valores">
         <div><dt>Situação</dt><dd><%= render "imports/status", import: import %></dd></div>
         <div><dt>Arquivo</dt><dd><%= import.original_name %> <small>(<%= number_br(import.size_bytes / 1024) %> KB)</small></dd></div>
-        <div><dt>Modo</dt><dd><%= t("imports.modes.#{import.mode}") %></dd></div>
+        <div><dt>Tipo</dt><dd><%= t("imports.kinds.#{import.kind}") %><% if import.portfolio? %> <small>(<%= t("imports.modes.#{import.mode}").downcase %>)</small><% end %></dd></div>
         <div><dt>Enviada por</dt><dd><%= import.user&.name || "—" %></dd></div>
       </dl>
       <% if import.working? %>
@@ -23,36 +23,18 @@
   </section>
 
   <% if data.present? %>
-    <section class="cartao" aria-labelledby="resultado-da-conferencia">
-      <header><h2 id="resultado-da-conferencia"><%= import.confirmed? ? "O que foi gravado" : "Resultado da conferência" %></h2></header>
-      <div>
-        <dl class="valores">
-          <div><dt>Linhas lidas</dt><dd><%= number_br(data[:lines]) %></dd></div>
-          <div><dt>Títulos válidos</dt><dd><%= number_br(data[:valid]) %></dd></div>
-          <div><dt>Linhas recusadas</dt><dd><%= number_br(data[:rejected]) %></dd></div>
-          <div><dt>Clientes</dt><dd><%= number_br(data[:customers]) %> <small>(<%= number_br(data[:customers_new]) %> novos)</small></dd></div>
-          <div><dt>Valor dos títulos</dt><dd>R$ <%= data[:amount_formatted] %></dd></div>
-          <div><dt>Títulos novos</dt><dd><%= number_br(data[:bills_new]) %></dd></div>
-          <div><dt>Títulos atualizados</dt><dd><%= number_br(data[:bills_updated]) %></dd></div>
-          <div><dt>Títulos sem mudança</dt><dd><%= number_br(data[:bills_unchanged]) %></dd></div>
-          <% if data[:bills_reincluded].to_i.positive? %><div><dt>Títulos reincluídos</dt><dd><%= number_br(data[:bills_reincluded]) %></dd></div><% end %>
-          <% if import.full_sync? %><div><dt>Títulos a retirar</dt><dd><%= number_br(data.dig(:to_withdraw, :count)) %> <small>(R$ <%= Money.format(data.dig(:to_withdraw, :amount_cents).to_i) %>)</small></dd></div><% end %>
-        </dl>
-        <% if data[:ignored_columns].present? %><p><small>Colunas ignoradas: <%= data[:ignored_columns].join(", ") %>.</small></p><% end %>
-        <% if data[:contracts_created_by_omission].to_i.positive? %><p><small><%= number_br(data[:contracts_created_by_omission]) %> clientes sem contrato no arquivo ganharam um contrato criado por omissão.</small></p><% end %>
-      </div>
-    </section>
+    <%= render "imports/results/#{import.kind}", import: import, data: data %>
   <% end %>
 
   <% if policy(import).confirm? %>
     <section class="cartao" aria-labelledby="decisao">
-      <header><h2 id="decisao">Confirmar ou descartar</h2><p>Nada foi gravado na carteira até agora.</p></header>
+      <header><h2 id="decisao">Confirmar ou descartar</h2><p>Nada foi gravado até agora.</p></header>
       <div class="acoes">
         <%= render("shared/confirmacao", id: "confirmar-importacao", titulo: "Confirmar a importação?", gatilho: "primary",
-                   mensagem: "Os títulos válidos entram na carteira#{' e os que não vieram no arquivo saem da cobrança' if import.full_sync?}.",
+                   mensagem: t("imports.confirm_message.#{import.kind}") + (import.portfolio? && import.full_sync? ? " Os que não vieram no arquivo saem da cobrança." : ""),
                    acao: "Confirmar importação", url: import_confirmation_path(import), variante: "primary") { "Confirmar" } %>
         <%= render("shared/confirmacao", id: "descartar-importacao", titulo: "Descartar a importação?",
-                   mensagem: "O arquivo conferido é descartado e nada entra na carteira.",
+                   mensagem: t("imports.discard_message.#{import.kind}"),
                    acao: "Descartar importação", url: import_discard_path(import)) { "Descartar" } %>
       </div>
     </section>
@@ -60,7 +42,7 @@
 
   <% if rejections.any? %>
     <section class="cartao" aria-labelledby="recusadas">
-      <header><h2 id="recusadas">Linhas recusadas</h2><p>Mostrando as primeiras <%= rejections.size %> de <%= number_br(import.rejections.count) %>.</p></header>
+      <header><h2 id="recusadas">Linhas recusadas<%= " e ignoradas" if import.rejections.where(ignored: true).exists? %></h2><p>Mostrando as primeiras <%= rejections.size %> de <%= number_br(import.rejections.count) %>.</p></header>
       <div class="tabela">
         <table>
           <caption class="apenas-leitor-de-tela">Linhas recusadas</caption>

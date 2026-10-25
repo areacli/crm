@@ -1,0 +1,6 @@
+<%# Abas da configuração (P21): uma por assunto, cada uma com o próprio endereço e a própria permissão; só aparecem as que o usuário vê. %>
+<nav class="abas" aria-label="Configuração">
+  <% settings_tabs.each do |tab| %>
+    <%= link_to tab[:rotulo], tab[:caminho], aria: { current: (tab[:atual] ? "page" : nil) } %>
+  <% end %>
+</nav>

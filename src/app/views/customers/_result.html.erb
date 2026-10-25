@@ -35,7 +35,7 @@
               <td data-numerico><%= number_br(customer.bills_count) %></td>
               <td data-numerico><%= money(customer.overdue_cents) %></td>
               <td data-numerico><%= customer.tenant_id && @settings.fetch(customer.tenant_id).upcoming_display == "detail_only" ? "—" : money(customer.upcoming_cents) %></td>
-              <td><%= @query.bracket_label(customer.tenant_id, customer.max_days_overdue) %></td>
+              <td><%= customer.bills_count.to_i.zero? ? "sem títulos em cobrança" : @query.bracket_label(customer.tenant_id, customer.max_days_overdue) %></td>
             </tr>
           <% end %>
         </tbody>

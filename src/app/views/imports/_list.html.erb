@@ -5,17 +5,18 @@
   <% else %>
     <div class="tabela">
       <table>
-        <caption class="apenas-leitor-de-tela">Importações de carteira</caption>
+        <caption class="apenas-leitor-de-tela">Importações</caption>
         <thead>
-          <tr><th scope="col">Recebida em</th><th scope="col">Credor</th><th scope="col">Arquivo</th><th scope="col">Modo</th><th scope="col">Enviada por</th><th scope="col">Situação</th></tr>
+          <tr><th scope="col">Recebida em</th><th scope="col">Credor</th><th scope="col">Tipo</th><th scope="col">Arquivo</th><th scope="col">Modo</th><th scope="col">Enviada por</th><th scope="col">Situação</th></tr>
         </thead>
         <tbody>
           <% @imports.each do |import| %>
             <tr>
               <th scope="row"><%= link_to datetime_br(import.created_at), import_path(import) %></th>
               <td><%= import.tenant.name %></td>
+              <td><%= t("imports.kinds.#{import.kind}") %></td>
               <td><%= import.original_name %></td>
-              <td><%= t("imports.modes.#{import.mode}") %></td>
+              <td><%= import.portfolio? ? t("imports.modes.#{import.mode}") : "—" %></td>
               <td><%= import.user&.name || "—" %></td>
               <td><%= render "imports/status", import: import %></td>
             </tr>

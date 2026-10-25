@@ -1,0 +1,36 @@
+<%# Trecho que o htmx refaz a cada busca: tabela, contagem e paginação. %>
+<div id="resultado" aria-live="polite">
+  <% if @channels.empty? %>
+    <p class="vazio">Nenhum canal cadastrado.</p>
+  <% else %>
+    <p><small>Mostrando <%= number_br(@pagination.first_item) %> a <%= number_br(@pagination.last_item) %> de <%= number_br(@pagination.total) %> canais.</small></p>
+    <div class="tabela">
+      <table>
+        <caption class="apenas-leitor-de-tela">Canais de recebimento</caption>
+        <thead>
+          <tr>
+            <th scope="col">Código</th>
+            <th scope="col">Descrição</th>
+            <% if @several_tenants %><th scope="col">Credor</th><% end %>
+            <th scope="col">Tipo</th>
+            <th scope="col">Webhook</th>
+            <th scope="col">Situação</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @channels.each do |channel| %>
+            <tr>
+              <th scope="row"><%= link_to channel.code, edit_settings_channel_path(channel) %></th>
+              <td><%= channel.description %></td>
+              <% if @several_tenants %><td><%= channel.tenant.name %></td><% end %>
+              <td><%= t("payments.channels.kinds.#{channel.kind}") %></td>
+              <td><%= channel.webhook_enabled? ? "Ativo" : "Sem segredo" %></td>
+              <td><%= channel.active? ? situacao("Ativo", tom: :success) : situacao("Desativado", tom: :neutral) %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+    <%= render "shared/paginacao", pagination: @pagination, path: ->(page) { settings_channels_path(request.query_parameters.merge("page" => page)) } %>
+  <% end %>
+</div>

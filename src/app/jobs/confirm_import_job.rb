@@ -4,6 +4,6 @@ class ConfirmImportJob < ApplicationJob
   discard_on ActiveJob::DeserializationError
 
   def perform(import)
-    Portfolio::ImportConfirmer.new.run(import)
+    import.confirmer.run(import)
   end
 end

@@ -1,4 +1,4 @@
-# Autenticação por sessão (gerador do Rails 8), com a sessão de 8 horas (R28). `Current.user` é o usuário da sessão.
+# Autenticação por sessão (gerador do Rails 8), com a sessão de 8 horas e 30 minutos de inatividade (R28). `Current.user` é o usuário da sessão.
 module Authentication
   extend ActiveSupport::Concern
 
@@ -26,10 +26,10 @@ module Authentication
       Current.session ||= find_session_by_cookie
     end
 
-    # A sessão vencida ou de usuário que deixou de poder entrar é encerrada na hora (R28, R30).
+    # A sessão vencida (8 horas, ou 30 minutos sem atividade) ou de usuário que deixou de poder entrar é encerrada na hora (R28, R30).
     def find_session_by_cookie
       session = Session.includes(:user).find_by(id: cookies.signed[:session_id]) if cookies.signed[:session_id]
-      return session unless session && (session.expired? || !session.user.can_sign_in?)
+      return session&.tap(&:record_activity!) unless session && (session.expired? || !session.user.can_sign_in?)
 
       session.destroy
       cookies.delete(:session_id)

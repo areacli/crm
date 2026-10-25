@@ -1,0 +1,20 @@
+<%# Resultado da conferência (ou do que foi gravado) de uma carga de carteira. Locais: import, data. %>
+<section class="cartao" aria-labelledby="resultado-da-conferencia">
+  <header><h2 id="resultado-da-conferencia"><%= import.confirmed? ? "O que foi gravado" : "Resultado da conferência" %></h2></header>
+  <div>
+    <dl class="valores">
+      <div><dt>Linhas lidas</dt><dd><%= number_br(data[:lines]) %></dd></div>
+      <div><dt>Títulos válidos</dt><dd><%= number_br(data[:valid]) %></dd></div>
+      <div><dt>Linhas recusadas</dt><dd><%= number_br(data[:rejected]) %></dd></div>
+      <div><dt>Clientes</dt><dd><%= number_br(data[:customers]) %> <small>(<%= number_br(data[:customers_new]) %> novos)</small></dd></div>
+      <div><dt>Valor dos títulos</dt><dd>R$ <%= data[:amount_formatted] %></dd></div>
+      <div><dt>Títulos novos</dt><dd><%= number_br(data[:bills_new]) %></dd></div>
+      <div><dt>Títulos atualizados</dt><dd><%= number_br(data[:bills_updated]) %></dd></div>
+      <div><dt>Títulos sem mudança</dt><dd><%= number_br(data[:bills_unchanged]) %></dd></div>
+      <% if data[:bills_reincluded].to_i.positive? %><div><dt>Títulos reincluídos</dt><dd><%= number_br(data[:bills_reincluded]) %></dd></div><% end %>
+      <% if import.full_sync? %><div><dt>Títulos a retirar</dt><dd><%= number_br(data.dig(:to_withdraw, :count)) %> <small>(R$ <%= Money.format(data.dig(:to_withdraw, :amount_cents).to_i) %>)</small></dd></div><% end %>
+    </dl>
+    <% if data[:ignored_columns].present? %><p><small>Colunas ignoradas: <%= data[:ignored_columns].join(", ") %>.</small></p><% end %>
+    <% if data[:contracts_created_by_omission].to_i.positive? %><p><small><%= number_br(data[:contracts_created_by_omission]) %> clientes sem contrato no arquivo ganharam um contrato criado por omissão.</small></p><% end %>
+  </div>
+</section>
