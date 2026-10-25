@@ -26,3 +26,10 @@ promises_daily:
   queue: default
   active_job: true
   description: "Promessas (10): quebra as abertas com prazo vencido e encerra as pendentes sem aprovação"
+
+agreements_daily:
+  cron: "55 6 * * *"
+  class: "AgreementsDispatchJob"
+  queue: default
+  active_job: true
+  description: "Acordos (11): expira as propostas, quebra os acordos em atraso (R234), reavalia os ativos e gera o arquivo do dia"

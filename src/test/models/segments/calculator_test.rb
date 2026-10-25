@@ -90,6 +90,33 @@ class SegmentsCalculatorTest < ActiveSupport::TestCase
     end
   end
 
+  # Correção de 24/10/2026 (camada 15c): a idade do contrato era a data de UTC (`created_at::date`) contra a de hoje em Brasília; depois das 21h de Brasília a idade saía um dia
+  # a menos. Os dois testes rodam com o relógio às 22h30 de Brasília (01h30 de UTC do dia seguinte) e com o contrato criado às 22h30, tantos dias atrás.
+  test "idade do contrato à noite: criado às 22h30 de Brasília, com 30 dias exatos, ainda casa com 'até 30 dias' e deixa de casar no dia seguinte" do
+    make_segment(@alfa, "Recentes", min_age_days: 0, max_age_days: 30)
+    travel_to Time.find_zone("Brasilia").local(2026, 11, 30, 22, 30) do
+      contract = make_contract(@alfa, "NOITE", bills: [ {} ])
+      contract.update_columns(created_at: Time.find_zone("Brasilia").local(2026, 10, 31, 22, 30)) # 30 dias antes, também às 22h30 (01h30 de UTC de 1º de novembro)
+      recalc(@alfa)
+      assert_equal "Recentes", segment_of(contract), "30 dias de idade (UTC diria 29, que também casa; o limite abaixo prova a data)"
+    end
+    travel_to Time.find_zone("Brasilia").local(2026, 12, 1, 22, 30) do
+      contract = Contract.find_by!(code: "NOITE")
+      recalc(@alfa)
+      assert_equal "Demais", segment_of(contract), "31 dias de idade em Brasília: fora do limite (com a data de UTC seriam 30 e ainda casaria)"
+    end
+  end
+
+  test "idade do contrato à noite: o critério 'mínimo de 30 dias' casa na noite do trigésimo dia" do
+    make_segment(@alfa, "Antigos", min_age_days: 30)
+    travel_to Time.find_zone("Brasilia").local(2026, 11, 30, 22, 30) do
+      contract = make_contract(@alfa, "NOITE2", bills: [ {} ])
+      contract.update_columns(created_at: Time.find_zone("Brasilia").local(2026, 10, 31, 22, 30))
+      recalc(@alfa)
+      assert_equal "Antigos", segment_of(contract), "com a data de UTC a idade seria 29 e não casaria"
+    end
+  end
+
   test "R150 e MT-16: tipo pelos responsáveis financeiros; misto só casa com Misto e tanto faz; sem declarado vale o dos titulares" do
     make_segment(@alfa, "PF", person_type: "person")
     make_segment(@alfa, "PJ", person_type: "company")

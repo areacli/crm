@@ -1,7 +1,10 @@
 module Payments
   # Valida e normaliza uma linha da planilha de pagamentos (R49, R52a). Devolve [linha normalizada, nil] ou [nil, motivo da recusa].
   class PaymentRowValidator
-    ParsedRow = Data.define(:line, :channel_code, :identifier, :document, :bill_number, :paid_on, :amount_cents, :payment_method)
+    ParsedRow = Data.define(:line, :channel_code, :identifier, :document, :bill_number, :paid_on, :amount_cents, :payment_method, :final_state)
+
+    # Estado final do arquivo (PG-3, R226): "quitado" dá o título por pago; "parcial" é só informativo; vazio, sem estado.
+    FINAL_STATES = { "quitado" => "settled", "parcial" => "partial" }.freeze
 
     FIELD_NAMES = { "canal" => "canal", "identificador" => "identificador", "documento" => "documento", "data_pagamento" => "data de pagamento",
                     "valor" => "valor", "meio" => "meio" }.freeze
@@ -30,8 +33,11 @@ module Payments
       method = Payment.method_from_sheet(values["meio"])
       return [ nil, "meio de pagamento fora da lista" ] unless method
 
+      final_state = values["estado_final"].to_s.strip.downcase
+      return [ nil, "estado final fora da lista (quitado ou parcial)" ] unless final_state.empty? || FINAL_STATES.key?(final_state)
+
       [ ParsedRow.new(line: csv_row.line, channel_code: values["canal"], identifier: values["identificador"], document: Document.normalize(values["documento"]),
-                      bill_number: values["titulo"], paid_on: date, amount_cents: cents, payment_method: method), nil ]
+                      bill_number: values["titulo"], paid_on: date, amount_cents: cents, payment_method: method, final_state: FINAL_STATES[final_state]), nil ]
     end
   end
 end

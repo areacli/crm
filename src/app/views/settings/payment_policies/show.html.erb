@@ -30,4 +30,15 @@
       <% end %>
     </div>
   </section>
+  <section class="cartao" aria-labelledby="credito-acordo-<%= tenant.id %>">
+    <header><div><h2 id="credito-acordo-<%= tenant.id %>">Crédito, pagamento e tolerância nos acordos — <%= tenant.name %></h2><p>O uso do crédito do contrato, o pagamento a mais, o pagamento a título renegociado e a tolerância de valor do pagamento direto de título (11, R228a). Valem como estão no dia, sem congelar na proposta.</p></div></header>
+    <div>
+      <%= form_with url: settings_agreement_policies_path, method: :patch, html: { "hx-boost": "false" } do |form| %>
+        <%= hidden_field_tag :tenant_id, tenant.id %>
+        <%= hidden_field_tag :tab, "payments" %>
+        <%= render "settings/promises/agreement_policy_fields", tenant: tenant, policies: Agreements::Policies.for(setting), history: @agreement_history.fetch(tenant.id, []), keys: Agreements::Policies.keys(:payments) %>
+        <div class="acoes"><button type="submit">Salvar políticas de crédito e tolerância</button></div>
+      <% end %>
+    </div>
+  </section>
 <% end %>

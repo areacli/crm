@@ -1,0 +1,39 @@
+<% content_for :title, "Acordos" %>
+<% content_for :cable_channels, @cable %>
+<header class="cabecalho-da-pagina">
+  <div><h1>Acordos</h1><p>As propostas e os acordos dos credores em que você negocia, do mais recente ao mais antigo. A proposta nasce da simulação, na ficha do cliente.</p></div>
+  <% if policy(AgreementExport).index? %><div class="acoes"><%= link_to "Arquivo de acordos", agreement_exports_path, class: "botao", data: { variant: "secondary" } %><%= link_to "Estornos à espera", reversal_waits_path, class: "botao", data: { variant: "secondary" } if policy(ReversalWait).index? %></div><% end %>
+</header>
+
+<form class="filtros" role="search" action="<%= agreements_path %>" method="get"
+      hx-get="<%= agreements_path %>" hx-trigger="change, submit" hx-target="#resultado" hx-push-url="true" hx-swap="outerHTML">
+  <div class="campo">
+    <label for="state">Situação</label>
+    <select id="state" name="state"><option value="">Todas</option><%= options_for_select(Agreement::STATES.map { |state| [ t("agreements.states.#{state}"), state ] }, @filters[:state]) %></select>
+  </div>
+  <div class="campo">
+    <label for="from">De</label>
+    <input type="date" id="from" name="from" value="<%= @filters[:from]&.iso8601 %>">
+  </div>
+  <div class="campo">
+    <label for="to">Até</label>
+    <input type="date" id="to" name="to" value="<%= @filters[:to]&.iso8601 %>">
+  </div>
+  <div class="campo">
+    <label for="user">Quem montou</label>
+    <select id="user" name="user"><option value="">Todos</option><%= options_for_select(@operators, @filters[:user]) %></select>
+  </div>
+  <% if @several_tenants %>
+    <div class="campo">
+      <label for="tenant">Credor</label>
+      <select id="tenant" name="tenant"><option value="">Todos</option><%= options_for_select(@tenants, @filters[:tenant]) %></select>
+    </div>
+  <% end %>
+  <div class="campo">
+    <label for="per_page">Por página</label>
+    <select id="per_page" name="per_page"><%= options_for_select(Pagination::PER_PAGE_OPTIONS, @pagination.per_page) %></select>
+  </div>
+  <button type="submit" data-variant="secondary">Filtrar</button>
+</form>
+
+<%= render "agreements/result" %>

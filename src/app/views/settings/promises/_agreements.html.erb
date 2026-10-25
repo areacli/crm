@@ -1,0 +1,96 @@
+<%# Acordos na aba "Promessas e acordos" (11, R207, R209, R243, R246, T6): políticas e tolerâncias, variáveis de cada segmento e limites de cada perfil, cada um com "Ver histórico".
+    Gravam sem conferência do impacto e valem para as propostas novas (os acordos congelam as políticas, R210). Locais: tenant, segments, profiles, limits. %>
+<% policies = Agreements::Policies.for(tenant.setting) %>
+<% history = @agreement_history.fetch(tenant.id, []) %>
+<section class="cartao" aria-labelledby="politicas-acordo-<%= tenant.id %>">
+  <header><div><h2 id="politicas-acordo-<%= tenant.id %>">Políticas dos acordos — <%= tenant.name %></h2><p>Como o acordo é efetivado, pago e quebrado, as tolerâncias de valor e o mínimo para quebrar. A mudança vale só para as propostas novas: o acordo segue o termo.</p></div></header>
+  <div>
+    <%= form_with url: settings_agreement_policies_path, method: :patch, html: { "hx-boost": "false" } do |form| %>
+      <%= hidden_field_tag :tenant_id, tenant.id %>
+      <%= hidden_field_tag :tab, "agreements" %>
+      <%= render "settings/promises/agreement_policy_fields", tenant: tenant, policies: policies, history: history, keys: Agreements::Policies.keys(:agreements) %>
+      <div class="acoes"><button type="submit">Salvar políticas dos acordos</button></div>
+    <% end %>
+  </div>
+</section>
+
+<section class="cartao" aria-labelledby="variaveis-acordo-<%= tenant.id %>">
+  <header><div><h2 id="variaveis-acordo-<%= tenant.id %>">Variáveis de acordo dos segmentos — <%= tenant.name %></h2><p>O que cada segmento permite: teto de desconto por componente (parcelado e à vista), parcelas, parcela mínima, entrada mínima, prazos e dias de quebra. Baixar um teto baixa os limites dos perfis que passavam dele.</p></div></header>
+  <div>
+    <%= form_with url: settings_agreement_variables_path, method: :patch, html: { "hx-boost": "false" } do |form| %>
+      <%= hidden_field_tag :tenant_id, tenant.id %>
+      <% segments.each do |segment| %>
+        <details>
+          <summary><%= segment.name %>: até <%= segment.agreement_max_installments %> parcelas, parcela mínima de <%= money(segment.agreement_min_installment_cents) %>, entrada de <%= segment.agreement_min_down_payment_pct %>%</summary>
+          <div class="tabela">
+            <table>
+              <caption class="apenas-leitor-de-tela">Teto de desconto por componente em <%= segment.name %></caption>
+              <thead><tr><th scope="col">Componente</th><th scope="col" data-numerico>Parcelado (%)</th><th scope="col" data-numerico>À vista (%)</th></tr></thead>
+              <tbody>
+                <% Agreements::Caps::COMPONENTS.reverse.each do |component| %>
+                  <tr>
+                    <th scope="row"><%= component_name(component) %></th>
+                    <% Agreements::Caps::KINDS.each do |kind| %>
+                      <td data-numerico><%= number_field_tag "segments[#{segment.id}][caps][#{kind}][#{component}]", Agreements::Caps.get(segment.agreement_caps, kind, component), min: 0, max: 100, required: true, "aria-label": "Teto de desconto em #{component_name(component).downcase}, #{t("agreements.modes.#{kind}").downcase}, em #{segment.name}" %></td>
+                    <% end %>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+          <div class="grupo-de-campos">
+            <div class="campo"><%= label_tag "parcelas-#{segment.id}", "Número máximo de parcelas" %><%= number_field_tag "segments[#{segment.id}][max_installments]", segment.agreement_max_installments, id: "parcelas-#{segment.id}", min: 1, max: 120, required: true %></div>
+            <div class="campo"><%= label_tag "parcela-minima-#{segment.id}", "Parcela mínima" %><%= text_field_tag "segments[#{segment.id}][min_installment]", Money.format(segment.agreement_min_installment_cents), id: "parcela-minima-#{segment.id}", inputmode: "decimal", required: true %></div>
+            <div class="campo"><%= label_tag "entrada-minima-#{segment.id}", "Entrada mínima (% do valor líquido)" %><%= number_field_tag "segments[#{segment.id}][min_down_payment_pct]", segment.agreement_min_down_payment_pct, id: "entrada-minima-#{segment.id}", min: 1, max: 100, required: true %></div>
+            <div class="campo"><%= label_tag "prazo-entrada-#{segment.id}", "Prazo da entrada (dias)" %><%= number_field_tag "segments[#{segment.id}][down_payment_days]", segment.agreement_down_payment_days, id: "prazo-entrada-#{segment.id}", min: 1, max: 365, required: true %></div>
+            <div class="campo"><%= label_tag "validade-#{segment.id}", "Validade da proposta (dias)" %><%= number_field_tag "segments[#{segment.id}][validity_days]", segment.agreement_validity_days, id: "validade-#{segment.id}", min: 1, max: 365, required: true %></div>
+            <div class="campo"><%= label_tag "tolerancia-#{segment.id}", "Tolerância de atraso (dias)" %><%= number_field_tag "segments[#{segment.id}][tolerance_days]", segment.agreement_tolerance_days, id: "tolerancia-#{segment.id}", min: 0, max: 60, required: true %></div>
+            <div class="campo"><%= label_tag "quebra-#{segment.id}", "Quebra por atraso de parcela (dias)" %><%= number_field_tag "segments[#{segment.id}][break_days]", segment.agreement_break_days, id: "quebra-#{segment.id}", min: 1, max: 365, required: true %></div>
+          </div>
+        </details>
+      <% end %>
+      <div class="acoes"><button type="submit">Salvar variáveis dos segmentos</button></div>
+    <% end %>
+  </div>
+</section>
+
+<section class="cartao" aria-labelledby="limites-acordo-<%= tenant.id %>">
+  <header><div><h2 id="limites-acordo-<%= tenant.id %>">Limites de acordo por perfil — <%= tenant.name %></h2><p>O que cada perfil negocia sozinho em cada segmento, dentro das variáveis dele. Acima do limite, a proposta nasce pendente e espera quem tem limites que a cobririam. Os tetos em reais são opcionais (vazio, sem teto).</p></div></header>
+  <div>
+    <%= form_with url: settings_agreement_limits_path, method: :patch, html: { "hx-boost": "false" } do |form| %>
+      <%= hidden_field_tag :tenant_id, tenant.id %>
+      <% segments.each do |segment| %>
+        <% profiles.each do |profile| %>
+          <% limit = AgreementLimit.for(profile, segment) %>
+          <% base = "limits[#{segment.id}][#{profile.id}]" %>
+          <details>
+            <summary><%= profile.name %> em <%= segment.name %>: até <%= limit.max_installments %> parcelas, entrada de <%= limit.min_down_payment_pct %>%<%= ", valor líquido até #{money(limit.ceiling_value_cents)}" if limit.ceiling_value_cents %></summary>
+            <div class="tabela">
+              <table>
+                <caption class="apenas-leitor-de-tela">Limite de desconto de <%= profile.name %> em <%= segment.name %></caption>
+                <thead><tr><th scope="col">Componente</th><th scope="col" data-numerico>Parcelado (%)</th><th scope="col" data-numerico>À vista (%)</th></tr></thead>
+                <tbody>
+                  <% Agreements::Caps::COMPONENTS.reverse.each do |component| %>
+                    <tr>
+                      <th scope="row"><%= component_name(component) %></th>
+                      <% Agreements::Caps::KINDS.each do |kind| %>
+                        <td data-numerico><%= number_field_tag "#{base}[caps][#{kind}][#{component}]", Agreements::Caps.get(limit.caps, kind, component), min: 0, max: 100, required: true, "aria-label": "Limite de desconto em #{component_name(component).downcase}, #{t("agreements.modes.#{kind}").downcase}, de #{profile.name} em #{segment.name}" %></td>
+                      <% end %>
+                    </tr>
+                  <% end %>
+                </tbody>
+              </table>
+            </div>
+            <div class="grupo-de-campos">
+              <div class="campo"><%= label_tag "lim-parcelas-#{segment.id}-#{profile.id}", "Parcelas até" %><%= number_field_tag "#{base}[max_installments]", limit.max_installments, id: "lim-parcelas-#{segment.id}-#{profile.id}", min: 1, max: 120, required: true %></div>
+              <div class="campo"><%= label_tag "lim-entrada-#{segment.id}-#{profile.id}", "Entrada mínima (%)" %><%= number_field_tag "#{base}[min_down_payment_pct]", limit.min_down_payment_pct, id: "lim-entrada-#{segment.id}-#{profile.id}", min: 1, max: 100, required: true %></div>
+              <div class="campo"><%= label_tag "lim-teto-desconto-#{segment.id}-#{profile.id}", "Teto do desconto total (R$)" %><%= text_field_tag "#{base}[ceiling_discount]", (Money.format(limit.ceiling_discount_cents) if limit.ceiling_discount_cents), id: "lim-teto-desconto-#{segment.id}-#{profile.id}", inputmode: "decimal" %></div>
+              <div class="campo"><%= label_tag "lim-teto-valor-#{segment.id}-#{profile.id}", "Teto do valor líquido do acordo (R$)" %><%= text_field_tag "#{base}[ceiling_value]", (Money.format(limit.ceiling_value_cents) if limit.ceiling_value_cents), id: "lim-teto-valor-#{segment.id}-#{profile.id}", inputmode: "decimal" %></div>
+            </div>
+          </details>
+        <% end %>
+      <% end %>
+      <div class="acoes"><button type="submit">Salvar limites dos perfis</button></div>
+    <% end %>
+  </div>
+</section>

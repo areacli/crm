@@ -42,7 +42,7 @@ module Charges
 
     private
       def bills(after)
-        where = [ "b.tenant_id = :t", "b.status = 'active'", "b.due_date < :today", "b.id > :after" ]
+        where = [ "b.tenant_id = :t", "b.status = 'active'", "b.kind = 'common'", "b.due_date < :today", "b.id > :after" ]
         where << "b.id in (:ids)" if @bill_ids
         where << "(#{'c.segment_id is null or ' if @unsegmented}c.segment_id in (:segments) or exists (select 1 from contract_segments cs where cs.contract_id = b.contract_id and cs.segment_id in (:segments)))" if @segment_ids
         sql = ActiveRecord::Base.sanitize_sql_array([ <<~SQL, { t: @tenant.id, today: @today, after: after, ids: @bill_ids || [ 0 ], segments: @segment_ids || [ 0 ] } ])

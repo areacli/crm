@@ -1,0 +1,39 @@
+<%# Parâmetros dos acordos (11, R207a, R246): taxa e método do parcelamento, convenção de dias e base da multa dos títulos de acordo, do credor e, campo a campo, de cada
+    segmento (vazio herda o do credor). Gravam sem conferência do impacto: nenhum título muda, porque os acordos congelam os seus. Locais: tenant, setting, segments. %>
+<% methods = Segment::INSTALLMENT_METHODS.map { |value| [ t("agreements.parameters.installment_methods.#{value}"), value ] } %>
+<% conventions = Segment::DAYS_CONVENTIONS.map { |value| [ t("agreements.parameters.conventions.#{value}"), value ] } %>
+<% fine_bases = Segment::FINE_BASES.map { |value| [ t("agreements.parameters.fine_bases.#{value}"), value ] } %>
+<%= form_with url: settings_agreement_parameters_path, method: :patch, html: { "hx-boost": "false" } do |form| %>
+  <%= hidden_field_tag :tenant_id, tenant.id %>
+  <fieldset>
+    <legend>Parâmetros dos acordos do credor</legend>
+    <p><small>Valem para os segmentos que não definem o próprio valor. Os acordos congelam o que valia no dia da proposta, então mudar estes campos não muda título nem acordo nenhum e não passa pela conferência do impacto.</small></p>
+    <div class="grupo-de-campos">
+      <div class="campo"><%= label_tag "agr-rate-#{tenant.id}", "Juros do parcelamento (% ao mês)" %><%= text_field_tag "credor[installment_rate_pct]", charge_field_value(setting, nil, :installment_rate_pct), id: "agr-rate-#{tenant.id}", inputmode: "decimal", autocomplete: "off" %></div>
+      <div class="campo"><%= label_tag "agr-method-#{tenant.id}", "Método do parcelamento" %><%= select_tag "credor[installment_method]", options_for_select(methods, setting.installment_method), id: "agr-method-#{tenant.id}" %></div>
+      <div class="campo"><%= label_tag "agr-conv-#{tenant.id}", "Convenção de dias dos juros de atraso do título de acordo" %><%= select_tag "credor[agreement_days_convention]", options_for_select(conventions, setting.agreement_days_convention), id: "agr-conv-#{tenant.id}" %></div>
+      <div class="campo"><%= label_tag "agr-base-#{tenant.id}", "Base da multa do título de acordo" %><%= select_tag "credor[agreement_fine_base]", options_for_select(fine_bases, setting.agreement_fine_base), id: "agr-base-#{tenant.id}" %></div>
+    </div>
+  </fieldset>
+  <details>
+    <summary>Valores próprios dos segmentos</summary>
+    <div class="tabela">
+      <table>
+        <caption class="apenas-leitor-de-tela">Parâmetros dos acordos de cada segmento de <%= tenant.name %></caption>
+        <thead><tr><th scope="col">Segmento</th><th scope="col">Juros do parcelamento (% ao mês)</th><th scope="col">Método</th><th scope="col">Convenção de dias</th><th scope="col">Base da multa</th></tr></thead>
+        <tbody>
+          <% segments.each do |segment| %>
+            <tr>
+              <th scope="row"><%= segment.name %></th>
+              <td><%= text_field_tag "segments[#{segment.id}][installment_rate_pct]", charge_field_value(segment, nil, :installment_rate_pct), inputmode: "decimal", autocomplete: "off", "aria-label": "Juros do parcelamento de #{segment.name}, vazio herda do credor" %></td>
+              <td><%= select_tag "segments[#{segment.id}][installment_method]", options_for_select(methods, segment.installment_method), include_blank: "Herda do credor", "aria-label": "Método do parcelamento de #{segment.name}" %></td>
+              <td><%= select_tag "segments[#{segment.id}][agreement_days_convention]", options_for_select(conventions, segment.agreement_days_convention), include_blank: "Herda do credor", "aria-label": "Convenção de dias de #{segment.name}" %></td>
+              <td><%= select_tag "segments[#{segment.id}][agreement_fine_base]", options_for_select(fine_bases, segment.agreement_fine_base), include_blank: "Herda do credor", "aria-label": "Base da multa de #{segment.name}" %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </details>
+  <div class="acoes"><button type="submit" data-variant="secondary">Salvar parâmetros dos acordos</button></div>
+<% end %>

@@ -1,0 +1,91 @@
+<%# Resultado da simulação (R211 a R216): a base e o desconto de cada título por componente, os totais, a entrada e a tabela de parcelas. Locais por variável de instância: @quote ou @problem. %>
+<div id="simulacao" aria-live="polite">
+  <% if @quote.nil? %>
+    <% if @problem %>
+      <%= aviso(tom: :warning) { tag.p @problem } %>
+    <% else %>
+      <p class="vazio">Escolha os títulos e os termos para ver a simulação.</p>
+    <% end %>
+  <% else %>
+    <% quote = @quote %>
+    <% quote.warnings.each do |text| %><%= aviso(tom: :warning) { tag.p text } %><% end %>
+    <% if quote.error %>
+      <%= aviso(tom: :danger) { tag.p "Esta proposta não pode ser criada: #{quote.error}" } %>
+    <% elsif quote.pending? %>
+      <%= aviso(tom: :warning) { tag.p "Fora dos seus limites: a proposta nasce pendente de aprovação, e quem pode aprová-la é quem tem os limites que a cobririam. Segmento para negociar: #{quote.segment.name}." } %>
+    <% else %>
+      <%= aviso(tom: :info) { tag.p "Dentro dos seus limites: a proposta nasce aprovada. Segmento para negociar: #{quote.segment.name}." } %>
+    <% end %>
+
+    <section class="cartao" aria-labelledby="base-do-acordo">
+      <header><div><h2 id="base-do-acordo">Base e descontos</h2><p>Valor atualizado de cada título hoje, por componente, e o que o desconto tira. Desconto: <%= discounts_text(quote.discounts) %>.</p></div></header>
+      <div class="tabela">
+        <table>
+          <caption class="apenas-leitor-de-tela">Base, desconto e valor de cada título no acordo</caption>
+          <thead>
+            <tr>
+              <th scope="col">Título</th>
+              <% columns = component_columns(quote.rows.map(&:base)) %><% columns.each do |component| %><th scope="col" data-numerico><%= component_name(component) %></th><% end %>
+              <th scope="col" data-numerico>Base</th><th scope="col" data-numerico>Desconto</th><th scope="col" data-numerico>No acordo</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% quote.rows.each do |row| %>
+              <tr>
+                <th scope="row"><%= row.bill.number %></th>
+                <% columns.each do |component| %><td data-numerico><%= money(row.base.fetch(component, 0)) %></td><% end %>
+                <td data-numerico><%= money(row.base_total) %></td>
+                <td data-numerico><%= money(row.discount_total) %></td>
+                <td data-numerico><%= money(row.value) %></td>
+              </tr>
+            <% end %>
+          </tbody>
+          <tfoot>
+            <tr>
+              <th scope="row">Total</th>
+              <% columns.each do |component| %><td data-numerico><%= money(quote.rows.sum { |row| row.base.fetch(component, 0) }) %></td><% end %>
+              <td data-numerico><%= money(quote.base_cents) %></td><td data-numerico><%= money(quote.discount_cents) %></td><td data-numerico><%= money(quote.value_cents) %></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </section>
+
+    <section class="cartao" aria-labelledby="entrada-e-parcelas">
+      <header><div><h2 id="entrada-e-parcelas">Entrada e parcelas</h2></div></header>
+      <div>
+        <dl class="valores">
+          <div><dt>Valor do acordo</dt><dd><%= money(quote.value_cents) %></dd></div>
+          <% if quote.credit.rebate? %><div><dt>Crédito do contrato usado como abatimento</dt><dd><%= money(quote.credit.total) %></dd></div><% end %>
+          <div><dt>Valor líquido do acordo</dt><dd><%= money(quote.net_cents) %></dd></div>
+          <% if quote.credit.down_payment? %><div><dt>Crédito do contrato usado na entrada</dt><dd><%= money(quote.credit.total) %>, faltam <%= money(quote.down_payment_cents - quote.credit.total) %> da entrada</dd></div><% end %>
+          <div><dt>Entrada</dt><dd><%= money(quote.down_payment_cents) %> em <%= date_br(quote.down_payment_on) %></dd></div>
+          <% if quote.installments.any? %>
+            <div><dt>Método</dt><dd><%= t("agreements.methods.#{quote.method}") %><%= " a #{percent_decimal(quote.rate_pct)} ao mês" unless quote.method == "none" %></dd></div>
+            <div><dt>Taxa efetiva anual</dt><dd><%= percent_decimal(quote.effective_annual_pct) %></dd></div>
+            <div><dt>Juros do parcelamento</dt><dd><%= money(quote.interest_cents) %></dd></div>
+          <% end %>
+          <div><dt>Soma total a pagar</dt><dd><%= money(quote.total_cents) %></dd></div>
+        </dl>
+        <div class="tabela">
+          <table>
+            <caption class="apenas-leitor-de-tela">Entrada e parcelas do acordo</caption>
+            <thead><tr><th scope="col">Título de acordo</th><th scope="col">Vencimento</th><th scope="col" data-numerico>Valor</th><th scope="col" data-numerico>Juros do parcelamento</th><th scope="col" data-numerico>Amortização</th><th scope="col" data-numerico>Falta amortizar</th></tr></thead>
+            <tbody>
+              <% quote.schedule.each do |row| %>
+                <tr>
+                  <th scope="row"><%= row.number.zero? ? "Entrada" : "Parcela #{row.number}" %></th>
+                  <td><%= date_br(row.due) %></td>
+                  <td data-numerico><%= money(row.amount_cents) %></td>
+                  <td data-numerico><%= money(row.interest_cents) %></td>
+                  <td data-numerico><%= money(row.amortization_cents) %></td>
+                  <td data-numerico><%= money(row.balance_cents) %></td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  <% end %>
+</div>

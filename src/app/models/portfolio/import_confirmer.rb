@@ -16,6 +16,7 @@ module Portfolio
           write(import)
           # 10, R202 e R202a: título retirado ou passado a outro contrato sai das promessas dele.
           Promises::BillExit.run(import.tenant_id)
+          Agreements::BillExit.run(import.tenant_id)
         end
       rescue StandardError => error
         Rails.error.report(error, handled: true, context: { import_id: import.id })
@@ -124,7 +125,7 @@ module Portfolio
         write_discrepancies(import, policy)
         # R57: título pago neste sistema continua pago e não é atualizado pela carga.
         Sql.run(<<~SQL, t)
-          delete from import_bills n using bills b where b.tenant_id = ? and b.customer_id = n.customer_id and b.number = n.number and b.status = 'paid'
+          delete from import_bills n using bills b where b.tenant_id = ? and b.customer_id = n.customer_id and b.number = n.number and b.status in ('paid', 'renegotiated')
         SQL
         Sql.connection.execute("analyze import_bills")
         # Valor anterior dos títulos que a carga atualiza, para criar a versão só quando o valor vigente mudou (R88).
@@ -188,7 +189,7 @@ module Portfolio
         Sql.run(<<~SQL, t, i)
           create temporary table import_withdrawn on commit drop as
           select b.id from bills b join customers c on c.id = b.customer_id
-          where b.tenant_id = ? and b.status = 'active' and not exists (
+          where b.tenant_id = ? and b.status = 'active' and b.kind = 'common' and not exists (
             select 1 from import_rows r where r.import_id = ? and r.document = c.document and (r.number = b.number or r.keep_document))
         SQL
         Sql.run(<<~SQL, t, u, i)
@@ -289,9 +290,10 @@ module Portfolio
           insert into changes (tenant_id, user_id, import_id, subject_type, subject_id, event, field, before, after, occurred_at)
           select ?, ?, ?, 'bill', bill_id, 'settled_by_value', 'status', 'active', 'paid', now() from import_discrepancies where effect in ('becomes_paid', 'returns_paid')
         SQL
-        Sql.execute(<<~SQL)
+        # A data de hoje é a de Brasília (`current_date` do banco seria a de UTC, um dia à frente depois das 21h).
+        Sql.run(<<~SQL, Date.current)
           update bills set status = 'paid', updated_at = now(),
-                 paid_on = coalesce((select max(p.paid_on) from payments p where p.bill_id = bills.id and p.status = 'applied'), current_date)
+                 paid_on = coalesce((select max(p.paid_on) from payments p where p.bill_id = bills.id and p.status = 'applied'), ?::date)
           where id in (select bill_id from import_discrepancies where effect in ('becomes_paid', 'returns_paid'))
         SQL
         Sql.run(<<~SQL, i, u, t)

@@ -76,6 +76,7 @@ module Titular
       Sql.run("update payment_reversals set reason = ? where reason is not null and payment_id in (select id from anon_payments)", REMOVED)
       # 10, R132: o motivo de cancelamento e de recusa das promessas feitas pelo cliente é texto livre e sai também.
       Sql.run("update payment_promises set reason = ? where reason is not null and customer_id in #{targets}", REMOVED)
+      scrub_agreements(t)
       Sql.run("update value_discrepancies set note = ? where note is not null and bill_id in (select id from bills where customer_id in #{targets})", REMOVED)
       Sql.run("update credits set note = ? where reason = 'transfer' and note is not null and contract_id in " \
               "(select cc.contract_id from contract_customers cc where cc.customer_id in #{targets})", REMOVED)
@@ -97,6 +98,42 @@ module Titular
     end
 
     private
+      # 11, R247, R132: nas propostas e nos acordos do cliente, o nome e o documento saem do termo guardado (de quem foi o cliente, os destinatários e quem aceitou), e os textos livres
+      # (motivo de recusa, cancelamento e quebra, comprovante, eventos e decisões de estorno) também. Valores, datas e números ficam.
+      def scrub_agreements(tenant_id)
+        mapping = Sql.rows("select old_document, new_document, new_name, customer_id from anon_targets").to_h { |row| [ row["old_document"], row ] }
+        by_customer = mapping.values.to_h { |row| [ row["customer_id"].to_i, row ] }
+        scope = Agreement.where(tenant_id: tenant_id).where("customer_id in (select customer_id from anon_targets) or accepted_by_customer_id in (select customer_id from anon_targets) or " \
+                            "exists (select 1 from anon_targets tg where position(tg.old_document in agreements.term_snapshot::text) > 0)")
+        scope.find_each do |agreement|
+          own = by_customer[agreement.customer_id]
+          snapshot = agreement.term_snapshot.deep_dup
+          rewrite = lambda do |hash|
+            row = mapping[Document.normalize(hash["document"].to_s)]
+            row ||= own if hash.equal?(snapshot["customer"])
+            next unless row
+
+            hash["name"] = row["new_name"]
+            hash["document"] = row["new_document"]
+          end
+          rewrite.call(snapshot["customer"]) if snapshot["customer"]
+          Array(snapshot["addressees"]).each { |hash| rewrite.call(hash) }
+          snapshot["accepted_by"] = snapshot["accepted_by"].merge("name" => by_customer[agreement.accepted_by_customer_id]["new_name"]) if snapshot["accepted_by"] && by_customer[agreement.accepted_by_customer_id]
+          attributes = { term_snapshot: snapshot }
+          if own
+            attributes[:reason] = REMOVED if agreement.reason.present?
+            attributes[:reversal_reason] = REMOVED if agreement.reversal_reason.present?
+            attributes[:proof] = REMOVED if agreement.proof.present?
+          end
+          agreement.update_columns(attributes)
+          next unless own
+
+          Sql.run("update agreement_events set data = data - 'reason' - 'note' || jsonb_build_object('reason', ?::text) where agreement_id = ? and (jsonb_exists(data, 'reason') or jsonb_exists(data, 'note'))", REMOVED, agreement.id)
+          Sql.run("update changes set note = ? where subject_type = 'agreement' and subject_id = ? and note is not null", REMOVED, agreement.id)
+        end
+        Sql.run("update reversal_waits set note = ? where note is not null and agreement_id in (select id from agreements where customer_id in (select customer_id from anon_targets))", REMOVED)
+      end
+
       # Histórico (R132): valores trocados no cadastro, nos contatos e nos acionamentos do cliente e na descrição dos títulos dele.
       def scrub_history(targets)
         sets = "before = case when before is not null then '#{REMOVED}' end, after = case when after is not null then '#{REMOVED}' end, " \

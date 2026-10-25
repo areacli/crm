@@ -1,0 +1,416 @@
+pt-BR:
+  agreements:
+    states:
+      pending: "Pendente de aprovação"
+      approved: "Aprovada"
+      refused: "Recusada"
+      not_approved: "Não aprovada"
+      expired: "Expirada"
+      canceled: "Cancelada"
+      awaiting_effectuation: "Aguardando efetivação"
+      active_on_time: "Ativo em dia"
+      active_late: "Ativo em atraso"
+      settled: "Quitado"
+      broken: "Quebrado"
+      renegotiated: "Renegociado"
+    modes:
+      installment: "Parcelado"
+      cash: "À vista"
+    mode_names:
+      installments: "Parcelado"
+      cash: "À vista"
+    components:
+      principal: "Principal"
+      correction: "Correção"
+      fine: "Multa"
+      interest: "Juros"
+      fees: "Honorários"
+      inherited_installment_interest: "Juros do parcelamento herdados"
+      inherited_late: "Encargos de atraso herdados"
+    channels:
+      phone: "Telefone"
+      whatsapp: "WhatsApp"
+      email: "E-mail"
+      in_person: "Presencial"
+    roles:
+      financial_responsible: "responsável financeiro"
+      holder: "titular"
+    methods:
+      none: "Sem juros"
+      price: "Price"
+      sac: "SAC"
+    fields:
+      down_payment: "Valor da entrada"
+      down_payment_on: "Vencimento da entrada"
+      credit: "Crédito do contrato a usar"
+    events:
+      built: "Proposta montada"
+      approved: "Proposta aprovada"
+      refused: "Proposta recusada"
+      accepted: "Aceite registrado"
+      canceled: "Proposta cancelada"
+      replaced: "Proposta substituída"
+      expired: "Proposta expirada"
+      not_approved: "Proposta não aprovada"
+      effectuated: "Acordo efetivado"
+      settled: "Acordo quitado"
+      late: "Acordo em atraso"
+      on_time: "Acordo em dia"
+      broken: "Acordo quebrado"
+      reactivated: "Acordo reativado"
+      settlement_calculated: "Quitação calculada"
+    break_reasons:
+      entry: "Entrada não paga até o fim da tolerância"
+      installment: "Parcela vencida há mais dos dias de quebra"
+      manual: "Quebra manual"
+    cases:
+      nobody_can_approve: "Pendente que ninguém pode aprovar"
+      reactivation_not_done: "Pagamento no prazo importado depois da quebra, sem reativação"
+    history_fields:
+      installment_rate_pct: "juros do parcelamento"
+      installment_method: "método do parcelamento"
+      agreement_days_convention: "convenção de dias dos juros de atraso"
+      agreement_fine_base: "base da multa do título de acordo"
+      agreement_max_installments: "número máximo de parcelas"
+      agreement_min_installment_cents: "parcela mínima (centavos)"
+      agreement_min_down_payment_pct: "entrada mínima (%)"
+      agreement_down_payment_days: "prazo da entrada (dias)"
+      agreement_validity_days: "validade da proposta (dias)"
+      agreement_tolerance_days: "tolerância de atraso (dias)"
+      agreement_break_days: "dias de quebra"
+      agreement_caps: "teto de desconto por componente"
+    canceled:
+      replaced: "substituída por %{number}"
+    warnings:
+      city_unrecognized: "Cidade não reconhecida: só feriados nacionais."
+      no_contact: "O responsável financeiro não tem contato cadastrado. O termo é gerado e impresso com os dados que existem."
+    refused:
+      no_profile: "Você não tem vínculo ativo neste credor."
+      mode: "Escolha se o acordo é à vista ou parcelado."
+      bills_required: "Escolha os títulos do acordo."
+      bills_limit: "O acordo vai de 1 a %{max} títulos."
+      bill_unknown: "Título não encontrado entre os do cliente."
+      bill_not_open: "O título %{number} não está em cobrança."
+      bill_held: "O título %{number} está na proposta ou no acordo %{agreement}."
+      bill_taken: "Um dos títulos acabou de entrar em outra proposta ou acordo."
+      discount_invalid: "Informe o desconto em percentual, com até duas casas (por exemplo, 12,5)."
+      discount_range: "O desconto vai de 0% a 100%."
+      discount_none: "O segmento não permite desconto em %{component}."
+      discount_above: "O segmento permite desconto de até %{cap}% em %{component}."
+      installments_required: "Informe o número de parcelas."
+      installments_above: "O segmento permite até %{max} parcelas."
+      day_range: "O dia de vencimento das parcelas vai de 1 a 28."
+      installment_minimum: "A parcela mínima é R$ %{min}."
+      down_minimum: "A entrada mínima é %{pct}% do valor líquido do acordo, R$ %{min}."
+      down_below_net: "No parcelado, a entrada é menor que o valor líquido do acordo."
+      down_due_range: "O vencimento da entrada vai de %{from} a %{to}."
+      date_invalid: "%{field}: informe uma data válida."
+      total_forgiveness: "Perdão total não passa por acordo."
+      minimum_to_break: "A entrada e as parcelas precisam ser maiores que o mínimo para quebrar, R$ %{min}."
+      not_pending: "A proposta não está pendente de aprovação."
+      validity_passed: "A validade da proposta passou; ela termina como não aprovada."
+      reason_required: "Informe o motivo da recusa."
+      reason_too_long: "O motivo tem no máximo %{max} caracteres."
+      cancel_reason_required: "Informe o motivo do cancelamento."
+      break_reason_required: "Informe o motivo da quebra."
+      not_breakable: "Só o acordo aguardando efetivação ou ativo pode ser quebrado."
+      not_late: "A quebra manual é para o acordo em atraso há mais que a tolerância, ou por fraude (marque a opção)."
+      credit_above: "O crédito dos contratos dos títulos permite usar até R$ %{available}."
+      credit_above_down: "O crédito usado como pagamento da entrada não passa da entrada, R$ %{down}."
+      agreement_title: "O título %{number} é de acordo e só entra em outro acordo na etapa do acordo sobre acordo."
+      not_cancelable: "A proposta já foi aceita ou encerrada."
+    accept_refused:
+      not_approved: "A proposta não está aprovada: proposta pendente, recusada, expirada ou cancelada não pode ser aceita."
+      validity_passed: "A validade da proposta passou. Monte a proposta de novo."
+      no_term: "O termo não pode ser gerado: faltam dados do credor (%{missing}). Complete o cadastro do credor."
+      channel: "Escolha o canal da apresentação e o do aceite."
+      presented_time: "Informe a data e a hora em que o termo foi apresentado."
+      accepted_time: "Informe a data e a hora do aceite."
+      accepted_future: "O aceite não pode ser posterior ao registro."
+      presented_after_accepted: "A apresentação do termo não pode ser posterior ao aceite."
+      before_approval: "A apresentação e o aceite são posteriores à aprovação da proposta."
+      before_built: "O aceite não pode ser anterior à montagem da proposta."
+      proof_too_long: "O comprovante tem no máximo %{max} caracteres."
+      acceptor_unknown: "Quem aceita precisa ser cliente de um dos contratos dos títulos."
+      acceptor_not_allowed: "A política do credor não admite o aceite deste cliente: só o responsável financeiro aceita."
+      bill_left: "O título %{number} saiu de cobrança. Monte a proposta de novo."
+      bill_value_changed: "O valor do título %{number} mudou. Monte a proposta de novo."
+      bill_paid: "O título %{number} recebeu pagamento depois da montagem. Monte a proposta de novo."
+      bill_reversed: "Um pagamento do título %{number} foi estornado depois da montagem. Monte a proposta de novo."
+      down_overdue: "A entrada já venceu. Monte a proposta de novo."
+      credit_unavailable: "O crédito usado na proposta deixou de estar disponível. Monte a proposta de novo."
+      credit_policy_changed: "A política de uso do crédito mudou depois da proposta. Monte a proposta de novo."
+    settings:
+      invalid_params: "Confira a taxa do parcelamento (0 a 100%), o método, a convenção de dias e a base da multa."
+      invalid_policy: "Valor inválido para a política %{name}."
+      invalid_variables: "Confira as variáveis de acordo de %{segment}."
+      invalid_limit: "Confira o limite de %{name}."
+      limit_above_segment: "O limite de %{name} não passa das variáveis do segmento: desconto até o teto, parcelas até o máximo e entrada de, no mínimo, a do segmento."
+      invalid_number: "Informe números inteiros, sem negativos; o desconto vai até 100."
+      invalid_money: "Valor em reais inválido: %{problem}."
+    policy_sections:
+      acordos: "Como o acordo é efetivado, pago e quebrado"
+    policies:
+      effectuation:
+        title: "Efetivação do acordo"
+        help: "Quando os títulos originais passam a renegociados."
+        options:
+          payment: "Pelo pagamento da entrada"
+          acceptance: "Pelo aceite"
+      cash_effectuation:
+        title: "Efetivação do acordo à vista"
+        help: "Vale como a efetivação geral, ou só pelo pagamento."
+        options:
+          follows: "Segue a efetivação geral"
+          payment_only: "Só pelo pagamento"
+      late_down_payment:
+        title: "Entrada paga depois do vencimento"
+        help: "Se o pagamento atrasado efetiva o acordo, com os encargos de atraso."
+        options:
+          with_late_charges: "Efetiva com os encargos de atraso"
+          credit_only: "Só gera crédito"
+      partial_down_payment:
+        title: "Entrada paga em parte no cancelamento ou na quebra antes da efetivação"
+        help: "Como o que foi pago da entrada volta aos títulos originais."
+        options:
+          by_composition: "Pela composição da entrada"
+          oldest_first: "Do mais antigo para o mais novo"
+      installment_number_before_effectuation:
+        title: "Pagamento com número de parcela antes da efetivação"
+        help: "O pagamento dirigido a uma parcela antes de o acordo ser efetivado."
+        options:
+          as_down_payment: "Vale como pagamento da entrada"
+          allocated_only: "Só é alocado na entrada"
+      bank_reversal:
+        title: "Estorno bancário de título de acordo pago"
+        help: "De quando contam os dias de quebra do título reaberto. Ainda sem efeito: entra com os estornos."
+        options:
+          new_term: "Prazo novo, contado do estorno"
+          since_due: "Atraso desde o vencimento"
+      first_period:
+        title: "Primeiro período irregular"
+        help: "Quando a primeira parcela não vence 30 dias depois da entrada."
+        options:
+          table_plus_days: "Prestação da tabela mais os juros dos dias"
+          recalculated: "Prestação recalculada, parcelas iguais"
+      break_form:
+        title: "Forma da quebra"
+        help: "O que acontece com as parcelas quando o acordo quebra."
+        options:
+          installments_follow: "As parcelas seguem em cobrança"
+          single_title: "Título único com vencimento antecipado"
+      reactivation:
+        title: "Pagamento no prazo importado depois da quebra"
+        help: "Se o pagamento com data no prazo reativa o acordo quebrado."
+        options:
+          reactivates: "Reativa o acordo"
+          common_payment: "Segue como pagamento comum"
+      original_paid_before:
+        title: "Título original pago antes da efetivação"
+        help: "O pagamento direto de um título que o acordo ainda não renegociou."
+        options:
+          cancels: "Cancela o acordo"
+          counts_as_agreement: "Vale como pagamento do acordo"
+      late_charges:
+        title: "Encargos do título de acordo atrasado"
+        help: "Multa, juros de mora, correção e honorários pelos parâmetros congelados no acordo."
+        options:
+          by_parameters: "Pelos parâmetros"
+          none: "Nenhum"
+      fees:
+        title: "Honorários no acordo"
+        help: "Se o desconto incide antes ou depois do recálculo dos honorários."
+        options:
+          on_negotiated: "Sobre o negociado, depois o desconto"
+          on_base: "Sobre a base"
+      credit_reversal_origin:
+        title: "Estorno da origem do crédito usado como abatimento"
+        help: "O que acontece quando o banco estorna o pagamento que gerou o crédito."
+        options:
+          new_title: "Nasce um título novo"
+          reopen_down_payment: "Reabre a entrada"
+      early_settlement:
+        title: "Quitação antes da data calculada"
+        help: "O pagamento da quitação antecipada antes da data do cálculo."
+        options:
+          calculated_value: "Pelo valor calculado"
+          payment_date_value: "Pelo saldo da data do pagamento"
+      early_payment:
+        title: "Pagamento antecipado de título de acordo"
+        help: "O desconto dos juros do parcelamento que ainda não correram."
+        options:
+          discounts: "Desconta os juros, proporcional aos dias"
+          full_value: "Valor cheio"
+      who_accepts:
+        title: "Quem aceita o acordo"
+        help: "O aceite é registrado pelo operador em nome de quem o deu."
+        options:
+          financial_or_holder: "O responsável financeiro ou um titular"
+          financial_only: "Só o responsável financeiro"
+      credit_across_contracts:
+        title: "Crédito entre contratos do acordo"
+        help: "De onde sai o crédito usado no acordo."
+        options:
+          same_contract: "Só dentro do mesmo contrato"
+          sum: "Soma entre os contratos do acordo"
+      credit_order:
+        title: "Ordem de consumo do crédito"
+        help: "Vale quando a soma entre contratos está ligada."
+        options:
+          oldest_first: "O mais antigo primeiro"
+          contract_first: "Primeiro o do contrato do título"
+      renegotiate_active:
+        title: "Renegociar acordo vigente"
+        help: "Se as parcelas de um acordo ativo entram numa proposta nova."
+        options:
+          "no": "Não"
+          "yes": "Sim"
+      renegotiate_partial:
+        title: "Acordo sobre acordo parcial"
+        help: "Se o acordo novo precisa incluir todos os títulos do anterior."
+        options:
+          all: "Só com todos os títulos do anterior"
+          partial: "Parcial"
+      promise_after_acceptance:
+        title: "Pagamento da promessa cancelada pelo aceite"
+        help: "O pagamento da promessa que o aceite cancelou. Ainda sem efeito: a escolha vale a partir da etapa seguinte dos acordos."
+        options:
+          promise: "Vale para a promessa"
+          down_payment: "Vale como entrada"
+      credit_use:
+        title: "Uso do crédito do contrato"
+        help: "Se o crédito é oferecido no acordo ou só registrado."
+        options:
+          in_agreement: "No acordo, por decisão do operador"
+          record_only: "Só registrar"
+      credit_entry:
+        title: "Como o crédito entra no acordo"
+        help: "Pagamento da entrada ou abatimento do valor do acordo."
+        options:
+          down_payment: "Pagamento da entrada"
+          rebate: "Abatimento do valor do acordo"
+      credit_and_break:
+        title: "Crédito e quebra"
+        help: "O que o crédito disponível faz com o acordo em atraso. Hoje só vale \"Suspende a quebra\"; as outras duas opções entram com os estornos."
+        options:
+          suspends: "Suspende a quebra"
+          before_break: "Aplica antes de quebrar"
+          after_break: "Aplica depois da quebra"
+      credit_and_late_down_payment:
+        title: "Crédito e entrada vencida na efetivação pelo aceite"
+        help: "O crédito disponível diante da entrada vencida. Ainda sem efeito: entra com os estornos."
+        options:
+          credit_pays: "O crédito paga a entrada"
+          notice: "Aviso ao gestor"
+      renegotiated_payment:
+        title: "Pagamento a título renegociado"
+        help: "O pagamento direto de um título original já renegociado."
+        options:
+          credit: "Vira crédito do contrato"
+          rebate_oldest: "Abate o título de acordo mais antigo"
+      overpayment:
+        title: "Pagamento a mais"
+        help: "O que passa do devido de um título de acordo."
+        options:
+          credit: "Vira crédito do contrato"
+          rebate_next: "Abate os títulos de acordo seguintes"
+      reversal_withdrawal:
+        title: "Desistência da reversão"
+        help: "O que se reaplica quando o gestor desiste da reversão."
+        options:
+          reapply_all: "Reaplica liquidações e pagamentos, sem os encargos do período"
+          reapply_settlements: "Só as liquidações, com os encargos"
+      tolerance_agreement:
+        title: "Tolerância de valor dos títulos de acordo"
+        help: "Pagamento abaixo do devido por até esta tolerância dá o título por pago; a diferença é abatimento por tolerância."
+        options:
+          cents: "Em reais"
+          percent: "Em percentual"
+      tolerance_promise:
+        title: "Tolerância de valor da promessa"
+        help: "Sobre o valor prometido do título."
+        options:
+          cents: "Em reais"
+          percent: "Em percentual"
+      tolerance_direct:
+        title: "Tolerância de valor do pagamento direto de título"
+        help: "Pagamento direto abaixo do devido por até esta tolerância dá o título por pago; a diferença é abatimento por tolerância."
+        options:
+          cents: "Em reais"
+          percent: "Em percentual"
+      minimum_to_break:
+        title: "Mínimo para quebrar e efetivar"
+        help: "Resto abaixo do mínimo não quebra o acordo e permite quitar. Zero é: qualquer resto conta."
+        options:
+          cents: "Em reais"
+          percent: "Em percentual do valor líquido do acordo"
+          tolerance: "Igual à tolerância de valor dos títulos de acordo"
+      minimum_sum:
+        title: "Títulos que entram na soma dos restos"
+        help: "Quais restos em atraso se comparam com o mínimo."
+        options:
+          all_overdue: "Todos os vencidos há mais que a tolerância"
+          beyond_break_days: "Só os vencidos há mais dos dias de quebra"
+    parameters:
+      installment_methods:
+        none: "Sem juros"
+        price: "Price"
+        sac: "SAC"
+      conventions:
+        calendar: "Fração do mês do calendário (como os títulos comuns)"
+        thirty: "Taxa ÷ 30 por dia corrido (como o boleto)"
+      fine_bases:
+        corrected: "Principal e correção herdados"
+        face: "Só o principal herdado"
+    approvals:
+      create:
+        done: "Proposta %{number} aprovada."
+    refusals:
+      create:
+        done: "Proposta recusada."
+    cancellations:
+      create:
+        done: "Proposta cancelada."
+    effectuated_by:
+      payment: "pelo pagamento da entrada"
+      acceptance: "pelo aceite"
+      credit: "pelo crédito do contrato"
+    export_forms:
+      news: "Novidades desde a última exportação"
+      full: "Completo"
+      daily: "Novidades do dia"
+    settlements:
+      create:
+        done: "Quitação calculada: %{amount} para pagar até %{date}."
+        invalid_date: "Informe a data da quitação, a partir de hoje."
+    breaks:
+      create:
+        done: "Acordo %{number} quebrado."
+    acceptances:
+      create:
+        done: "Aceite do acordo %{number} registrado: aguardando efetivação."
+    terms:
+      show:
+        not_ready: "O termo só existe para a proposta aprovada e com o cadastro do credor completo."
+  customers:
+    agreements:
+      create:
+        done: "Proposta %{number} gravada."
+  settings:
+    agreement_parameters:
+      update:
+        done: "Parâmetros dos acordos de %{tenant} salvos."
+    agreement_policies:
+      update:
+        done: "Políticas dos acordos de %{tenant} salvas."
+    agreement_variables:
+      update:
+        done: "Variáveis de acordo dos segmentos de %{tenant} salvas."
+    agreement_limits:
+      update:
+        done: "Limites de acordo dos perfis de %{tenant} salvos."
+  agreement_exports:
+    create:
+      done: "Arquivo de acordos exportado: %{lines} linhas."
+    show:
+      expired: "O arquivo foi apagado (os arquivos duram 30 dias). Exporte de novo."

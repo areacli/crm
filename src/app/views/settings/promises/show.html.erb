@@ -1,6 +1,6 @@
-<% content_for :title, "Configuração · Promessas" %>
+<% content_for :title, "Configuração · Promessas e acordos" %>
 <header class="cabecalho-da-pagina">
-  <div><h1>Promessas</h1><p>As políticas das promessas de pagamento, o prazo máximo de cada segmento e quanto cada perfil pode dar sozinho. Cada credor tem as suas, e a mudança vale só para as promessas novas.</p></div>
+  <div><h1>Promessas e acordos</h1><p>As políticas das promessas de pagamento, o prazo máximo de cada segmento e quanto cada perfil pode dar sozinho; e, nos acordos, as políticas, as variáveis de cada segmento e os limites de cada perfil. Cada credor tem as suas, e a mudança vale só para as promessas e propostas novas.</p></div>
 </header>
 <%= render "settings/abas" %>
 
@@ -85,9 +85,11 @@
     </div>
   </section>
 
+  <%= render "settings/promises/agreements", tenant: tenant, segments: segments, profiles: profiles, limits: @limits %>
+
   <section class="cartao" aria-labelledby="historico-<%= tenant.id %>">
     <header><div><h2 id="historico-<%= tenant.id %>">Alterações recentes — <%= tenant.name %></h2></div></header>
-    <% entries = @history.fetch(tenant.id, []).first(15) %>
+    <% entries = @history.fetch(tenant.id, []).first(20) %>
     <% if entries.empty? %>
       <p class="vazio">Nenhuma alteração registrada.</p>
     <% else %>
@@ -104,6 +106,12 @@
                   <% if entry.subject_type == "promise_limit" %>
                     <%= @segment_names[entry.subject_id]&.name %>:
                     <%= entry.field == "max_days" ? "prazo máximo" : "alçada de #{@profile_names[entry.field.to_s.delete_prefix('profile:').to_i]&.name}" %>
+                  <% elsif entry.subject_type == "agreement_limit" %>
+                    Acordos, limite de <%= @profile_names[entry.field.to_s.delete_prefix('profile:').to_i]&.name %> em <%= @segment_names[entry.subject_id]&.name %>
+                  <% elsif entry.subject_type == "agreement_segment" %>
+                    Acordos, <%= @segment_names[entry.subject_id]&.name %>: <%= t("agreements.history_fields.#{entry.field}", default: entry.field) %>
+                  <% elsif entry.subject_type == "agreement_settings" %>
+                    Acordos: <%= t("agreements.policies.#{entry.field}.title", default: t("agreements.history_fields.#{entry.field}", default: entry.field)) %>
                   <% else %>
                     <%= t("promises.policies.fields.#{entry.field}", default: entry.field) %>
                   <% end %>

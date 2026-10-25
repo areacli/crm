@@ -1,7 +1,7 @@
 module Payments
   # Grava as linhas da conferência de pagamentos ou estornos na tabela de preparação, em lote, pelo COPY do PostgreSQL.
   class Staging
-    COLUMNS = %w[import_id line channel_code identifier document bill_number paid_on amount_cents payment_method payment_identifier reason ok].freeze
+    COLUMNS = %w[import_id line channel_code identifier document bill_number paid_on amount_cents payment_method payment_identifier reason final_state ok].freeze
 
     def initialize(import_id, batch_size: 5000)
       @import_id = import_id

@@ -9,7 +9,7 @@ module Titular
         credor: @customer.tenant.display_name, exportado_em: Time.current.iso8601, anonimizado: @customer.anonymized?,
         cliente: { nome: @customer.name, documento: (@customer.anonymized? ? nil : @customer.formatted_document), anonimizado_em: @customer.anonymized_at&.iso8601 },
         contatos: contacts, contratos: contracts, titulos: bills, pagamentos: payments, estornos: reversals, creditos: credits,
-        divergencias_de_valor: discrepancies, promessas: promises, acionamentos: attempts, historico: history
+        divergencias_de_valor: discrepancies, promessas: promises, acordos: agreements, acionamentos: attempts, historico: history
       }
     end
 
@@ -77,6 +77,15 @@ module Titular
         @customer.payment_promises.includes(:contract, promise_bills: :bill).order(:created_at, :id).map do |p|
           { numero: p.number, situacao: p.state, contrato: p.contract.code, titulos: p.promise_bills.map { |row| row.bill.number }, valor_centavos: p.total_cents, pago_centavos: p.paid_cents,
             meio: p.payment_method, data_prometida: p.promised_on.iso8601, motivo: p.reason }
+        end
+      end
+
+      # Os acordos do cliente (11, R127): situação, títulos, valores, o termo como foi guardado no aceite (que já traz só o que o cliente deve ver), os motivos e a transferência de
+      # crédito como "crédito transferido a outro contrato", sem identificar o outro (R239a).
+      def agreements
+        Agreement.where(customer_id: @customer.id).includes(agreement_bills: :bill).order(:created_at, :id).map do |a|
+          { numero: a.number, situacao: a.state, forma: a.mode, titulos: a.agreement_bills.map { |row| row.bill.number }, valor_centavos: a.value_cents, desconto_centavos: a.discount_cents,
+            entrada_centavos: a.down_payment_cents, parcelas: a.installments_count, aceito_em: a.accepted_at&.iso8601, motivo: a.reason, termo: a.term_snapshot.presence }
         end
       end
 

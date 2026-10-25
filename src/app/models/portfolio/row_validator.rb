@@ -25,6 +25,7 @@ module Portfolio
       end
       # 10, R187a: o número da promessa chega no lugar do número do título; um título não pode ter o formato dele.
       return [ nil, "título no formato de número de promessa (PRM-)" ] if Promises.number?(values["titulo"])
+      return [ nil, "título no formato de número de acordo (ACD-)" ] if Agreements.number?(values["titulo"])
 
       due = BrDate.parse(values["vencimento"])
       return [ nil, "data inválida" ] unless due

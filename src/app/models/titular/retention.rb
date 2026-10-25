@@ -17,7 +17,7 @@ module Titular
         with #{Facts.sql(tenant_ids: tenant_ids)},
         pending_docs as (select distinct tenant_id, document from payments where tenant_id in (#{ids}) and status = 'pending'),
         ended as (
-          select cu.id, cu.tenant_id, cu.name, coalesce(max(f.last_on), cu.created_at::date) as ended_on
+          select cu.id, cu.tenant_id, cu.name, coalesce(max(f.last_on), #{BrDate.sql_date('cu.created_at')}) as ended_on
           from customers cu
           left join contract_customers cc on cc.customer_id = cu.id
           left join facts f on f.contract_id = cc.contract_id

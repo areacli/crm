@@ -13,7 +13,9 @@ module Settings
         @segments = Segment.where(tenant_id: @tenants.map(&:id)).ordered.group_by(&:tenant_id)
         @profiles = Profile.where(tenant_id: @tenants.map(&:id)).order(:name).group_by(&:tenant_id)
         @limits = PromiseLimit.where(segment_id: @segments.values.flatten.map(&:id)).group_by(&:segment_id).transform_values { |rows| rows.index_by(&:profile_id) }
-        @history = Change.where(tenant_id: @tenants.map(&:id), subject_type: %w[promise_settings promise_limit]).includes(:user).order(occurred_at: :desc, id: :desc).limit(40).group_by(&:tenant_id)
+        @history = Change.where(tenant_id: @tenants.map(&:id), subject_type: %w[promise_settings promise_limit agreement_settings agreement_segment agreement_limit]).includes(:user)
+                         .order(occurred_at: :desc, id: :desc).limit(60).group_by(&:tenant_id)
+        @agreement_history = @history.transform_values { |changes| changes.select { |change| change.subject_type == "agreement_settings" } }
         @segment_names = @segments.values.flatten.index_by(&:id)
         @profile_names = @profiles.values.flatten.index_by(&:id)
       end

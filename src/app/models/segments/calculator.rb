@@ -30,7 +30,7 @@ module Segments
           select c.id as contract_id, c.segment_id as old_segment_id, c.broke_agreement,
                  agg.overdue_days, agg.balance as balance_cents, agg.overdue_bills,
                  case when agg.balance = 0 then 0 else agg.overdue_cents * 100.0 / agg.balance end as overdue_percent,
-                 coalesce(p.customers, 0) as customers, (:today::date - c.created_at::date) as age_days,
+                 coalesce(p.customers, 0) as customers, (:today::date - #{BrDate.sql_date('c.created_at')}) as age_days,
                  p.person_type, #{keys_expression} as keys
           from (
             with considered as (

@@ -11,6 +11,7 @@ pt-BR:
       not_approved: "Não aprovada"
     blocked:
       in_promise: "em promessa de %{name}"
+      in_agreement: "em proposta ou acordo %{number}"
       grace: "em carência até %{date}"
     refused:
       result_not_allowed: "Este resultado não admite promessa."

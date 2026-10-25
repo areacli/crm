@@ -14,11 +14,17 @@ module Payments
       ApplicationRecord.transaction do
         # Trava o contrato de origem: duas transferências ao mesmo tempo não gastam o mesmo crédito.
         from.lock!
-        available = from.credit_cents
+        # R55a, R239: o disponível e o aguardando alocação se transferem; o bloqueado, não; o aguardando alocação, não durante a marca "em reversão"; o que cobre atraso de
+        # acordo ativo, não enquanto cobrir (R232b).
+        marked = Agreements::Reversion.marked?(from)
+        available = from.credit_cents - Agreements::CreditShield.protected_cents(from) + (marked ? 0 : Agreements::CreditBook.balance(from.id, "awaiting"))
         raise Access::Refused, I18n.t("payments.credit_transfer.above_available", available: Money.format(available)) if cents > available
 
         now = Time.current
         note = reason.to_s.strip[0, 300]
+        from_available = [ cents, from.credit_cents - Agreements::CreditShield.protected_cents(from) ].min
+        from_awaiting = cents - from_available
+        Agreements::CreditBook.move!(from.id, from: "awaiting", to: "available", cents: from_awaiting, reason: "transfer", user: @actor, note: note, at: now) if from_awaiting.positive?
         Credit.create!(tenant_id: from.tenant_id, contract: from, user: @actor, kind: :transfer_out, amount_cents: -cents, reason: :transfer, note: note,
                        related_contract: to, occurred_at: now)
         Credit.create!(tenant_id: to.tenant_id, contract: to, user: @actor, kind: :transfer_in, amount_cents: cents, reason: :transfer, note: note,

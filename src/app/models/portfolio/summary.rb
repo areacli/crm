@@ -18,7 +18,8 @@ module Portfolio
       totals = Sql.one(<<~SQL, @reference, @reference, @reference, tenant.id)
         select count(distinct customer_id) as customers, count(*) as bills,
                coalesce(sum(greatest(amount_cents - paid_cents, 0)) filter (where due_date < ?::date), 0) as overdue_cents,
-               coalesce(sum(greatest(amount_cents - paid_cents, 0)) filter (where due_date >= ?::date), 0) as upcoming_cents,
+               coalesce(sum(case when kind in ('agreement', 'break') then greatest(amount_cents - greatest(paid_cents, coalesce((composition->>'installment_interest')::bigint, 0)), 0)
+                                else greatest(amount_cents - paid_cents, 0) end) filter (where due_date >= ?::date), 0) as upcoming_cents, -- N7: título de acordo a vencer pela amortização que falta
                count(distinct customer_id) filter (where due_date < ?::date) as customers_overdue
         from bills where tenant_id = ? and status = 'active'
       SQL
@@ -38,8 +39,13 @@ module Portfolio
       updated = valuations(tenant, brackets)
       { tenant: tenant, updated: updated, customers: totals["customers"].to_i, customers_overdue: totals["customers_overdue"].to_i, bills: totals["bills"].to_i,
         overdue_cents: totals["overdue_cents"].to_i, upcoming_cents: totals["upcoming_cents"].to_i, upcoming_display: tenant.setting.upcoming_display,
-        labels: brackets.labels, by_customer: distribution(brackets, by_customer, updated[:by_customer]), by_bill: distribution(brackets, by_bill, updated[:by_bill]) }.merge(payments(tenant)).merge(contacts: contacts(tenant), promises: promises(tenant))
+        labels: brackets.labels, by_customer: distribution(brackets, by_customer, updated[:by_customer]), by_bill: distribution(brackets, by_bill, updated[:by_bill]) }.merge(payments(tenant)).merge(contacts: contacts(tenant), promises: promises(tenant), agreements: agreements(tenant))
     end
+
+    # O saldo devedor de um título de acordo (11, R225, N7): vencido, o devido de hoje com a mora (a linha de `bill_valuations`); a vencer, a amortização que falta, sem os juros do
+    # parcelamento que ainda não correram (o pago cobre primeiro os juros do parcelamento, R227). Fragmento sobre `bills b left join bill_valuations v`, com a data de referência como `?`.
+    AGREEMENT_BALANCE = "case when b.due_date >= ?::date then greatest(b.amount_cents - greatest(b.paid_cents, coalesce((b.composition->>'installment_interest')::bigint, 0)), 0) " \
+                        "else coalesce(v.total_cents, greatest(b.amount_cents - b.paid_cents, 0)) end".freeze
 
     private
       # Valor atualizado do credor (09, R176): total, por faixa (do cliente e do título) e por segmento do contrato, somado no banco sobre `bill_valuations` (um
@@ -103,6 +109,45 @@ module Portfolio
           SQL
           { days: days, promises: made["promises"].to_i, customers: made["customers"].to_i, fulfilled: closed["fulfilled"].to_i, late: closed["late"].to_i, broken: closed["broken"].to_i }
         end
+      end
+
+      # Acordos do credor no mês corrente (11, R242): quanto está em acordo (títulos de acordo em cobrança, sem somar duas vezes), os aceitos, os ativos em dia e em atraso, os quebrados e
+      # quitados, o desconto concedido por componente (contado na efetivação; o acordo cancelado depois da efetivação o tira no mês do cancelamento) por quem montou e por quem aprovou, e,
+      # à parte, os abatimentos por tolerância, pelo credor e por mínimo. Consultas: `agreements (tenant_id, state, valid_until)` e `(tenant_id, created_at)`, `agreement_bills (agreement_id)`
+      # e `abatements (tenant_id, created_at)`; o "em acordo" lê os títulos de acordo pelo índice parcial de `agreement_id`.
+      def agreements(tenant)
+        from = @reference.beginning_of_month.in_time_zone
+        to = from.next_month
+        in_agreement = Sql.one("select coalesce(sum(#{AGREEMENT_BALANCE}), 0) as cents, count(distinct b.agreement_id) as n from bills b left join bill_valuations v on v.bill_id = b.id where b.tenant_id = ? and b.status = 'active' and b.kind in ('agreement', 'break')", @reference, tenant.id)
+        accepted = Sql.one("select count(*) as n, coalesce(sum(value_cents), 0) as cents from agreements where tenant_id = ? and accepted_at >= ? and accepted_at < ?", tenant.id, from, to)
+        states = Sql.rows("select state, count(*) as n from agreements where tenant_id = ? and state in ('active_on_time', 'active_late') group by 1", tenant.id).to_h { |row| [ row["state"], row["n"].to_i ] }
+        broken = Sql.one("select count(*) as n from agreements where tenant_id = ? and broken_at >= ? and broken_at < ? and broken_after_effectuation", tenant.id, from, to)["n"].to_i
+        settled = Sql.one("select count(*) as n from agreements where tenant_id = ? and state = 'settled' and closed_at >= ? and closed_at < ?", tenant.id, from, to)["n"].to_i
+        discounts = Hash.new(0)
+        by_user = Hash.new(0)
+        by_approver = Hash.new(0)
+        discount_rows = lambda do |condition, sign|
+          Sql.rows(<<~SQL, tenant.id, from, to).each do |row|
+            select a.user_id, a.decided_by_id, d.key as component, sum(d.value::bigint) as cents
+            from agreements a join agreement_bills ab on ab.agreement_id = a.id, jsonb_each_text(ab.discount) d
+            where a.tenant_id = ? and #{condition} group by 1, 2, 3
+          SQL
+            cents = sign * row["cents"].to_i
+            discounts[row["component"]] += cents
+            by_user[row["user_id"]&.to_i] += cents
+            by_approver[row["decided_by_id"]&.to_i] += cents
+          end
+        end
+        discount_rows.call("a.effectuated_at >= ? and a.effectuated_at < ?", 1)
+        discount_rows.call("a.effectuated_at is not null and a.reverted_at >= ? and a.reverted_at < ?", -1)
+        names = User.where(id: (by_user.keys + by_approver.keys).compact).pluck(:id, :name).to_h
+        abatements = Sql.rows("select kind, coalesce(sum(amount_cents), 0) as cents from abatements where tenant_id = ? and created_at >= ? and created_at < ? and kind <> 'early' group by 1", tenant.id, from, to).to_h { |row| [ row["kind"], row["cents"].to_i ] }
+        waiting = ReversalWait.where(tenant_id: tenant.id, state: "waiting").count
+        { label: I18n.l(@reference.beginning_of_month, format: "%B de %Y"), in_agreement_cents: in_agreement["cents"].to_i, in_agreement_count: in_agreement["n"].to_i,
+          accepted: accepted["n"].to_i, accepted_cents: accepted["cents"].to_i, on_time: states.fetch("active_on_time", 0), late: states.fetch("active_late", 0), broken: broken, settled: settled,
+          discounts: discounts.select { |_, cents| cents.nonzero? }, discount_total: discounts.values.sum,
+          by_user: by_user.reject { |_, cents| cents.zero? }.map { |id, cents| [ names[id] || "—", cents ] }, by_approver: by_approver.reject { |_, cents| cents.zero? }.map { |id, cents| [ names[id] || "—", cents ] },
+          abatements: abatements, waiting: waiting }
       end
 
       # Valor recuperado no mês corrente e no anterior, por meio de pagamento (R58, R64), crédito do credor (cada contrato uma vez, R55b)

@@ -9,7 +9,7 @@ module Promises
 
     Handle = Struct.new(:id, :contract_id, :state, :payment_method, :contacted_on, :promised_on, :policies, :paid_cents, :lines, :dirty, keyword_init: true)
     Line = Struct.new(:row_id, :bill_id, :due_date, :amount_cents, :frozen, :paid, :dirty, keyword_init: true)
-    Outcome = Struct.new(:applied, :credit, :reason, :allocations, :counted, :settled, :partial, :contract_id, keyword_init: true)
+    Outcome = Struct.new(:applied, :credit, :reason, :allocations, :counted, :settled, :partial, :contract_id, :abatements, keyword_init: true)
 
     attr_reader :touched
 
@@ -56,7 +56,7 @@ module Promises
       handle = @handles.fetch(promise_id)
       @touched << promise_id
       counts = counts?(handle, method, pay_date)
-      outcome = Outcome.new(applied: 0, credit: 0, reason: "excess", allocations: [], counted: counts, settled: 0, partial: 0, contract_id: handle.contract_id)
+      outcome = Outcome.new(applied: 0, credit: 0, reason: "excess", allocations: [], counted: counts, settled: 0, partial: 0, contract_id: handle.contract_id, abatements: [])
       # DP11: com a política "a R46 vale também na promessa", o pagamento menor que o valor vira crédito sem baixar, se o credor assim o quer.
       if counts && handle.policies["partial"] == "r46" && @setting.partial_payment_policy_credit? && amount < wanted_total(handle)
         outcome.credit = amount
@@ -156,6 +156,15 @@ module Promises
         line.dirty = true
         handle.paid_cents += cents
         new_paid = paid + parts.fetch("principal", 0)
+        # 11, R228a (N3): a tolerância de valor da promessa, sobre o valor prometido do título, dá o título por pago; a diferença é abatimento por tolerância e conta para a promessa.
+        rest = wanted(line, new_paid)
+        tolerance = Agreements::Policies.tolerance_cents(@setting, "promise", line.frozen.values.sum)
+        if rest.any? && tolerance.positive? && rest.values.sum <= tolerance
+          rest.each { |component, part| line.paid[component] = line.paid.fetch(component, 0) + part }
+          handle.paid_cents += rest.values.sum
+          new_paid += rest.fetch("principal", 0)
+          outcome.abatements << [ line.bill_id, "tolerance", rest ]
+        end
         settled = new_paid >= line.amount_cents
         @states.put(line.bill_id, paid: new_paid, status: settled ? "paid" : "active", paid_on: settled ? pay_date : nil, keep: true)
         outcome.allocations << [ line.bill_id, parts ]
@@ -168,7 +177,7 @@ module Promises
       # (R194), pela mesma alocação da baixa (R226). Devolve o que sobrou e se o pagamento parou neste título (pagamento parcial).
       def common_part(line, outcome, remaining, pay_date, paid)
         due = @charges&.due(line.bill_id, pay_date, [ line.amount_cents - paid, 0 ].max)
-        result = Payments::Allocation.call(@setting, bill_amount: line.amount_cents, status: "active", paid: paid, amount: remaining, due: due)
+        result = Payments::Allocation.call(@setting, bill_amount: line.amount_cents, status: "active", paid: paid, amount: remaining, due: due, tolerance: false)
         @charges&.record(line.bill_id, pay_date, result.components)
         new_paid = paid + result.principal
         @states.put(line.bill_id, paid: new_paid, status: result.settled ? "paid" : "active", paid_on: result.settled ? pay_date : nil, keep: true)

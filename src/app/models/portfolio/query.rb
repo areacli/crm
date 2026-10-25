@@ -17,7 +17,7 @@ module Portfolio
 
     # Lista de clientes (R21): valores, maior atraso e faixa. Sem busca, só quem tem título em cobrança (no modo "só na ficha", só
     # quem tem título vencido); com busca, qualquer cliente do credor. `bracket` é o índice da faixa pedida, ou -1 para "sem atraso".
-    def customers(search: nil, bracket: nil, segment: nil, tenant_id: nil, sort: "overdue_cents", direction: "desc", promise: nil)
+    def customers(search: nil, bracket: nil, segment: nil, tenant_id: nil, sort: "overdue_cents", direction: "desc", promise: nil, unrecognized_city: nil)
       ids = tenant_ids
       relation = Customer.visible_to(@user, "view_portfolio").joins("left join (#{aggregate_sql(ids)}) agg on agg.customer_id = customers.id")
         .select("customers.*", "coalesce(agg.bills_count, 0) as bills_count", "coalesce(agg.overdue_cents, 0) as overdue_cents",
@@ -27,6 +27,8 @@ module Portfolio
       relation = restrict_to_bracket(relation, ids, bracket) if bracket
       relation = restrict_to_segment(relation, ids, segment) if segment.present?
       relation = restrict_to_promise(relation, promise) if PROMISE_FILTERS.include?(promise.to_s)
+      # 11, R243, AB9: o cliente cujo endereço válido mais recente não casa com a lista de municípios do IBGE (ou que não tem endereço).
+      relation = relation.where(Agreements::Square::UNRECOGNIZED_SQL) if unrecognized_city.to_s == "1"
       order(relation, sort, direction)
     end
 

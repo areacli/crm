@@ -7,8 +7,8 @@ module Permission
     handle_data_subject_rights change_financial_policies cancel_payment_promises negotiate_agreements administer_agreements
   ].freeze
 
-  # O perfil Operador padrão (MT-21): consultar a carteira, registrar acionamentos e editar o cadastro do cliente (06, R113).
-  OPERATOR = %w[view_portfolio record_contact_attempts edit_customer_registry].freeze
+  # O perfil Operador padrão (MT-21): consultar a carteira, registrar acionamentos, editar o cadastro do cliente (06, R113) e negociar acordos (11, R245).
+  OPERATOR = %w[view_portfolio record_contact_attempts edit_customer_registry negotiate_agreements].freeze
 
   RETIRED_NUMBER = 8
 

@@ -47,6 +47,10 @@ module Charges
           Sql.copy_in("bill_valuations", COLUMNS, rows)
           count += rows.size
         end
+        # Os títulos de acordo em cobrança têm o saldo devedor com os encargos de atraso dos parâmetros congelados (11, R225, R228).
+        rows = Agreements::Valuations.rows(@tenant, today)
+        Sql.copy_in("bill_valuations", COLUMNS, rows)
+        count += rows.size
       end
       count
     end

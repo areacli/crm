@@ -1,0 +1,29 @@
+<%# Propostas e acordos do cliente no cabeçalho da ficha (11, R241, P17): as propostas numa linha só ("1 proposta aguardando aceite") e, um por linha, os
+    acordos aceitos que ainda não terminaram (aguardando efetivação). Refeita a cada evento do WebSocket. Locais: customer, agreements. %>
+<div id="acordos" hx-get="<%= customer_agreements_path(customer) %>" hx-trigger="cable:agreements-changed from:body" hx-swap="outerHTML" hx-target="this">
+  <% proposals, running = agreements.partition(&:proposal?) %>
+  <% if agreements.any? %>
+    <h2 class="apenas-leitor-de-tela">Acordos</h2>
+    <ul class="promessas">
+      <% if proposals.any? %>
+        <li>
+          <%= situacao(proposals.any?(&:state_pending?) ? "Pendente de aprovação" : "Aprovada", tom: proposals.any?(&:state_pending?) ? :warning : :info) %>
+          <span class="detalhe">
+            <strong><%= pluralize(proposals.size, "proposta aguardando aceite", "propostas aguardando aceite") %>.</strong>
+            <%= safe_join(proposals.map { |agreement| tag.span { safe_join([ link_to(agreement.number, agreement_path(agreement)), " (", t("agreements.states.#{agreement.state}").downcase, ", ", money(agreement.value_cents), ", vale até ", date_br(agreement.valid_until), ")" ]) } }, "; ") %>
+          </span>
+        </li>
+      <% end %>
+      <% running.each do |agreement| %>
+        <li>
+          <%= agreement_state(agreement) %>
+          <span class="detalhe">
+            <strong><%= link_to agreement.number, agreement_path(agreement) %></strong>
+            <%= agreement_bill_numbers(agreement) %>: <%= money(agreement.value_cents) %> em entrada de <%= money(agreement.down_payment_cents) %><% if agreement.installments_count.positive? %> e <%= agreement.installments_count %> parcelas<% end %>.
+            Entrada em <%= date_br(agreement.down_payment_due) %>.
+          </span>
+        </li>
+      <% end %>
+    </ul>
+  <% end %>
+</div>
