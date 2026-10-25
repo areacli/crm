@@ -121,7 +121,7 @@ class IndexesScreensTest < ActionDispatch::IntegrationTest
   test "as abas Segmentos e Índices aparecem para quem tem a 4 ou a 14" do
     entrar(users(:joana))
     get settings_segments_path
-    assert_select "nav.abas a", text: "Segmentos"
+    assert_select "nav.abas a", text: "Segmentos e encargos"
     assert_select "nav.abas a", text: "Índices"
   end
 end

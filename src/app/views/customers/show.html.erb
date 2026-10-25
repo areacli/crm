@@ -53,7 +53,14 @@
         <div><dt>A vencer</dt><dd><%= money(upcoming.sum(&:balance_cents)) %></dd></div>
       <% end %>
       <div><dt>Títulos em cobrança</dt><dd><%= number_br(active.size) %></dd></div>
+      <% updated_total = overdue.sum { |bill| @valuations[bill.id]&.total_cents || bill.balance_cents } %>
+      <div><dt>Atualizado</dt><dd><%= money(updated_total) %></dd></div>
     </dl>
+    <% if @value_status[:calculated_on] %>
+      <p><small>Valor atualizado até <%= date_br(@value_status[:calculated_on]) %> (principal corrigido, multa, juros e honorários pelas regras de <%= @customer.tenant.name %>).<%= " Os valores estão sendo recalculados." if @value_status[:running] %></small></p>
+    <% elsif overdue.any? %>
+      <p><small>O valor atualizado ainda não foi calculado para este credor.</small></p>
+    <% end %>
   </div>
 </section>
 
@@ -76,7 +83,7 @@
           <tr>
             <th scope="col">Número</th><th scope="col">Contrato</th><th scope="col">Vencimento</th>
             <th scope="col" data-numerico>Valor</th><th scope="col" data-numerico>Pago</th><th scope="col" data-numerico>Saldo</th>
-            <th scope="col" data-numerico>Dias de atraso</th><th scope="col">Situação</th>
+            <th scope="col" data-numerico>Dias de atraso</th><th scope="col" data-numerico>Atualizado</th><th scope="col">Situação</th>
           </tr>
         </thead>
         <tbody>
@@ -93,6 +100,8 @@
               <td data-numerico><%= money(bill.paid_cents) %></td>
               <td data-numerico><%= money(bill.balance_cents) %></td>
               <td data-numerico><%= bill.active? && bill.due_date < @today ? number_br(bill.days_overdue(@today)) : "—" %></td>
+              <% valuation = @valuations[bill.id] %>
+              <td data-numerico><%= valuation ? money(valuation.total_cents) : "—" %></td>
               <td>
                 <% if bill.withdrawn? %><%= situacao "Retirado", tom: :neutral %>
                 <% elsif bill.paid? %><%= situacao "Pago", tom: :success %>
@@ -100,6 +109,17 @@
                 <% else %><%= situacao "A vencer", tom: :info %><% end %>
               </td>
             </tr>
+            <% if valuation %>
+              <tr>
+                <td colspan="9">
+                  <small>Atualizado de <%= bill.number %>: principal corrigido <%= money(valuation.corrected_principal_cents) %> · multa <%= money(valuation.fine_cents) %> · juros <%= money(valuation.interest_cents) %> · honorários <%= money(valuation.fees_cents) %></small>
+                  <details class="memoria-de-calculo" hx-get="<%= bill_calculation_memory_path(bill) %>" hx-trigger="toggle once" hx-target="find div" hx-swap="innerHTML" hx-push-url="false">
+                    <summary aria-label="Ver memória de cálculo do título <%= bill.number %>">Ver memória de cálculo</summary>
+                    <div><p><small>Carregando…</small></p></div>
+                  </details>
+                </td>
+              </tr>
+            <% end %>
           <% end %>
         </tbody>
       </table>

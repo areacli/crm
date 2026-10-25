@@ -8,6 +8,7 @@ module SegmentReview
       @proposal = proposal
       @tenant = proposal.tenant
       @impact = Segments::Impact.new(proposal)
+      @charges_impact = Charges::Impact.new(proposal)
       @token = proposal.token
       render "settings/segment_confirmations/show", status: status
     end

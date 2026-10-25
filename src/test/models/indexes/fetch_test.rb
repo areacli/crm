@@ -27,8 +27,9 @@ class IndexesFetchTest < ActiveSupport::TestCase
       Indexes::Fetch.new.call
       Indexes::Fetch.new.call
     end
-    assert_equal Date.new(2000, 1, 1), client.calls.first[1]
-    assert_equal Date.new(2023, 11, 1), client.calls.last[1], "desde dois meses antes do último mês trazido (jan/2024), ou 3 meses atrás, o que vier antes"
+    ipca_calls = client.calls.select { |code, _, _| code == 433 }
+    assert_equal Date.new(2000, 1, 1), ipca_calls.first[1]
+    assert_equal Date.new(2023, 11, 1), ipca_calls.last[1], "desde dois meses antes do último mês trazido (jan/2024), ou 3 meses atrás, o que vier antes"
   end
 
   test "R143 (critério de aceite): a Selic de outubro em 20/10 fica parcial; em 01/11 vira mês fechado" do
@@ -107,5 +108,20 @@ class IndexesFetchTest < ActiveSupport::TestCase
     assert_raises(Indexes::SourceError) { Indexes::BcbClient.new(http: http.new(failing)).series(433, **range) }
     silent = Class.new { def start(*, **) = raise(Timeout::Error) }
     assert_raises(Indexes::SourceError) { Indexes::BcbClient.new(http: silent.new).series(433, **range) }
+  end
+
+  test "R162 (critério de aceite): a taxa legal vem com 6 casas e o mês corrente vale como fechado desde a divulgação; a Selic do mês continua parcial" do
+    fake_bank(29543 => [ [ "01/10/2026", "0.379020" ] ], 4390 => [ [ "01/10/2026", "0.61" ] ])
+    travel_to Date.new(2026, 10, 21) do
+      Indexes::Fetch.new.call
+    end
+    legal = IndexRate.find_by!(series: "legal", month: Date.new(2026, 10, 1))
+    assert_equal [ BigDecimal("0.379020"), false ], [ legal.value, legal.partial ]
+    assert IndexRate.find_by!(series: "selic", month: Date.new(2026, 10, 1)).partial
+  end
+
+  test "R145 e R162: a correção manual vale para a taxa legal, com 6 casas" do
+    Indexes::Adjuster.new(users(:joana), tenants(:alfa)).correct(series: "legal", month: "2026-09", value: "1,499119", reason: "teste")
+    assert_equal BigDecimal("1.499119"), IndexAdjustment.find_by!(series: "legal").value
   end
 end

@@ -1,0 +1,34 @@
+<%# Memória de cálculo (09, R174), fragmento carregado pelo htmx. Locais: @bill, @result (nil se o título não tem valor atualizado), @tenant. %>
+<% if @result.nil? %>
+  <p><small>Este título não tem valor atualizado (a vencer, pago ou retirado).</small></p>
+<% else %>
+  <p><small>Parâmetros de <%= @tenant.name %>, calculado em <%= date_br(@today) %>. <%= link_to("Ver índices", settings_indexes_path) if @can_see_indexes %></small></p>
+  <div class="tabela">
+    <table>
+      <caption class="apenas-leitor-de-tela">Memória de cálculo do título <%= @bill.number %></caption>
+      <thead><tr><th scope="col">Período</th><th scope="col" data-numerico>Dias</th><th scope="col">Segmento</th><th scope="col">Correção</th><th scope="col">Juros</th><th scope="col" data-numerico>Base dos juros</th><th scope="col" data-numerico>Juros do período</th></tr></thead>
+      <tbody>
+        <% @result.stretches.each do |stretch| %>
+          <tr>
+            <th scope="row"><%= date_br(stretch[:from]) %> a <%= date_br(stretch[:to]) %></th>
+            <td data-numerico><%= number_br(stretch[:days]) %></td>
+            <td><%= stretch[:segment] %></td>
+            <td><%= stretch[:correction] %> <small>fator <%= format("%.6f", stretch[:factor]).tr(".", ",") %></small><% stretch[:notes].each do |note| %><br><small><%= note %></small><% end %></td>
+            <td><%= stretch[:interest_origin] %> <small><%= format("%.6f", stretch[:rate]).tr(".", ",") %>% (<%= format("%.4f", stretch[:months]).tr(".", ",") %> meses)</small></td>
+            <td data-numerico><%= money(stretch[:base]) %></td>
+            <td data-numerico><%= money(stretch[:interest]) %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+  <dl class="valores">
+    <div><dt>Principal</dt><dd><%= money(@result.principal) %></dd></div>
+    <div><dt>Principal corrigido</dt><dd><%= money(@result.corrected_principal) %></dd></div>
+    <div><dt>Multa</dt><dd><%= money(@result.fine) %></dd></div>
+    <div><dt>Juros</dt><dd><%= money(@result.interest) %></dd></div>
+    <div><dt>Honorários</dt><dd><%= money(@result.fees) %></dd></div>
+    <div><dt>Atualizado</dt><dd><%= money(@result.total) %></dd></div>
+  </dl>
+  <% @result.notes.each do |note| %><p><small><%= note %></small></p><% end %>
+<% end %>

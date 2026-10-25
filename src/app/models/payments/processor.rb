@@ -19,12 +19,16 @@ module Payments
       # Estado dos títulos que recebem mais de um pagamento no fluxo: só esses precisam atravessar os lotes (guardar o estado de todos
       # estouraria a memória com 200 mil pagamentos); os demais usam o valor lido do banco.
       memo = {}
+      # Credor com regra de encargos: o pagamento cobre o valor atualizado na data dele, encargos antes do principal (09, R226).
+      settlement = Charges::Settlement.for(import.tenant)
       (1..total).step(CHUNK) do |from|
         rows = Sql.rows("select * from payment_stream where n between ? and ? order by n", from, from + CHUNK - 1)
         new_payments = []
         updates = []
         credits = []
         bills = {}
+        allocations = []
+        settlement&.preload(rows.filter_map { |row| row["bill_id"]&.to_i }.uniq)
 
         rows.each do |row|
           amount = row["amount_cents"].to_i
@@ -40,8 +44,11 @@ module Payments
 
           bill_id = row["bill_id"].to_i
           paid, status, paid_on = memo[bill_id] || [ row["paid_cents"].to_i, row["bill_status"], bills.dig(bill_id, :paid_on) ]
-          result = Allocation.call(setting, bill_amount: row["bill_amount"].to_i, status: status, paid: paid, amount: amount)
-          paid += result.applied
+          pay_date = row["paid_on"].is_a?(Date) ? row["paid_on"] : Date.parse(row["paid_on"].to_s)
+          due = status == "active" ? settlement&.due(bill_id, pay_date, row["bill_amount"].to_i - paid) : nil
+          result = Allocation.call(setting, bill_amount: row["bill_amount"].to_i, status: status, paid: paid, amount: amount, due: due)
+          settlement&.record(bill_id, pay_date, result.components)
+          paid += result.principal
           if result.settled
             status = "paid"
             paid_on = row["paid_on"]
@@ -63,13 +70,15 @@ module Payments
           else
             new_payments << payment_row(import, row, bill_id, "applied", result.applied, result.credit)
           end
+          key = row["src"].to_i.zero? ? row["payment_id"].to_i : [ row["channel_id"].to_i, row["identifier"] ]
+          allocations << { key: key, bill_id: bill_id, components: result.components } if result.components.any?
           next unless result.credit.positive?
 
           credits << { contract_id: row["contract_id"].to_i, key: row["src"].to_i.zero? ? row["payment_id"].to_i : [ row["channel_id"].to_i, row["identifier"] ],
                        amount: result.credit, reason: result.reason }
         end
 
-        write(import, new_payments, updates, credits, bills) if commit
+        write(import, new_payments, updates, credits, bills, allocations) if commit
       end
       summary.to_h.symbolize_keys
     end
@@ -86,16 +95,21 @@ module Payments
                            credit_cents reversed_cents credit_reversed_cents created_at updated_at].freeze
 
       # Grava pelo COPY (medido: o `insert_all!` do Active Record levava mais da metade da confirmação de 200 mil pagamentos).
-      def write(import, new_payments, updates, credits, bills)
+      def write(import, new_payments, updates, credits, bills, allocations)
         now = Time.current
         Sql.copy_in("payments", PAYMENT_COLUMNS, new_payments.map { |row| PAYMENT_COLUMNS.map { |column| row.fetch(column.to_sym) { now } } })
         update_pending(import, updates)
 
-        ids = payment_ids(import, credits)
+        ids = payment_ids(import, credits + allocations)
         credit_rows = credits.map do |credit|
           payment_id = credit[:key].is_a?(Array) ? ids.fetch(credit[:key]) : credit[:key]
           [ import.tenant_id, credit[:contract_id], payment_id, import.user_id, "entry", credit[:amount], credit[:reason], now ]
         end
+        Sql.copy_in("payment_allocations", %w[payment_id bill_id component amount_cents created_at],
+                    allocations.flat_map do |allocation|
+                      payment_id = allocation[:key].is_a?(Array) ? ids.fetch(allocation[:key]) : allocation[:key]
+                      allocation[:components].map { |component, cents| [ payment_id, allocation[:bill_id], component, cents, now ] }
+                    end)
         Sql.copy_in("credits", %w[tenant_id contract_id payment_id user_id kind amount_cents reason occurred_at], credit_rows)
 
         changes = credits.map { |credit| [ "contract", credit[:contract_id], "credit_added", credit[:amount].to_s ] } +
@@ -106,13 +120,15 @@ module Payments
         update_bills(bills)
       end
 
-      # Ids dos pagamentos novos que geraram crédito, pela chave (canal, identificador).
+      # Ids dos pagamentos novos que geraram crédito ou alocação, pela chave (canal, identificador). Uma consulta por canal, pelo índice único
+      # `payments (tenant_id, channel_id, identifier)`: sem o canal na consulta o índice não serve e cada lote varria os pagamentos do credor.
       def payment_ids(import, credits)
         keys = credits.filter_map { |credit| credit[:key] if credit[:key].is_a?(Array) }
         return {} if keys.empty?
 
-        Sql.rows("select id, channel_id, identifier from payments where tenant_id = ? and import_id = ? and identifier in (?)", import.tenant_id, import.id,
-                 keys.map(&:last)).to_h { |row| [ [ row["channel_id"].to_i, row["identifier"] ], row["id"].to_i ] }
+        keys.group_by(&:first).flat_map do |channel_id, channel_keys|
+          Sql.rows("select id, channel_id, identifier from payments where tenant_id = ? and channel_id = ? and identifier in (?)", import.tenant_id, channel_id, channel_keys.map(&:last))
+        end.to_h { |row| [ [ row["channel_id"].to_i, row["identifier"] ], row["id"].to_i ] }
       end
 
       # Pendente cujo título passou a existir: vira aplicado (R52), com o que baixou e o que virou crédito.

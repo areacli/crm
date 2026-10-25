@@ -23,6 +23,23 @@ class TenantSetting < ApplicationRecord
   # Produto do contrato no segmento (R150, R151, DS1): pelo título mais atrasado (padrão), pelo maior saldo ou por qualquer título.
   enum :segment_product_policy, { most_overdue: "most_overdue", largest_balance: "largest_balance", any_bill: "any_bill" }, prefix: true, validate: true
 
+  # Encargos do credor (09): parâmetros que os segmentos herdam (R160, R207a) e as políticas que mudam o cálculo (R165, R180 a R182).
+  enum :charge_index, { none: "none", ipca: "ipca", inpc: "inpc", igpm: "igpm" }, prefix: true, validate: true
+  enum :charge_days_convention, { calendar: "calendar", thirty: "thirty" }, prefix: true, validate: true
+  enum :charge_fine_base, { corrected: "corrected", face: "face" }, prefix: true, validate: true
+  enum :missing_index_policy, { closed_only: "closed_only", last_prorated: "last_prorated" }, prefix: true, validate: true
+  enum :default_interest_form, { simple: "simple", compound: "compound" }, prefix: true, validate: true
+  enum :negative_index_policy, { floor: "floor", always: "always", ignore: "ignore" }, prefix: true, validate: true
+  enum :old_legal_interest_policy, { selic: "selic", one_percent: "one_percent", none: "none" }, prefix: true, validate: true
+  enum :surcharge_comparison_policy, { before: "before", after: "after" }, prefix: true, validate: true
+  validates :charge_fine_pct, :charge_interest_pct, numericality: { greater_than_or_equal_to: 0, less_than_or_equal_to: 100 }
+
+  # Os campos que a conferência do impacto leva e a confirmação grava (parâmetros e políticas de encargos).
+  CHARGE_PARAMS = %w[charge_fine_pct charge_interest_pct charge_index charge_days_convention charge_fine_base].freeze
+  CHARGE_POLICIES = %w[missing_index_policy default_interest_form negative_index_policy old_legal_interest_policy surcharge_comparison_policy].freeze
+  # A política "comparação dos acréscimos" não muda valores: grava sem mudar o valor atualizado (R182); as outras passam pela conferência.
+  CHARGE_FIELDS = (CHARGE_PARAMS + CHARGE_POLICIES).freeze
+
   PAYMENT_POLICIES = %w[partial_payment_policy withdrawn_payment_policy withdrawn_reversal_policy reversal_month_policy].freeze
 
   # Faixas iniciais de atraso, em dias: de 1 a 30, de 31 a 60, de 61 a 90, de 91 a 180, de 181 a 360 e mais de 360.

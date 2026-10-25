@@ -153,7 +153,8 @@ class SegmentsApplierTest < ActiveSupport::TestCase
     Segments::Calculator.class_eval { alias_method :original_sql, :sql }
     Segments::Calculator.define_method(:sql) { raise ActiveRecord::StatementInvalid, "falha simulada" if @tenant.name == "Escola Alfa"; original_sql }
     begin
-      assert_broadcasts(SegmentsChannel.broadcasting_for(@alfa), 1) do
+      # Um aviso do recálculo dos segmentos e outro da abertura do recálculo dos valores atualizados (09), que o segue.
+      assert_broadcasts(SegmentsChannel.broadcasting_for(@alfa), 2) do
         SegmentsDispatchJob.perform_now
         [ @alfa, @beta ].each { |tenant| SegmentsRecalculationJob.perform_now(tenant) }
       end
@@ -173,7 +174,7 @@ class SegmentsApplierTest < ActiveSupport::TestCase
     Portfolio::ImportChecker.new.run(import.reload)
     Portfolio::ImportService.new.confirm(import.reload)
     ConfirmImportJob.perform_now(import.reload)
-    assert_enqueued_with(job: SegmentsRecalculationJob, args: [ @alfa ])
+    assert_enqueued_with(job: SegmentsRecalculationJob, args: [ @alfa, import ])
   ensure
     ActiveJob::Base.queue_adapter = include_adapter
   end

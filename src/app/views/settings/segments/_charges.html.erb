@@ -1,0 +1,55 @@
+<%# Regra de encargos do segmento (09, R160, R177). Locais: form, segment, raw, setting (os parâmetros do credor que o campo vazio herda). %>
+<fieldset>
+  <legend>Encargos</legend>
+  <p><small>Campo vazio usa o parâmetro do credor (multa <%= charge_pct(setting.charge_fine_pct) %>, juros <%= charge_pct(setting.charge_interest_pct) %> ao mês, <%= charge_label(:index, setting.charge_index) %>). Mudar a regra passa pela conferência do impacto.</small></p>
+
+  <div class="campo">
+    <%= form.label :fine_pct, "Multa (%)" %>
+    <%= form.text_field :fine_pct, value: charge_field_value(segment, raw, :fine_pct), inputmode: "decimal", autocomplete: "off", "aria-describedby": "ajuda-multa#{(' erro-fine_pct' if segment.errors[:fine_pct].any?)}" %>
+    <small id="ajuda-multa">Percentual sobre o principal, devido uma vez, no dia seguinte ao vencimento. Acima de 2% o aviso do CDC aparece na conferência.</small>
+    <% segment.errors[:fine_pct].each do |message| %><small id="erro-fine_pct" role="alert"><%= message %></small><% end %>
+  </div>
+
+  <div class="campo">
+    <%= form.label :interest_kind, "Juros de mora" %>
+    <%= form.select :interest_kind, Segment::INTEREST_KINDS.map { |kind| [ charge_label(:interest_kind, kind), kind ] }, { selected: charge_choice(segment, raw, :interest_kind) } %>
+    <small>Taxa fixa ao mês, ou taxa legal (Código Civil, art. 406: Selic menos o índice de correção, sempre em juros simples; com ela, a taxa fixa e a forma dos juros não se aplicam).</small>
+  </div>
+
+  <div class="campo">
+    <%= form.label :interest_pct, "Taxa fixa (% ao mês)" %>
+    <%= form.text_field :interest_pct, value: charge_field_value(segment, raw, :interest_pct), inputmode: "decimal", autocomplete: "off", "aria-describedby": ("erro-interest_pct" if segment.errors[:interest_pct].any?) %>
+    <% segment.errors[:interest_pct].each do |message| %><small id="erro-interest_pct" role="alert"><%= message %></small><% end %>
+  </div>
+
+  <div class="campo">
+    <%= form.label :interest_form, "Forma dos juros fixos" %>
+    <%= form.select :interest_form, Segment::INTEREST_FORMS.map { |value| [ charge_label(:interest_form, value), value ] }, { selected: charge_choice(segment, raw, :interest_form) } %>
+  </div>
+
+  <div class="campo">
+    <%= form.label :index_code, "Correção monetária" %>
+    <%= form.select :index_code, [ [ "Usar a do credor (#{charge_label(:index, setting.charge_index)})", "" ] ] + Segment::INDEX_CODES.map { |value| [ charge_label(:index, value), value ] }, { selected: charge_choice(segment, raw, :index_code) } %>
+  </div>
+
+  <div class="campo">
+    <%= form.label :fees_pct, "Honorários de cobrança (%)" %>
+    <%= form.text_field :fees_pct, value: charge_field_value(segment, raw, :fees_pct), inputmode: "decimal", autocomplete: "off", "aria-describedby": ("erro-fees_pct" if segment.errors[:fees_pct].any?) %>
+    <% segment.errors[:fees_pct].each do |message| %><small id="erro-fees_pct" role="alert"><%= message %></small><% end %>
+    <label>
+      <%= check_box_tag "segment[fees_in_contract]", "1", (raw&.key?(:fees_in_contract) ? raw[:fees_in_contract].to_s == "1" : segment.fees_in_contract?), id: "segment_fees_in_contract" %>
+      O contrato prevê honorários
+    </label>
+    <small>Percentual sobre principal corrigido, multa e juros. Só vale com a marca "o contrato prevê honorários".</small>
+  </div>
+
+  <div class="campo">
+    <%= form.label :days_convention, "Convenção de dias dos juros" %>
+    <%= form.select :days_convention, [ [ "Usar a do credor (#{charge_label(:days_convention, setting.charge_days_convention)})", "" ] ] + Segment::DAYS_CONVENTIONS.map { |value| [ charge_label(:days_convention, value), value ] }, { selected: charge_choice(segment, raw, :days_convention) } %>
+  </div>
+
+  <div class="campo">
+    <%= form.label :fine_base, "Base da multa" %>
+    <%= form.select :fine_base, [ [ "Usar a do credor (#{charge_label(:fine_base, setting.charge_fine_base)})", "" ] ] + Segment::FINE_BASES.map { |value| [ charge_label(:fine_base, value), value ] }, { selected: charge_choice(segment, raw, :fine_base) } %>
+  </div>
+</fieldset>

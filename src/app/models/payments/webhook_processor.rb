@@ -25,6 +25,7 @@ module Payments
           apply(event, channel, row)
         end
       end
+      ValuesRecalculationJob.enqueue_for(channel.tenant, reason: "pagamento") if event.reload.applied? # 09, R173: o principal em aberto mudou
     end
 
     private

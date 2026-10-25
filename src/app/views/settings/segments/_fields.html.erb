@@ -1,9 +1,11 @@
 <%# Campos do segmento (R148, R150). Locais: form, segment, raw (o que foi digitado, quando houve erro). Critério vazio aceita qualquer valor. %>
 <div class="campo">
   <%= form.label :name, "Nome" %>
-  <%= form.text_field :name, value: segment.name, required: true, maxlength: 100 %>
+  <%= form.text_field :name, value: segment.name, required: true, maxlength: 100, readonly: segment.catch_all? %>
   <small>Único dentro do credor, sem diferença de maiúsculas e acentos.</small>
 </div>
+
+<% unless segment.catch_all? %>
 
 <% ranges = [
   [ :overdue_days, "Atraso do contrato (dias)", "Pelo título em cobrança mais atrasado do contrato." ],
@@ -45,3 +47,6 @@
   <%= form.select :broke_agreement, [ [ "Tanto faz", "" ], [ "Sim", "yes" ], [ "Não", "no" ] ], { selected: segment.broke_agreement.to_s } %>
   <small>Até o escopo de acordos, nenhum contrato quebrou acordo: segmento que exige "sim" não pega ninguém.</small>
 </div>
+<% end %>
+<%= render "settings/segments/charges", form: form, segment: segment, raw: raw, setting: setting %>
+

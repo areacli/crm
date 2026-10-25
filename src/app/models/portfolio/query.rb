@@ -59,6 +59,15 @@ module Portfolio
       rows.to_h { |row| [ row["customer_id"].to_i, row["name"] ] }
     end
 
+    # Valor atualizado dos títulos vencidos de cada cliente da página (09, R175): lido de `bill_valuations` só para os (até 100) clientes mostrados, depois da
+    # paginação, sem mexer na consulta principal da lista. Consulta: `bills (customer_id, number)` e a chave de `bill_valuations`. A lista não traz total.
+    def updated_totals(customer_ids)
+      return {} if customer_ids.empty?
+
+      Portfolio::Sql.rows("select b.customer_id, sum(v.total_cents)::bigint as cents from bill_valuations v join bills b on b.id = v.bill_id where b.customer_id in (?) group by 1",
+                          customer_ids).to_h { |row| [ row["customer_id"].to_i, row["cents"].to_i ] }
+    end
+
     # Segmentos que o usuário pode escolher no filtro: os ativos dos credores em que consulta (R159).
     def segment_options(ids = tenant_ids) = Segment.where(tenant_id: ids, active: true).includes(:tenant).ordered.to_a
 

@@ -5,14 +5,18 @@ module Segments
     PURPOSE = :segments_proposal
     NEW_ID = -1
 
-    attr_reader :tenant, :entries, :policy, :version
+    attr_reader :tenant, :entries, :policy, :version, :charges
 
-    def initialize(tenant, entries:, policy:, version:)
+    # `charges`: os parâmetros e as políticas de encargos do credor (09, R160, R163, R180 a R182), chave => valor em texto.
+    def initialize(tenant, entries:, policy:, version:, charges: nil)
       @tenant = tenant
       @entries = entries
       @policy = policy
       @version = version
+      @charges = charges || self.class.charges_of(tenant.setting)
     end
+
+    def self.charges_of(setting) = TenantSetting::CHARGE_FIELDS.index_with { |name| setting[name].to_s }
 
     def self.current(tenant)
       setting = tenant.setting
@@ -21,17 +25,18 @@ module Segments
 
     def self.entry_of(segment)
       { id: segment.id, name: segment.name, active: segment.active, catch_all: segment.catch_all }.merge(segment.criteria.symbolize_keys)
+        .merge(Segment::CHARGE_FIELDS.index_with { |field| segment[field] })
     end
 
     def self.from_token(tenant, token)
       data = Rails.application.message_verifier(:segments).verified(token, purpose: PURPOSE)
       raise Refused, I18n.t("segments.errors.invalid_token") unless data && data["tenant_id"] == tenant.id
 
-      new(tenant, entries: data["entries"].map { |entry| entry.symbolize_keys }, policy: data["policy"], version: data["version"])
+      new(tenant, entries: data["entries"].map { |entry| entry.symbolize_keys }, policy: data["policy"], version: data["version"], charges: data["charges"])
     end
 
     def token
-      Rails.application.message_verifier(:segments).generate({ "tenant_id" => tenant.id, "version" => version, "policy" => policy, "entries" => entries },
+      Rails.application.message_verifier(:segments).generate({ "tenant_id" => tenant.id, "version" => version, "policy" => policy, "entries" => entries, "charges" => charges },
                                                              expires_in: 30.minutes, purpose: PURPOSE)
     end
 
@@ -58,9 +63,16 @@ module Segments
 
     def with_policy(policy) = copy(policy: policy)
 
+    def with_charges(changes) = copy(charges: charges.merge(changes.stringify_keys))
+
+    # Os parâmetros do credor e as regras de cada segmento como o cálculo os lê (09, R160), com o que a proposta muda.
+    def params = charges.slice(*TenantSetting::CHARGE_PARAMS).symbolize_keys
+
+    def rule_of(entry) = Charges::Rule.build(entry, params)
+
     def name_of(id) = id.nil? ? I18n.t("segments.none") : entries.find { |entry| entry[:id] == id }&.fetch(:name) || Segment.find_by(id: id)&.name || I18n.t("segments.none")
 
     private
-      def copy(entries: self.entries, policy: self.policy) = self.class.new(tenant, entries: entries, policy: policy, version: version)
+      def copy(entries: self.entries, policy: self.policy, charges: self.charges) = self.class.new(tenant, entries: entries, policy: policy, version: version, charges: charges)
   end
 end

@@ -10,6 +10,15 @@ class Segment < ApplicationRecord
   CRITERIA = (RANGE_COLUMNS + %i[person_type broke_agreement products]).freeze
   PERSON_TYPES = %w[person company mixed].freeze
 
+  # Regra de encargos do segmento (09, R160): campo vazio (nil) herda o parâmetro do credor (R207a); forma, taxa legal e honorários são só do segmento.
+  CHARGE_FIELDS = %i[fine_pct interest_kind interest_pct interest_form index_code fees_pct fees_in_contract days_convention fine_base].freeze
+  INTEREST_KINDS = %w[none fixed legal].freeze
+  INTEREST_FORMS = %w[simple compound].freeze
+  INDEX_CODES = %w[none ipca inpc igpm].freeze
+  DAYS_CONVENTIONS = %w[calendar thirty].freeze
+  FINE_BASES = %w[corrected face].freeze
+  CDC_FINE_LIMIT = 2 # CDC, art. 52, § 1º (R161): aviso, sem impedir a gravação
+
   has_many :contract_segments, dependent: :restrict_with_error
   has_many :contracts, dependent: :nullify
 
@@ -18,7 +27,13 @@ class Segment < ApplicationRecord
   validates :name, presence: true, length: { maximum: 100 }
   validates :person_type, inclusion: { in: PERSON_TYPES }, allow_nil: true
   validates :broke_agreement, inclusion: { in: %w[yes no] }, allow_nil: true
-  validate :unique_name, :ranges_consistent, :catch_all_has_no_criteria
+  validates :interest_kind, inclusion: { in: INTEREST_KINDS }
+  validates :interest_form, inclusion: { in: INTEREST_FORMS }
+  validates :index_code, inclusion: { in: INDEX_CODES }, allow_nil: true
+  validates :days_convention, inclusion: { in: DAYS_CONVENTIONS }, allow_nil: true
+  validates :fine_base, inclusion: { in: FINE_BASES }, allow_nil: true
+  validates :fine_pct, :interest_pct, :fees_pct, numericality: { greater_than_or_equal_to: 0, less_than_or_equal_to: 100 }, allow_nil: true
+  validate :unique_name, :ranges_consistent, :catch_all_has_no_criteria, :fees_need_contract_mark
 
   scope :ordered, -> { order(:catch_all, :position, :id) }
   scope :active_ones, -> { where(active: true) }
@@ -32,10 +47,16 @@ class Segment < ApplicationRecord
 
   def any_criteria? = criteria.values.any?(&:present?)
 
+  # Multa acima de 2% num segmento que aceita pessoa física (tipo "pessoa física" ou "tanto faz") leva o aviso do CDC (R161).
+  def fine_above_cdc_limit?(fine = fine_pct) = fine.to_d > CDC_FINE_LIMIT && person_type != "company"
+
   private
     def normalize
       self.name = name.to_s.squish
       self.name_key = FoldedText.fold(name)
+      # R162: com a taxa legal a forma dos juros não se aplica (é sempre simples) e não há taxa fixa.
+      self.interest_form = "simple" if interest_kind == "legal"
+      self.interest_pct = nil if interest_kind != "fixed"
       self.products = Array(products).filter_map { |product| FoldedText.fold(product).presence }.uniq
     end
 
@@ -55,6 +76,11 @@ class Segment < ApplicationRecord
         errors.add(:"max_#{range}", :range_inverted) if low && high && low > high
       end
       %i[min_overdue_percent max_overdue_percent].each { |name| errors.add(name, :percent) if self[name] && self[name] > 100 }
+    end
+
+    # R160, R161: honorários só com a marca "o contrato prevê honorários".
+    def fees_need_contract_mark
+      errors.add(:fees_pct, :fees_without_contract) if fees_pct.to_d.positive? && !fees_in_contract?
     end
 
     def catch_all_has_no_criteria

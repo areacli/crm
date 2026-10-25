@@ -4,7 +4,7 @@ module Indexes
   class Adjuster
     class Refused < StandardError; end
 
-    VALUE_FORMAT = /\A-?\d{1,5}([.,]\d{1,4})?\z/
+    VALUE_FORMAT = /\A-?\d{1,5}([.,]\d{1,6})?\z/
 
     def initialize(user, tenant)
       @user = user
@@ -27,6 +27,7 @@ module Indexes
         adjustment.update!(value: number, reason: reason.truncate(300), user: @user, adjusted_at: Time.current)
         log("corrected", adjustment, before, number, reason)
       end
+      ValuesRecalculationJob.enqueue_for(@tenant, reason: "índice") # R173: só o credor que corrigiu
       Broadcast.changed
       adjustment
     end
@@ -42,6 +43,7 @@ module Indexes
         log("correction_undone", adjustment, adjustment.value, bank, reason)
         adjustment.destroy!
       end
+      ValuesRecalculationJob.enqueue_for(@tenant, reason: "índice")
       Broadcast.changed
     end
 

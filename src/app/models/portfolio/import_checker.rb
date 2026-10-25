@@ -166,7 +166,7 @@ module Portfolio
         reported = surcharges_reported(id)
 
         { lines: lines, valid: ok["bills"].to_i, discrepancy_policy: policy, correction_policy: setting.correction_policy, kept_by_tenant: kept_by_tenant(tenant_id, id),
-          contact_warnings: ImportWarning.where(import_id: id).count, contacts: Sql.one("select count(*) as n from import_contacts where import_id = ?", id)["n"].to_i, discrepancies: discrepancies(tenant_id, id, policy), reported_surcharges: reported, rejected: ImportRejection.where(import_id: id).count, blank_lines: file.blank_lines,
+          contact_warnings: ImportWarning.where(import_id: id).count, contacts: Sql.one("select count(*) as n from import_contacts where import_id = ?", id)["n"].to_i, discrepancies: discrepancies(tenant_id, id, policy), reported_surcharges: reported, surcharge_comparison: (Charges::SurchargeComparison.before(import) if setting.surcharge_comparison_policy_before?), rejected: ImportRejection.where(import_id: id).count, blank_lines: file.blank_lines,
           ignored_columns: file.ignored_columns, customers: ok["customers"].to_i, customers_new: new_customers.to_i, amount_cents: ok["amount"].to_i,
           bills_new: existing["bills_new"].to_i, bills_updated: existing["bills_updated"].to_i, bills_unchanged: existing["bills_unchanged"].to_i,
           bills_reincluded: existing["bills_reincluded"].to_i, bills_paid_kept: existing["bills_paid_kept"].to_i, to_withdraw: withdraw,

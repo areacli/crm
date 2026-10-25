@@ -6,7 +6,7 @@ module Settings
 
       def create
         segment = Segment.find(params[:segment_id])
-        authorize segment, :update?
+        authorize segment, :rearrange?
         direction = params.expect(movement: [ :direction ])[:direction]
         return head(:unprocessable_content) unless %w[up down].include?(direction)
 

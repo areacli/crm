@@ -5,7 +5,7 @@ module Indexes
   class Fetch
     NAME = "index_fetch"
     RUNNING_WINDOW = 30.minutes
-    VALUE_FORMAT = /\A-?\d{1,5}(\.\d{1,4})?\z/
+    VALUE_FORMAT = /\A-?\d{1,5}(\.\d{1,6})?\z/
     DATE_FORMAT = %r{\A\d{2}/\d{2}/\d{4}\z}
 
     class Failed < StandardError; end
@@ -54,12 +54,15 @@ module Indexes
         current = today.beginning_of_month
         known = IndexRate.where(series: series, month: rows.map(&:first)).pluck(:month, :value, :partial).to_h { |m, v, p| [ m, [ v, p ] ] }
         added = rows.count { |month, _| !known.key?(month) }
-        revised = rows.count { |month, value| known[month] && (known[month][0] != value || known[month][1] != (month >= current)) }
+        revised = rows.count { |month, value| known[month] && (known[month][0] != value || known[month][1] != partial?(series, month, current)) }
         now = Time.current
-        # O mês corrente nunca é gravado como mês fechado (R143); o fechado sobrescreve o parcial.
-        IndexRate.upsert_all(rows.map { |month, value| { series: series, month: month, value: value, partial: month >= current, fetched_at: now } }, unique_by: %i[series month]) if rows.any?
+        # O mês corrente nunca é gravado como mês fechado (R143), exceto a taxa legal, definitiva desde a divulgação (09, R162); o fechado
+        # sobrescreve o parcial.
+        IndexRate.upsert_all(rows.map { |month, value| { series: series, month: month, value: value, partial: partial?(series, month, current), fetched_at: now } }, unique_by: %i[series month]) if rows.any?
         [ added, revised ]
       end
+
+      def partial?(series, month, current) = series != "legal" && month >= current
 
       def validate(payload)
         raise SourceError, I18n.t("indexes.errors.invalid") unless payload.is_a?(Array)

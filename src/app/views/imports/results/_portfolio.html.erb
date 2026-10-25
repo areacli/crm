@@ -116,3 +116,8 @@
     </div>
   </section>
 <% end %>
+
+<% comparison = data[:surcharge_comparison] %>
+<% if comparison.present? %>
+  <%= render "imports/results/surcharge_comparison", comparison: comparison %>
+<% end %>

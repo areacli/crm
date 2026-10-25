@@ -15,12 +15,17 @@ module Segments
           log("tenant_setting", setting.id, "updated", "segment_product_policy", setting.segment_product_policy, proposal.policy, tenant)
           setting.segment_product_policy = proposal.policy
         end
+        save_charges(tenant, setting, proposal)
         setting.segments_version += 1
         setting.save!
         tenant.association(:setting).reset
+        # 09, AN1: a regra efetiva de cada segmento fica guardada com a data da mudança; o encargo até um pagamento segue a regra vigente nele.
+        Charges::RuleHistory.record!(tenant)
         Recalculation.new(tenant).apply
       end
       Broadcast.changed(tenant)
+      # 09, R163, R173: a regra nova vale já, para todos os títulos em aberto; o recálculo roda em segundo plano, em até 2 minutos.
+      ValuesRecalculationJob.enqueue_for(tenant, reason: "encargos")
     end
 
     private
@@ -30,7 +35,7 @@ module Segments
           segment = entry[:id].to_i.positive? ? Segment.find_by!(id: entry[:id], tenant_id: tenant.id) : Segment.new(tenant: tenant)
           before = segment.attributes.slice(*tracked)
           segment.position = entry[:catch_all] ? 0 : (position += 1)
-          segment.assign_attributes(entry.slice(:name, :active, *Segment::CRITERIA))
+          segment.assign_attributes(entry.slice(:name, :active, *Segment::CRITERIA, *Segment::CHARGE_FIELDS))
           segment.save!
           if segment.previously_new_record?
             log("segment", segment.id, "created", nil, nil, segment.name, tenant)
@@ -44,7 +49,15 @@ module Segments
         end
       end
 
-      def tracked = %w[name position active] + Segment::CRITERIA.map(&:to_s)
+      # Parâmetros e políticas de encargos do credor (09, R160, R163, R180 a R182): registra cada campo que mudou, com antes e depois (R156).
+      def save_charges(tenant, setting, proposal)
+        setting.assign_attributes(proposal.charges.slice(*TenantSetting::CHARGE_FIELDS))
+        setting.changes.slice(*TenantSetting::CHARGE_FIELDS).each do |field, (before, after)|
+          log("tenant_setting", setting.id, "updated", field, before.to_s, after.to_s, tenant)
+        end
+      end
+
+      def tracked = %w[name position active] + Segment::CRITERIA.map(&:to_s) + Segment::CHARGE_FIELDS.map(&:to_s)
 
       def log(type, id, event, field, before, after, tenant)
         Change.create!(tenant_id: tenant.id, user: @user, subject_type: type, subject_id: id, event: event, field: field, before: before, after: after, origin: "screen")

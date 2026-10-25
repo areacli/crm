@@ -552,4 +552,123 @@ namespace :crm do
     tenant.destroy
     puts "credor de medição apagado"
   end
+
+  desc "V4 dos encargos (09): N contratos (2 títulos vencidos cada), 5 segmentos com regras diferentes, índices desde 2000 e P pagamentos; mede recálculo, conferência, confirmação, lista, ficha, resumo e a baixa por componente: crm:measure_charges[contratos,pagamentos]"
+  task :measure_charges, %i[contracts payments] => :environment do |_task, args|
+    abort "Recusado em produção." if Rails.env.production?
+
+    count = (args[:contracts].presence || 10_000).to_i
+    payments = (args[:payments].presence || count).to_i
+    tenant = Tenant.provision!("Medição de encargos #{Time.current.strftime('%H%M%S')}")
+    t = tenant.id
+    user = User.create!(name: "Medição", email_address: "medicao#{t}@exemplo.com.br", password: SecureRandom.base58(24))
+    Membership.create!(user: user, tenant: tenant, profile: tenant.profiles.find_by!(name: "Gestor"))
+    ActiveJob::Base.queue_adapter = :test
+    sql = Portfolio::Sql
+    measure = lambda do |label, limit = nil, &work|
+      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      result = work.call
+      elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+      peak = (File.read("/proc/self/status")[/VmHWM:\s+(\d+)/, 1].to_i / 1024 rescue 0)
+      verdict = limit ? (elapsed <= limit ? "  ok (limite #{limit} s)" : "  ACIMA do limite de #{limit} s") : ""
+      puts format("%-62s %8.2f s   (pico de memória %d MB)%s", label, elapsed, peak, verdict)
+      result
+    end
+
+    # Índices mensais desde janeiro de 2000 (valores fictícios) para as cinco séries; a medição usa o mesmo banco dos testes.
+    months = (Date.new(2000, 1, 1)..Date.current.beginning_of_month.prev_month).select { |d| d.day == 1 }
+    saved_rates = IndexRate.all.map(&:attributes)
+    IndexRate.delete_all
+    IndexRate.insert_all!(IndexRate::SERIES.flat_map { |series| months.each_with_index.map { |month, i| { series: series, month: month, value: (0.2 + (i % 7) * 0.11).round(6), partial: false, fetched_at: Time.current } } })
+
+    (1..count).each_slice(10_000) { |slice| Customer.insert_all!(slice.map { |i| { tenant_id: t, document: FakeData.cpf(i), name: "Cliente #{i}" } }) }
+    sql.run("insert into contracts (tenant_id, code, created_at, updated_at) select ?, 'CT-' || id, now() - ((id % 700) || ' days')::interval, now() from customers where tenant_id = ?", t, t)
+    sql.execute("analyze customers, contracts")
+    sql.run("insert into contract_customers (contract_id, customer_id, roles) select k.id, c.id, '[]'::jsonb from customers c join contracts k on k.tenant_id = c.tenant_id and k.code = 'CT-' || c.id where c.tenant_id = ?", t)
+    sql.run("insert into bills (tenant_id, contract_id, customer_id, number, due_date, amount_cents, paid_cents, status, product, created_at, updated_at) " \
+            "select ?, cc.contract_id, c.id, 'NF-' || c.id || '/' || n, current_date - ((1 + (c.id * 37 + n * 11) % 400)::int), 5000 + (c.id * 7919 + n * 131) % 250000, 0, 'active', " \
+            "case n when 1 then 'Mensalidade' else 'Cartão' end, now(), now() " \
+            "from customers c join contract_customers cc on cc.customer_id = c.id cross join generate_series(1, 2) n where c.tenant_id = ?", t, t)
+    sql.execute("analyze bills, contract_customers")
+    puts "#{count} contratos (#{count * 2} títulos vencidos) criados no credor de medição"
+
+    tenant.setting.update!(charge_fine_pct: 2, charge_interest_pct: 1, charge_index: "ipca")
+    Segment.catch_all_of(tenant).update!(interest_kind: "fixed", fees_pct: 10, fees_in_contract: true)
+    Segment.create!(tenant: tenant, name: "Varejo PF recente", position: 1, person_type: "person", min_overdue_days: 1, max_overdue_days: 90, interest_kind: "fixed", index_code: "ipca")
+    Segment.create!(tenant: tenant, name: "PF", position: 2, person_type: "person", interest_kind: "fixed", interest_pct: 2, index_code: "inpc")
+    Segment.create!(tenant: tenant, name: "Pessoa jurídica", position: 3, person_type: "company", interest_kind: "legal", index_code: "ipca")
+    Segment.create!(tenant: tenant, name: "Muito vencido", position: 4, min_overdue_bills: 2, min_overdue_percent: 50, interest_kind: "fixed", interest_form: "compound", index_code: "igpm")
+    Charges::RuleHistory.record!(tenant, since: Date.current - 400)
+    Segments::Recalculation.new(tenant).apply
+    sql.execute("analyze contract_segments, contracts")
+
+    measure.call("recálculo diário do valor atualizado (#{count * 2} títulos)", 120) { Charges::Recalculation.new(tenant).apply }
+    puts "  títulos com valor atualizado: #{BillValuation.where(tenant_id: t).count}; total R$ #{Money.format(BillValuation.where(tenant_id: t).sum(:total_cents))}"
+    sql.execute("analyze bill_valuations")
+
+    measure.call("recálculo diário de novo (medido sem a carga fria)", 120) { Charges::Recalculation.new(tenant).apply }
+    impact_rule = measure.call("conferir uma mudança de regra em 'PF' (juros 2% → 3%)", 10) do
+      segment = Segment.find_by!(tenant_id: t, name: "PF")
+      proposal = Segments::Proposal.current(tenant).with_updated(segment.tap { |record| record.interest_pct = 3 })
+      Charges::Impact.new(proposal).tap(&:rows)
+    end
+    puts "  diferença: R$ #{Money.format(impact_rule.total_difference_cents)} em #{impact_rule.rows.sum(&:customers)} clientes"
+    measure.call("conferir uma mudança de política ('Índice negativo' sempre; base toda)", 10) { Charges::Impact.new(Segments::Proposal.current(tenant).with_charges("negative_index_policy" => "always")).tap(&:rows) }
+    measure.call("confirmar a mudança de regra (grava; o recálculo vai para o segundo plano)", 10) do
+      Segments::Applier.new(user).confirm(tenant, Segments::Proposal.current(tenant).with_charges("charge_interest_pct" => "1.5").token)
+    end
+    measure.call("recálculo depois da confirmação", 120) { Charges::Recalculation.new(tenant).apply }
+
+    query = Portfolio::Query.new(user)
+    measure.call("lista de clientes com a coluna Atualizado (primeira página)", 3) { query.customers.limit(20).to_a.tap { |page| query.updated_totals(page.map(&:id)); query.segment_names(page.map(&:id)) } }
+    measure.call("resumo com atualizado, faixas e segmentos", 10) { Portfolio::Summary.new(user).per_tenant }
+    some = Bill.where(tenant_id: t).order(:id).first
+    measure.call("ficha: memória de cálculo de um título", 1) do
+      input = Charges::Reader.new(tenant, today: Date.current, bill_ids: [ some.id ]).to_enum(:each_batch).flat_map(&:itself).first
+      Charges::Valuation.new(tables: Charges::RuleSet.tables(tenant, Date.current), rules: Charges::RuleSet.rules(tenant), demais_id: Charges::RuleSet.demais_id(tenant),
+                             versions: Charges::RuleHistory.lookup(tenant)).call(input, memory: true)
+    end
+
+    # Baixa por componente (R226): P pagamentos, 60% quitam o valor atualizado, 25% parciais, 15% de valor original.
+    channel = PaymentChannel.create!(tenant: tenant, kind: :account, code: "341-1234-56789", description: "Conta de medição")
+    path = Rails.root.join("tmp", "pagamentos-encargos-#{t}.csv").to_s
+    valuations = BillValuation.where(tenant_id: t).order(:bill_id).limit(payments).pluck(:bill_id, :total_cents, :principal_cents)
+    numbers = Bill.where(id: valuations.map(&:first)).pluck(:id, :number, :customer_id).to_h { |id, number, customer| [ id, [ number, customer ] ] }
+    documents = Customer.where(id: numbers.values.map(&:last)).pluck(:id, :document).to_h
+    File.open(path, "wb") do |file|
+      file.write "canal;identificador;documento;titulo;data_pagamento;valor;meio\n"
+      valuations.each_with_index do |(bill_id, total, principal), index|
+        value = case index % 20 when 0..11 then total when 12..16 then total / 2 else principal end
+        number, customer = numbers.fetch(bill_id)
+        file.write [ channel.code, "ID-#{index}", documents.fetch(customer), number, (Date.current - 1).strftime("%d/%m/%Y"), Money.format(value), "pix" ].join(";") + "\n"
+      end
+    end
+    service = Portfolio::ImportService.new
+    import = service.start(tenant: tenant, user: user, file: path, mode: :incremental, kind: "payments")
+    measure.call("conferência de #{valuations.size} pagamentos com encargos", 120) { import.checker.run(import) }
+    puts "  efeito: #{import.reload.summary['effect'].to_json}"
+    measure.call("confirmação de #{valuations.size} pagamentos com baixa por componente", 120) { import.confirmer.run(import) }
+    puts "  situação: #{import.reload.status}; alocações: #{PaymentAllocation.joins(:bill).where(bills: { tenant_id: t }).count}"
+    measure.call("recálculo depois dos pagamentos", 120) { Charges::Recalculation.new(tenant).apply }
+
+    File.delete(path) if File.exist?(path)
+    sql.run("delete from payment_rows where import_id in (?)", Import.where(tenant_id: t).pluck(:id).presence || [ 0 ])
+    sql.run("delete from payment_allocations where bill_id in (select id from bills where tenant_id = ?)", t)
+    sql.run("delete from bill_valuations where tenant_id = ?", t)
+    %w[credits payment_reversals payments changes task_runs bill_value_versions value_discrepancies].each { |table| sql.run("delete from #{table} where tenant_id = ?", t) }
+    ContractCustomer.where(customer_id: Customer.where(tenant_id: t)).delete_all
+    [ Bill, Customer ].each { |model| model.where(tenant_id: t).delete_all }
+    sql.run("delete from contract_segments where contract_id in (select id from contracts where tenant_id = ?)", t)
+    Contract.where(tenant_id: t).delete_all
+    sql.run("delete from charge_rule_versions where segment_id in (select id from segments where tenant_id = ?)", t)
+    Import.where(tenant_id: t).destroy_all
+    PaymentChannel.where(tenant_id: t).delete_all
+    tenant.contact_results.delete_all
+    Membership.where(tenant_id: t).delete_all
+    user.destroy
+    tenant.destroy
+    IndexRate.delete_all
+    IndexRate.insert_all!(saved_rates.map { |row| row.except("id") }) if saved_rates.any?
+    puts "credor de medição apagado"
+  end
 end

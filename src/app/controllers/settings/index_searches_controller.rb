@@ -6,7 +6,7 @@ module Settings
       if Indexes::Fetch.running?
         redirect_to settings_indexes_path, alert: t("indexes.adjust.search_running"), status: :see_other
       else
-        FetchIndexesJob.perform_later
+        FetchIndexesJob.perform_later(true)
         redirect_to settings_indexes_path, notice: t("indexes.adjust.search_started"), status: :see_other
       end
     end
