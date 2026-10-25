@@ -636,11 +636,13 @@ namespace :crm do
     numbers = Bill.where(id: valuations.map(&:first)).pluck(:id, :number, :customer_id).to_h { |id, number, customer| [ id, [ number, customer ] ] }
     documents = Customer.where(id: numbers.values.map(&:last)).pluck(:id, :document).to_h
     File.open(path, "wb") do |file|
-      file.write "canal;identificador;documento;titulo;data_pagamento;valor;meio\n"
+      file.write "canal;identificador;documento;titulo;data_pagamento;valor;meio;estado_final\n"
       valuations.each_with_index do |(bill_id, total, principal), index|
         value = case index % 20 when 0..11 then total when 12..16 then total / 2 else principal end
         number, customer = numbers.fetch(bill_id)
-        file.write [ channel.code, "ID-#{index}", documents.fetch(customer), number, (Date.current - 1).strftime("%d/%m/%Y"), Money.format(value), "pix" ].join(";") + "\n"
+        # 11, R226: 5% das linhas (um terço das de valor original) trazem o estado final "quitado", e a diferença vira abatimento do credor.
+        final_state = index % 20 == 17 ? "quitado" : ""
+        file.write [ channel.code, "ID-#{index}", documents.fetch(customer), number, (Date.current - 1).strftime("%d/%m/%Y"), Money.format(value), "pix", final_state ].join(";") + "\n"
       end
     end
     service = Portfolio::ImportService.new
@@ -655,7 +657,7 @@ namespace :crm do
     sql.run("delete from payment_rows where import_id in (?)", Import.where(tenant_id: t).pluck(:id).presence || [ 0 ])
     sql.run("delete from payment_allocations where bill_id in (select id from bills where tenant_id = ?)", t)
     sql.run("delete from bill_valuations where tenant_id = ?", t)
-    %w[credits payment_reversals payments changes task_runs bill_value_versions value_discrepancies].each { |table| sql.run("delete from #{table} where tenant_id = ?", t) }
+    %w[abatements credits payment_reversals payments changes task_runs bill_value_versions value_discrepancies].each { |table| sql.run("delete from #{table} where tenant_id = ?", t) }
     ContractCustomer.where(customer_id: Customer.where(tenant_id: t)).delete_all
     [ Bill, Customer ].each { |model| model.where(tenant_id: t).delete_all }
     sql.run("delete from contract_segments where contract_id in (select id from contracts where tenant_id = ?)", t)
@@ -769,7 +771,7 @@ namespace :crm do
     sql.run("delete from payment_allocations where bill_id in (select id from bills where tenant_id = ?)", t)
     sql.run("delete from payment_promise_bills where promise_id in (select id from payment_promises where tenant_id = ?)", t)
     sql.run("update payments set promise_id = null where tenant_id = ?", t)
-    %w[credits payment_reversals payments changes task_runs bill_value_versions value_discrepancies bill_valuations payment_promises contact_attempts].each { |table| sql.run("delete from #{table} where tenant_id = ?", t) }
+    %w[reversal_waits credits payment_reversals payments changes task_runs bill_value_versions value_discrepancies bill_valuations payment_promises contact_attempts].each { |table| sql.run("delete from #{table} where tenant_id = ?", t) }
     ContractCustomer.where(customer_id: Customer.where(tenant_id: t)).delete_all
     [ Bill, Customer ].each { |model| model.where(tenant_id: t).delete_all }
     sql.run("delete from contract_segments where contract_id in (select id from contracts where tenant_id = ?)", t)
@@ -783,6 +785,135 @@ namespace :crm do
     tenant.destroy
     IndexRate.delete_all
     IndexRate.insert_all!(saved_rates.map { |row| row.except("id") }) if saved_rates.any?
+    puts "credor de medição apagado"
+  end
+
+  desc "V4 dos acordos (11): A acordos efetivados (entrada paga e três parcelas), 10% com parcela vencida há mais dos dias de quebra e 10% em atraso dentro dos dias; mede a tarefa diária, o pagamento de parcelas pelo número e a simulação com 100 títulos: crm:measure_agreements[acordos,pagamentos]"
+  task :measure_agreements, %i[agreements payments] => :environment do |_task, args|
+    abort "Recusado em produção." if Rails.env.production?
+
+    count = (args[:agreements].presence || 50_000).to_i
+    payments = (args[:payments].presence || 20_000).to_i
+    tenant = Tenant.provision!("Medição de acordos #{Time.current.strftime('%H%M%S')}")
+    t = tenant.id
+    user = User.create!(name: "Medição", email_address: "medicao#{t}@exemplo.com.br", password: SecureRandom.base58(24))
+    Membership.create!(user: user, tenant: tenant, profile: tenant.profiles.find_by!(name: "Gestor"))
+    ActiveJob::Base.queue_adapter = :test
+    sql = Portfolio::Sql
+    measure = lambda do |label, limit = nil, &work|
+      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      result = work.call
+      elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+      peak = (File.read("/proc/self/status")[/VmHWM:\s+(\d+)/, 1].to_i / 1024 rescue 0)
+      verdict = limit ? (elapsed <= limit ? "  ok (limite #{limit} s)" : "  ACIMA do limite de #{limit} s") : ""
+      puts format("%-62s %8.2f s   (pico de memória %d MB)%s", label, elapsed, peak, verdict)
+      result
+    end
+    tenant.update!(legal_name: "Medição de acordos Ltda")
+    tenant.setting.update!(charge_fine_pct: 2, charge_interest_pct: 1, installment_rate_pct: 1.5, installment_method: "price")
+    segment = Segment.catch_all_of(tenant)
+
+    (1..count).each_slice(10_000) { |slice| Customer.insert_all!(slice.map { |i| { tenant_id: t, document: FakeData.cpf(i), name: "Cliente #{i}" } }) }
+    sql.run("insert into contracts (tenant_id, code, created_at, updated_at) select ?, 'CT-' || id, now(), now() from customers where tenant_id = ?", t, t)
+    sql.execute("analyze customers, contracts")
+    sql.run("insert into contract_customers (contract_id, customer_id, roles) select k.id, c.id, '[]'::jsonb from customers c join contracts k on k.tenant_id = c.tenant_id and k.code = 'CT-' || c.id where c.tenant_id = ?", t)
+    sql.run("insert into bills (tenant_id, contract_id, customer_id, number, due_date, amount_cents, paid_cents, status, created_at, updated_at) " \
+            "select ?, cc.contract_id, c.id, 'NF-' || c.id, current_date - 200, 120000, 0, 'renegotiated', now(), now() from customers c join contract_customers cc on cc.customer_id = c.id where c.tenant_id = ?", t, t)
+    terms = { segment: { id: segment.id, name: segment.name, tolerance_days: 3, break_days: 30 }, square: { holidays: [] }, parameters: { late_rule: { fine: 0.02, rate: 0.01, form: "simple", convention: "thirty", fine_base: "corrected", index: "", fees: 0.0 } },
+              policies: { break_form: "installments_follow", late_charges: "by_parameters", minimum_to_break: { kind: "cents", value: 0 }, tolerance_agreement: { kind: "cents", value: 100 }, early_payment: "discounts", effectuation: "payment", reactivation: "reactivates" } }.to_json
+    sql.run(<<~SQL, t, segment.id, "ACD-", terms, t)
+      insert into agreements (tenant_id, customer_id, segment_id, number, state, mode, built_on, valid_until, base_cents, discount_cents, value_cents, net_cents, down_payment_cents, down_payment_due,
+                              installments_count, installment_method, total_cents, effectuated_at, effectuated_by, terms, created_at, updated_at)
+      select ?, c.id, ?, ? || lpad(row_number() over (order by c.id)::text, 6, '0'), 'active_on_time', 'installments', current_date - 60, current_date - 55, 120000, 0, 120000, 120000, 30000, current_date - 50,
+             3, 'none', 120000, now() - interval '50 days', 'payment', ?::jsonb, now(), now()
+      from customers c where c.tenant_id = ?
+    SQL
+    sql.run("insert into agreement_bills (agreement_id, bill_id, contract_id, base, discount, credit, value_cents, amount_cents, paid_cents, held) select a.id, b.id, b.contract_id, '{}'::jsonb, '{}'::jsonb, '{}'::jsonb, 120000, 120000, 0, true " \
+            "from agreements a join bills b on b.customer_id = a.customer_id where a.tenant_id = ?", t)
+    # Entrada paga e três parcelas de R$ 300,00: 10% com a primeira parcela vencida há 40 dias (quebra), 10% há 5 dias (em atraso), o resto a vencer.
+    [ [ 0, "current_date - 50", "paid" ], [ 1, "case when c.id % 10 = 0 then current_date - 40 when c.id % 10 = 1 then current_date - 5 else current_date + 10 end", "active" ],
+      [ 2, "current_date + 40", "active" ], [ 3, "current_date + 70", "active" ] ].each do |number, due, status|
+      sql.run(<<~SQL, status, status, number, t)
+        insert into bills (tenant_id, contract_id, customer_id, number, due_date, amount_cents, paid_cents, status, kind, agreement_id, composition, created_at, updated_at)
+        select a.tenant_id, b.contract_id, a.customer_id, a.number || '-' || lpad(#{number}::text, 2, '0'), #{due}, 30000, case when ? = 'paid' then 30000 else 0 end, ?, 'agreement', a.id,
+               jsonb_build_object('items', jsonb_build_array(jsonb_build_object('bill_id', b.id, 'component', 'principal', 'cents', 30000)), 'installment_interest', 0, 'period_days', 30,
+                                  'accrues_from', (#{due})::date::text, 'fine', true, 'number', ?::int),
+               now(), now()
+        from agreements a join customers c on c.id = a.customer_id join bills b on b.customer_id = a.customer_id and b.kind = 'common' where a.tenant_id = ?
+      SQL
+    end
+    sql.execute("analyze agreements, agreement_bills, bills")
+    puts "#{count} acordos efetivados criados (#{count / 10} para quebrar, #{count / 10} em atraso)"
+
+    measure.call("tarefa diária dos acordos (quebra e em atraso)", 120) { Agreements::Daily.new(tenant).apply }
+    puts "  quebrados: #{Agreement.where(tenant_id: t, state: 'broken').count}; em atraso: #{Agreement.where(tenant_id: t, state: 'active_late').count}; em dia: #{Agreement.where(tenant_id: t, state: 'active_on_time').count}"
+
+    channel = PaymentChannel.create!(tenant: tenant, kind: :account, code: "341-1234-56789", description: "Conta de medição")
+    path = Rails.root.join("tmp", "pagamentos-acordos-#{t}.csv").to_s
+    rows = sql.rows("select b.number, c.document from bills b join customers c on c.id = b.customer_id where b.tenant_id = ? and b.kind = 'agreement' and b.number like '%-02' order by b.id limit ?", t, payments)
+    pay_date = Date.current.strftime("%d/%m/%Y")
+    File.open(path, "wb") do |file|
+      file.write "canal;identificador;documento;titulo;data_pagamento;valor;meio\n"
+      rows.each_with_index { |row, index| file.write [ channel.code, "AG-#{index}", row["document"], row["number"], pay_date, "300,00", "pix" ].join(";") + "\n" }
+    end
+    import = Portfolio::ImportService.new.start(tenant: tenant, user: user, file: path, mode: :incremental, kind: "payments")
+    measure.call("conferência de #{rows.size} pagamentos de parcela pelo número", 120) { import.checker.run(import) }
+    puts "  efeito: #{import.reload.summary['effect'].to_json}"
+    measure.call("confirmação dos pagamentos de parcela", 120) { import.confirmer.run(import) }
+    puts "  situação: #{import.reload.status}; parcelas pagas: #{Bill.where(tenant_id: t, kind: 'agreement', status: 'paid').count}"
+
+    # Estornos dos pagamentos de parcela (11, R233, etapa 5): os mesmos 20 mil pagamentos estornados pelo arquivo do canal; reabrem a parcela, contam os dias de quebra do estorno
+    # (N10) e reavaliam os acordos em lotes.
+    reversal_path = Rails.root.join("tmp", "estornos-acordos-#{t}.csv").to_s
+    File.open(reversal_path, "wb") do |file|
+      file.write "canal;identificador_pagamento;identificador_estorno;data_estorno;valor;motivo\n"
+      rows.size.times { |index| file.write [ channel.code, "AG-#{index}", "EST-#{index}", pay_date, "300,00", "contestação" ].join(";") + "\n" }
+    end
+    reversal_import = Portfolio::ImportService.new.start(tenant: tenant, user: user, file: reversal_path, mode: :incremental, kind: "reversals")
+    measure.call("conferência de #{rows.size} estornos de parcela", 120) { reversal_import.checker.run(reversal_import) }
+    measure.call("confirmação dos estornos de parcela", 120) { reversal_import.confirmer.run(reversal_import) }
+    puts "  situação: #{reversal_import.reload.status}; parcelas reabertas: #{Bill.where(tenant_id: t, kind: 'agreement', status: 'active').where("jsonb_exists(composition, 'reopened_on')").count}"
+    File.delete(reversal_path) if File.exist?(reversal_path)
+
+    # O crédito do contrato na tarefa diária (R232b, N17): 5% dos clientes (os de parcela em atraso) com crédito disponível no contrato; só eles passam pela leitura de títulos.
+    sql.run("insert into credits (tenant_id, contract_id, kind, amount_cents, reason, bucket, occurred_at) select ?, cc.contract_id, 'entry', 50000, 'excess', 'available', now() - interval '3 days' from contract_customers cc join customers cu on cu.id = cc.customer_id where cu.tenant_id = ? and cu.id % 20 = 1", t, t)
+    measure.call("tarefa diária com crédito em 5% dos contratos (suspende a quebra)", 120) { Agreements::Daily.new(tenant).apply }
+    puts "  intervalos congelados abertos: #{Agreement.where(tenant_id: t).where("terms @> ?::jsonb", '{"frozen":[{"kind":"credit","to":null}]}').count}"
+    tenant.setting.update!(agreement_policies: { "credit_and_break" => "before_break" })
+    measure.call("tarefa diária com crédito em 5% dos contratos (aplica antes de quebrar)", 120) { Agreements::Daily.new(tenant).apply }
+    measure.call("resumo da carteira com o cartão de acordos", 30) { Portfolio::Summary.new(user).for_tenant(tenant) }
+    measure.call("lista do gestor (casos)", 10) { Agreements::ManagerCases.for(user) }
+
+    # Simulação com 100 títulos (R211, até 1 s).
+    big = Customer.create!(tenant: tenant, document: FakeData.cpf(count + 10), name: "Cliente de 100 títulos")
+    contract = Contract.create!(tenant: tenant, code: "CT-CEM-TITULOS")
+    ContractCustomer.create!(contract: contract, customer: big)
+    hundred = (1..100).map { |n| Bill.create!(tenant: tenant, contract: contract, customer: big, number: "H-#{n}", due_date: Date.current - n * 5, amount_cents: 20_000 + n * 100) }
+    Charges::Recalculation.new(tenant).apply
+    measure.call("simulação de acordo com 100 títulos", 1) { Agreements::Simulation.new(user: user, customer: big, input: Agreements::Simulation::Input.new(bill_ids: hundred.map(&:id), mode: "installments", discounts_bp: Agreements::Caps::COMPONENTS.to_h { |c| [ c, 0 ] }, down_payment_cents: nil, down_payment_on: nil, installments: 6, day: 5, replace: false)).call }
+    measure.call("lista de acordos e número do menu", 3) { Agreement.where(tenant_id: t).recent.limit(20).to_a; Agreements::Pending.for(user).count }
+    measure.call("arquivo do dia (novidades)", 60) { Agreements::Archive.new(tenant).export!("daily") }
+
+    exit if ENV["KEEP_DATA"] == "1" # só para investigação
+    File.delete(path) if File.exist?(path)
+    sql.run("delete from payment_rows where import_id in (?)", Import.where(tenant_id: t).pluck(:id).presence || [ 0 ])
+    sql.run("delete from payment_allocations where bill_id in (select id from bills where tenant_id = ?)", t)
+    sql.run("delete from abatements where tenant_id = ?", t)
+    %w[reversal_waits credits payment_reversals payments changes task_runs bill_value_versions value_discrepancies bill_valuations agreement_events agreement_exports].each { |table| sql.run("delete from #{table} where tenant_id = ?", t) }
+    sql.run("delete from agreement_settlements where agreement_id in (select id from agreements where tenant_id = ?)", t)
+    sql.run("delete from agreement_bills where agreement_id in (select id from agreements where tenant_id = ?)", t)
+    sql.run("delete from bills where tenant_id = ?", t)
+    sql.run("delete from agreements where tenant_id = ?", t)
+    ContractCustomer.where(customer_id: Customer.where(tenant_id: t)).delete_all
+    Customer.where(tenant_id: t).delete_all
+    sql.run("delete from contract_segments where contract_id in (select id from contracts where tenant_id = ?)", t)
+    Contract.where(tenant_id: t).delete_all
+    Import.where(tenant_id: t).destroy_all
+    PaymentChannel.where(tenant_id: t).delete_all
+    tenant.contact_results.delete_all
+    Membership.where(tenant_id: t).delete_all
+    user.destroy
+    tenant.destroy
     puts "credor de medição apagado"
   end
 end

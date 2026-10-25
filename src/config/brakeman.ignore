@@ -45,6 +45,29 @@
         89
       ],
       "note": "Falso positivo: os ids dos credores passam por to_i, a data vai citada pelo connection.quote e o resto do texto é fixo."
+    },
+    {
+      "warning_type": "File Access",
+      "warning_code": 16,
+      "fingerprint": "5d17bb64587f0219c33beecaf52783e79bcc93911db5671d19207738b754c8b1",
+      "check_name": "SendFile",
+      "message": "Model attribute used in file name",
+      "file": "app/controllers/agreement_exports_controller.rb",
+      "line": 27,
+      "link": "https://brakemanscanner.org/docs/warning_types/file_access/",
+      "code": "send_file(AgreementExport.find(params[:id]).path, :filename => (\"acordos-#{AgreementExport.find(params[:id]).tenant.name.parameterize}-#{AgreementExport.find(params[:id]).created_at.to_date.iso8601}-#{AgreementExport.find(params[:id]).form}.csv\"), :type => \"text/csv\")",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "AgreementExportsController",
+        "method": "show"
+      },
+      "user_input": "AgreementExport.find(params[:id]).path",
+      "confidence": "Medium",
+      "cwe_id": [
+        22
+      ],
+      "note": "Falso positivo: o nome do arquivo é montado pelo CRM com os números do credor e da exportação e uma forma de lista fechada (`AgreementExport#default_file_name`), nunca com texto do usuário; o `show` só abre exportação de credor em que o usuário administra acordos."
     }
   ],
   "brakeman_version": "8.0.2"

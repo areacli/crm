@@ -1,0 +1,17 @@
+<% content_for :title, "Acordos pendentes" %>
+<% content_for :cable_channels, @cable %>
+<header class="cabecalho-da-pagina">
+  <div><h1>Acordos pendentes</h1><p>Propostas fora dos limites de quem as montou. Você vê as dos credores em que pode aprová-las, com os seus limites atuais cobrindo a proposta; a que você mesmo montou espera outra pessoa.</p></div>
+</header>
+
+<% if @several_tenants %>
+  <form class="filtros" role="search" action="<%= pending_agreements_path %>" method="get" hx-get="<%= pending_agreements_path %>" hx-trigger="change" hx-target="#resultado" hx-push-url="true" hx-swap="outerHTML">
+    <div class="campo">
+      <label for="tenant">Credor</label>
+      <select id="tenant" name="tenant"><option value="">Todos</option><%= options_for_select(@tenants, params[:tenant]) %></select>
+    </div>
+    <button type="submit" data-variant="secondary">Filtrar</button>
+  </form>
+<% end %>
+
+<%= render "agreements/pendings/result" %>

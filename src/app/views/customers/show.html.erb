@@ -5,9 +5,14 @@
     <h1><%= @customer.name %></h1>
     <p><%= @customer.tenant.name %> · <%= link_to "Voltar para os clientes", customers_path %></p>
   </div>
+  <% if @can_negotiate %>
+    <div class="acoes"><%= link_to "Simular acordo", new_customer_agreement_simulation_path(@customer), class: "botao", data: { variant: "secondary" } %></div>
+  <% end %>
 </header>
 
 <%= render "customers/promises/lines", customer: @customer, promises: @promises %>
+<% if @agreements %><%= render "customers/agreements/lines", customer: @customer, agreements: @agreements %><% end %>
+<% if @city_unrecognized %><%= aviso(tom: :warning) { tag.p "Cidade não reconhecida: o endereço deste cliente não casa com a lista de municípios do IBGE, e os acordos dele usam só os feriados nacionais. Corrija o endereço no cadastro." } %><% end %>
 
 <%
   active = @bills.select(&:active?)
@@ -66,6 +71,8 @@
   </div>
 </section>
 
+<% if @agreement_events&.any? %><%= render "customers/agreements/history", customer: @customer, events: @agreement_events %><% end %>
+
 <%= render "customers/registry", customer: @customer, top: @top_contacts, listed: @listed_contacts, can_edit: @can_edit_registry, history: @registry_history, contacts_by_id: @contacts.index_by(&:id) %>
 
 <%= render "customers/contact_attempts", customer: @customer, history: @contact_history, form: @contact_form %>
@@ -93,7 +100,11 @@
             <tr>
               <th scope="row">
                 <%= link_to bill.number, bill_path(bill) %>
+                <% if bill.agreement_id %><small><%= bill.kind_break? ? "Título da quebra" : "Título de acordo" %> <%= link_to bill.agreement.number, agreement_path(bill.agreement) %>.</small><% end %>
+                <% if bill.kind_reversal? %><small>Título de estorno do acordo <%= link_to bill.origin_agreement.number, agreement_path(bill.origin_agreement) %>, fora do acordo.</small><% end %>
+                <% if bill.renegotiated? && (renegotiated = @renegotiated_by&.dig(bill.id)) %><small>Renegociado no acordo <%= link_to renegotiated.number, agreement_path(renegotiated) %>.</small><% end %>
                 <% if (held = @held_bills[bill.id]) %><small>Em promessa <%= held.promise.label %>.</small><% end %>
+                <% if (held_agreement = @held_by_agreement&.dig(bill.id)) && !bill.renegotiated? %><small><%= held_agreement.proposal? ? "Em proposta" : "Em acordo" %> <%= link_to held_agreement.number, agreement_path(held_agreement) %>.</small><% end %>
                 <% if @open_discrepancies.include?(bill.id) %><small>Divergência de valor aberta. <%= link_to "Ver histórico", bill_path(bill) %></small>
                 <% elsif @version_counts.fetch(bill.id, 1) > 1 %><small>O valor mudou <%= @version_counts[bill.id] - 1 %> vez(es). <%= link_to "Ver histórico", bill_path(bill) %></small><% end %>
               </th>
@@ -103,22 +114,41 @@
               <td data-numerico><%= money(bill.paid_cents) %></td>
               <td data-numerico><%= money(bill.balance_cents) %></td>
               <td data-numerico><%= bill.active? && bill.due_date < @today ? number_br(bill.days_overdue(@today)) : "—" %></td>
-              <% valuation = @valuations[bill.id] %>
+              <% valuation = bill.active? ? @valuations[bill.id] : nil %>
               <td data-numerico><%= valuation ? money(valuation.total_cents) : "—" %></td>
               <td>
                 <% if bill.withdrawn? %><%= situacao "Retirado", tom: :neutral %>
+                <% elsif bill.renegotiated? %><%= situacao "Renegociado", tom: :neutral %>
+                <% elsif bill.scheduled? %><%= situacao "Aguardando efetivação", tom: :info %>
+                <% elsif bill.canceled? %><%= situacao "Cancelado", tom: :neutral %>
                 <% elsif bill.paid? %><%= situacao "Pago", tom: :success %>
                 <% elsif bill.due_date < @today %><%= situacao "Vencido", tom: :danger %>
                 <% else %><%= situacao "A vencer", tom: :info %><% end %>
               </td>
             </tr>
-            <% if valuation %>
+            <% if valuation && (bill.agreement_id || bill.kind_reversal?) %>
+              <tr><td colspan="9"><small>Saldo devedor de <%= bill.number %> pelos parâmetros congelados no acordo<%= " (só principal e correção têm encargos, sem multa nova)" if bill.kind_reversal? %>: <%= money(valuation.total_cents) %> (mora: multa <%= money(valuation.fine_cents) %>, juros <%= money(valuation.interest_cents) %>, honorários e correção <%= money(valuation.fees_cents) %>).</small></td></tr>
+            <% elsif valuation %>
               <tr>
                 <td colspan="9">
                   <small>Atualizado de <%= bill.number %>: principal corrigido <%= money(valuation.corrected_principal_cents) %> · multa <%= money(valuation.fine_cents) %> · juros <%= money(valuation.interest_cents) %> · honorários <%= money(valuation.fees_cents) %></small>
                   <details class="memoria-de-calculo" hx-get="<%= bill_calculation_memory_path(bill) %>" hx-trigger="toggle once" hx-target="find div" hx-swap="innerHTML" hx-push-url="false">
                     <summary aria-label="Ver memória de cálculo do título <%= bill.number %>">Ver memória de cálculo</summary>
                     <div><p><small>Carregando…</small></p></div>
+                  </details>
+                </td>
+              </tr>
+            <% end %>
+            <% if @can_use_credit && Agreements::CreditOnBill.usable?(bill) && @credit_totals.fetch(bill.contract_id, 0).positive? %>
+              <tr>
+                <td colspan="9">
+                  <details>
+                    <summary>Usar crédito no título <%= bill.number %> (disponível no contrato: <%= money(@credit_totals[bill.contract_id]) %>)</summary>
+                    <%= form_with scope: :credit_use, url: customer_credit_uses_path(@customer), html: { "hx-boost": "false" } do |form| %>
+                      <%= form.hidden_field :bill_id, value: bill.id, id: "uso-titulo-#{bill.id}" %>
+                      <div class="campo"><%= form.label :amount, "Valor a usar", for: "uso-valor-#{bill.id}" %><%= form.text_field :amount, id: "uso-valor-#{bill.id}", required: true, inputmode: "decimal", autocomplete: "off" %></div>
+                      <div class="acoes"><button type="submit" data-variant="secondary" data-size="small" aria-label="Usar crédito no título <%= bill.number %>">Usar crédito</button></div>
+                    <% end %>
                   </details>
                 </td>
               </tr>
@@ -172,6 +202,20 @@
         <% excess = @excess_bills[contract.id].to_a %>
         <% next if entries.empty? && excess.empty? %>
         <h3><%= contract.label %>: <%= money(@credit_totals.fetch(contract.id, 0) + @excess_totals.fetch(contract.id, 0)) %></h3>
+        <% if @credit_awaiting.fetch(contract.id, 0).nonzero? || @credit_blocked.fetch(contract.id, 0).nonzero? %>
+          <p><small>Disponível <%= money(@credit_totals.fetch(contract.id, 0)) %><% if @credit_awaiting.fetch(contract.id, 0).nonzero? %> · aguardando alocação <%= money(@credit_awaiting[contract.id]) %><% end %><% if @credit_blocked.fetch(contract.id, 0).nonzero? %> · bloqueado (estorno à espera do gestor) <%= money(@credit_blocked[contract.id]) %><% end %></small></p>
+        <% end %>
+        <% if @can_allocate && @credit_awaiting.fetch(contract.id, 0).positive? %>
+          <details>
+            <summary>Alocar crédito aguardando alocação do contrato <%= contract.label %></summary>
+            <%= form_with scope: :credit_allocation, url: customer_credit_allocations_path(@customer), html: { "hx-boost": "false" } do |form| %>
+              <%= form.hidden_field :contract_id, value: contract.id, id: "alocacao-contrato-#{contract.id}" %>
+              <div class="campo"><%= form.label :bill_id, "Título do mesmo contrato", for: "alocacao-titulo-#{contract.id}" %><%= form.select :bill_id, @allocatable_bills.to_h.fetch(contract.id, []).map { |bill| [ "#{bill.number} (vence em #{date_br(bill.due_date)})", bill.id ] }, {}, id: "alocacao-titulo-#{contract.id}" %></div>
+              <div class="campo"><%= form.label :amount, "Valor", for: "alocacao-valor-#{contract.id}" %><%= form.text_field :amount, id: "alocacao-valor-#{contract.id}", required: true, inputmode: "decimal", autocomplete: "off" %></div>
+              <div class="acoes"><button type="submit" data-variant="secondary" data-size="small" aria-label="Alocar o crédito do contrato <%= contract.label %>">Alocar</button></div>
+            <% end %>
+          </details>
+        <% end %>
         <% if excess.any? %>
           <div class="tabela">
             <table>
@@ -205,7 +249,7 @@
                     <% elsif entry.related_contract %><%= entry.transfer_out? ? "Transferido para" : "Recebido de" %> <%= entry.related_contract.label %>
                     <% else %>—<% end %>
                   </td>
-                  <td><%= t("payments.credit_reasons.#{entry.reason}") %><%= " — #{entry.note}" if entry.note.present? %></td>
+                  <td><%= t("payments.credit_reasons.#{entry.reason}") %><%= " — #{entry.note}" if entry.note.present? %><%= " (#{t("payments.buckets.#{entry.bucket}").downcase})" unless entry.bucket_available? %></td>
                   <td data-numerico><%= money(entry.amount_cents) %></td>
                 </tr>
               <% end %>
@@ -228,7 +272,7 @@
       <div>
         <div class="campo">
           <%= form.label :from_contract_id, "Contrato de origem" %>
-          <%= form.select :from_contract_id, @contracts.select { |contract| @credit_totals.fetch(contract.id, 0).positive? }.map { |contract| [ "#{contract.label} (#{money(@credit_totals[contract.id])})", contract.id ] }, { include_blank: false } %>
+          <%= form.select :from_contract_id, @contracts.select { |contract| (@credit_totals.fetch(contract.id, 0) + @credit_awaiting.fetch(contract.id, 0)).positive? }.map { |contract| [ "#{contract.label} (#{money(@credit_totals.fetch(contract.id, 0) + @credit_awaiting.fetch(contract.id, 0))})", contract.id ] }, { include_blank: false } %>
         </div>
         <div class="campo">
           <%= form.label :to_code, "Código do contrato de destino" %>

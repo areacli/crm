@@ -4,9 +4,10 @@ module Portfolio
   module Sql
     module_function
 
-    def run(sql, *binds) = connection.exec_update(sanitize(sql, binds))
+    # As escritas em SQL cru não passam pelo Active Record: o cache de consultas (ligado dentro de jobs e requisições) é limpo para a próxima leitura não ver o que ficou para trás.
+    def run(sql, *binds) = connection.exec_update(sanitize(sql, binds)).tap { connection.clear_query_cache }
 
-    def execute(sql, *binds) = connection.execute(sanitize(sql, binds))
+    def execute(sql, *binds) = connection.execute(sanitize(sql, binds)).tap { connection.clear_query_cache }
 
     def one(sql, *binds) = connection.select_one(sanitize(sql, binds))
 

@@ -1,6 +1,6 @@
 # Planilhas e registros de pagamentos para os testes: canal, cliente, contrato e título prontos, e as linhas dos CSVs.
 module PaymentsHelper
-  PAYMENT_HEADER = %w[canal identificador documento titulo data_pagamento valor meio].freeze
+  PAYMENT_HEADER = %w[canal identificador documento titulo data_pagamento valor meio estado_final].freeze
   REVERSAL_HEADER = %w[canal identificador_pagamento identificador_estorno data_estorno valor motivo].freeze
   CHANNEL_CODE = "341-1234-56789".freeze
   MARIA = "529.982.247-25".freeze

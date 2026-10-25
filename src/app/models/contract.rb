@@ -10,8 +10,12 @@ class Contract < ApplicationRecord
   has_many :bills, dependent: :restrict_with_error
   has_many :credits, dependent: :restrict_with_error
 
-  # Crédito do contrato (R55b): a soma do livro; é do contrato, não de um cliente.
-  def credit_cents = credits.sum(:amount_cents)
+  # Crédito do contrato (R55b): é do contrato, não de um cliente. O crédito disponível do contrato (11, R223, R232b): o que pode ser usado em acordo, em título de acordo ou transferido. O aguardando alocação (reversão) e o bloqueado (estorno à
+  # espera do gestor) não contam como disponíveis (R232b, R233).
+  def credit_cents = credits.where(bucket: "available").sum(:amount_cents)
+
+  # O saldo de cada estado: { "available" => ., "awaiting" => ., "blocked" => . }.
+  def credit_balances = Credit::BUCKET_ZERO.merge(credits.group(:bucket).sum(:amount_cents))
 
   def label = code.presence || "Contrato sem código"
 end

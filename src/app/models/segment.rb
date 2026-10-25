@@ -19,12 +19,21 @@ class Segment < ApplicationRecord
   FINE_BASES = %w[corrected face].freeze
   CDC_FINE_LIMIT = 2 # CDC, art. 52, § 1º (R161): aviso, sem impedir a gravação
 
+  # Parâmetros do acordo com override (11, R207a): campo vazio herda o do credor. Mudar estes campos não muda título nenhum (os acordos congelam os seus).
+  AGREEMENT_PARAM_FIELDS = %i[installment_rate_pct installment_method agreement_days_convention agreement_fine_base].freeze
+  INSTALLMENT_METHODS = %w[none price sac].freeze
+  # Variáveis de acordo do segmento (11, R207): teto de desconto por componente em duas colunas (parcelado e à vista) e as demais.
+  AGREEMENT_VARIABLE_FIELDS = %i[agreement_max_installments agreement_min_installment_cents agreement_min_down_payment_pct agreement_down_payment_days
+                                 agreement_validity_days agreement_tolerance_days agreement_break_days].freeze
+
   has_many :contract_segments, dependent: :restrict_with_error
   has_many :contracts, dependent: :nullify
   has_many :promise_limits, dependent: :delete_all
+  has_many :agreement_limits, dependent: :delete_all
 
-  # A alçada de cada perfil nasce no mesmo ato em que o segmento nasce (10, R190).
+  # A alçada de cada perfil nasce no mesmo ato em que o segmento nasce (10, R190; 11, R209).
   after_create { PromiseLimit.create_for_segment(self) }
+  after_create { AgreementLimit.create_for_segment(self) }
 
   before_validation :normalize
 
@@ -37,6 +46,16 @@ class Segment < ApplicationRecord
   validates :days_convention, inclusion: { in: DAYS_CONVENTIONS }, allow_nil: true
   validates :fine_base, inclusion: { in: FINE_BASES }, allow_nil: true
   validates :promise_max_days, numericality: { only_integer: true, greater_than_or_equal_to: 1, less_than_or_equal_to: 365 }
+  validates :installment_method, inclusion: { in: INSTALLMENT_METHODS }, allow_nil: true
+  validates :agreement_days_convention, inclusion: { in: DAYS_CONVENTIONS }, allow_nil: true
+  validates :agreement_fine_base, inclusion: { in: FINE_BASES }, allow_nil: true
+  validates :installment_rate_pct, numericality: { greater_than_or_equal_to: 0, less_than_or_equal_to: 100 }, allow_nil: true
+  validates :agreement_max_installments, numericality: { only_integer: true, greater_than_or_equal_to: 1, less_than_or_equal_to: 120 }
+  validates :agreement_min_installment_cents, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
+  validates :agreement_min_down_payment_pct, numericality: { only_integer: true, greater_than_or_equal_to: 1, less_than_or_equal_to: 100 }
+  validates :agreement_down_payment_days, :agreement_validity_days, :agreement_break_days, numericality: { only_integer: true, greater_than_or_equal_to: 1, less_than_or_equal_to: 365 }
+  validates :agreement_tolerance_days, numericality: { only_integer: true, greater_than_or_equal_to: 0, less_than_or_equal_to: 60 }
+  validate :agreement_caps_valid
   validates :fine_pct, :interest_pct, :fees_pct, numericality: { greater_than_or_equal_to: 0, less_than_or_equal_to: 100 }, allow_nil: true
   validate :unique_name, :ranges_consistent, :catch_all_has_no_criteria, :fees_need_contract_mark
 
@@ -86,6 +105,11 @@ class Segment < ApplicationRecord
     # R160, R161: honorários só com a marca "o contrato prevê honorários".
     def fees_need_contract_mark
       errors.add(:fees_pct, :fees_without_contract) if fees_pct.to_d.positive? && !fees_in_contract?
+    end
+
+    # Teto de desconto de 0 a 100, em pontos inteiros, por componente e por coluna (R207, R209).
+    def agreement_caps_valid
+      errors.add(:agreement_caps, :invalid) unless Agreements::Caps.valid?(agreement_caps)
     end
 
     def catch_all_has_no_criteria

@@ -203,7 +203,7 @@ class PromisesScreensTest < ActionDispatch::IntegrationTest
     entrar(users(:joana))
     get settings_promises_path
     assert_response :success
-    assert_select "nav.abas a", text: "Promessas"
+    assert_select "nav.abas a", text: "Promessas e acordos"
     segment = Segment.catch_all_of(@alfa)
     patch settings_promise_limits_path, params: { tenant_id: @alfa.id, segments: { segment.id => { max_days: 20, limits: { profiles(:alfa_manager).id => 20, profiles(:alfa_operator).id => 20 } } } }
     assert_equal 20, segment.reload.promise_max_days

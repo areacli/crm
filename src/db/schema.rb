@@ -10,9 +10,22 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_24_101000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_24_101600) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+
+  create_table "abatements", force: :cascade do |t|
+    t.bigint "tenant_id", null: false
+    t.bigint "payment_id", null: false
+    t.bigint "bill_id", null: false
+    t.string "kind", limit: 10, null: false
+    t.string "component", limit: 40, null: false
+    t.bigint "amount_cents", null: false
+    t.datetime "created_at", null: false
+    t.index ["payment_id"], name: "index_abatements_on_payment_id"
+    t.index ["tenant_id", "created_at"], name: "index_abatements_on_tenant_id_and_created_at"
+    t.check_constraint "(kind::text = ANY (ARRAY['creditor'::character varying::text, 'tolerance'::character varying::text, 'minimum'::character varying::text, 'early'::character varying::text])) AND (component::text = ANY (ARRAY['interest'::character varying::text, 'fine'::character varying::text, 'fees'::character varying::text, 'correction'::character varying::text, 'principal'::character varying::text, 'late'::character varying::text, 'installment_interest'::character varying::text, 'inherited_installment_interest'::character varying::text, 'inherited_late'::character varying::text])) AND amount_cents <> 0", name: "abatements_valid"
+  end
 
   create_table "access_events", force: :cascade do |t|
     t.bigint "user_id"
@@ -25,6 +38,138 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_101000) do
     t.datetime "occurred_at", precision: nil, default: -> { "CURRENT_TIMESTAMP" }, null: false
     t.index ["tenant_id", "occurred_at"], name: "index_access_events_on_tenant_id_and_occurred_at"
     t.index ["user_id", "occurred_at"], name: "index_access_events_on_user_id_and_occurred_at"
+  end
+
+  create_table "agreement_bills", force: :cascade do |t|
+    t.bigint "agreement_id", null: false
+    t.bigint "bill_id", null: false
+    t.bigint "contract_id", null: false
+    t.jsonb "base", default: {}, null: false
+    t.jsonb "discount", default: {}, null: false
+    t.jsonb "credit", default: {}, null: false
+    t.bigint "value_cents", null: false
+    t.bigint "amount_cents", null: false
+    t.bigint "paid_cents", null: false
+    t.boolean "held", default: true, null: false
+    t.index ["agreement_id"], name: "index_agreement_bills_on_agreement_id"
+    t.index ["bill_id"], name: "index_agreement_bills_held_bill", unique: true, where: "held"
+    t.index ["bill_id"], name: "index_agreement_bills_on_bill_id"
+  end
+
+  create_table "agreement_events", force: :cascade do |t|
+    t.bigint "tenant_id", null: false
+    t.bigint "agreement_id", null: false
+    t.bigint "user_id"
+    t.string "kind", limit: 30, null: false
+    t.jsonb "data", default: {}, null: false
+    t.datetime "occurred_at", default: -> { "CURRENT_TIMESTAMP" }, null: false
+    t.index ["agreement_id"], name: "index_agreement_events_on_agreement_id"
+    t.index ["tenant_id", "occurred_at"], name: "index_agreement_events_on_tenant_id_and_occurred_at"
+  end
+
+  create_table "agreement_exports", force: :cascade do |t|
+    t.bigint "tenant_id", null: false
+    t.bigint "user_id"
+    t.string "form", limit: 10, null: false
+    t.bigint "last_event_id", default: 0, null: false
+    t.integer "lines", default: 0, null: false
+    t.string "file_name", limit: 120
+    t.datetime "downloaded_at"
+    t.datetime "created_at", null: false
+    t.index ["tenant_id", "created_at"], name: "index_agreement_exports_on_tenant_id_and_created_at"
+    t.check_constraint "form::text = ANY (ARRAY['news'::character varying::text, 'full'::character varying::text, 'daily'::character varying::text])", name: "agreement_exports_form"
+  end
+
+  create_table "agreement_limits", force: :cascade do |t|
+    t.bigint "segment_id", null: false
+    t.bigint "profile_id", null: false
+    t.jsonb "caps", default: {"cash" => {}, "installment" => {}}, null: false
+    t.integer "max_installments", null: false
+    t.integer "min_down_payment_pct", null: false
+    t.bigint "ceiling_discount_cents"
+    t.bigint "ceiling_value_cents"
+    t.index ["profile_id"], name: "index_agreement_limits_on_profile_id"
+    t.index ["segment_id", "profile_id"], name: "index_agreement_limits_on_segment_id_and_profile_id", unique: true
+    t.check_constraint "max_installments >= 1 AND max_installments <= 120 AND min_down_payment_pct >= 1 AND min_down_payment_pct <= 100 AND (ceiling_discount_cents IS NULL OR ceiling_discount_cents >= 0) AND (ceiling_value_cents IS NULL OR ceiling_value_cents >= 0)", name: "agreement_limits_valid"
+  end
+
+  create_table "agreement_settlements", force: :cascade do |t|
+    t.bigint "agreement_id", null: false
+    t.bigint "user_id"
+    t.date "on_date", null: false
+    t.bigint "amount_cents", null: false
+    t.jsonb "parts", default: {}, null: false
+    t.datetime "expired_at"
+    t.datetime "created_at", null: false
+    t.index ["agreement_id"], name: "index_agreement_settlements_on_agreement_id"
+  end
+
+  create_table "agreements", force: :cascade do |t|
+    t.bigint "tenant_id", null: false
+    t.bigint "customer_id", null: false
+    t.bigint "segment_id"
+    t.bigint "user_id"
+    t.bigint "decided_by_id"
+    t.string "number", limit: 20, null: false
+    t.string "state", limit: 24, null: false
+    t.string "mode", limit: 12, null: false
+    t.date "built_on", null: false
+    t.date "valid_until", null: false
+    t.jsonb "discounts", default: {}, null: false
+    t.bigint "base_cents", null: false
+    t.bigint "discount_cents", null: false
+    t.bigint "value_cents", null: false
+    t.bigint "credit_cents", default: 0, null: false
+    t.bigint "net_cents", null: false
+    t.bigint "down_payment_cents", null: false
+    t.date "down_payment_due", null: false
+    t.integer "installments_count", default: 0, null: false
+    t.integer "installment_day"
+    t.string "installment_method", limit: 10, default: "none", null: false
+    t.decimal "rate_pct", precision: 7, scale: 4, default: "0.0", null: false
+    t.decimal "effective_annual_pct", precision: 9, scale: 4, default: "0.0", null: false
+    t.bigint "total_cents", null: false
+    t.bigint "interest_cents", default: 0, null: false
+    t.jsonb "schedule", default: [], null: false
+    t.jsonb "terms", default: {}, null: false
+    t.datetime "decided_at"
+    t.string "reason", limit: 300
+    t.datetime "closed_at"
+    t.bigint "replaced_by_id"
+    t.string "presented_channel", limit: 12
+    t.datetime "presented_at"
+    t.string "accepted_channel", limit: 12
+    t.datetime "accepted_at"
+    t.string "proof", limit: 200
+    t.bigint "accepted_by_customer_id"
+    t.string "accepted_role", limit: 24
+    t.bigint "registered_by_id"
+    t.datetime "registered_at"
+    t.jsonb "term_snapshot", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.datetime "effectuated_at"
+    t.string "effectuated_by", limit: 12
+    t.datetime "broken_at"
+    t.string "break_kind", limit: 20
+    t.string "break_form", limit: 20
+    t.boolean "broken_after_effectuation", default: false, null: false
+    t.string "credit_mode", limit: 12
+    t.bigint "credit_down_cents", default: 0, null: false
+    t.datetime "reactivated_at"
+    t.datetime "reversing_since"
+    t.string "reversal_reason", limit: 300
+    t.bigint "reversal_by_id"
+    t.datetime "reverted_at"
+    t.index ["customer_id"], name: "index_agreements_broken_after_effectuation", where: "broken_after_effectuation"
+    t.index ["customer_id"], name: "index_agreements_on_customer_id"
+    t.index ["tenant_id", "created_at"], name: "index_agreements_on_tenant_id_and_created_at"
+    t.index ["tenant_id", "number"], name: "index_agreements_on_tenant_id_and_number", unique: true
+    t.index ["tenant_id", "state", "valid_until"], name: "index_agreements_on_tenant_id_and_state_and_valid_until"
+    t.check_constraint "(mode::text = ANY (ARRAY['cash'::character varying::text, 'installments'::character varying::text])) AND (installment_method::text = ANY (ARRAY['none'::character varying::text, 'price'::character varying::text, 'sac'::character varying::text])) AND installments_count >= 0 AND base_cents > 0 AND discount_cents >= 0 AND value_cents > 0 AND net_cents > 0 AND down_payment_cents > 0 AND down_payment_cents <= net_cents", name: "agreements_valid"
+    t.check_constraint "break_kind IS NULL OR (break_kind::text = ANY (ARRAY['before_effectuation'::character varying::text, 'after_effectuation'::character varying::text, 'manual'::character varying::text]))", name: "agreements_break_kind"
+    t.check_constraint "effectuated_by IS NULL OR (effectuated_by::text = ANY (ARRAY['payment'::character varying::text, 'acceptance'::character varying::text, 'credit'::character varying::text]))", name: "agreements_effectuated_by"
+    t.check_constraint "state::text = ANY (ARRAY['pending'::character varying::text, 'approved'::character varying::text, 'refused'::character varying::text, 'not_approved'::character varying::text, 'expired'::character varying::text, 'canceled'::character varying::text, 'awaiting_effectuation'::character varying::text, 'active_on_time'::character varying::text, 'active_late'::character varying::text, 'settled'::character varying::text, 'broken'::character varying::text, 'renegotiated'::character varying::text])", name: "agreements_state"
   end
 
   create_table "bill_valuations", primary_key: "bill_id", force: :cascade do |t|
@@ -67,11 +212,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_101000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "product", limit: 100
+    t.string "kind", limit: 10, default: "common", null: false
+    t.bigint "agreement_id"
+    t.jsonb "composition"
+    t.bigint "origin_agreement_id"
+    t.index ["agreement_id"], name: "index_bills_on_agreement", where: "(agreement_id IS NOT NULL)"
     t.index ["contract_id"], name: "index_bills_on_contract_id"
     t.index ["customer_id"], name: "index_bills_on_customer_id"
+    t.index ["origin_agreement_id"], name: "index_bills_on_origin_agreement_id", where: "(origin_agreement_id IS NOT NULL)"
     t.index ["tenant_id", "customer_id", "number"], name: "index_bills_on_tenant_id_and_customer_id_and_number", unique: true
     t.index ["tenant_id", "status", "due_date"], name: "index_bills_on_tenant_id_and_status_and_due_date"
     t.index ["tenant_id"], name: "index_bills_with_excess_by_tenant", where: "(paid_cents > amount_cents)"
+    t.check_constraint "(kind::text = ANY (ARRAY['common'::character varying::text, 'agreement'::character varying::text, 'break'::character varying::text, 'reversal'::character varying::text])) AND (kind::text = ANY (ARRAY['agreement'::character varying::text, 'break'::character varying::text])) = (agreement_id IS NOT NULL) AND (kind::text = 'reversal'::text) = (origin_agreement_id IS NOT NULL)", name: "bills_kind"
     t.check_constraint "amount_cents > 0", name: "bills_amount_positive"
     t.check_constraint "paid_cents >= 0", name: "bills_paid_not_negative"
   end
@@ -172,9 +324,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_101000) do
     t.string "note", limit: 300
     t.bigint "related_contract_id"
     t.datetime "occurred_at", default: -> { "CURRENT_TIMESTAMP" }, null: false
+    t.bigint "agreement_id"
+    t.string "bucket", limit: 10, default: "available", null: false
+    t.bigint "bill_id"
+    t.index ["agreement_id"], name: "index_credits_on_agreement_id", where: "(agreement_id IS NOT NULL)"
+    t.index ["bill_id"], name: "index_credits_on_bill_id", where: "(bill_id IS NOT NULL)"
+    t.index ["contract_id", "bucket"], name: "index_credits_on_contract_and_bucket"
     t.index ["contract_id"], name: "index_credits_on_contract_id"
     t.index ["tenant_id"], name: "index_credits_on_tenant_id"
     t.check_constraint "amount_cents <> 0", name: "credits_amount_not_zero"
+    t.check_constraint "bucket::text = ANY (ARRAY['available'::character varying::text, 'awaiting'::character varying::text, 'blocked'::character varying::text])", name: "credits_bucket"
   end
 
   create_table "customer_contacts", force: :cascade do |t|
@@ -218,6 +377,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_101000) do
     t.index ["tenant_id", "document"], name: "index_customers_on_tenant_id_and_document", unique: true
     t.index ["tenant_id"], name: "index_customers_retained_by_tenant", where: "(retained_at IS NOT NULL)"
     t.check_constraint "retained_at IS NULL OR anonymized_at IS NULL", name: "customers_anonymized_not_retained"
+  end
+
+  create_table "holidays", force: :cascade do |t|
+    t.string "state", limit: 2, null: false
+    t.bigint "municipality_id"
+    t.date "date", null: false
+    t.string "name", limit: 150, null: false
+    t.index ["date"], name: "index_holidays_on_date"
+    t.index ["state", "municipality_id", "date"], name: "index_holidays_on_state_and_municipality_id_and_date", unique: true, nulls_not_distinct: true
   end
 
   create_table "import_contacts", id: false, force: :cascade do |t|
@@ -333,6 +501,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_101000) do
     t.index ["user_id", "tenant_id"], name: "index_memberships_on_user_id_and_tenant_id", unique: true
   end
 
+  create_table "municipalities", force: :cascade do |t|
+    t.string "ibge_code", limit: 7, null: false
+    t.string "name", limit: 120, null: false
+    t.string "name_key", limit: 120, null: false
+    t.string "state", limit: 2, null: false
+    t.index ["ibge_code"], name: "index_municipalities_on_ibge_code", unique: true
+    t.index ["state", "name_key"], name: "index_municipalities_on_state_and_name_key", unique: true
+  end
+
   create_table "notices", force: :cascade do |t|
     t.bigint "user_id", null: false
     t.string "kind", null: false
@@ -346,12 +523,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_101000) do
   create_table "payment_allocations", force: :cascade do |t|
     t.bigint "payment_id", null: false
     t.bigint "bill_id", null: false
-    t.string "component", limit: 12, null: false
+    t.string "component", limit: 40, null: false
     t.bigint "amount_cents", null: false
     t.datetime "created_at", null: false
     t.index ["bill_id"], name: "index_payment_allocations_on_bill_id"
     t.index ["payment_id"], name: "index_payment_allocations_on_payment_id"
-    t.check_constraint "component::text = ANY (ARRAY['interest'::character varying::text, 'fine'::character varying::text, 'fees'::character varying::text, 'correction'::character varying::text, 'principal'::character varying::text])", name: "payment_allocations_component"
+    t.check_constraint "component::text = ANY (ARRAY['interest'::character varying::text, 'fine'::character varying::text, 'fees'::character varying::text, 'correction'::character varying::text, 'principal'::character varying::text, 'late'::character varying::text, 'installment_interest'::character varying::text, 'inherited_installment_interest'::character varying::text, 'inherited_late'::character varying::text])", name: "payment_allocations_component"
   end
 
   create_table "payment_channels", force: :cascade do |t|
@@ -408,6 +585,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_101000) do
     t.string "reason", limit: 300
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.boolean "grace_free", default: false, null: false
     t.index ["contact_attempt_id"], name: "index_payment_promises_on_contact_attempt_id", unique: true
     t.index ["contract_id"], name: "index_payment_promises_on_contract_id"
     t.index ["customer_id"], name: "index_payment_promises_on_customer_id"
@@ -415,7 +593,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_101000) do
     t.index ["tenant_id", "created_at"], name: "index_payment_promises_on_tenant_id_and_created_at"
     t.index ["tenant_id", "number"], name: "index_payment_promises_on_tenant_id_and_number", unique: true, where: "(number IS NOT NULL)"
     t.index ["tenant_id", "state", "promised_on"], name: "index_payment_promises_on_tenant_id_and_state_and_promised_on"
-    t.check_constraint "state::text = ANY (ARRAY['pending'::character varying, 'open'::character varying, 'fulfilled'::character varying, 'fulfilled_late'::character varying, 'broken'::character varying, 'canceled'::character varying, 'refused'::character varying, 'not_approved'::character varying]::text[])", name: "payment_promises_state"
+    t.check_constraint "state::text = ANY (ARRAY['pending'::character varying::text, 'open'::character varying::text, 'fulfilled'::character varying::text, 'fulfilled_late'::character varying::text, 'broken'::character varying::text, 'canceled'::character varying::text, 'refused'::character varying::text, 'not_approved'::character varying::text])", name: "payment_promises_state"
     t.check_constraint "total_cents >= 0 AND paid_cents >= 0", name: "payment_promises_amounts"
   end
 
@@ -452,6 +630,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_101000) do
     t.string "reason", limit: 300
     t.boolean "ok", default: true, null: false
     t.boolean "registered", default: false, null: false
+    t.string "final_state", limit: 10
     t.index ["import_id", "channel_code", "identifier"], name: "idx_on_import_id_channel_code_identifier_ab3d619076"
     t.index ["import_id", "ok", "paid_on", "line"], name: "index_payment_rows_on_import_id_and_ok_and_paid_on_and_line"
   end
@@ -476,12 +655,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_101000) do
     t.datetime "updated_at", null: false
     t.bigint "promise_id"
     t.boolean "promise_counted", default: false, null: false
+    t.string "final_state", limit: 10
+    t.bigint "agreement_id"
+    t.bigint "moved_to_credit_cents", default: 0, null: false
+    t.index ["agreement_id"], name: "index_payments_on_agreement_id", where: "(agreement_id IS NOT NULL)"
     t.index ["bill_id"], name: "index_payments_on_bill_id"
     t.index ["tenant_id", "channel_id", "identifier"], name: "index_payments_on_tenant_id_and_channel_id_and_identifier", unique: true
     t.index ["tenant_id", "paid_on"], name: "index_payments_on_tenant_id_and_paid_on"
     t.index ["tenant_id"], name: "index_payments_pending_by_tenant", where: "((status)::text = 'pending'::text)"
     t.check_constraint "amount_cents > 0", name: "payments_amount_positive"
     t.check_constraint "applied_cents >= 0 AND credit_cents >= 0 AND reversed_cents >= 0 AND credit_reversed_cents >= 0", name: "payments_parts_not_negative"
+    t.check_constraint "moved_to_credit_cents >= 0", name: "payments_moved_to_credit"
   end
 
   create_table "profiles", force: :cascade do |t|
@@ -513,6 +697,28 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_101000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["bill_id"], name: "index_reported_surcharges_on_bill_id", unique: true
+  end
+
+  create_table "reversal_waits", force: :cascade do |t|
+    t.bigint "tenant_id", null: false
+    t.bigint "payment_id", null: false
+    t.bigint "agreement_id"
+    t.bigint "contract_id", null: false
+    t.bigint "amount_cents", null: false
+    t.string "reason", limit: 30, null: false
+    t.date "reversed_on", null: false
+    t.date "processed_on", null: false
+    t.string "state", limit: 10, default: "waiting", null: false
+    t.string "decision", limit: 20
+    t.bigint "decided_by_id"
+    t.datetime "decided_at"
+    t.string "note", limit: 300
+    t.jsonb "details", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.index ["agreement_id"], name: "index_reversal_waits_on_agreement_id", where: "(agreement_id IS NOT NULL)"
+    t.index ["payment_id"], name: "index_reversal_waits_on_payment_id"
+    t.index ["tenant_id", "state", "created_at"], name: "index_reversal_waits_on_tenant_state"
+    t.check_constraint "(state::text = ANY (ARRAY['waiting'::character varying::text, 'decided'::character varying::text])) AND amount_cents > 0 AND (decision IS NULL OR (decision::text = ANY (ARRAY['reopen'::character varying::text, 'reversal_title'::character varying::text, 'credit'::character varying::text, 'revert'::character varying::text])))", name: "reversal_waits_valid"
   end
 
   create_table "segments", force: :cascade do |t|
@@ -549,11 +755,25 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_101000) do
     t.string "days_convention", limit: 10
     t.string "fine_base", limit: 10
     t.integer "promise_max_days", default: 30, null: false
+    t.decimal "installment_rate_pct", precision: 7, scale: 4
+    t.string "installment_method", limit: 10
+    t.string "agreement_days_convention", limit: 10
+    t.string "agreement_fine_base", limit: 10
+    t.jsonb "agreement_caps", default: {"cash" => {}, "installment" => {}}, null: false
+    t.integer "agreement_max_installments", default: 12, null: false
+    t.bigint "agreement_min_installment_cents", default: 5000, null: false
+    t.integer "agreement_min_down_payment_pct", default: 10, null: false
+    t.integer "agreement_down_payment_days", default: 10, null: false
+    t.integer "agreement_validity_days", default: 5, null: false
+    t.integer "agreement_tolerance_days", default: 3, null: false
+    t.integer "agreement_break_days", default: 30, null: false
     t.index ["tenant_id", "name_key"], name: "index_segments_on_tenant_id_and_name_key", unique: true
     t.index ["tenant_id"], name: "index_segments_one_catch_all_per_tenant", unique: true, where: "catch_all"
     t.check_constraint "(fine_pct IS NULL OR fine_pct >= 0::numeric AND fine_pct <= 100::numeric) AND (interest_pct IS NULL OR interest_pct >= 0::numeric AND interest_pct <= 100::numeric) AND fees_pct >= 0::numeric AND fees_pct <= 100::numeric", name: "segments_charge_pct"
     t.check_constraint "(index_code IS NULL OR (index_code::text = ANY (ARRAY['none'::character varying::text, 'ipca'::character varying::text, 'inpc'::character varying::text, 'igpm'::character varying::text]))) AND (days_convention IS NULL OR (days_convention::text = ANY (ARRAY['calendar'::character varying::text, 'thirty'::character varying::text]))) AND (fine_base IS NULL OR (fine_base::text = ANY (ARRAY['corrected'::character varying::text, 'face'::character varying::text])))", name: "segments_charge_options"
+    t.check_constraint "(installment_rate_pct IS NULL OR installment_rate_pct >= 0::numeric AND installment_rate_pct <= 100::numeric) AND (installment_method IS NULL OR (installment_method::text = ANY (ARRAY['none'::character varying::text, 'price'::character varying::text, 'sac'::character varying::text]))) AND (agreement_days_convention IS NULL OR (agreement_days_convention::text = ANY (ARRAY['calendar'::character varying::text, 'thirty'::character varying::text]))) AND (agreement_fine_base IS NULL OR (agreement_fine_base::text = ANY (ARRAY['corrected'::character varying::text, 'face'::character varying::text])))", name: "segments_agreement_params"
     t.check_constraint "(interest_kind::text = ANY (ARRAY['none'::character varying::text, 'fixed'::character varying::text, 'legal'::character varying::text])) AND (interest_form::text = ANY (ARRAY['simple'::character varying::text, 'compound'::character varying::text]))", name: "segments_interest"
+    t.check_constraint "agreement_max_installments >= 1 AND agreement_max_installments <= 120 AND agreement_min_installment_cents >= 0 AND agreement_min_down_payment_pct >= 1 AND agreement_min_down_payment_pct <= 100 AND agreement_down_payment_days >= 1 AND agreement_down_payment_days <= 365 AND agreement_validity_days >= 1 AND agreement_validity_days <= 365 AND agreement_tolerance_days >= 0 AND agreement_tolerance_days <= 60 AND agreement_break_days >= 1 AND agreement_break_days <= 365", name: "segments_agreement_variables"
     t.check_constraint "broke_agreement IS NULL OR (broke_agreement::text = ANY (ARRAY['yes'::character varying::text, 'no'::character varying::text]))", name: "segments_broke_agreement"
     t.check_constraint "person_type IS NULL OR (person_type::text = ANY (ARRAY['person'::character varying::text, 'company'::character varying::text, 'mixed'::character varying::text]))", name: "segments_person_type"
     t.check_constraint "promise_max_days >= 1 AND promise_max_days <= 365", name: "segments_promise_max_days"
@@ -613,12 +833,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_101000) do
     t.integer "promise_grace_days", default: 0, null: false
     t.string "promise_partial", limit: 20, default: "prevails", null: false
     t.integer "promise_sequence", default: 0, null: false
+    t.decimal "installment_rate_pct", precision: 7, scale: 4, default: "0.0", null: false
+    t.string "installment_method", limit: 10, default: "none", null: false
+    t.string "agreement_days_convention", limit: 10, default: "thirty", null: false
+    t.string "agreement_fine_base", limit: 10, default: "corrected", null: false
+    t.jsonb "agreement_policies", default: {}, null: false
+    t.integer "agreement_sequence", default: 0, null: false
     t.index ["tenant_id"], name: "index_tenant_settings_on_tenant_id", unique: true
     t.check_constraint "(charge_days_convention::text = ANY (ARRAY['calendar'::character varying::text, 'thirty'::character varying::text])) AND (charge_fine_base::text = ANY (ARRAY['corrected'::character varying::text, 'face'::character varying::text]))", name: "tenant_settings_charge_conventions"
     t.check_constraint "(missing_index_policy::text = ANY (ARRAY['closed_only'::character varying::text, 'last_prorated'::character varying::text])) AND (default_interest_form::text = ANY (ARRAY['simple'::character varying::text, 'compound'::character varying::text])) AND (negative_index_policy::text = ANY (ARRAY['floor'::character varying::text, 'always'::character varying::text, 'ignore'::character varying::text])) AND (old_legal_interest_policy::text = ANY (ARRAY['selic'::character varying::text, 'one_percent'::character varying::text, 'none'::character varying::text])) AND (surcharge_comparison_policy::text = ANY (ARRAY['before'::character varying::text, 'after'::character varying::text]))", name: "tenant_settings_charge_policies"
-    t.check_constraint "(promise_counting::text = ANY (ARRAY['promise_only'::character varying, 'also_direct'::character varying]::text[])) AND (promise_after_break::text = ANY (ARRAY['fulfilled'::character varying, 'stays_broken'::character varying]::text[])) AND (promise_partial::text = ANY (ARRAY['prevails'::character varying, 'r46'::character varying]::text[]))", name: "tenant_settings_promise_policies"
+    t.check_constraint "(promise_counting::text = ANY (ARRAY['promise_only'::character varying::text, 'also_direct'::character varying::text])) AND (promise_after_break::text = ANY (ARRAY['fulfilled'::character varying::text, 'stays_broken'::character varying::text])) AND (promise_partial::text = ANY (ARRAY['prevails'::character varying::text, 'r46'::character varying::text]))", name: "tenant_settings_promise_policies"
     t.check_constraint "charge_fine_pct >= 0::numeric AND charge_fine_pct <= 100::numeric AND charge_interest_pct >= 0::numeric AND charge_interest_pct <= 100::numeric", name: "tenant_settings_charge_pct"
     t.check_constraint "charge_index::text = ANY (ARRAY['none'::character varying::text, 'ipca'::character varying::text, 'inpc'::character varying::text, 'igpm'::character varying::text])", name: "tenant_settings_charge_index"
+    t.check_constraint "installment_rate_pct >= 0::numeric AND installment_rate_pct <= 100::numeric AND (installment_method::text = ANY (ARRAY['none'::character varying::text, 'price'::character varying::text, 'sac'::character varying::text])) AND (agreement_days_convention::text = ANY (ARRAY['calendar'::character varying::text, 'thirty'::character varying::text])) AND (agreement_fine_base::text = ANY (ARRAY['corrected'::character varying::text, 'face'::character varying::text]))", name: "tenant_settings_agreement_params"
     t.check_constraint "promise_tolerance_days >= 0 AND promise_tolerance_days <= 60 AND promise_grace_days >= 0 AND promise_grace_days <= 365 AND (promise_min_paid_pct IS NULL OR promise_min_paid_pct >= 1 AND promise_min_paid_pct <= 99)", name: "tenant_settings_promise_numbers"
     t.check_constraint "retention_years >= 1", name: "tenant_settings_retention_years_min"
   end
@@ -695,15 +922,40 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_101000) do
     t.index ["channel_id", "event_id"], name: "index_webhook_events_on_channel_id_and_event_id", unique: true
   end
 
+  add_foreign_key "abatements", "bills"
+  add_foreign_key "abatements", "payments"
+  add_foreign_key "abatements", "tenants"
   add_foreign_key "access_events", "tenants", on_delete: :nullify
   add_foreign_key "access_events", "users", column: "actor_id", on_delete: :nullify
   add_foreign_key "access_events", "users", on_delete: :nullify
+  add_foreign_key "agreement_bills", "agreements", on_delete: :cascade
+  add_foreign_key "agreement_bills", "bills", on_delete: :restrict
+  add_foreign_key "agreement_bills", "contracts", on_delete: :restrict
+  add_foreign_key "agreement_events", "agreements", on_delete: :cascade
+  add_foreign_key "agreement_events", "tenants"
+  add_foreign_key "agreement_events", "users", on_delete: :nullify
+  add_foreign_key "agreement_exports", "tenants"
+  add_foreign_key "agreement_exports", "users", on_delete: :nullify
+  add_foreign_key "agreement_limits", "profiles", on_delete: :cascade
+  add_foreign_key "agreement_limits", "segments", on_delete: :cascade
+  add_foreign_key "agreement_settlements", "agreements", on_delete: :cascade
+  add_foreign_key "agreement_settlements", "users", on_delete: :nullify
+  add_foreign_key "agreements", "customers", column: "accepted_by_customer_id", on_delete: :nullify
+  add_foreign_key "agreements", "customers", on_delete: :restrict
+  add_foreign_key "agreements", "segments", on_delete: :nullify
+  add_foreign_key "agreements", "tenants"
+  add_foreign_key "agreements", "users", column: "decided_by_id", on_delete: :nullify
+  add_foreign_key "agreements", "users", column: "registered_by_id", on_delete: :nullify
+  add_foreign_key "agreements", "users", column: "reversal_by_id", on_delete: :nullify
+  add_foreign_key "agreements", "users", on_delete: :nullify
   add_foreign_key "bill_valuations", "bills", on_delete: :cascade
   add_foreign_key "bill_valuations", "tenants"
   add_foreign_key "bill_value_versions", "bills", on_delete: :restrict
   add_foreign_key "bill_value_versions", "imports", on_delete: :nullify
   add_foreign_key "bill_value_versions", "tenants"
   add_foreign_key "bill_value_versions", "users", on_delete: :nullify
+  add_foreign_key "bills", "agreements", column: "origin_agreement_id", on_delete: :restrict
+  add_foreign_key "bills", "agreements", on_delete: :restrict
   add_foreign_key "bills", "contracts", on_delete: :restrict
   add_foreign_key "bills", "customers", on_delete: :restrict
   add_foreign_key "bills", "imports", column: "last_import_id", on_delete: :nullify
@@ -725,6 +977,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_101000) do
   add_foreign_key "contract_segments", "segments", on_delete: :restrict
   add_foreign_key "contracts", "segments", on_delete: :nullify
   add_foreign_key "contracts", "tenants"
+  add_foreign_key "credits", "agreements", on_delete: :restrict
+  add_foreign_key "credits", "bills", on_delete: :restrict
   add_foreign_key "credits", "contracts", column: "related_contract_id", on_delete: :restrict
   add_foreign_key "credits", "contracts", on_delete: :restrict
   add_foreign_key "credits", "payments", on_delete: :restrict
@@ -735,6 +989,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_101000) do
   add_foreign_key "customer_contacts", "users", column: "updated_by_id", on_delete: :nullify
   add_foreign_key "customers", "tenants"
   add_foreign_key "customers", "users", column: "retained_by_id", on_delete: :nullify
+  add_foreign_key "holidays", "municipalities", on_delete: :cascade
   add_foreign_key "import_rejections", "imports", on_delete: :cascade
   add_foreign_key "import_warnings", "imports", on_delete: :cascade
   add_foreign_key "imports", "tenants"
@@ -762,6 +1017,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_101000) do
   add_foreign_key "payment_reversals", "payment_channels", column: "channel_id", on_delete: :restrict
   add_foreign_key "payment_reversals", "payments", on_delete: :restrict
   add_foreign_key "payment_reversals", "tenants"
+  add_foreign_key "payments", "agreements", on_delete: :restrict
   add_foreign_key "payments", "bills", on_delete: :restrict
   add_foreign_key "payments", "imports", on_delete: :nullify
   add_foreign_key "payments", "payment_channels", column: "channel_id", on_delete: :restrict
@@ -773,6 +1029,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_101000) do
   add_foreign_key "reported_surcharges", "bills", on_delete: :cascade
   add_foreign_key "reported_surcharges", "imports", on_delete: :nullify
   add_foreign_key "reported_surcharges", "tenants"
+  add_foreign_key "reversal_waits", "agreements", on_delete: :restrict
+  add_foreign_key "reversal_waits", "contracts"
+  add_foreign_key "reversal_waits", "payments", on_delete: :restrict
+  add_foreign_key "reversal_waits", "tenants"
+  add_foreign_key "reversal_waits", "users", column: "decided_by_id", on_delete: :nullify
   add_foreign_key "segments", "tenants"
   add_foreign_key "sessions", "users"
   add_foreign_key "task_runs", "tenants"

@@ -1,0 +1,298 @@
+<% content_for :title, "Acordo #{@agreement.number}" %>
+<% content_for :cable_channels, @cable %>
+<% agreement = @agreement %>
+<% policy = policy(agreement) %>
+<%# A página de uma proposta ou de um acordo (11, R216 a R220): situação, termos congelados, entrada e parcelas, ações da alçada, o termo e o aceite. %>
+<header class="cabecalho-da-pagina">
+  <div>
+    <h1>Acordo <%= agreement.number %> <%= agreement_state(agreement) %></h1>
+    <p><%= link_to agreement.customer.name, customer_path(agreement.customer, anchor: "acordos") %> · <%= agreement.tenant.name %> · <%= link_to "Voltar para os acordos", agreements_path %></p>
+  </div>
+  <% if policy.term? && !agreement.state_pending? && @term["missing"].blank? && !agreement.state_refused? %>
+    <div class="acoes"><%= link_to "Abrir o termo", agreement_term_path(agreement), class: "botao", data: { variant: "secondary" }, target: "_blank", rel: "noopener" %></div>
+  <% end %>
+</header>
+
+<% if agreement.state_pending? %>
+  <%= aviso(tom: :warning) { tag.p "Esta proposta passou dos limites de quem a montou. Só quem tem os limites que a cobririam, e não a montou, pode aprová-la; ela vale até #{date_br(agreement.valid_until)}." } %>
+<% elsif agreement.state_approved? %>
+  <%= aviso(tom: :info) { tag.p "Proposta aprovada. Apresente o termo ao cliente e registre o aceite até #{date_br(agreement.valid_until)}." } %>
+<% elsif agreement.reason.present? %>
+  <%= aviso(tom: :info) { tag.p "Motivo: #{agreement.reason}" } %>
+<% end %>
+<% if @term["missing"].present? && agreement.proposal? %>
+  <%= aviso(tom: :danger) { tag.p "O termo não pode ser gerado: faltam dados do credor (#{@term['missing'].to_sentence}). Complete o cadastro do credor para registrar o aceite." } %>
+<% end %>
+<% if agreement.reversing? %>
+  <%= aviso(tom: :danger) { tag.p "Em reversão desde #{datetime_br(agreement.reversing_since)}: #{agreement.reversal_reason}. A tarefa diária não quebra o acordo, os encargos e a contagem dos prazos ficam parados, e o crédito aguardando alocação do contrato não se aloca nem se transfere até concluir ou desistir." } %>
+<% end %>
+<% agreement.terms["warnings"].to_a.each do |text| %><%= aviso(tom: :warning) { tag.p text } %><% end %>
+
+<section class="cartao" aria-labelledby="resumo-do-acordo">
+  <header><h2 id="resumo-do-acordo">Resumo</h2></header>
+  <div>
+    <dl class="valores">
+      <div><dt>Forma</dt><dd><%= agreement_mode(agreement) %></dd></div>
+      <div><dt>Segmento para negociar</dt><dd><%= agreement.terms.dig("segment", "name") %></dd></div>
+      <div><dt>Base</dt><dd><%= money(agreement.base_cents) %></dd></div>
+      <div><dt>Desconto</dt><dd><%= money(agreement.discount_cents) %> <small>(<%= discounts_text(agreement.discounts) %>)</small></dd></div>
+      <div><dt>Valor do acordo</dt><dd><%= money(agreement.value_cents) %></dd></div>
+      <% if agreement.credit_cents.positive? || agreement.credit_down_cents.positive? %><div><dt>Crédito do contrato usado</dt><dd><%= money(agreement.credit_cents + agreement.credit_down_cents) %> como <%= agreement.credit_cents.positive? ? "abatimento do valor do acordo" : "pagamento da entrada" %></dd></div><% end %>
+      <div><dt>Valor líquido do acordo</dt><dd><%= money(agreement.net_cents) %></dd></div>
+      <% if agreement.installments_count.positive? %>
+        <div><dt>Método</dt><dd><%= t("agreements.methods.#{agreement.installment_method}") %><%= " a #{percent_decimal(agreement.rate_pct)} ao mês" unless agreement.installment_method == "none" %></dd></div>
+        <div><dt>Taxa efetiva anual</dt><dd><%= percent_decimal(agreement.effective_annual_pct) %></dd></div>
+        <div><dt>Juros do parcelamento</dt><dd><%= money(agreement.interest_cents) %></dd></div>
+      <% end %>
+      <div><dt>Soma total a pagar</dt><dd><%= money(agreement.total_cents) %></dd></div>
+      <div><dt>Montada por</dt><dd><%= agreement.user&.name || "—" %> em <%= date_br(agreement.built_on) %></dd></div>
+      <div><dt>Aprovada por</dt><dd><%= agreement.decided_by ? "#{agreement.decided_by.name} em #{datetime_br(agreement.decided_at)}" : "—" %></dd></div>
+      <% unless agreement.accepted_at %><div><dt>Vale até</dt><dd><%= date_br(agreement.valid_until) %></dd></div><% end %>
+    </dl>
+    <div class="tabela">
+      <table>
+        <caption class="apenas-leitor-de-tela">Títulos do acordo, base e desconto por componente</caption>
+        <thead>
+          <tr>
+            <th scope="col">Título</th><th scope="col">Contrato</th>
+            <% columns = component_columns(agreement.agreement_bills.map(&:base)) %><% columns.each do |component| %><th scope="col" data-numerico><%= component_name(component) %></th><% end %>
+            <th scope="col" data-numerico>Base</th><th scope="col" data-numerico>Desconto</th><th scope="col" data-numerico>No acordo</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% agreement.agreement_bills.sort_by { |item| [ item.bill.due_date, item.bill_id ] }.each do |item| %>
+            <tr>
+              <th scope="row"><%= link_to item.bill.number, bill_path(item.bill) %></th>
+              <td><%= item.contract.label %></td>
+              <% columns.each do |component| %><td data-numerico><%= money(item.base.fetch(component, 0)) %></td><% end %>
+              <td data-numerico><%= money(item.base_total_cents) %></td>
+              <td data-numerico><%= money(item.discount_total_cents) %></td>
+              <td data-numerico><%= money(item.value_cents) %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section class="cartao" aria-labelledby="entrada-e-parcelas">
+  <header><h2 id="entrada-e-parcelas">Entrada e parcelas</h2></header>
+  <div class="tabela">
+    <table>
+      <caption class="apenas-leitor-de-tela">Entrada e parcelas do acordo</caption>
+      <thead><tr><th scope="col">Título de acordo</th><th scope="col">Vencimento</th><th scope="col" data-numerico>Valor</th><th scope="col" data-numerico>Juros do parcelamento</th><th scope="col" data-numerico>Amortização</th><th scope="col" data-numerico>Falta amortizar</th></tr></thead>
+      <tbody>
+        <% agreement.schedule.each do |row| %>
+          <tr>
+            <th scope="row"><%= row["number"].to_i.zero? ? "Entrada" : "Parcela #{row['number']}" %></th>
+            <td><%= date_br(Date.iso8601(row["due"])) %></td>
+            <td data-numerico><%= money(row["amount_cents"]) %></td>
+            <td data-numerico><%= money(row["interest_cents"]) %></td>
+            <td data-numerico><%= money(row["amortization_cents"]) %></td>
+            <td data-numerico><%= money(row["balance_cents"]) %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<% if agreement.state_awaiting_effectuation? %>
+  <% entry_title = @titles.find { |bill| bill.composition["number"].to_i.zero? } %>
+  <%= aviso(tom: :info) { tag.p "Aguardando efetivação. O acordo vira ativo quando a entrada #{entry_title&.number} for paga (o credor emite a cobrança). Os títulos originais seguem em cobrança até lá; a entrada vence em #{date_br(agreement.down_payment_due)}." } %>
+<% elsif agreement.state_broken? %>
+  <%= aviso(tom: :danger) { tag.p "Acordo quebrado em #{datetime_br(agreement.broken_at)}: #{agreement.reason}. #{agreement.break_kind == 'before_effectuation' ? 'Os títulos originais voltaram a ser cobrados.' : (agreement.break_form == 'single_title' ? 'O título da quebra reúne o que faltava pagar.' : 'Os títulos de acordo seguem em cobrança, cada um com o vencimento dele.')}" } %>
+<% elsif agreement.state_canceled? && agreement.accepted_at %>
+  <%= aviso(tom: :info) { tag.p "Acordo cancelado: #{agreement.reason}. Os títulos originais voltaram a ser cobrados." } %>
+<% end %>
+
+<% if @titles.any? %>
+  <section class="cartao" aria-labelledby="titulos-de-acordo">
+    <header><div><h2 id="titulos-de-acordo">Títulos de acordo</h2><p>Existem desde o aceite e entram na cobrança com a efetivação<%= agreement.effectuated? ? " (efetivado em #{date_br(agreement.effectuated_at.to_date)} #{t("agreements.effectuated_by.#{agreement.effectuated_by}")})" : "" %>. O devido de hoje tem a mora dos parâmetros congelados no acordo e os juros do parcelamento já corridos.</p></div></header>
+    <div class="tabela">
+      <table>
+        <caption class="apenas-leitor-de-tela">Títulos de acordo, valor, pago e devido hoje</caption>
+        <thead><tr><th scope="col">Título</th><th scope="col">Vencimento</th><th scope="col" data-numerico>Valor</th><th scope="col" data-numerico>Pago</th><th scope="col" data-numerico>Mora de hoje</th><th scope="col" data-numerico>Devido hoje</th><th scope="col">Situação</th></tr></thead>
+        <tbody>
+          <% @titles.each do |bill| %>
+            <% ledger = @ledgers[bill.id] %>
+            <% due = ledger&.due(Date.current) %>
+            <tr>
+              <th scope="row"><%= link_to bill.number, bill_path(bill) %><%= " (título da quebra)" if bill.kind_break? %></th>
+              <td><%= date_br(bill.due_date) %></td>
+              <td data-numerico><%= money(bill.amount_cents) %></td>
+              <td data-numerico><%= money(bill.paid_cents) %></td>
+              <td data-numerico><%= due ? money(due.late) : "—" %></td>
+              <td data-numerico><%= due && !bill.paid? ? money(due.total) : "—" %></td>
+              <td><%= bill_title_state(bill, agreement) %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </section>
+<% end %>
+
+<% if @reversal_titles.present? %>
+  <section class="cartao" aria-labelledby="titulos-de-estorno">
+    <header><div><h2 id="titulos-de-estorno">Títulos de estorno</h2><p>Títulos comuns do cliente criados quando um estorno mudou a base em que o acordo foi aceito. Ficam fora do acordo: não o quebram, não impedem a quitação e não entram no mínimo.</p></div></header>
+    <div class="tabela">
+      <table>
+        <caption class="apenas-leitor-de-tela">Títulos de estorno do acordo</caption>
+        <thead><tr><th scope="col">Título</th><th scope="col">Vencimento</th><th scope="col" data-numerico>Valor</th><th scope="col" data-numerico>Pago</th><th scope="col">Situação</th></tr></thead>
+        <tbody>
+          <% @reversal_titles.each do |bill| %>
+            <tr>
+              <th scope="row"><%= link_to bill.number, bill_path(bill) %></th>
+              <td><%= date_br(bill.due_date) %></td>
+              <td data-numerico><%= money(bill.amount_cents) %></td>
+              <td data-numerico><%= money(bill.paid_cents) %></td>
+              <td><%= bill_title_state(bill, agreement) %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </section>
+<% end %>
+
+<% if policy.revert? || policy.conclude? %>
+  <section class="cartao" aria-labelledby="reverter-o-acordo">
+    <header><div><h2 id="reverter-o-acordo">Reverter o acordo</h2><p>Cancelar é reverter, em dois passos: primeiro as liquidações são estornadas (o dinheiro vira crédito do contrato aguardando alocação) e o acordo fica marcado; depois o acordo é cancelado e os títulos originais voltam como estavam antes do aceite.</p></div></header>
+    <div>
+      <% if policy.revert? %>
+        <details>
+          <summary>Reverter o acordo</summary>
+          <%= form_with scope: :reversion, url: agreement_reversion_path(agreement), html: { "hx-boost": "false" } do |form| %>
+            <div class="campo"><%= form.label :reason, "Motivo da reversão", for: "motivo-reversao" %><%= form.text_field :reason, id: "motivo-reversao", required: true, maxlength: 300 %></div>
+            <div class="acoes"><button type="submit" data-variant="danger-outline">Abrir a reversão</button></div>
+          <% end %>
+        </details>
+      <% else %>
+        <div class="acoes">
+          <%= button_to "Concluir a reversão", agreement_reversion_path(agreement), method: :patch, form: { "hx-boost": "false" }, data: { variant: "danger-outline" } %>
+          <%= button_to "Desistir da reversão", agreement_reversion_path(agreement), method: :delete, form: { "hx-boost": "false" }, data: { variant: "secondary" } %>
+        </div>
+      <% end %>
+    </div>
+  </section>
+<% end %>
+
+<% if policy.settle? || policy.break? %>
+  <section class="cartao" aria-labelledby="acoes-do-acordo">
+    <header><h2 id="acoes-do-acordo">Ações do acordo</h2></header>
+    <div>
+      <% if policy.settle? %>
+        <details>
+          <summary>Calcular quitação</summary>
+          <p><small>O saldo para a data: a amortização que falta, os juros do parcelamento já corridos e a mora, sem os juros que ainda não correram. O pagamento com o número <%= agreement.number %> até essa data quita o acordo.</small></p>
+          <%= form_with scope: :settlement, url: agreement_settlement_path(agreement), html: { "hx-boost": "false" } do |form| %>
+            <div class="campo"><%= form.label :on_date, "Data da quitação", for: "data-quitacao" %><%= form.date_field :on_date, id: "data-quitacao", required: true, min: Date.current.iso8601, value: Date.current.iso8601 %></div>
+            <div class="acoes"><button type="submit" data-variant="secondary">Calcular quitação</button></div>
+          <% end %>
+        </details>
+        <% if @settlements.any? %>
+          <ul>
+            <% @settlements.each do |settlement| %><li>Quitação calculada para <%= date_br(settlement.on_date) %>: <strong><%= money(settlement.amount_cents) %></strong>, válida até essa data.</li><% end %>
+          </ul>
+        <% end %>
+      <% end %>
+      <% if policy.break? %>
+        <details>
+          <summary>Quebrar o acordo</summary>
+          <p><small>Só para o acordo em atraso há mais que a tolerância, ou por fraude. Os efeitos são os da quebra automática.</small></p>
+          <%= form_with scope: :break, url: agreement_break_path(agreement), html: { "hx-boost": "false" } do |form| %>
+            <div class="campo"><%= form.label :reason, "Motivo da quebra", for: "motivo-quebra" %><%= form.text_field :reason, id: "motivo-quebra", required: true, maxlength: 300 %></div>
+            <div class="campo"><label><%= form.check_box :fraud, id: "quebra-fraude" %> Quebra por fraude</label></div>
+            <div class="acoes"><button type="submit" data-variant="danger-outline">Quebrar o acordo</button></div>
+          <% end %>
+        </details>
+      <% end %>
+    </div>
+  </section>
+<% end %>
+
+<% if policy.approve? || policy.cancel? %>
+  <section class="cartao" aria-labelledby="acoes-da-proposta">
+    <header><h2 id="acoes-da-proposta">Ações</h2></header>
+    <div>
+      <% if policy.approve? %>
+        <div class="acoes"><%= button_to "Aprovar proposta", agreement_approval_path(agreement), form: { "hx-boost": "false" }, data: { variant: "secondary" } %></div>
+        <details>
+          <summary>Recusar proposta</summary>
+          <%= form_with scope: :agreement, url: agreement_refusal_path(agreement), html: { "hx-boost": "false" } do |form| %>
+            <div class="campo"><%= form.label :reason, "Motivo da recusa", for: "recusa" %><%= form.text_field :reason, id: "recusa", required: true, maxlength: 300 %></div>
+            <div class="acoes"><button type="submit" data-variant="danger-outline">Recusar proposta</button></div>
+          <% end %>
+        </details>
+      <% end %>
+      <% if policy.cancel? %>
+        <details>
+          <summary>Cancelar proposta</summary>
+          <%= form_with scope: :agreement, url: agreement_cancellation_path(agreement), html: { "hx-boost": "false" } do |form| %>
+            <div class="campo"><%= form.label :reason, "Motivo do cancelamento", for: "cancelamento" %><%= form.text_field :reason, id: "cancelamento", required: true, maxlength: 300 %></div>
+            <div class="acoes"><button type="submit" data-variant="danger-outline">Cancelar proposta</button></div>
+          <% end %>
+        </details>
+      <% end %>
+    </div>
+  </section>
+<% end %>
+
+<% if policy.accept? && @term["missing"].blank? %>
+  <section class="cartao" aria-labelledby="registrar-aceite">
+    <header><div><h2 id="registrar-aceite">Registrar o aceite</h2><p>Como o termo foi apresentado e como o cliente aceitou. A apresentação e o aceite são posteriores à aprovação. O CRM confere a proposta de novo ao registrar.</p></div></header>
+    <div>
+      <% channels = Agreement::CHANNELS.map { |channel| [ channel_name(channel), channel ] } %>
+      <%= form_with scope: :acceptance, url: agreement_acceptance_path(agreement), html: { "hx-boost": "false" } do |form| %>
+        <div class="grupo-de-campos">
+          <div class="campo"><%= form.label :presented_channel, "Canal da apresentação do termo" %><%= form.select :presented_channel, channels, { include_blank: false } %></div>
+          <div class="campo"><%= form.label :presented_at, "Data e hora da apresentação" %><%= form.datetime_local_field :presented_at, required: true %></div>
+          <div class="campo"><%= form.label :accepted_channel, "Canal do aceite" %><%= form.select :accepted_channel, channels, { include_blank: false } %></div>
+          <div class="campo"><%= form.label :accepted_at, "Data e hora do aceite" %><%= form.datetime_local_field :accepted_at, required: true %></div>
+          <div class="campo">
+            <%= form.label :accepted_by_customer_id, "Quem aceitou" %>
+            <%= form.select :accepted_by_customer_id, @acceptors.map { |customer, role| [ "#{customer.name}, #{t("agreements.roles.#{role}")}", customer.id ] }, { include_blank: false } %>
+          </div>
+          <div class="campo"><%= form.label :proof, "Comprovante (opcional)" %><%= form.text_field :proof, maxlength: 200 %><small>Protocolo, número da gravação ou referência da mensagem.</small></div>
+        </div>
+        <div class="acoes"><button type="submit">Registrar aceite</button></div>
+      <% end %>
+    </div>
+  </section>
+<% end %>
+
+<% if agreement.accepted_at %>
+  <section class="cartao" aria-labelledby="aceite-registrado">
+    <header><h2 id="aceite-registrado">Aceite registrado</h2></header>
+    <div>
+      <dl class="valores">
+        <div><dt>Aceito por</dt><dd><%= agreement.accepted_by_customer&.name %>, <%= t("agreements.roles.#{agreement.accepted_role}") %></dd></div>
+        <div><dt>Canal e momento do aceite</dt><dd><%= channel_name(agreement.accepted_channel) %>, <%= datetime_br(agreement.accepted_at) %></dd></div>
+        <div><dt>Termo apresentado</dt><dd><%= channel_name(agreement.presented_channel) %>, <%= datetime_br(agreement.presented_at) %></dd></div>
+        <div><dt>Comprovante</dt><dd><%= agreement.proof.presence || "—" %></dd></div>
+        <div><dt>Registrado por</dt><dd><%= agreement.registered_by&.name %> em <%= datetime_br(agreement.registered_at) %></dd></div>
+      </dl>
+    </div>
+  </section>
+<% end %>
+
+<section class="cartao" aria-labelledby="historico-do-acordo">
+  <header><h2 id="historico-do-acordo">Histórico</h2></header>
+  <div class="tabela">
+    <table>
+      <caption class="apenas-leitor-de-tela">Eventos do acordo</caption>
+      <thead><tr><th scope="col">Quando</th><th scope="col">O que aconteceu</th><th scope="col">Quem</th></tr></thead>
+      <tbody>
+        <% @events.each do |event| %>
+          <tr>
+            <td><%= datetime_br(event.occurred_at) %></td>
+            <td><%= t("agreements.events.#{event.kind}") %><%= " — #{event.data['reason']}" if event.data["reason"].present? %></td>
+            <td><%= event.user&.name || "Sistema" %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</section>

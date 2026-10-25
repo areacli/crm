@@ -164,6 +164,70 @@ class CapturasTest < ApplicationSystemTestCase
     broken = register_promise(broken_customer, [ broken_bill ], on: Date.current + 2, text: "Disse que paga depois do salário.")
     broken.update_columns(promised_on: Date.current - 9, contacted_on: Date.current - 12)
     Promises::Daily.new(@tenant).apply
+    # Incremento 11 (etapas 1 e 2): município e feriado da praça, um cliente com contrato próprio (titular e responsável financeiro), as variáveis do segmento, o limite
+    # do Operador e três propostas: uma aprovada, uma pendente de aprovação e uma aceita (aguardando efetivação).
+    sao_paulo = Municipality.create!(ibge_code: "3550308", name: "São Paulo", state: "SP")
+    Municipality.create!(ibge_code: "3304557", name: "Rio de Janeiro", state: "RJ")
+    Holiday.create!(state: "SP", municipality: sao_paulo, date: Date.new(Date.current.year + 1, 1, 25), name: "Aniversário da cidade")
+    @tenant.update!(cnpj: "11222333000181", legal_name: "Escola Alfa Ltda")
+    Segment.where(tenant: @tenant).find_each { |segment| segment.update!(**AgreementsTestHelper::EXAMPLE_VARIABLES) }
+    @tenant.setting.update!(installment_rate_pct: 1.5, installment_method: "price")
+    rebuild_agreement_limits(@tenant)
+    @agreement_customer = Customer.order(:id).offset(6).first
+    own_contract = Contract.create!(tenant: @tenant, code: "CT-0777")
+    ContractCustomer.create!(contract: own_contract, customer: @agreement_customer, roles: %w[holder financial_responsible])
+    @agreement_customer.bills.update_all(contract_id: own_contract.id)
+    @agreement_customer.contacts.create!(tenant: @tenant, kind: "address", key: "rua-das-flores-10", value: "Rua das Flores, 10", street: "Rua das Flores", number: "10", city: "São Paulo", state: "SP", origin: "screen")
+    Customer.order(:id).offset(7).first.contacts.create!(tenant: @tenant, kind: "address", key: "rua-do-mar-5", value: "Rua do Mar, 5", street: "Rua do Mar", number: "5", city: "Atlântida", state: "SP", origin: "screen")
+    @agreement_bills = @agreement_customer.bills.order(:id).to_a
+    @approved_agreement = create_proposal(@agreement_customer, [ @agreement_bills.first ], user: users(:carlos), down: nil, down_on: nil, installments: 3, discounts: { "fine" => 5_000, "interest" => 5_000 })
+    @pending_agreement = create_proposal(Customer.order(:id).offset(8).first, Customer.order(:id).offset(8).first.bills.order(:id).to_a, user: users(:carlos), down: nil, down_on: nil, installments: 4, discounts: { "fine" => 10_000, "interest" => 5_000 })
+    accepted_customer = Customer.order(:id).offset(9).first
+    accepted_contract = Contract.create!(tenant: @tenant, code: "CT-0778")
+    ContractCustomer.create!(contract: accepted_contract, customer: accepted_customer, roles: %w[holder financial_responsible])
+    accepted_customer.bills.update_all(contract_id: accepted_contract.id)
+    @accepted_agreement = create_proposal(accepted_customer, accepted_customer.bills.order(:id).to_a, user: users(:carlos), down: nil, down_on: nil, installments: 4, discounts: { "fine" => 5_000, "interest" => 5_000 })
+    @accepted_agreement.update_columns(created_at: 3.hours.ago, decided_at: 3.hours.ago)
+    Agreements::Acceptance.new(users(:carlos)).call(@accepted_agreement.reload, Agreements::Acceptance::Input.new("whatsapp", 2.hours.ago, "phone", 90.minutes.ago, "protocolo 88213", accepted_customer.id))
+    # Incremento 11, etapas 3 e 4: um acordo efetivado pelo pagamento da entrada (com o cálculo da quitação) e um quebrado, e o arquivo de acordos exportado.
+    @effectuated_customer = effectuate_agreement_for(10, "CT-0779")
+    @effectuated_agreement = Agreement.where(customer: @effectuated_customer).last
+    AgreementSettlement.calculate!(@effectuated_agreement, on: Date.current + 20, user: users(:joana))
+    broken_customer = effectuate_agreement_for(11, "CT-0780")
+    @broken_agreement = Agreement.where(customer: broken_customer).last
+    Agreements::Breaker.manual!(@broken_agreement, users(:joana), reason: "O documento apresentado pelo cliente não confere", fraud: true)
+    Agreements::Archive.new(@tenant).export!("full", user: users(:joana))
+    # Incremento 11, etapas 5 e 6: um acordo efetivado em reversão (as liquidações viraram crédito aguardando alocação), um estorno à espera do gestor, um título de estorno com crédito
+    # disponível no contrato do acordo efetivado, e o título de acordo do quebrado entrando em acordo novo.
+    @reversal_customer = effectuate_agreement_for(5, "CT-0781")
+    @reversing_agreement = Agreement.where(customer: @reversal_customer).last
+    Agreements::Reversion.new(users(:joana)).open!(@reversing_agreement, "Acordo registrado no cliente errado")
+    wait_payment = Payment.where(agreement_id: @reversing_agreement.id).or(Payment.where(bill_id: @reversing_agreement.titles.select(:id))).first
+    ReversalWait.create!(tenant: @tenant, payment: wait_payment, agreement: @reversing_agreement, contract: @reversing_agreement.titles.first.contract, amount_cents: 12_500, reason: "in_reversion",
+                         reversed_on: Date.current - 2, processed_on: Date.current, created_at: 4.days.ago, details: {})
+    effectuated_contract = @effectuated_agreement.titles.first.contract
+    Agreements::ReversalTitles.create!(@effectuated_agreement, items: [ { "bill_id" => @effectuated_agreement.agreement_bills.first.bill_id, "component" => "principal", "cents" => 4_366 } ],
+                                       contract: effectuated_contract, action_on: Date.current, processed_on: Date.current)
+    Credit.create!(tenant: @tenant, contract: effectuated_contract, kind: :entry, amount_cents: 10_000, reason: :excess, occurred_at: 2.days.ago)
+    @renegotiation_customer = broken_customer
+  end
+
+  # Acordo de um cliente da carteira fictícia, aceito e com a entrada paga hoje: efetivado. Devolve o cliente.
+  def effectuate_agreement_for(offset, contract_code)
+    customer = Customer.order(:id).offset(offset).first
+    contract = Contract.create!(tenant: @tenant, code: contract_code)
+    ContractCustomer.create!(contract: contract, customer: customer, roles: %w[holder financial_responsible])
+    customer.bills.update_all(contract_id: contract.id)
+    agreement = create_proposal(customer, customer.bills.order(:id).to_a, user: users(:carlos), down: nil, down_on: nil, installments: 3, discounts: { "fine" => 5_000, "interest" => 5_000 })
+    agreement.update_columns(created_at: 3.hours.ago, decided_at: 3.hours.ago)
+    Agreements::Acceptance.new(users(:carlos)).call(agreement.reload, Agreements::Acceptance::Input.new("whatsapp", 2.hours.ago, "phone", 90.minutes.ago, "protocolo #{offset}", customer.id))
+    entry = agreement.entry_title
+    # A conferência da carteira das fotos fica em andamento (uma importação por vez): estaciona a situação enquanto o pagamento é confirmado.
+    parked = Import.in_progress.where(tenant_id: @tenant.id).pluck(:id, :status)
+    Import.where(id: parked.map(&:first)).update_all(status: "discarded")
+    run_payments_import([ payment_line("identificador" => "PIX-ACD-#{offset}", "documento" => customer.document, "titulo" => entry.number, "valor" => Money.format(entry.amount_cents), "data_pagamento" => brl_date(0)) ], confirm: true)
+    parked.each { |id, status| Import.where(id: id).update_all(status: status) }
+    customer
   end
 
   # nome do arquivo => caminho (lambda para os que dependem de registros criados no setup)
@@ -252,6 +316,39 @@ class CapturasTest < ApplicationSystemTestCase
     },
     "promessas-pendentes" => -> { pending_promises_path },
     "configuracao-de-promessas" => -> { settings_promises_path },
+    "simulacao-de-acordo" => lambda {
+      visit new_customer_agreement_simulation_path(@agreement_customer)
+      @agreement_bills.drop(1).each { |bill| check "titulo-#{bill.id}" }
+      fill_in "Desconto em multa (%)", with: "50"
+      fill_in "Desconto em juros (%)", with: "50"
+      fill_in "Parcelas", with: "4"
+      fill_in "Dia de vencimento das parcelas", with: "5"
+      assert_selector "#simulacao h2", text: "Entrada e parcelas"
+      :current
+    },
+    "proposta-de-acordo" => -> { agreement_path(@approved_agreement) },
+    "acordo-aguardando-efetivacao" => -> { agreement_path(@accepted_agreement) },
+    "termo-do-acordo" => -> { agreement_term_path(@accepted_agreement) },
+    "lista-de-acordos" => -> { agreements_path },
+    "acordos-pendentes" => -> { pending_agreements_path },
+    "ficha-com-acordos" => -> { customer_path(@agreement_customer) },
+    "parametros-dos-acordos" => -> { settings_segments_path },
+    "acordo-efetivado" => -> { agreement_path(@effectuated_agreement) },
+    "acordo-quebrado" => -> { agreement_path(@broken_agreement) },
+    "ficha-com-titulos-de-acordo" => -> { customer_path(@effectuated_customer) },
+    "arquivo-de-acordos" => -> { agreement_exports_path },
+    # Incremento 11, etapas 5 e 6: reversão, crédito por estado, estornos à espera e acordo sobre acordo.
+    "acordo-em-reversao" => -> { agreement_path(@reversing_agreement) },
+    "ficha-com-credito-por-estado" => -> { customer_path(@reversal_customer) },
+    "estornos-a-espera" => -> { reversal_waits_path },
+    "simulacao-de-acordo-sobre-acordo" => lambda {
+      visit new_customer_agreement_simulation_path(@renegotiation_customer)
+      all("input[type=checkbox][id^=titulo-]:not([disabled])").each { |box| check box[:id] }
+      fill_in "Parcelas", with: "3"
+      fill_in "Dia de vencimento das parcelas", with: "5"
+      assert_selector "#simulacao h2", text: "Entrada e parcelas", wait: 10
+      :current
+    },
     "exportacao-de-dados" => -> { customer_data_export_path(@forecast_customer, token: Rails.application.message_verifier(:data_export).generate([ @forecast_customer.id, users(:joana).id ], expires_in: 10.minutes, purpose: :data_export)) }
   }.freeze
 
@@ -260,11 +357,12 @@ class CapturasTest < ApplicationSystemTestCase
 
   # Telas longas, fotografadas com a janela mais alta para mostrar o que importa (o histórico, o formulário).
   ALTAS = %w[ficha-com-acionamentos ficha-com-contatos formulario-de-promessa configuracao-de-promessas ficha-com-promessas politica-de-correcao exportacao-de-dados guarda-de-dados indices novo-segmento ficha-com-segmentos segmentos
-             regra-de-encargos conferencia-de-encargos conferencia-da-carteira resumo ficha-com-valor-atualizado].freeze
+             regra-de-encargos conferencia-de-encargos conferencia-da-carteira resumo ficha-com-valor-atualizado simulacao-de-acordo termo-do-acordo lista-de-acordos proposta-de-acordo acordo-efetivado acordo-quebrado ficha-com-titulos-de-acordo
+             acordo-em-reversao ficha-com-credito-por-estado estornos-a-espera simulacao-de-acordo-sobre-acordo].freeze
 
   test "recria as fotos do README" do
     TELAS.each do |nome, caminho|
-      page.driver.resize(1440, nome == "ficha-com-valor-atualizado" ? 3500 : (nome == "ficha-com-segmentos" ? 2900 : (ALTAS.include?(nome) ? 1700 : 900)))
+      page.driver.resize(1440, nome == "ficha-com-valor-atualizado" ? 3500 : (nome == "ficha-com-titulos-de-acordo" ? 3400 : (nome == "acordo-em-reversao" ? 2300 : (nome == "ficha-com-credito-por-estado" ? 4400 : (nome == "ficha-com-segmentos" ? 2900 : (ALTAS.include?(nome) ? 1700 : 900))))))
       destino = instance_exec(&caminho)
       visit destino unless destino == :current
       assert_selector "h1"

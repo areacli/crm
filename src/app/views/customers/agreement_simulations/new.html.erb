@@ -1,0 +1,125 @@
+<% content_for :title, "Simular acordo · #{@customer.name}" %>
+<%# Simulação do acordo (11, R211 a R216): títulos, forma, descontos, entrada e parcelas. O resultado se refaz pelo htmx a cada mudança; "Criar proposta" grava (R215). %>
+<% form = @form || {} %>
+<% segment_hint = "Os tetos de cada componente aparecem na simulação, com o limite do seu perfil." %>
+<header class="cabecalho-da-pagina">
+  <div>
+    <h1>Simular acordo</h1>
+    <p><%= @customer.name %> · <%= @customer.tenant.name %> · <%= link_to "Voltar para a ficha", customer_path(@customer, anchor: "acordos") %></p>
+  </div>
+</header>
+<% if @create_problem %><%= aviso(tom: :danger) { tag.p @create_problem } %><% end %>
+
+<%= form_with scope: :agreement, url: customer_agreements_path(@customer), method: :post,
+      html: { "hx-boost": "false", "hx-post": customer_agreement_simulations_path(@customer), "hx-trigger": "change", "hx-target": "#simulacao", "hx-swap": "outerHTML", "hx-push-url": "false" } do |f| %>
+  <section class="cartao" aria-labelledby="titulos-do-acordo">
+    <header><div><h2 id="titulos-do-acordo">Títulos do acordo</h2><p>De 1 a 100 títulos do cliente em cobrança, vencidos ou a vencer. O acordo parte do valor atualizado de cada um, por componente.</p></div></header>
+    <div>
+      <% if @bills.empty? %>
+        <p class="vazio">Este cliente não tem título em cobrança.</p>
+      <% else %>
+        <div class="tabela">
+          <table>
+            <caption class="apenas-leitor-de-tela">Títulos em cobrança do cliente</caption>
+            <thead><tr><th scope="col">Escolher</th><th scope="col">Título</th><th scope="col">Contrato</th><th scope="col">Vencimento</th><th scope="col" data-numerico>Saldo</th><th scope="col">Situação</th></tr></thead>
+            <tbody>
+              <% @bills.each do |bill| %>
+                <% holder = @held[bill.id] %>
+                <% why = @ineligible&.dig(bill.id) %>
+                <% blocked = (holder && !holder.proposal?) || why.present? %>
+                <tr>
+                  <td>
+                    <%= check_box_tag "agreement[bill_ids][]", bill.id, Array(form[:bill_ids]).map(&:to_s).include?(bill.id.to_s), id: "titulo-#{bill.id}", disabled: blocked, "aria-label": "Incluir o título #{bill.number}" %>
+                  </td>
+                  <th scope="row"><label for="titulo-<%= bill.id %>"><%= bill.number %></label><%= tag.small(bill.kind_break? ? " (título da quebra)" : (bill.kind_reversal? ? " (título de estorno)" : (bill.kind_agreement? ? " (título de acordo #{bill.agreement.number})" : ""))) unless bill.kind_common? %></th>
+                  <td><%= bill.contract.label %></td>
+                  <td><%= date_br(bill.due_date) %></td>
+                  <td data-numerico><%= money(bill.balance_cents) %></td>
+                  <td>
+                    <% if why %>
+                      <%= situacao "Não entra", tom: :warning %> <small><%= t("agreements.eligibility.#{why}", number: bill.number) %></small>
+                    <% elsif holder %>
+                      <%= situacao holder.proposal? ? "Em proposta" : "Em acordo", tom: :warning %> <small><%= link_to holder.number, agreement_path(holder) %></small>
+                    <% elsif bill.due_date < Date.current %><%= situacao "Vencido", tom: :danger %>
+                    <% else %><%= situacao "A vencer", tom: :info %><% end %>
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+        <% if @held.values.any?(&:proposal?) %>
+          <div class="campo">
+            <label><%= check_box_tag "agreement[replace]", "1", form[:replace].to_s == "1" %> Substituir a proposta vigente sobre os títulos escolhidos</label>
+            <small>A proposta anterior é cancelada com o motivo "substituída por" este número, e os títulos dela ficam livres (R218).</small>
+          </div>
+        <% end %>
+      <% end %>
+    </div>
+  </section>
+
+  <section class="cartao" aria-labelledby="termos-do-acordo">
+    <header><div><h2 id="termos-do-acordo">Descontos, entrada e parcelas</h2><p><%= segment_hint %></p></div></header>
+    <div>
+      <fieldset>
+        <legend>Forma</legend>
+        <label><%= radio_button_tag "agreement[mode]", "installments", form[:mode].to_s != "cash", id: "forma-parcelado" %> Parcelado</label>
+        <label><%= radio_button_tag "agreement[mode]", "cash", form[:mode].to_s == "cash", id: "forma-avista" %> À vista</label>
+      </fieldset>
+      <div class="grupo-de-campos">
+        <% shown = Agreements::Caps::COMPONENTS.reverse.reject { |component| Agreements::INHERITED.include?(component) && @bills.none? { |bill| bill.kind_agreement? || bill.kind_break? } } %>
+        <% shown.each do |component| %>
+          <div class="campo">
+            <%= label_tag "desconto-#{component}", "Desconto em #{component_name(component).downcase} (%)" %>
+            <%= text_field_tag "agreement[discounts][#{component}]", form.dig(:discounts, component), id: "desconto-#{component}", inputmode: "decimal", autocomplete: "off" %>
+            <% if @field == "discounts_#{component}" %><small data-erro><%= @problem %></small><% end %>
+          </div>
+        <% end %>
+      </div>
+      <div class="grupo-de-campos">
+        <div class="campo">
+          <%= label_tag "entrada-valor", "Valor da entrada" %>
+          <%= text_field_tag "agreement[down_payment]", form[:down_payment], id: "entrada-valor", inputmode: "decimal", autocomplete: "off", "aria-describedby": "ajuda-entrada" %>
+          <small id="ajuda-entrada">Em reais, com vírgula nos centavos. Vazio vale a entrada mínima. No à vista, é o valor líquido do acordo.</small>
+          <% if @field == "down_payment" %><small data-erro><%= @problem %></small><% end %>
+        </div>
+        <div class="campo">
+          <%= label_tag "entrada-vencimento", "Vencimento da entrada" %>
+          <%= date_field_tag "agreement[down_payment_on]", form[:down_payment_on], id: "entrada-vencimento" %>
+          <small>Do dia útil seguinte até o prazo do segmento. Dia não útil passa ao dia útil seguinte.</small>
+          <% if @field == "down_payment_on" %><small data-erro><%= @problem %></small><% end %>
+        </div>
+        <div class="campo">
+          <%= label_tag "parcelas", "Parcelas" %>
+          <%= number_field_tag "agreement[installments]", form[:installments], id: "parcelas", min: 1, max: 120 %>
+        </div>
+        <div class="campo">
+          <%= label_tag "dia", "Dia de vencimento das parcelas" %>
+          <%= number_field_tag "agreement[day]", form[:day], id: "dia", min: 1, max: 28 %>
+          <small>De 1 a 28. A primeira parcela vence no mês seguinte ao da entrada.</small>
+        </div>
+      </div>
+      <% offers = Agreements::CreditUse.available_by_contract(@customer.tenant.setting, @bills) %>
+      <% if offers.any? %>
+        <div class="grupo-de-campos">
+          <div class="campo">
+            <%= label_tag "credito", "Crédito do contrato a usar" %>
+            <%= text_field_tag "agreement[credit]", form[:credit], id: "credito", inputmode: "decimal", autocomplete: "off", "aria-describedby": "ajuda-credito" %>
+            <small id="ajuda-credito">
+              Disponível: <%= safe_join(offers.map { |contract, cents| "#{contract.label}, #{money(cents)}" }, "; ") %>.
+              Entra como <%= Agreements::Policies.value(@customer.tenant.setting, "credit_entry") == "rebate" ? "abatimento do valor do acordo" : "pagamento da entrada" %>.
+            </small>
+            <% if @field == "credit" %><small data-erro><%= @problem %></small><% end %>
+          </div>
+        </div>
+      <% end %>
+      <% if @field == "mode" || @field == "bill_ids" %><%= aviso(tom: :danger) { tag.p @problem } %><% end %>
+      <div class="acoes">
+        <button type="submit" formaction="<%= customer_agreement_simulations_path(@customer) %>" data-variant="secondary">Simular</button>
+        <button type="submit">Criar proposta</button>
+      </div>
+    </div>
+  </section>
+<% end %>
+
+<%= render "customers/agreement_simulations/result" %>

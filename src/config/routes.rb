@@ -16,12 +16,18 @@ Rails.application.routes.draw do
     end
     # Transferência de crédito entre contratos do mesmo credor (R55a).
     resources :credit_transfers, path: "transferencias-de-credito", only: :create, module: :customers
+    # Crédito do contrato (11, R232b, R239): usar num título de acordo ou de estorno, e alocar o aguardando alocação.
+    resources :credit_uses, path: "uso-de-credito", only: :create, module: :customers
+    resources :credit_allocations, path: "alocacao-de-credito", only: :create, module: :customers
     # Direitos do titular (07): exportar (registra e abre a página com endereço assinado), anonimizar e reter.
     resource :data_export, path: "exportacao", only: %i[show create], module: :customers
     resource :anonymization, path: "anonimizacao", only: :create, module: :customers
     resource :retention, path: "retencao", only: %i[create destroy], module: :customers
     # Promessas abertas e pendentes na ficha (10, R203): o trecho do cabeçalho, refeito a cada evento.
     resources :promises, path: "promessas", only: :index, module: :customers
+    # Acordos (11): o trecho da ficha, a simulação e a gravação da proposta.
+    resources :agreement_simulations, path: "simulacao-de-acordo", only: %i[new create], module: :customers
+    resources :agreements, path: "acordos", only: %i[index create], module: :customers
     # Acionamentos do cliente: histórico, campos que dependem da escolha e registro (04).
     resources :contact_attempts, path: "acionamentos", path_names: { new: "campos" }, only: %i[index new create], module: :customers
   end
@@ -45,6 +51,25 @@ Rails.application.routes.draw do
     resource :refusal, path: "recusa", only: :create, module: :promises
     resource :cancellation, path: "cancelamento", only: :create, module: :promises
   end
+
+  # Acordos (11): a lista, a página do acordo e, nela, aprovar, recusar, cancelar a proposta, o termo e o aceite (R216, R218 a R220).
+  resources :agreements, path: "acordos", only: %i[index show] do
+    get "pendentes", on: :collection, to: "agreements/pendings#index", as: :pending
+    resource :approval, path: "aprovacao", only: :create, module: :agreements
+    resource :refusal, path: "recusa", only: :create, module: :agreements
+    resource :cancellation, path: "cancelamento", only: :create, module: :agreements
+    resource :acceptance, path: "aceite", only: :create, module: :agreements
+    resource :term, path: "termo", only: :show, module: :agreements
+    # Depois do aceite: calcular a quitação antecipada (R230) e a quebra manual (R238).
+    resource :settlement, path: "quitacao", only: :create, module: :agreements
+    resource :break, path: "quebra", only: :create, module: :agreements
+    # Reverter o acordo em dois passos (R239): abrir (create), concluir (update) e desistir (destroy).
+    resource :reversion, path: "reversao", only: %i[create update destroy], module: :agreements
+  end
+  # Estornos à espera do gestor (R233, AH2): a lista e a decisão.
+  resources :reversal_waits, path: "estornos-a-espera", only: %i[index update]
+  # Arquivo de acordos (11, R244): exportar para o credor emitir os títulos; as exportações ficam registradas e os arquivos duram 30 dias.
+  resources :agreement_exports, path: "arquivo-de-acordos", only: %i[index create show]
 
   # Lista de acionamentos dos credores (04, R78).
   resources :contact_attempts, path: "acionamentos", only: :index
@@ -76,9 +101,14 @@ Rails.application.routes.draw do
     end
     resource :payment_policy, path: "politicas-de-pagamento", only: %i[show update]
     # Promessas (10): políticas do credor, prazo máximo do segmento e alçada por perfil (R189, R190, R206).
-    resource :promises, path: "promessas", only: :show
+    resource :promises, path: "promessas-e-acordos", only: :show
     resource :promise_policy, path: "politicas-de-promessa", only: :update
     resource :promise_limits, path: "alcada-de-promessa", only: :update
+    # Acordos (11, R207, R207a, R209): parâmetros do parcelamento e da mora, variáveis do segmento, limites por perfil e políticas. Gravam sem conferência do impacto.
+    resource :agreement_parameters, path: "parametros-de-acordo", only: :update
+    resource :agreement_policies, path: "politicas-de-acordo", only: :update
+    resource :agreement_variables, path: "variaveis-de-acordo", only: :update
+    resource :agreement_limits, path: "limites-de-acordo", only: :update
     # Segmentos do contrato (08): toda mudança passa pela conferência do impacto (R154) antes de valer.
     resources :segments, path: "segmentos", path_names: { new: "novo", edit: "editar" }, except: %i[show destroy] do
       resource :activation, path: "ativacao", only: %i[create destroy], module: :segments

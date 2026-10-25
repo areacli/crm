@@ -45,7 +45,7 @@
 <div class="campo">
   <%= form.label :broke_agreement, "Já quebrou acordo" %>
   <%= form.select :broke_agreement, [ [ "Tanto faz", "" ], [ "Sim", "yes" ], [ "Não", "no" ] ], { selected: segment.broke_agreement.to_s } %>
-  <small>Até o escopo de acordos, nenhum contrato quebrou acordo: segmento que exige "sim" não pega ninguém.</small>
+  <small>O contrato quebrou acordo depois da efetivação (marca histórica, que só sai com a reativação ou a reversão).</small>
 </div>
 <% end %>
 <%= render "settings/segments/charges", form: form, segment: segment, raw: raw, setting: setting %>

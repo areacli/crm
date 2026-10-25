@@ -1,13 +1,14 @@
 module Titular
   # O que impede anonimizar um cliente (07, R130, R130a): olha todos os contratos em que ele figura, inclusive os títulos e o crédito
-  # dos outros clientes do mesmo contrato, e nunca identifica esses outros. Acordos e promessas entram com os incrementos 10 e 11.
+  # dos outros clientes do mesmo contrato, e nunca identifica esses outros. A promessa aberta ou pendente (10) e o acordo aguardando efetivação, ativo ou quebrado com título em
+  # cobrança (11, R247) também são relação em aberto; o acordo encerrado não é.
   class OpenRelations
     Item = Data.define(:kind, :contract, :cents)
 
     def initialize(customer) = @customer = customer
 
     def items
-      @items ||= contract_items + pending_items
+      @items ||= contract_items + pending_items + promise_items + agreement_items
     end
 
     def any? = items.any?
@@ -29,6 +30,20 @@ module Titular
             (Item.new("withdrawn", label, row["withdrawn_cents"].to_i) if row["withdrawn_cents"].to_i.positive?),
             (Item.new("credit", label, row["credit_cents"].to_i) if row["credit_cents"].to_i.positive?) ].compact
         end
+      end
+
+      # Promessa aberta ou pendente do cliente (10).
+      def promise_items
+        PaymentPromise.where(customer_id: @customer.id, state: PaymentPromise::HOLDING).includes(:contract).map { |promise| Item.new("promise", promise.number.presence || promise.contract.label, promise.total_cents) }
+      end
+
+      # Acordo aguardando efetivação, ativo ou quebrado com título em cobrança, e estorno à espera do gestor (11, R247, R233).
+      def agreement_items
+        running = Agreement.where(customer_id: @customer.id, state: %w[awaiting_effectuation active_on_time active_late]).to_a +
+                  Agreement.where(customer_id: @customer.id, state: "broken").select { |agreement| agreement.titles.where(status: "active").exists? }
+        items = running.map { |agreement| Item.new("agreement", agreement.number, agreement.value_cents) }
+        waiting = ReversalWait.where(tenant_id: @customer.tenant_id, state: "waiting", agreement_id: Agreement.where(customer_id: @customer.id).select(:id)).sum(:amount_cents)
+        waiting.positive? ? items + [ Item.new("reversal_wait", nil, waiting) ] : items
       end
 
       # Pagamento pendente com o documento do cliente (sem título ainda), mesmo de outro contrato: vale o que ainda não foi estornado.

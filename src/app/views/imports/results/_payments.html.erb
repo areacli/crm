@@ -11,6 +11,8 @@
       <div><dt>Títulos quitados</dt><dd><%= number_br(effect[:settled]) %></dd></div>
       <div><dt>Baixas parciais</dt><dd><%= number_br(effect[:partial]) %></dd></div>
       <div><dt>Valor aplicado aos títulos</dt><dd><%= money(effect[:applied_cents].to_i) %></dd></div>
+      <% if effect[:abated].to_i.positive? %><div><dt>Títulos pagos com abatimento</dt><dd><%= number_br(effect[:abated]) %> <small>(<%= money(effect[:abated_cents].to_i) %>, estado final do credor ou tolerância de valor)</small></dd></div><% end %>
+      <% if effect[:agreement_payments].to_i.positive? %><div><dt>Pagamentos de acordo</dt><dd><%= number_br(effect[:agreement_payments]) %> <small>(pelo número de um título de acordo ou do acordo; efetivação, mora e quitação são conferidas na confirmação)</small></dd></div><% end %>
       <div><dt>Créditos gerados</dt><dd><%= number_br(effect[:credits]) %> <small>(<%= money(effect[:credit_cents].to_i) %>)</small></dd></div>
       <div><dt>Pendentes novos</dt><dd><%= number_br(effect[:pending_new]) %> <small>(<%= money(effect[:pending_cents].to_i) %>)</small></dd></div>
       <% if effect[:pending_applied].to_i.positive? %><div><dt>Pendentes de antes, aplicados</dt><dd><%= number_br(effect[:pending_applied]) %></dd></div><% end %>

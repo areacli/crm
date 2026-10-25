@@ -23,6 +23,8 @@ module Payments
       settlement = Charges::Settlement.for(import.tenant)
       # Pagamentos com o número de uma promessa (10, R194): alocados nos títulos dela.
       flow = Promises::PaymentFlow.new(import.tenant, setting, states, settlement)
+      # Pagamentos com o número de um título de acordo ou do acordo (11, R225 a R232): alocados nos títulos de acordo, com efetivação, mora e tolerância.
+      agreements = Agreements::PaymentFlow.new(import.tenant, setting, states, settlement)
       evaluate = Set.new
       (1..total).step(CHUNK) do |from|
         rows = Sql.rows("select * from payment_stream where n between ? and ? order by n", from, from + CHUNK - 1)
@@ -30,14 +32,21 @@ module Payments
         updates = []
         credits = []
         allocations = []
+        abatements = []
         states.start_lot
         settlement&.preload(rows.filter_map { |row| row["bill_id"]&.to_i }.uniq)
         flow.begin_lot(rows)
+        agreements.begin_lot(rows)
 
         rows.each do |row|
           amount = row["amount_cents"].to_i
+          if agreements.owns?(row) || (row["held_state"] == "awaiting_effectuation" && agreements.counts_as_agreement?(row)) ||
+             (row["bill_id"] && agreements.rebate_oldest?(row, (states.get(row["bill_id"].to_i) || [ nil, row["bill_status"] ])[1]))
+            agreement_row(row, amount, agreements, summary, new_payments: new_payments, updates: updates, credits: credits, allocations: allocations, abatements: abatements, import: import)
+            next
+          end
           if row["promise_id"]
-            promise_row(row, amount, flow, summary, new_payments: new_payments, updates: updates, credits: credits, allocations: allocations, import: import)
+            promise_row(row, amount, flow, summary, new_payments: new_payments, updates: updates, credits: credits, allocations: allocations, abatements: abatements, import: import)
             next
           end
           if row["bill_id"].nil?
@@ -54,9 +63,10 @@ module Payments
           paid, status, paid_on = states.get(bill_id) || [ row["paid_cents"].to_i, row["bill_status"], nil ]
           pay_date = row["paid_on"].is_a?(Date) ? row["paid_on"] : Date.parse(row["paid_on"].to_s)
           due = status == "active" ? settlement&.due(bill_id, pay_date, row["bill_amount"].to_i - paid) : nil
-          result = Allocation.call(setting, bill_amount: row["bill_amount"].to_i, status: status, paid: paid, amount: amount, due: due)
+          result = Allocation.call(setting, bill_amount: row["bill_amount"].to_i, status: status, paid: paid, amount: amount, due: due, final_state: row["final_state"])
           settlement&.record(bill_id, pay_date, result.components)
-          paid += result.principal
+          agreements.original_paid(row) if row["held_state"] == "awaiting_effectuation" && result.applied.positive?
+          paid += result.paid_principal
           if result.settled
             status = "paid"
             paid_on = row["paid_on"]
@@ -83,6 +93,12 @@ module Payments
           end
           key = row["src"].to_i.zero? ? row["payment_id"].to_i : [ row["channel_id"].to_i, row["identifier"] ]
           allocations << { key: key, bill_id: bill_id, components: result.components } if result.components.any?
+          if result.abatement.any?
+            # R226, R228a: a diferença dada por paga (estado final do credor ou tolerância) fica registrada por componente.
+            abatements << { key: key, bill_id: bill_id, kind: result.abatement_kind, components: result.abatement }
+            summary[:abated] += 1
+            summary[:abated_cents] += result.abatement.values.sum
+          end
           next unless result.credit.positive?
 
           credits << { contract_id: row["contract_id"].to_i, key: key, amount: result.credit, reason: result.reason }
@@ -90,19 +106,21 @@ module Payments
 
         next unless commit
 
-        write(import, new_payments, updates, credits, states.lot, allocations)
+        write(import, new_payments, updates, credits, states.lot, allocations, abatements)
         flow.flush
         evaluate.merge(flow.touched)
         evaluate.merge(Promises::Evaluator.promises_of_bills(states.lot.keys))
       end
       # R193, R196, R198: as promessas tocadas são avaliadas depois que todos os lotes foram gravados (cumprida, cumprida com atraso, cancelada).
       Promises::Evaluator.new(tenant_id).evaluate(evaluate.to_a) if commit && evaluate.any?
+      # 11, R229, R232: a situação dos acordos tocados (efetivação, cancelamento, em atraso, quitado) depois que todos os lotes foram gravados.
+      agreements.finalize if commit && agreements.touched.any?
       summary.to_h.symbolize_keys
     end
 
     private
       # Pagamento a um número de promessa (10, R194): sem título; as alocações dizem em quais títulos caiu. Pode ser pagamento comum dos títulos dela.
-      def promise_row(row, amount, flow, summary, new_payments:, updates:, credits:, allocations:, import:)
+      def promise_row(row, amount, flow, summary, new_payments:, updates:, credits:, allocations:, abatements:, import:)
         pay_date = row["paid_on"].is_a?(Date) ? row["paid_on"] : Date.parse(row["paid_on"].to_s)
         promise_id = row["promise_id"].to_i
         outcome = flow.settle(promise_id, amount: amount, pay_date: pay_date, method: row["payment_method"])
@@ -122,39 +140,86 @@ module Payments
           new_payments << payment_row(import, row, nil, "applied", outcome.applied, outcome.credit, promise_id: promise_id, counted: outcome.counted)
         end
         outcome.allocations.each { |bill_id, components| allocations << { key: key, bill_id: bill_id, components: components } }
+        outcome.abatements.each do |bill_id, kind, components|
+          abatements << { key: key, bill_id: bill_id, kind: kind, components: components }
+          summary[:abated] += 1
+          summary[:abated_cents] += components.values.sum
+        end
         credits << { contract_id: outcome.contract_id, key: key, amount: outcome.credit, reason: outcome.reason } if outcome.credit.positive?
       end
 
-      def payment_row(import, row, bill_id, status, applied, credit, promise_id: nil, counted: false)
-        { tenant_id: import.tenant_id, promise_id: promise_id, promise_counted: counted, channel_id: row["channel_id"].to_i, import_id: import.id, identifier: row["identifier"], document: row["document"],
+      # Pagamento a um título de acordo ou ao acordo (11, R227, R230): o pagamento fica no título quando só ele recebeu algo; senão, no acordo (como o da promessa).
+      def agreement_row(row, amount, agreements, summary, new_payments:, updates:, credits:, allocations:, abatements:, import:)
+        pay_date = row["paid_on"].is_a?(Date) ? row["paid_on"] : Date.parse(row["paid_on"].to_s)
+        outcome =
+          if row["bill_agreement_id"] then agreements.settle_title(row, amount, pay_date)
+          elsif row["bill_origin_agreement_id"] then agreements.settle_reversal_title(row, amount, pay_date)
+          elsif row["agreement_ref_id"] then agreements.settle_number(row, amount, pay_date)
+          elsif row["held_state"] == "awaiting_effectuation" then agreements.settle_as_agreement(row, amount, pay_date)
+          else agreements.settle_rebate_oldest(row, amount, pay_date)
+          end
+        summary[:agreement_payments] += 1
+        summary[:settled] += outcome.settled
+        summary[:partial] += outcome.partial
+        summary[:applied_cents] += outcome.applied
+        if outcome.credit.positive?
+          summary[:credits] += 1
+          summary[:credit_cents] += outcome.credit
+        end
+        bills = outcome.allocations.map(&:first).uniq
+        bill_id = bills.size == 1 && outcome.target == bills.first ? bills.first : nil
+        key = row["src"].to_i.zero? ? row["payment_id"].to_i : [ row["channel_id"].to_i, row["identifier"] ]
+        if row["src"].to_i.zero?
+          summary[:pending_applied] += 1
+          updates << [ row["payment_id"].to_i, bill_id, outcome.applied, outcome.credit, nil, false, outcome.agreement_id ]
+        else
+          new_payments << payment_row(import, row, bill_id, "applied", outcome.applied, outcome.credit, agreement_id: outcome.agreement_id)
+        end
+        outcome.allocations.each { |bill, components| allocations << { key: key, bill_id: bill, components: components } }
+        outcome.abatements.each do |bill, kind, components|
+          abatements << { key: key, bill_id: bill, kind: kind, components: components }
+          summary[:abated] += 1 unless kind == "early"
+          summary[:abated_cents] += components.values.sum unless kind == "early"
+        end
+        credits << { contract_id: outcome.contract_id, key: key, amount: outcome.credit, reason: outcome.reason, bucket: outcome.bucket, agreement_id: (outcome.bucket ? outcome.agreement_id : nil) } if outcome.credit.positive?
+      end
+
+      def payment_row(import, row, bill_id, status, applied, credit, promise_id: nil, counted: false, agreement_id: nil)
+        { agreement_id: agreement_id, final_state: row["final_state"], tenant_id: import.tenant_id, promise_id: promise_id, promise_counted: counted, channel_id: row["channel_id"].to_i, import_id: import.id, identifier: row["identifier"], document: row["document"],
           bill_number: row["bill_number"], bill_id: bill_id, paid_on: row["paid_on"], amount_cents: row["amount_cents"].to_i,
           payment_method: row["payment_method"], status: status, applied_cents: applied, credit_cents: credit, reversed_cents: 0,
           credit_reversed_cents: 0 }
       end
 
       PAYMENT_COLUMNS = %w[tenant_id channel_id import_id identifier document bill_number bill_id paid_on amount_cents payment_method status applied_cents
-                           credit_cents reversed_cents credit_reversed_cents promise_id promise_counted created_at updated_at].freeze
+                           credit_cents reversed_cents credit_reversed_cents promise_id promise_counted final_state agreement_id created_at updated_at].freeze
 
       # Grava pelo COPY (medido: o `insert_all!` do Active Record levava mais da metade da confirmação de 200 mil pagamentos).
-      def write(import, new_payments, updates, credits, bills, allocations)
+      def write(import, new_payments, updates, credits, bills, allocations, abatements)
         now = Time.current
         Sql.copy_in("payments", PAYMENT_COLUMNS, new_payments.map { |row| PAYMENT_COLUMNS.map { |column| row.fetch(column.to_sym) { now } } })
         update_pending(import, updates)
 
-        ids = payment_ids(import, credits + allocations)
+        ids = payment_ids(import, credits + allocations + abatements)
         credit_rows = credits.map do |credit|
           payment_id = credit[:key].is_a?(Array) ? ids.fetch(credit[:key]) : credit[:key]
-          [ import.tenant_id, credit[:contract_id], payment_id, import.user_id, "entry", credit[:amount], credit[:reason], now ]
+          [ import.tenant_id, credit[:contract_id], payment_id, import.user_id, "entry", credit[:amount], credit[:reason], credit[:bucket] || "available", credit[:agreement_id], now ]
         end
         Sql.copy_in("payment_allocations", %w[payment_id bill_id component amount_cents created_at],
                     allocations.flat_map do |allocation|
                       payment_id = allocation[:key].is_a?(Array) ? ids.fetch(allocation[:key]) : allocation[:key]
                       allocation[:components].map { |component, cents| [ payment_id, allocation[:bill_id], component, cents, now ] }
                     end)
-        Sql.copy_in("credits", %w[tenant_id contract_id payment_id user_id kind amount_cents reason occurred_at], credit_rows)
+        Sql.copy_in("credits", %w[tenant_id contract_id payment_id user_id kind amount_cents reason bucket agreement_id occurred_at], credit_rows)
+        Sql.copy_in("abatements", %w[tenant_id payment_id bill_id kind component amount_cents created_at],
+                    abatements.flat_map do |abatement|
+                      payment_id = abatement[:key].is_a?(Array) ? ids.fetch(abatement[:key]) : abatement[:key]
+                      abatement[:components].map { |component, cents| [ import.tenant_id, payment_id, abatement[:bill_id], abatement[:kind], component, cents, now ] }
+                    end)
 
         changes = credits.map { |credit| [ "contract", credit[:contract_id], "credit_added", credit[:amount].to_s ] } +
-                  bills.map { |bill_id, bill| [ "bill", bill_id, "payment_applied", bill[:paid].to_s ] }
+                  bills.map { |bill_id, bill| [ "bill", bill_id, "payment_applied", bill[:paid].to_s ] } +
+                  abatements.map { |abatement| [ "bill", abatement[:bill_id], "abated", abatement[:components].values.sum.to_s ] }
         Sql.copy_in("changes", %w[tenant_id user_id import_id subject_type subject_id event after occurred_at],
                     changes.map { |subject, id, event, after| [ import.tenant_id, import.user_id, import.id, subject, id, event, after, now ] })
 
@@ -175,13 +240,13 @@ module Payments
       # Pendente cujo título passou a existir: vira aplicado (R52), com o que baixou e o que virou crédito.
       def update_pending(import, updates)
         updates.each_slice(CHUNK) do |slice|
-          values = slice.map do |id, bill_id, applied, credit, promise_id, counted|
-            "(#{id}::bigint, #{bill_id ? "#{bill_id.to_i}::bigint" : 'NULL::bigint'}, #{applied}::bigint, #{credit}::bigint, #{promise_id ? "#{promise_id.to_i}::bigint" : 'NULL::bigint'}, #{counted ? 'true' : 'false'})"
+          values = slice.map do |id, bill_id, applied, credit, promise_id, counted, agreement_id|
+            "(#{id}::bigint, #{bill_id ? "#{bill_id.to_i}::bigint" : 'NULL::bigint'}, #{applied}::bigint, #{credit}::bigint, #{promise_id ? "#{promise_id.to_i}::bigint" : 'NULL::bigint'}, #{counted ? 'true' : 'false'}, #{agreement_id ? "#{agreement_id.to_i}::bigint" : 'NULL::bigint'})"
           end.join(",")
           Sql.run(<<~SQL, import.id)
             update payments set bill_id = v.bill_id, status = 'applied', applied_cents = v.applied, credit_cents = v.credit, promise_id = v.promise_id, promise_counted = v.counted,
-                                import_id = ?, updated_at = now()
-            from (values #{values}) as v(id, bill_id, applied, credit, promise_id, counted) where payments.id = v.id
+                                agreement_id = v.agreement_id, import_id = ?, updated_at = now()
+            from (values #{values}) as v(id, bill_id, applied, credit, promise_id, counted, agreement_id) where payments.id = v.id
           SQL
         end
       end
@@ -198,19 +263,19 @@ module Payments
       # Fluxo ordenado: as linhas novas da importação e os pagamentos pendentes (R52), por data e linha (R53).
       def build_stream(tenant_id, import_id)
         Sql.connection.execute("drop table if exists payment_stream")
-        Sql.run(<<~SQL, tenant_id, import_id, tenant_id, tenant_id, tenant_id, tenant_id, tenant_id)
+        Sql.run(<<~SQL, tenant_id, import_id, tenant_id, tenant_id, tenant_id, tenant_id, tenant_id, tenant_id, tenant_id)
           create temporary table payment_stream on commit drop as
-          select row_number() over (order by s.paid_on, s.src, s.line) as n,
-                 s.src, s.line, s.payment_id, s.channel_id, s.identifier, s.document, s.bill_number, s.paid_on, s.amount_cents, s.payment_method,
+          select row_number() over (order by s.paid_on, (case when b.agreement_id is not null or ag.id is not null then 0 else 1 end), s.src, s.line) as n,
+                 s.src, s.line, s.payment_id, s.channel_id, s.identifier, s.document, s.bill_number, s.paid_on, s.amount_cents, s.payment_method, s.final_state,
                  case when pp.id is null then b.id end as bill_id, pp.id as promise_id, count(*) over (partition by b.id) as repeats, b.contract_id, b.amount_cents as bill_amount, b.paid_cents,
-                 b.status as bill_status
+                 b.status as bill_status, b.agreement_id as bill_agreement_id, b.origin_agreement_id as bill_origin_agreement_id, ag.id as agreement_ref_id, hold.agreement_id as held_agreement_id, hold.state as held_state
           from (
             select 1 as src, r.line, null::bigint as payment_id, ch.id as channel_id, r.identifier, r.document, r.bill_number,
-                   r.paid_on, r.amount_cents, r.payment_method
+                   r.paid_on, r.amount_cents, r.payment_method, r.final_state
             from payment_rows r join payment_channels ch on ch.tenant_id = ? and ch.code = r.channel_code
             where r.import_id = ? and r.ok
             union all
-            select 0, 0, p.id, p.channel_id, p.identifier, p.document, p.bill_number, p.paid_on, p.amount_cents - p.reversed_cents, p.payment_method
+            select 0, 0, p.id, p.channel_id, p.identifier, p.document, p.bill_number, p.paid_on, p.amount_cents - p.reversed_cents, p.payment_method, p.final_state
             from payments p where p.tenant_id = ? and p.status = 'pending' and p.amount_cents - p.reversed_cents > 0
           ) s
           left join customers c on c.tenant_id = ? and c.document = s.document
@@ -222,6 +287,9 @@ module Payments
           left join bills b on b.id = coalesce(bd.id, bn.id)
           -- 10, R194: o número da promessa no lugar do número do título (DP8); único dentro do credor (MT-10).
           left join payment_promises pp on pp.tenant_id = ? and pp.number = s.bill_number
+          -- 11, R230: o número do acordo sem sufixo; e o acordo que prende o título original (pagamento direto, R232).
+          left join agreements ag on ag.tenant_id = ? and ag.number = s.bill_number
+          left join (select ab.bill_id, ab.agreement_id, a.state from agreement_bills ab join agreements a on a.id = ab.agreement_id where ab.held and a.tenant_id = ?) hold on hold.bill_id = b.id
         SQL
         Sql.connection.execute("create unique index on payment_stream (n)")
         Sql.connection.execute("analyze payment_stream")

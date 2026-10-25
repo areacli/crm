@@ -4,7 +4,7 @@ class CustomersController < ApplicationController
     authorize Customer
     query = Portfolio::Query.new(Current.user)
     bracket = params[:bracket].presence&.to_i
-    @pagination = Pagination.new(query.customers(search: params[:q], bracket: bracket, segment: params[:segment], tenant_id: params[:tenant], sort: params[:sort], direction: params[:dir], promise: params[:promise]),
+    @pagination = Pagination.new(query.customers(search: params[:q], bracket: bracket, segment: params[:segment], tenant_id: params[:tenant], sort: params[:sort], direction: params[:dir], promise: params[:promise], unrecognized_city: params[:unrecognized_city]),
                                  page: params[:page], per_page: params[:per_page])
     @customers = @pagination.records.includes(:tenant)
     @query = query
@@ -23,7 +23,7 @@ class CustomersController < ApplicationController
     authorize @customer
     @setting = @customer.tenant.setting
     @brackets = Portfolio::AgingBrackets.from_stored(@setting.aging_brackets)
-    @bills = Bill.where(customer: @customer).includes(:contract).order(:due_date)
+    @bills = Bill.where(customer: @customer).includes(:contract, :agreement).order(:due_date)
     # Aviso do valor mudado (R100): título com mais de uma versão ou com divergência aberta leva ao histórico.
     @version_counts = BillValueVersion.where(bill_id: @bills.map(&:id)).group(:bill_id).count
     @open_discrepancies = ValueDiscrepancy.where(bill_id: @bills.map(&:id), status: "open").distinct.pluck(:bill_id)
@@ -33,6 +33,7 @@ class CustomersController < ApplicationController
     load_segments
     load_contact_attempts
     load_promises
+    load_agreements
     load_registry
     load_rights
   end
@@ -49,6 +50,22 @@ class CustomersController < ApplicationController
     def load_promises
       @promises = Customers::PromisesController.holding_for(@customer)
       @held_bills = PaymentPromiseBill.where(bill_id: @bills.map(&:id), held: true).includes(:promise).index_by(&:bill_id)
+    end
+
+    # Acordos (11, R241): as propostas e os acordos em andamento vão ao cabeçalho, o histórico fica abaixo, e o título preso mostra a proposta ou o acordo. A cidade que não
+    # casou com o IBGE avisa quem edita o cadastro (AB9). Consultas: `agreements (customer_id)` e o índice parcial dos títulos presos.
+    def load_agreements
+      @can_negotiate = AgreementPolicy.new(Current.user, Agreement.new(tenant: @customer.tenant)).create? && !@customer.anonymized?
+      @can_use_credit = @can_negotiate
+      @can_allocate = CreditTransferPolicy.new(Current.user, @customer).create? && @credit_awaiting.values.any?(&:positive?)
+      return unless AgreementPolicy.new(Current.user, Agreement.new(tenant: @customer.tenant)).show?
+
+      @agreements = Customers::AgreementsController.running_for(@customer)
+      @held_by_agreement = AgreementBill.where(bill_id: @bills.map(&:id), held: true).includes(:agreement).to_h { |row| [ row.bill_id, row.agreement ] }
+      @renegotiated_by = AgreementBill.joins(:agreement).where(bill_id: @bills.select(&:renegotiated?).map(&:id), agreements: { state: %w[active_on_time active_late broken settled renegotiated] })
+                                      .includes(:agreement).to_h { |row| [ row.bill_id, row.agreement ] }
+      @agreement_events = AgreementEvent.joins(:agreement).where(agreements: { customer_id: @customer.id }).includes(:agreement, :user).order(occurred_at: :desc, id: :desc).limit(30).to_a
+      @city_unrecognized = policy(@customer).edit_registry? && Agreements::Square.unrecognized?(@customer)
     end
 
     # Direitos do titular (07, R141): os botões da ficha só para quem tem a 13 (e a 1) no credor, e o que impede anonimizar, dito antes (R130).
@@ -90,12 +107,17 @@ class CustomersController < ApplicationController
       promise_ids = PaymentPromise.where(contract_id: ContractCustomer.where(customer_id: @customer.id).select(:contract_id)).select(:id)
       @payments = Payment.where(bill_id: @bills.map(&:id)).or(Payment.where(promise_id: promise_ids)).applied.includes(:channel, :bill).order(paid_on: :desc, id: :desc)
       @contracts = @customer.contracts.order(:code, :id).to_a
-      @credit_totals = Credit.where(contract_id: @contracts.map(&:id)).group(:contract_id).sum(:amount_cents)
+      # O crédito por estado (11, R233, R239): o disponível, o que aguarda alocação (reversão) e o bloqueado (estorno à espera do gestor).
+      by_bucket = Credit.where(contract_id: @contracts.map(&:id)).group(:contract_id, :bucket).sum(:amount_cents)
+      @credit_totals = by_bucket.select { |(_, bucket), _| bucket == "available" }.to_h { |(contract_id, _), cents| [ contract_id, cents ] }
+      @credit_awaiting = by_bucket.select { |(_, bucket), _| bucket == "awaiting" }.to_h { |(contract_id, _), cents| [ contract_id, cents ] }
+      @credit_blocked = by_bucket.select { |(_, bucket), _| bucket == "blocked" }.to_h { |(contract_id, _), cents| [ contract_id, cents ] }
       @credit_entries = Credit.where(contract_id: @contracts.map(&:id)).includes(:payment, :related_contract).recent.limit(100).group_by(&:contract_id)
+      @allocatable_bills = Bill.where(contract_id: @contracts.map(&:id), status: %w[active scheduled]).order(:due_date).group_by(&:contract_id) if @credit_awaiting.values.any?(&:positive?)
       # Excedente de título com valor reduzido (05, R90): crédito calculado do contrato, de qualquer título dele. Índice: `bills (contract_id)`.
       @excess_bills = Bill.where(contract_id: @contracts.map(&:id)).where("paid_cents > amount_cents").order(:number).group_by(&:contract_id)
       @excess_totals = @excess_bills.transform_values { |bills| bills.sum(&:excess_cents) }
-      @can_transfer = CreditTransferPolicy.new(Current.user, @customer).create? && @credit_totals.values.any?(&:positive?)
+      @can_transfer = CreditTransferPolicy.new(Current.user, @customer).create? && (@credit_totals.values + @credit_awaiting.values).any?(&:positive?)
     end
 
     # Opções do filtro de faixa: com um só credor, as faixas dele; com vários, as do primeiro (a lista filtra cada cliente pelas do credor dele).

@@ -132,6 +132,30 @@
     </div>
   </section>
 
+  <% agr = summary[:agreements] %>
+  <section class="cartao" aria-labelledby="acordos-<%= summary[:tenant].id %>">
+    <header><div><h2 id="acordos-<%= summary[:tenant].id %>">Acordos — <%= summary[:tenant].name %></h2><p>Em <%= agr[:label] %>. O valor em acordo já está no total em cobrança acima; não se soma duas vezes. Não se soma com o de outro credor.</p></div></header>
+    <div>
+      <dl class="valores">
+        <div><dt>Dos quais em acordo</dt><dd><%= money(agr[:in_agreement_cents]) %> <small>(<%= number_br(agr[:in_agreement_count]) %> acordos)</small></dd></div>
+        <div><dt>Acordos aceitos no mês</dt><dd><%= number_br(agr[:accepted]) %> <small>(<%= money(agr[:accepted_cents]) %>)</small></dd></div>
+        <div><dt>Ativos em dia</dt><dd><%= number_br(agr[:on_time]) %></dd></div>
+        <div><dt>Ativos em atraso</dt><dd><%= number_br(agr[:late]) %></dd></div>
+        <div><dt>Quebrados no mês</dt><dd><%= number_br(agr[:broken]) %></dd></div>
+        <div><dt>Quitados no mês</dt><dd><%= number_br(agr[:settled]) %></dd></div>
+        <div><dt>Desconto concedido no mês</dt><dd><%= money(agr[:discount_total]) %></dd></div>
+        <% if agr[:waiting].positive? %><div><dt>Estornos à espera do gestor</dt><dd><%= number_br(agr[:waiting]) %></dd></div><% end %>
+      </dl>
+      <% if agr[:discounts].any? %>
+        <p><small>Desconto por componente: <%= agr[:discounts].map { |component, cents| "#{t("agreements.components.#{component}").downcase} #{money(cents)}" }.join("; ") %>. Contado na efetivação; o acordo cancelado depois dela o tira no mês do cancelamento.</small></p>
+        <p><small>Por quem montou: <%= agr[:by_user].map { |name, cents| "#{name} #{money(cents)}" }.join("; ") %>. Por quem aprovou: <%= agr[:by_approver].map { |name, cents| "#{name} #{money(cents)}" }.join("; ") %>.</small></p>
+      <% end %>
+      <% if agr[:abatements].any? %>
+        <p><small>Abatimentos do mês, à parte do desconto: <%= agr[:abatements].map { |kind, cents| "#{t("agreements.abatement_kinds.#{kind}").downcase} #{money(cents)}" }.join("; ") %>.</small></p>
+      <% end %>
+    </div>
+  </section>
+
   <div class="duas-colunas">
     <% [ [ "Por cliente", "Cada cliente na faixa do título mais atrasado, com todo o seu vencido.", summary[:by_customer], "Clientes" ],
          [ "Por título", "Cada título vencido na faixa do próprio atraso.", summary[:by_bill], "Títulos" ] ].each do |title, help, rows, unit| %>

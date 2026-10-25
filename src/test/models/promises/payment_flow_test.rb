@@ -256,4 +256,20 @@ class Promises::PaymentFlowTest < ActiveSupport::TestCase
     assert_predicate @promise.reload, :state_broken?
     assert_equal "succeeded", TaskRun.where(name: Promises::Daily::NAME, tenant: @alfa).last.status
   end
+
+  test "R228a: a tolerância de valor da promessa (R$ 1,00) dá os títulos por pagos, com abatimento por tolerância, e a promessa fica cumprida" do
+    @alfa.setting.update!(agreement_policies: { "tolerance_promise" => { "kind" => "cents", "value" => 100 } })
+    pay("PRM-000001", 157_993 - 60)
+
+    assert_equal %w[paid paid], [ @nf1, @nf2 ].map { |bill| bill.reload.status }
+    assert_predicate @promise.reload, :state_fulfilled?
+    assert_equal 60, Abatement.where(kind: "tolerance").sum(:amount_cents)
+  end
+
+  test "R228a: sem tolerância configurada (padrão zero), a diferença continua devida e a promessa segue aberta" do
+    pay("PRM-000001", 157_993 - 60)
+
+    assert_predicate @promise.reload, :state_open?
+    assert_equal 0, Abatement.count
+  end
 end

@@ -1,0 +1,57 @@
+<%# A lista dos estornos à espera; o htmx a refaz a cada aviso do WebSocket. %>
+<div id="resultado" aria-live="polite" hx-get="<%= reversal_waits_path %>" hx-trigger="cable:agreements-changed from:body, cable:connected from:body" hx-swap="outerHTML" hx-push-url="false">
+  <% if @waits.empty? %>
+    <p class="vazio">Nenhum estorno à espera do gestor.</p>
+  <% else %>
+    <% @waits.each do |wait| %>
+      <section class="cartao" aria-labelledby="espera-<%= wait.id %>">
+        <header>
+          <div>
+            <h2 id="espera-<%= wait.id %>">Pagamento <%= wait.payment.identifier %>: <%= money(wait.amount_cents) %></h2>
+            <p><%= wait.tenant.name %> · <%= t("reversal_waits.reasons.#{wait.reason}") %> · espera há <%= wait.waiting_days %> dia(s) · estorno de <%= date_br(wait.reversed_on) %>, processado em <%= date_br(wait.processed_on) %></p>
+          </div>
+        </header>
+        <div>
+          <dl class="valores">
+            <div><dt>Acordo</dt><dd><%= wait.agreement ? agreement_link(wait.agreement) : "—" %></dd></div>
+            <div><dt>Cliente</dt><dd><%= wait.agreement ? link_to(wait.agreement.customer.name, customer_path(wait.agreement.customer, anchor: "acordos")) : "—" %></dd></div>
+            <div><dt>Contrato</dt><dd><%= wait.contract.label %></dd></div>
+          </dl>
+          <%= form_with scope: :decision, url: reversal_wait_path(wait), method: :patch, html: { "hx-boost": "false" } do |form| %>
+            <fieldset>
+              <legend>O que fazer</legend>
+              <% @options.fetch(wait.id).each do |choice| %>
+                <label><%= form.radio_button :choice, choice, required: true, id: "decisao-#{wait.id}-#{choice}" %> <%= t("reversal_waits.choices.#{choice}") %></label>
+              <% end %>
+            </fieldset>
+            <div class="campo"><%= form.label :note, "Motivo da decisão", for: "motivo-#{wait.id}" %><%= form.text_field :note, id: "motivo-#{wait.id}", required: true, maxlength: 300 %></div>
+            <div class="acoes"><button type="submit" data-variant="secondary" aria-label="Decidir o estorno do pagamento <%= wait.payment.identifier %>">Decidir</button></div>
+          <% end %>
+        </div>
+      </section>
+    <% end %>
+  <% end %>
+  <% if @decided.any? %>
+    <section class="cartao" aria-labelledby="decididos">
+      <header><h2 id="decididos">Decididos há pouco</h2></header>
+      <div class="tabela">
+        <table>
+          <caption class="apenas-leitor-de-tela">Estornos decididos</caption>
+          <thead><tr><th scope="col">Quando</th><th scope="col">Acordo</th><th scope="col" data-numerico>Valor</th><th scope="col">Decisão</th><th scope="col">Quem</th><th scope="col">Motivo</th></tr></thead>
+          <tbody>
+            <% @decided.each do |wait| %>
+              <tr>
+                <td><%= datetime_br(wait.decided_at) %></td>
+                <td><%= wait.agreement ? agreement_link(wait.agreement) : "—" %></td>
+                <td data-numerico><%= money(wait.amount_cents) %></td>
+                <td><%= t("reversal_waits.choices.#{wait.decision}") %></td>
+                <td><%= wait.decided_by&.name || "—" %></td>
+                <td><%= wait.note %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  <% end %>
+</div>

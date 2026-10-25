@@ -115,6 +115,7 @@
             <% if can_change %><div class="acoes"><button type="submit" data-variant="secondary">Conferir mudança</button></div><% end %>
           <% end %>
         <% end %>
+        <% if can_change %><%= render "settings/segments/agreement_parameters", tenant: tenant, setting: setting, segments: segments %><% end %>
       </div>
     </section>
   <% end %>

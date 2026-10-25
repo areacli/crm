@@ -30,3 +30,27 @@ namespace :crm do
     puts "Credor #{tenant.name} criado com os perfis Gestor e Operador."
   end
 end
+
+namespace :crm do
+  desc "Importa os municípios do IBGE (11, R249): crm:import_municipalities[caminho do CSV com codigo_ibge;nome;uf]"
+  task :import_municipalities, [ :path ] => :environment do |_task, args|
+    abort "Informe o caminho do CSV." if args[:path].blank?
+
+    result = Agreements::CalendarImporter.new.municipalities(args[:path])
+    puts "#{result.processed} municípios importados, #{result.rejected.size} linhas recusadas."
+    result.rejected.first(20).each { |line| puts "  #{line}" }
+  rescue ArgumentError, Errno::ENOENT => error
+    abort error.message
+  end
+
+  desc "Importa os feriados estaduais e municipais (11, R249): crm:import_holidays[caminho do CSV com uf;codigo_ibge;data;nome]"
+  task :import_holidays, [ :path ] => :environment do |_task, args|
+    abort "Informe o caminho do CSV." if args[:path].blank?
+
+    result = Agreements::CalendarImporter.new.holidays(args[:path])
+    puts "#{result.processed} feriados importados, #{result.rejected.size} linhas recusadas."
+    result.rejected.first(20).each { |line| puts "  #{line}" }
+  rescue ArgumentError, Errno::ENOENT => error
+    abort error.message
+  end
+end

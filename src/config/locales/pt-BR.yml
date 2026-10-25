@@ -70,6 +70,7 @@ pt-BR:
         data_pagamento: "Data dd/mm/aaaa, não futura"
         valor: "Reais, com vírgula nos centavos, maior que zero"
         meio: "pix, boleto, cartão de crédito, cartão de débito, transferência, dinheiro ou outro"
+        estado_final: "Opcional: quitado dá o título por pago, com a diferença como abatimento do credor; parcial é só informativo"
       reversals:
         canal: "Código de um canal cadastrado (pode estar desativado)"
         identificador_pagamento: "Identificador do pagamento estornado, no canal"
@@ -77,6 +78,11 @@ pt-BR:
         data_estorno: "Data dd/mm/aaaa, não futura nem anterior ao pagamento"
         valor: "Reais, com vírgula nos centavos; até o que falta estornar"
         motivo: "Texto, até 300 caracteres"
+    abatement_kinds:
+      creditor: "do credor (estado final quitado)"
+      tolerance: "por tolerância de valor"
+      minimum: "por mínimo para quebrar"
+      early: "pelo pagamento antecipado (juros do parcelamento)"
     methods:
       pix: "Pix"
       boleto: "Boleto"
@@ -92,6 +98,9 @@ pt-BR:
       without_settling: "Crédito sem baixar"
       reversed: "Estorno"
       transfer: "Transferência"
+      agreement: "Acordo"
+      renegotiated: "Título renegociado"
+      canceled_title: "Título de acordo cancelado"
     credit_transfer:
       other_tenant: "A transferência é só entre contratos do mesmo credor."
       same_contract: "Escolha um contrato de destino diferente do de origem."
@@ -366,6 +375,9 @@ pt-BR:
       withdrawn: "contrato %{contract} com título retirado com saldo de R$ %{value}"
       credit: "crédito do contrato %{contract} de R$ %{value} em aberto"
       pending: "pagamento pendente com o documento do cliente, de R$ %{value}"
+      promise: "promessa %{contract} aberta, de R$ %{value}"
+      agreement: "acordo %{contract} em andamento, de R$ %{value}"
+      reversal_wait: "estorno à espera do gestor, de R$ %{value}"
     retention:
       reason_required: "Informe o motivo."
       anonymized: "Cliente anonimizado não pode ser retido."

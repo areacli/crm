@@ -27,10 +27,10 @@ module Titular
                             coalesce(sum(greatest(amount_cents - paid_cents, 0)) filter (where status = 'active'), 0) as active_cents,
                             coalesce(sum(greatest(amount_cents - paid_cents, 0)) filter (where status = 'withdrawn'), 0) as withdrawn_cents,
                             coalesce(sum(greatest(paid_cents - amount_cents, 0)), 0) as excess_cents,
-                            max(case when status = 'paid' then coalesce(paid_on, updated_at::date)
-                                     when status = 'withdrawn' and amount_cents <= paid_cents then withdrawn_at::date end) as last_on
+                            max(case when status = 'paid' then coalesce(paid_on, #{BrDate.sql_date('updated_at')})
+                                     when status = 'withdrawn' and amount_cents <= paid_cents then #{BrDate.sql_date('withdrawn_at')} end) as last_on
                      from bills where #{bills} group by contract_id) b on b.contract_id = c.id
-          left join (select contract_id, sum(amount_cents) as credit_cents, max(occurred_at::date) as last_on from credits where #{credits} group by contract_id) cr
+          left join (select contract_id, sum(amount_cents) as credit_cents, max(#{BrDate.sql_date('occurred_at')}) as last_on from credits where #{credits} group by contract_id) cr
             on cr.contract_id = c.id
           left join (select b2.contract_id, max(p.paid_on) as last_on from payments p join bills b2 on b2.id = p.bill_id where #{pay} group by b2.contract_id) py
             on py.contract_id = c.id

@@ -1,0 +1,96 @@
+pt-BR:
+  agreements:
+    reversion:
+      not_revertible: "Só o acordo aceito, que ainda não foi cancelado nem está em reversão, pode ser revertido."
+      not_reversing: "O acordo não está em reversão."
+      reason_required: "Informe o motivo da reversão."
+      new_agreement: "O acordo %{number} usa títulos deste acordo. Reverta antes o acordo novo."
+      other_contract: "O crédito só se aloca em título do mesmo contrato. Para outro contrato, transfira o crédito."
+      invalid_amount: "O valor deve ser maior que zero."
+      marked: "O contrato tem acordo em reversão: o crédito aguardando alocação só se aloca depois de concluir ou desistir."
+      above_awaiting: "O contrato tem R$ %{available} aguardando alocação."
+      bill_not_open: "O título não está em cobrança."
+      nothing_applied: "O título não deve nada na data da alocação."
+    credit_use:
+      invalid_amount: "Informe um valor maior que zero."
+      not_usable: "O crédito se usa em título de acordo ou de estorno, não em outro título."
+      above_available: "O contrato tem R$ %{available} de crédito disponível."
+      above_due: "O título deve R$ %{due} hoje."
+    waits:
+      note_required: "Informe o motivo da decisão."
+      already_decided: "Este estorno já foi decidido."
+      option_unavailable: "Essa opção não vale para o estado atual."
+    reversions:
+      create:
+        done: "Reversão do acordo %{number} aberta: as liquidações foram estornadas e o dinheiro está aguardando alocação."
+      update:
+        done: "Acordo %{number} revertido: os títulos originais voltaram a ser cobrados."
+      destroy:
+        done: "Reversão do acordo %{number} desfeita."
+    abatement_kinds:
+      creditor: "Abatimento pelo credor"
+      tolerance: "Abatimento por tolerância"
+      minimum: "Abatimento por mínimo"
+    eligibility:
+      reversing: "O título %{number} é de acordo em reversão e não pode entrar em outro acordo."
+      active: "O título %{number} é de acordo ativo. A política do credor não permite renegociar acordo vigente."
+      not_open: "O título %{number} é de acordo que ainda não foi efetivado e não pode entrar em outro acordo."
+      partial: "O acordo novo inclui todos os títulos em aberto do acordo %{agreement}: escolha também os que faltam."
+    cancel_reasons:
+      value_changed: "valor do título mudou"
+    events:
+      reversal_title: "Título de estorno criado"
+      reversion_opened: "Reversão aberta"
+      reversion_desisted: "Reversão desfeita (desistência)"
+      reversal_waiting: "Estorno à espera do gestor"
+      reversal_decided: "Estorno decidido pelo gestor"
+      renegotiated: "Acordo renegociado"
+      reopened: "Acordo reaberto por estorno"
+      renegotiated_reopened: "Acordo renegociado reaberto por estorno"
+      credit_used: "Crédito usado"
+    cases:
+      reversal_waiting: "Estorno à espera do gestor"
+      reversion_long: "Acordo em reversão há mais que os dias de quebra"
+      credit_awaiting: "Crédito aguardando alocação"
+      credit_covers_overdue: "Crédito disponível cobre atraso há mais que os dias de quebra"
+      credit_covers_entry: "Crédito disponível cobre a entrada vencida"
+      waiting_detail: "espera há %{days} dia(s), R$ %{amount}"
+      waiting_late: "; passou dos dias de quebra do acordo"
+      since: "desde %{date}"
+      credit_detail: "contrato %{contract}: R$ %{amount}"
+      credit_covers: "O crédito do contrato cobre o atraso: use o crédito nos títulos."
+      credit_covers_entry: "O crédito do contrato cobre a entrada vencida: use o crédito."
+  reversal_waits:
+    reasons:
+      in_reversion: "o acordo está em reversão"
+      before_break: "pagamento de título cancelado antes da quebra"
+      credit_unattributed: "crédito sem origem a que atribuir"
+      renegotiated_title: "título de acordo já renegociado em outro acordo"
+      held_by_new_agreement: "título preso a acordo novo aguardando efetivação"
+      manual: "caso não coberto"
+    choices:
+      reopen: "Reabrir pela regra base"
+      reversal_title: "Criar título de estorno"
+      credit: "Lançar no crédito do contrato"
+      revert: "Reverter o acordo"
+    update:
+      done: "Estorno decidido."
+  customers:
+    credit_uses:
+      create:
+        done: "R$ %{amount} de crédito usados no título %{number}."
+    credit_allocations:
+      create:
+        done: "R$ %{amount} alocados no título %{number}."
+  payments:
+    credit_reasons:
+      settlement_reversed: "Liquidação estornada"
+      reversal_waiting: "Estorno à espera do gestor"
+      manager_entry: "Lançamento do gestor"
+      used_on_title: "Usado em título"
+      allocated: "Alocado em título"
+      during_reversal: "Pagamento durante a reversão"
+    buckets:
+      available: "Disponível"
+      awaiting: "Aguardando alocação"
+      blocked: "Bloqueado"
