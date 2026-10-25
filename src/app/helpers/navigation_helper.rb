@@ -6,13 +6,15 @@ module NavigationHelper
     [ "Carteira", :settings_portfolio_path, "change_settings" ],
     [ "Canais de recebimento", :settings_channels_path, "change_settings" ],
     [ "Políticas de pagamento", :settings_payment_policy_path, "change_financial_policies" ],
+    [ "Segmentos", :settings_segments_path, %w[change_settings change_financial_policies] ],
+    [ "Índices", :settings_indexes_path, %w[change_settings change_financial_policies] ],
     [ "Resultados de acionamento", :settings_contact_results_path, "manage_contact_results" ]
   ].freeze
 
   # Abas visíveis para o usuário, com o caminho e se é a da página atual.
   def settings_tabs
     SETTINGS_TABS.filter_map do |label, route, permission|
-      next unless Current.user.permitted_anywhere?(permission)
+      next unless Array(permission).any? { |name| Current.user.permitted_anywhere?(name) }
 
       path = public_send(route)
       { rotulo: label, caminho: path, atual: request.path.start_with?(path) }
@@ -39,7 +41,7 @@ module NavigationHelper
       { titulo: "Administração", itens: [ [ "Usuários", memberships_path, "manage_users", %r{\A/usuarios} ],
                                           [ "Guarda de dados", data_retention_path, "handle_data_subject_rights", %r{\A/guarda-de-dados} ],
                                           [ "Perfis", profiles_path, "manage_profiles", %r{\A/perfis} ],
-                                          [ "Configuração", settings_entry_path, SETTINGS_TABS.map(&:last), %r{\A/configuracao} ] ] }
+                                          [ "Configuração", settings_entry_path, SETTINGS_TABS.flat_map(&:last), %r{\A/configuracao} ] ] }
     ]
     sections.filter_map do |section|
       items = section[:itens].filter_map do |label, path, permissions, pattern|

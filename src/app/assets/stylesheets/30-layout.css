@@ -24,7 +24,7 @@
   body > header :focus-visible { outline-color: var(--cor-amarelo); }
   body > header a { color: inherit; text-decoration: none; }
 
-  /* A marca é o elemento de maior peso do cabeçalho (revisão 2): logotipo de 48 px e o nome do produto em 28 px. */
+  /* A marca é o elemento de maior peso do cabeçalho (revisão 2): logotipo de 36 px (sem margem interna) e o nome do produto em 32 px, num cabeçalho de 56 px. */
   .marca { display: flex; align-items: center; gap: var(--espaco-3); }
   .marca img { height: var(--altura-logotipo); width: auto; }
   .marca strong { font-size: var(--texto-marca); line-height: 1; font-weight: 700; }
@@ -87,7 +87,8 @@
   .conta { display: flex; align-items: center; gap: var(--espaco-4); }
   .usuario, .avisos > details { position: relative; }
   .usuario[open] > div, .avisos > details[open] > div { position: absolute; right: 0; top: calc(100% + var(--espaco-2)); z-index: 50; display: grid; gap: var(--espaco-3); padding: var(--espaco-3) var(--espaco-4); background: var(--cor-branco); color: var(--cor-texto); border-radius: var(--raio-controle); box-shadow: var(--sombra-menu); }
-  .usuario[open] > div { white-space: nowrap; }
+  .usuario[open] > div { width: max-content; min-width: 12rem; max-width: min(22rem, calc(100vw - 2 * var(--espaco-4))); }
+  .usuario[open] > div p { overflow-wrap: anywhere; }
   .usuario > div p { margin: 0; }
 
   /* Sino: o ícone, com o contador dos não lidos; o painel lista cada aviso com o botão de marcar como lido. */

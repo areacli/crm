@@ -61,7 +61,8 @@
 
 <%= render "customers/contact_attempts", customer: @customer, history: @contact_history, form: @contact_form %>
 
-<%= render "customers/contracts", customer: @customer, contracts: @contracts, members: @contract_members, credit_totals: @credit_totals %>
+<%= render "customers/contracts", customer: @customer, contracts: @contracts, members: @contract_members, credit_totals: @credit_totals,
+   brackets: @brackets, overdue: @contract_overdue, segments: @contract_segments, history: @segment_history %>
 
 <section class="cartao" aria-labelledby="titulos">
   <header><h2 id="titulos">Títulos</h2></header>

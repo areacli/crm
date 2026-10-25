@@ -24,6 +24,7 @@
             <th scope="col" data-numerico aria-sort="<%= sort_state.call("overdue_cents") || "none" %>"><%= sort_link.call("overdue_cents", "Vencido") %></th>
             <th scope="col" data-numerico aria-sort="<%= sort_state.call("upcoming_cents") || "none" %>"><%= sort_link.call("upcoming_cents", "A vencer") %></th>
             <th scope="col" aria-sort="<%= sort_state.call("max_days_overdue") || "none" %>"><%= sort_link.call("max_days_overdue", "Faixa (dias)") %></th>
+            <th scope="col">Segmento</th>
           </tr>
         </thead>
         <tbody>
@@ -36,6 +37,7 @@
               <td data-numerico><%= money(customer.overdue_cents) %></td>
               <td data-numerico><%= customer.tenant_id && @settings.fetch(customer.tenant_id).upcoming_display == "detail_only" ? "—" : money(customer.upcoming_cents) %></td>
               <td><%= customer.bills_count.to_i.zero? ? "sem títulos em cobrança" : @query.bracket_label(customer.tenant_id, customer.max_days_overdue) %></td>
+              <td><%= @segment_names[customer.id] || t("segments.none") %></td>
             </tr>
           <% end %>
         </tbody>

@@ -4,14 +4,16 @@ class CustomersController < ApplicationController
     authorize Customer
     query = Portfolio::Query.new(Current.user)
     bracket = params[:bracket].presence&.to_i
-    @pagination = Pagination.new(query.customers(search: params[:q], bracket: bracket, tenant_id: params[:tenant], sort: params[:sort], direction: params[:dir]),
+    @pagination = Pagination.new(query.customers(search: params[:q], bracket: bracket, segment: params[:segment], tenant_id: params[:tenant], sort: params[:sort], direction: params[:dir]),
                                  page: params[:page], per_page: params[:per_page])
     @customers = @pagination.records.includes(:tenant)
     @query = query
+    @segment_names = query.segment_names(@customers.map(&:id))
     @settings = query.settings_by_tenant
     @several_tenants = @settings.size > 1
     @tenants = Tenant.where(id: @settings.keys).order(:name).pluck(:name, :id)
     @brackets = bracket_options(@settings)
+    @segments = query.segment_options.map { |segment| [ @several_tenants ? "#{segment.name} (#{segment.tenant.name})" : segment.name, segment.id ] } + [ [ t("segments.none"), "none" ] ]
     render partial: "customers/result" if htmx_fragment?
   end
 
@@ -26,6 +28,7 @@ class CustomersController < ApplicationController
     @open_discrepancies = ValueDiscrepancy.where(bill_id: @bills.map(&:id), status: "open").distinct.pluck(:bill_id)
     @today = Date.current
     load_payments_and_credits
+    load_segments
     load_contact_attempts
     load_registry
     load_rights
@@ -54,6 +57,15 @@ class CustomersController < ApplicationController
     def load_contact_attempts
       @contact_history = ContactAttempt.history_for(@customer, page: params[:page])
       @contact_form = Contacts::Form.new(@customer) if !@customer.anonymized? && policy(ContactAttempt.new(tenant: @customer.tenant)).create?
+    end
+
+    # Segmento de cada contrato (R159): ao lado da faixa de atraso do contrato, com o histórico de mudanças. Consultas: `bills (contract_id)` e
+    # `contract_segments (contract_id, since)`.
+    def load_segments
+      ids = @contracts.map(&:id)
+      @contract_overdue = Bill.overdue(@today).where(contract_id: ids).group(:contract_id).minimum(:due_date).transform_values { |due| (@today - due).to_i }
+      @contract_segments = Segment.where(id: @contracts.filter_map(&:segment_id)).index_by(&:id)
+      @segment_history = ContractSegment.where(contract_id: ids).includes(:segment).order(since: :desc, id: :desc).limit(100).group_by(&:contract_id)
     end
 
     # Pagos (R54) e crédito por contrato (R55b): o crédito é do contrato, visível a todos os clientes dele, sem total por cliente.

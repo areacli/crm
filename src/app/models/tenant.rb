@@ -6,6 +6,7 @@ class Tenant < ApplicationRecord
   has_many :memberships, dependent: :destroy
   has_many :payment_channels, dependent: :destroy
   has_many :contact_results, dependent: :destroy
+  has_many :segments, dependent: :destroy
 
   REGISTRY_FIELDS = %i[cnpj legal_name trade_name street number complement district city state zip email phone].freeze
   ADDRESS_FIELDS = %i[street number complement district city state zip].freeze
@@ -28,6 +29,7 @@ class Tenant < ApplicationRecord
         tenant.profiles.create!(name: "Gestor", permissions: Permission::ALL)
         tenant.profiles.create!(name: "Operador", permissions: Permission::OPERATOR)
         Contacts::InitialResults.create_for(tenant)
+        Segment.create_catch_all!(tenant)
       end
     end
   end

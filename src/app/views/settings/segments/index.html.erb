@@ -1,0 +1,79 @@
+<% content_for :title, "Configuração · Segmentos" %>
+<% content_for :cable_channels, @tenants.map { |tenant| { channel: "SegmentsChannel", tenant_id: tenant.id } }.to_json %>
+<header class="cabecalho-da-pagina">
+  <div><h1>Segmentos</h1><p>Grupos de contratos definidos por critérios, em ordem: vale o primeiro que casar, e "Demais" recebe o resto. Cada segmento terá a sua política de encargos. Cada credor tem os seus.</p></div>
+</header>
+<%= render "settings/abas" %>
+
+<div id="segmentos" class="pagina-em-secoes" hx-get="<%= settings_segments_path %>" hx-trigger="cable:segments-changed from:body" hx-swap="outerHTML" hx-push-url="false" hx-select="#segmentos" hx-disinherit="hx-select hx-swap hx-push-url">
+  <% @tenants.each do |tenant| %>
+    <% segments = @segments.fetch(tenant.id, []) %>
+    <% setting = @settings.fetch(tenant.id) %>
+    <% can_change = @can_change.include?(tenant.id) %>
+    <% run = @runs[tenant.id] %>
+    <section class="cartao" aria-labelledby="credor-<%= tenant.id %>">
+      <header>
+        <h2 id="credor-<%= tenant.id %>"><%= tenant.name %></h2>
+        <% if can_change %><div class="acoes"><%= link_to "Criar segmento", new_settings_segment_path(tenant_id: tenant.id), class: "botao", data: { size: "small" } %></div><% end %>
+      </header>
+      <div>
+        <% if run&.failed? %>
+          <%= aviso(tom: :danger) { tag.p "O recálculo de #{datetime_br(run.started_at)} falhou#{" (#{run.error_kind})" if run.error_kind.present?}. A lista mostra os últimos segmentos calculados." } %>
+        <% elsif run %>
+          <p><small>Último recálculo: <%= datetime_br(run.started_at) %> (<%= number_br(run.processed) %> contratos mudaram de segmento).</small></p>
+        <% else %>
+          <p><small>O recálculo ainda não rodou para este credor.</small></p>
+        <% end %>
+        <div class="tabela">
+          <table>
+            <caption class="apenas-leitor-de-tela">Segmentos de <%= tenant.name %>, em ordem</caption>
+            <thead><tr><th scope="col">Segmento</th><th scope="col">Critérios</th><th scope="col" data-numerico>Contratos</th><th scope="col" data-numerico>Saldo</th><th scope="col">Situação</th><% if can_change %><th scope="col">Ações</th><% end %></tr></thead>
+            <tbody>
+              <% segments.each_with_index do |segment, index| %>
+                <% count, cents = @totals.fetch(segment.id, [ 0, 0 ]) %>
+                <tr id="segmento-<%= segment.id %>">
+                  <th scope="row"><%= segment.catch_all? ? segment.name : (can_change ? link_to(segment.name, edit_settings_segment_path(segment)) : segment.name) %></th>
+                  <td><%= segment.catch_all? ? "Quem não casou com nenhum outro" : segment_criteria_summary(segment) %></td>
+                  <td data-numerico><%= number_br(count) %></td>
+                  <td data-numerico><%= money(cents) %></td>
+                  <td><%= segment.active? ? situacao("Ativo", tom: :success) : situacao("Desativado", tom: :neutral) %></td>
+                  <% if can_change %>
+                    <td>
+                      <% unless segment.catch_all? %>
+                        <div class="acoes">
+                          <% if index.positive? %><%= button_to "Mover para cima", settings_segment_movement_path(segment), params: { "movement[direction]": "up" }, form: { "hx-boost": "false" }, data: { variant: "secondary", size: "small" }, "aria-label": "Mover para cima: #{segment.name}" %><% end %>
+                          <% if index < segments.size - 2 %><%= button_to "Mover para baixo", settings_segment_movement_path(segment), params: { "movement[direction]": "down" }, form: { "hx-boost": "false" }, data: { variant: "secondary", size: "small" }, "aria-label": "Mover para baixo: #{segment.name}" %><% end %>
+                          <%= link_to "Editar segmento", edit_settings_segment_path(segment), class: "botao", data: { variant: "secondary", size: "small" }, "aria-label": "Editar segmento: #{segment.name}" %>
+                          <% if segment.active? %>
+                            <%= button_to "Desativar", settings_segment_activation_path(segment), method: :delete, form: { "hx-boost": "false" }, data: { variant: "danger-outline", size: "small" }, "aria-label": "Desativar: #{segment.name}" %>
+                          <% else %>
+                            <%= button_to "Reativar", settings_segment_activation_path(segment), form: { "hx-boost": "false" }, data: { variant: "secondary", size: "small" }, "aria-label": "Reativar: #{segment.name}" %>
+                          <% end %>
+                        </div>
+                      <% end %>
+                    </td>
+                  <% end %>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+
+        <%= form_with scope: :segment_policy, url: settings_segment_policy_path, method: :patch, html: { "hx-boost": "false" } do |form| %>
+          <%= hidden_field_tag :tenant_id, tenant.id %>
+          <fieldset <%= "disabled" unless can_change %>>
+            <legend>Produto do contrato no segmento</legend>
+            <p><small>Um contrato pode ter títulos de produtos diferentes. Mudar esta política muda o segmento de contratos, então passa pela conferência do impacto.</small></p>
+            <% TenantSetting.defined_enums.fetch("segment_product_policy").each_key do |value| %>
+              <label>
+                <%= radio_button_tag "segment_policy[value]", value, setting.segment_product_policy == value, id: "produto-#{tenant.id}-#{value}" %>
+                <%= t("segments.policies.#{value}") %>
+              </label>
+            <% end %>
+          </fieldset>
+          <% if can_change %><div class="acoes"><button type="submit" data-variant="secondary">Conferir mudança</button></div><% end %>
+        <% end %>
+      </div>
+    </section>
+  <% end %>
+</div>

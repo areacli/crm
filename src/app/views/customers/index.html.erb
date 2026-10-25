@@ -24,6 +24,13 @@
     </select>
   </div>
   <div class="campo">
+    <label for="segment">Segmento</label>
+    <select id="segment" name="segment">
+      <option value="">Todos</option>
+      <%= options_for_select(@segments, params[:segment]) %>
+    </select>
+  </div>
+  <div class="campo">
     <label for="per_page">Por página</label>
     <select id="per_page" name="per_page"><%= options_for_select(Pagination::PER_PAGE_OPTIONS, @pagination.per_page) %></select>
   </div>

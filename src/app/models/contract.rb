@@ -3,6 +3,8 @@
 class Contract < ApplicationRecord
   include TenantScoped
 
+  belongs_to :segment, optional: true
+  has_many :contract_segments, dependent: :delete_all
   has_many :contract_customers, dependent: :destroy
   has_many :customers, through: :contract_customers
   has_many :bills, dependent: :restrict_with_error

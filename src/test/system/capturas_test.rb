@@ -98,6 +98,31 @@ class CapturasTest < ApplicationSystemTestCase
     TaskRun.create!(tenant: @tenant, name: "data_retention", status: "succeeded", started_at: Time.current.change(hour: 3), finished_at: Time.current.change(hour: 3, min: 1), processed: 4)
     TaskRun.create!(tenant: @tenant, name: "data_retention", status: "skipped", started_at: 1.day.ago.change(hour: 3), finished_at: 1.day.ago.change(hour: 3), note: "Há uma importação em andamento.")
     TaskRun.create!(tenant: @tenant, name: "data_retention", status: "succeeded", started_at: 2.days.ago.change(hour: 3), finished_at: 2.days.ago.change(hour: 3, min: 1), processed: 0)
+    # Incremento 8: segmentos por contrato (com contratos novos para o cliente da ficha) e os índices do Banco Central com uma correção do credor.
+    two_contracts = [ make_contract(@tenant, "CT-0101", bills: [ { overdue: 61, cents: 84_000, product: "Mensalidade" } ], customers: [ @contacted_customer ], created_ago: 400),
+                      make_contract(@tenant, "CT-0102", bills: [ { overdue: 10, cents: 31_000, product: "Cartão" }, { overdue: -15, cents: 31_000, product: "Cartão" } ], customers: [ @contacted_customer ], created_ago: 25) ]
+    Customer.order(:id).offset(3).limit(5).each_with_index do |customer, index|
+      make_contract(@tenant, "CT-02#{index}", bills: [ { overdue: 15 + index * 40, cents: 45_000 + index * 31_000, product: index.odd? ? "Cartão" : "Mensalidade" } ], customers: [ customer ], created_ago: 30 + index * 90)
+    end
+    [ [ "CT-PJ1", SegmentsTestHelper::CNPJ_A, "Padaria Pão Quente Ltda", 35, 78_000 ], [ "CT-PJ2", SegmentsTestHelper::CNPJ_B, "Oficina Roda Viva Ltda", 120, 152_000 ] ].each do |code, cnpj, name, overdue, cents|
+      make_contract(@tenant, code, bills: [ { overdue: overdue, cents: cents, product: "Mensalidade" } ], customers: [ customer_of(@tenant, cnpj, name) ], created_ago: 150)
+    end
+    make_segment(@tenant, "Varejo PF recente", person_type: "person", min_overdue_days: 1, max_overdue_days: 90, max_balance_cents: 500_000)
+    make_segment(@tenant, "Contratos antigos", min_age_days: 365)
+    make_segment(@tenant, "Muito vencido", min_overdue_bills: 2, min_overdue_percent: 50)
+    @tenant.setting.update!(segments_version: 3)
+    recalc(@tenant)
+    TaskRun.create!(tenant: @tenant, name: "segments_recalculation", status: "succeeded", started_at: Time.current.change(hour: 5, min: 30), finished_at: Time.current.change(hour: 5, min: 31), processed: 4)
+    13.downto(1) do |back|
+      month = (Date.current - back.months).beginning_of_month
+      { "ipca" => 0.18 + (back % 5) * 0.11, "inpc" => 0.2 + (back % 4) * 0.1, "igpm" => -0.3 + (back % 6) * 0.27, "selic" => 0.8 + (back % 3) * 0.05 }.each do |series, value|
+        IndexRate.create!(series: series, month: month, value: value.round(2), fetched_at: Time.current.change(hour: 5))
+      end
+    end
+    IndexRate.create!(series: "selic", month: Date.current.beginning_of_month, value: "0.61", partial: true, fetched_at: Time.current.change(hour: 5))
+    IndexAdjustment.create!(tenant: @tenant, series: "igpm", month: (Date.current - 3.months).beginning_of_month, value: "1.52", reason: "Valor da FGV, divulgação de 29/09", user: users(:joana), adjusted_at: 1.day.ago)
+    TaskRun.create!(name: "index_fetch", status: "failed", started_at: 1.day.ago.change(hour: 5), finished_at: 1.day.ago.change(hour: 5), failed: 1, note: "IPCA: o Banco Central não respondeu")
+    TaskRun.create!(name: "index_fetch", status: "succeeded", started_at: Time.current.change(hour: 5), finished_at: Time.current.change(hour: 5, min: 1), processed: 6, note: "0 meses novos e 6 revisados.")
     visit new_session_path
     fill_in "E-mail", with: users(:joana).email_address
     fill_in "Senha", with: "senha-de-teste-1"
@@ -138,6 +163,19 @@ class CapturasTest < ApplicationSystemTestCase
     # Incremento 7: direitos do titular e guarda de dados.
     "guarda-de-dados" => -> { data_retention_path },
     "ficha-anonimizada" => -> { customer_path(@anonymized_customer) },
+    # Incremento 8: índices do Banco Central e segmentos.
+    "indices" => -> { settings_indexes_path },
+    "segmentos" => -> { settings_segments_path },
+    "novo-segmento" => -> { new_settings_segment_path(tenant_id: @tenant.id) },
+    "conferencia-de-segmentos" => lambda {
+      visit new_settings_segment_path(tenant_id: @tenant.id)
+      fill_in "Nome", with: "Pessoa jurídica"
+      select "Pessoa jurídica", from: "Tipo"
+      fill_in "segment_min_overdue_days", with: "1"
+      click_button "Conferir mudança"
+      :current
+    },
+    "ficha-com-segmentos" => -> { customer_path(@contacted_customer) },
     "exportacao-de-dados" => -> { customer_data_export_path(@forecast_customer, token: Rails.application.message_verifier(:data_export).generate([ @forecast_customer.id, users(:joana).id ], expires_in: 10.minutes, purpose: :data_export)) }
   }.freeze
 
@@ -145,12 +183,13 @@ class CapturasTest < ApplicationSystemTestCase
   ABERTAS = %w[ficha-com-contatos].freeze
 
   # Telas longas, fotografadas com a janela mais alta para mostrar o que importa (o histórico, o formulário).
-  ALTAS = %w[ficha-com-acionamentos ficha-com-contatos politica-de-correcao exportacao-de-dados guarda-de-dados].freeze
+  ALTAS = %w[ficha-com-acionamentos ficha-com-contatos politica-de-correcao exportacao-de-dados guarda-de-dados indices novo-segmento ficha-com-segmentos].freeze
 
   test "recria as fotos do README" do
     TELAS.each do |nome, caminho|
-      page.driver.resize(1440, ALTAS.include?(nome) ? 1700 : 900)
-      visit instance_exec(&caminho)
+      page.driver.resize(1440, nome == "ficha-com-segmentos" ? 2900 : (ALTAS.include?(nome) ? 1700 : 900))
+      destino = instance_exec(&caminho)
+      visit destino unless destino == :current
       assert_selector "h1"
       page.execute_script("document.querySelectorAll('main details').forEach((d) => d.open = true)") if ABERTAS.include?(nome)
       page.save_screenshot(Rails.root.join("tmp/capturas/#{nome}.png").to_s)

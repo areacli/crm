@@ -5,3 +5,17 @@ data_retention:
   queue: default
   active_job: true
   description: "Guarda de dados (07): enfileira a anonimização por prazo de cada credor"
+
+fetch_indexes:
+  cron: "0 5 * * *"
+  class: "FetchIndexesJob"
+  queue: default
+  active_job: true
+  description: "Índices do Banco Central (08): busca global das quatro séries"
+
+segments_recalculation:
+  cron: "30 5 * * *"
+  class: "SegmentsDispatchJob"
+  queue: default
+  active_job: true
+  description: "Segmentos (08): enfileira o recálculo dos contratos de cada credor"

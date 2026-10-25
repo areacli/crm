@@ -1,0 +1,113 @@
+<%# Refeita pelo htmx a cada evento do WebSocket (cable:indexes-changed). %>
+<div id="indices" class="pagina-em-secoes" hx-get="<%= settings_indexes_path(request.query_parameters) %>" hx-trigger="cable:indexes-changed from:body" hx-swap="outerHTML" hx-push-url="false" hx-disinherit="hx-swap hx-push-url">
+  <section class="cartao" aria-labelledby="situacao">
+    <header>
+      <h2 id="situacao">Situação da busca</h2>
+      <% if Current.user.permitted_anywhere?("change_financial_policies") %>
+        <div class="acoes">
+          <% if @running %>
+            <span role="status">Busca em andamento</span>
+          <% else %>
+            <%= button_to "Buscar índices agora", settings_index_search_path, form: { "hx-boost": "false" }, data: { variant: "secondary", size: "small" } %>
+          <% end %>
+        </div>
+      <% end %>
+    </header>
+    <div>
+      <% if @last_success %>
+        <p>Última busca com sucesso: <%= datetime_br(@last_success.finished_at || @last_success.started_at) %>.</p>
+      <% else %>
+        <p>Ainda não houve busca com sucesso.</p>
+      <% end %>
+      <% if @last_failure && (@last_success.nil? || @last_failure.started_at > @last_success.started_at) %>
+        <%= aviso(tom: :danger) do %>
+          <p>Falha em <%= datetime_br(@last_failure.started_at) %>: <%= @last_failure.note %>
+            <% if @last_success %>Há <%= (Date.current - (@last_success.finished_at || @last_success.started_at).to_date).to_i %> dias sem busca com sucesso.<% end %></p>
+        <% end %>
+      <% end %>
+      <% if @runs.any? %>
+        <div class="tabela">
+          <table>
+            <caption class="apenas-leitor-de-tela">Últimas buscas</caption>
+            <thead><tr><th scope="col">Quando</th><th scope="col">Resultado</th><th scope="col" data-numerico>Meses gravados</th></tr></thead>
+            <tbody>
+              <% @runs.each do |run| %>
+                <tr><th scope="row"><%= datetime_br(run.started_at) %></th><td><%= t("indexes.run_status.#{run.status}") %><%= " — #{run.note}" if run.note.present? %></td><td data-numerico><%= number_br(run.processed) %></td></tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      <% end %>
+    </div>
+  </section>
+
+  <% if @grid.empty? %>
+    <p class="vazio">Nenhum índice gravado ainda. A primeira busca traz as séries desde janeiro de 2000.</p>
+  <% end %>
+  <% @tenants.each do |tenant| %>
+    <% can_correct = @can_correct.include?(tenant.id) %>
+    <section class="cartao" aria-labelledby="indices-<%= tenant.id %>">
+      <header><h2 id="indices-<%= tenant.id %>"><%= tenant.name %></h2></header>
+      <div>
+        <% unless @grid.empty? %>
+          <div class="tabela">
+            <table>
+              <caption class="apenas-leitor-de-tela">Índices mensais de <%= tenant.name %></caption>
+              <thead><tr><th scope="col">Mês</th><% IndexRate::SERIES.each do |series| %><th scope="col" data-numerico><%= IndexRate.label(series) %></th><% end %></tr></thead>
+              <tbody>
+                <% @grid.months.each do |month| %>
+                  <tr>
+                    <th scope="row"><%= months_label(month) %></th>
+                    <% IndexRate::SERIES.each do |series| %>
+                      <% cell = @grid.cell(tenant.id, series, month) %>
+                      <td data-numerico>
+                        <% if cell.adjustment %>
+                          <% shown = cell.bank ? " · Banco Central: #{index_percent(cell.bank)}" : " (incluído à mão)" %>
+                          <span>corrigido: <%= index_percent(cell.adjustment.value) %><%= shown %></span><br>
+                          <small>Corrigido em <%= datetime_br(cell.adjustment.adjusted_at) %><%= " por #{cell.adjustment.user.name}" if cell.adjustment.user %>: <%= cell.adjustment.reason %></small>
+                          <% if can_correct %>
+                            <details>
+                              <summary aria-label="Desfazer a correção de <%= IndexRate.label(series) %> em <%= months_label(month) %>">Desfazer</summary>
+                              <%= form_with scope: :adjustment, url: settings_index_adjustment_path(cell.adjustment), method: :delete, html: { "hx-boost": "false" } do |form| %>
+                                <div class="campo"><%= form.label :reason, "Motivo", for: "desfazer-#{tenant.id}-#{series}-#{month}" %><%= form.text_field :reason, id: "desfazer-#{tenant.id}-#{series}-#{month}", required: true, maxlength: 300 %></div>
+                                <div class="acoes"><button type="submit" data-variant="secondary" data-size="small">Desfazer correção</button></div>
+                              <% end %>
+                            </details>
+                          <% end %>
+                        <% elsif cell.bank %>
+                          <%= index_percent(cell.bank) %><%= " (parcial)" if cell.partial %><br><small>Banco Central, <%= date_br(cell.fetched_at.to_date) %></small>
+                        <% else %>
+                          sem valor
+                        <% end %>
+                      </td>
+                    <% end %>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+          <% if @grid.pages > 1 %>
+            <nav class="paginacao" aria-label="Meses">
+              <% if @grid.page > 1 %><%= link_to "Meses mais novos", settings_indexes_path(page: @grid.page - 1) %><% end %>
+              <span>Página <%= @grid.page %> de <%= @grid.pages %></span>
+              <% if @grid.page < @grid.pages %><%= link_to "Meses anteriores", settings_indexes_path(page: @grid.page + 1) %><% end %>
+            </nav>
+          <% end %>
+        <% end %>
+        <% if can_correct %>
+          <details>
+            <summary>Corrigir índice</summary>
+            <%= form_with scope: :adjustment, url: settings_index_adjustments_path, html: { "hx-boost": "false" } do |form| %>
+              <%= hidden_field_tag :tenant_id, tenant.id %>
+              <div class="campo"><%= form.label :series, "Série", for: "serie-#{tenant.id}" %><%= form.select :series, IndexRate::SERIES.map { |series| [ IndexRate.label(series), series ] }, {}, id: "serie-#{tenant.id}" %></div>
+              <div class="campo"><%= form.label :month, "Mês (mm/aaaa)", for: "mes-#{tenant.id}" %><%= form.text_field :month, id: "mes-#{tenant.id}", required: true, placeholder: "09/2026", maxlength: 7 %></div>
+              <div class="campo"><%= form.label :value, "Valor (%)", for: "valor-#{tenant.id}" %><%= form.text_field :value, id: "valor-#{tenant.id}", required: true, inputmode: "decimal", placeholder: "1,52" %></div>
+              <div class="campo"><%= form.label :reason, "Motivo da correção", for: "motivo-#{tenant.id}" %><%= form.text_field :reason, id: "motivo-#{tenant.id}", required: true, maxlength: 300 %></div>
+              <div class="acoes"><button type="submit">Corrigir índice</button></div>
+            <% end %>
+          </details>
+        <% end %>
+      </div>
+    </section>
+  <% end %>
+</div>

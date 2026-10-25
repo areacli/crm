@@ -476,4 +476,80 @@ namespace :crm do
     tenant.destroy
     puts "credor de medição apagado"
   end
+
+  desc "V4 dos segmentos (08): N contratos (1 cliente e 2 títulos cada) e 5 segmentos; mede conferência, confirmação, recálculo diário, aba, lista e ficha: crm:measure_segments[contratos]"
+  task :measure_segments, %i[contracts] => :environment do |_task, args|
+    abort "Recusado em produção." if Rails.env.production?
+
+    count = (args[:contracts].presence || 10_000).to_i
+    tenant = Tenant.provision!("Medição de segmentos #{Time.current.strftime('%H%M%S')}")
+    t = tenant.id
+    user = User.create!(name: "Medição", email_address: "medicao#{t}@exemplo.com.br", password: SecureRandom.base58(24))
+    Membership.create!(user: user, tenant: tenant, profile: tenant.profiles.find_by!(name: "Gestor"))
+    sql = Portfolio::Sql
+    measure = lambda do |label, limit = nil, &work|
+      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      result = work.call
+      elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+      peak = (File.read("/proc/self/status")[/VmHWM:\s+(\d+)/, 1].to_i / 1024 rescue 0)
+      verdict = limit ? (elapsed <= limit ? "  ok (limite #{limit} s)" : "  ACIMA do limite de #{limit} s") : ""
+      puts format("%-62s %8.2f s   (pico de memória %d MB)%s", label, elapsed, peak, verdict)
+      result
+    end
+
+    # Um cliente por contrato (60% CPF, 40% CNPJ), dois títulos de produtos diferentes, atrasos de 1 a 400 dias.
+    sql.run("insert into customers (tenant_id, document, name, created_at, updated_at) select ?, case when i % 5 < 3 then lpad(i::text, 11, '0') else lpad(i::text, 14, '0') end, 'Cliente ' || i, now(), now() from generate_series(1, ?) i", t, count)
+    sql.run("insert into contracts (tenant_id, code, created_at, updated_at) select ?, 'CT-' || id, now() - ((id % 700) || ' days')::interval, now() from customers where tenant_id = ?", t, t)
+    sql.execute("analyze customers, contracts")
+    sql.run("insert into contract_customers (contract_id, customer_id, roles) select k.id, c.id, '[]'::jsonb from customers c join contracts k on k.tenant_id = c.tenant_id and k.code = 'CT-' || c.id where c.tenant_id = ?", t)
+    sql.run("insert into bills (tenant_id, contract_id, customer_id, number, due_date, amount_cents, paid_cents, status, product, created_at, updated_at) " \
+            "select ?, cc.contract_id, c.id, 'NF-' || c.id || '/' || n, current_date - ((1 + (c.id * 37 + n * 11) % 400)::int), 5000 + (c.id * 7919 + n * 131) % 250000, 0, 'active', " \
+            "case n when 1 then 'Mensalidade' else 'Cartão' end, now(), now() " \
+            "from customers c join contract_customers cc on cc.customer_id = c.id cross join generate_series(1, 2) n where c.tenant_id = ?", t, t)
+    sql.execute("analyze bills, contract_customers")
+    puts "#{count} contratos criados no credor de medição"
+
+    # Cinco segmentos (4 com critérios e o Demais), no mesmo desenho da especificação.
+    base = { tenant: tenant }
+    Segment.create!(**base, name: "Varejo PF recente", position: 1, person_type: "person", min_overdue_days: 1, max_overdue_days: 90, max_balance_cents: 500_000)
+    Segment.create!(**base, name: "PF", position: 2, person_type: "person")
+    Segment.create!(**base, name: "Muito vencido", position: 3, min_overdue_bills: 2, min_overdue_percent: 50)
+    Segment.create!(**base, name: "Cartões", position: 4, products: [ "cartao" ])
+    proposal = Segments::Proposal.current(tenant)
+    token = proposal.token
+    measure.call("recálculo inicial (diário) dos #{count} contratos", 120) { Segments::Recalculation.new(tenant).call }
+    sql.execute("analyze contract_segments, contracts")
+    puts "  contratos por segmento: #{Segment.where(tenant_id: t).ordered.map { |s| "#{s.name}=#{Contract.where(segment_id: s.id).count}" }.join(', ')}"
+
+    changed = Segments::Proposal.current(tenant).with_created(Segment.new(tenant: tenant, name: "Recentes", min_age_days: 0, max_age_days: 200).tap(&:valid?))
+    4.times { changed = changed.with_moved(Segments::Proposal::NEW_ID, "up") }
+    impact = measure.call("conferir uma mudança de segmentos", 10) { Segments::Impact.new(changed) }
+    puts "  entram em outros segmentos: #{impact.total} contratos"
+    measure.call("confirmar a mudança de segmentos (grava e recalcula)", 10) { Segments::Applier.new(user).confirm(tenant, changed.token) }
+    measure.call("política de produto: conferir a mudança para 'qualquer título'", 10) { Segments::Impact.new(Segments::Proposal.current(tenant).with_policy("any_bill")) }
+    measure.call("recálculo diário depois da mudança (nada muda)", 120) { Segments::Recalculation.new(tenant).call }
+
+    measure.call("aba Segmentos: totais por segmento") { Segments::Totals.new([ tenant ]).call }
+    query = Portfolio::Query.new(user)
+    measure.call("lista de clientes com a coluna Segmento (primeira página)") { query.customers.limit(20).to_a.tap { |page| query.segment_names(page.map(&:id)) } }
+    measure.call("lista de clientes (contagem total)") { query.customers.except(:select, :order).count }
+    measure.call("lista filtrada por segmento (primeira página)") { query.customers(segment: Segment.where(tenant_id: t, name: "Recentes").pick(:id)).limit(20).to_a.tap { |page| query.segment_names(page.map(&:id)) } }
+    measure.call("lista filtrada por 'sem segmento' (primeira página)") { query.customers(segment: "none", search: "Cliente 1").limit(20).to_a }
+    some = Customer.where(tenant_id: t).order(:id).first
+    measure.call("ficha: segmento e histórico do contrato") { ContractSegment.where(contract_id: some.contracts.select(:id)).includes(:segment).order(since: :desc).limit(100).to_a }
+
+    if ENV["KEEP"] == "1"
+      puts "KEEP=1: credor de medição #{t} mantido para análise (EXPLAIN)"
+      next
+    end
+    sql.run("delete from changes where tenant_id = ?", t)
+    sql.run("delete from task_runs where tenant_id = ?", t)
+    ContractCustomer.where(customer_id: Customer.where(tenant_id: t)).delete_all
+    [ Bill, Customer, Contract ].each { |model| model.where(tenant_id: t).delete_all }
+    tenant.contact_results.delete_all
+    Membership.where(tenant_id: t).delete_all
+    user.destroy
+    tenant.destroy
+    puts "credor de medição apagado"
+  end
 end

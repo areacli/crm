@@ -1,0 +1,42 @@
+<% content_for :title, "Configuração · Conferir mudança nos segmentos" %>
+<header class="cabecalho-da-pagina"><div><h1>Conferir mudança nos segmentos</h1><p><%= @tenant.name %></p></div></header>
+<%= render "settings/abas" %>
+<section class="cartao" aria-labelledby="impacto">
+  <header><h2 id="impacto">Impacto da mudança</h2><p>Nada muda até você confirmar. Confirmada, a mudança vale na hora para todos os contratos do credor.</p></header>
+  <div>
+    <% if @impact.total.zero? %>
+      <p class="vazio">Nenhum contrato muda de segmento.</p>
+    <% else %>
+      <% @impact.entering.each do |segment_id, rows| %>
+        <% next if segment_id.nil? %>
+        <p><strong>Entram <%= number_br(rows.sum(&:contracts)) %> <%= rows.sum(&:contracts) == 1 ? "contrato" : "contratos" %> (<%= money(rows.sum(&:balance_cents)) %>) em <%= @proposal.name_of(segment_id) %>:</strong>
+          <%= rows.map { |row| "#{number_br(row.contracts)} vindos de #{@proposal.name_of(row.from_id)}" }.to_sentence %>.</p>
+      <% end %>
+      <% if @impact.entering.key?(nil) %>
+        <p><strong>Ficam sem segmento:</strong> <%= number_br(@impact.entering[nil].sum(&:contracts)) %> contratos.</p>
+      <% end %>
+      <% if @impact.mixed.positive? %>
+        <p><small>Entre eles, <%= number_br(@impact.mixed) %> contratos mistos (responsáveis PF e PJ), que só casam com o critério "Misto" ou "tanto faz".</small></p>
+      <% end %>
+      <div class="tabela">
+        <table>
+          <caption class="apenas-leitor-de-tela">Contratos que mudam de segmento</caption>
+          <thead><tr><th scope="col">De</th><th scope="col">Para</th><th scope="col" data-numerico>Contratos</th><th scope="col" data-numerico>Saldo</th></tr></thead>
+          <tbody>
+            <% @impact.rows.each do |row| %>
+              <tr><th scope="row"><%= @proposal.name_of(row.from_id) %></th><td><%= @proposal.name_of(row.to_id) %></td><td data-numerico><%= number_br(row.contracts) %></td><td data-numerico><%= money(row.balance_cents) %></td></tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% end %>
+    <%= form_with scope: :confirmation, url: settings_segment_confirmation_path, html: { "hx-boost": "false" } do |form| %>
+      <%= hidden_field_tag :tenant_id, @tenant.id %>
+      <%= form.hidden_field :token, value: @token %>
+      <div class="acoes">
+        <button type="submit">Confirmar mudança nos segmentos</button>
+        <%= link_to "Voltar sem mudar", settings_segments_path, class: "botao", data: { variant: "secondary" } %>
+      </div>
+    <% end %>
+  </div>
+</section>

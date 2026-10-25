@@ -44,7 +44,7 @@
     --texto-subtitulo: 1.25rem;
     --texto-titulo: 1.5rem;
     --texto-pagina: 2rem;
-    --texto-marca: 1.75rem;
+    --texto-marca: 2rem;
 
     /* Espaço (grade de 4 px), forma e elevação */
     --espaco-1: 0.25rem;
@@ -62,8 +62,8 @@
     /* Medidas */
     --altura-controle: 2.75rem;
     --altura-controle-pequeno: 2.25rem;
-    --altura-cabecalho: 4.5rem;
-    --altura-logotipo: 3rem;
+    --altura-cabecalho: 3.5rem;
+    --altura-logotipo: 2.25rem;
     --largura-menu: 13rem;
     --largura-conteudo: 110rem;
     --largura-formulario: 36rem;
