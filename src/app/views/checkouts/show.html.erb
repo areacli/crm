@@ -1,0 +1,28 @@
+<% content_for :title, t("payments.checkout.page.title") %>
+<% content_for :head do %>
+  <%= tag.meta name: "cable-channels", content: [ { channel: "PaymentCheckoutChannel", token: checkout.token } ].to_json %>
+  <%= javascript_importmap_tags("checkout") %>
+<% end %>
+
+<div class="cabecalho-da-pagina">
+  <div>
+    <h1><%= t("payments.checkout.page.title") %></h1>
+    <p><%= t("payments.checkout.page.greeting", name: checkout.payer_name.to_s.split.first.to_s) %></p>
+  </div>
+</div>
+
+<section aria-labelledby="resumo">
+  <h2 id="resumo" class="apenas-leitor-de-tela"><%= t("payments.checkout.page.summary") %></h2>
+  <dl class="valores">
+    <div>
+      <dt><%= t("payments.checkout.page.amount") %></dt>
+      <dd><%= money(checkout.amount_cents) %><% if checkout.description.present? %><small><%= checkout.description %></small><% end %></dd>
+    </div>
+    <div>
+      <dt><%= t("payments.checkout.page.valid_until") %></dt>
+      <dd><%= date_br(checkout.expires_at.to_date) %></dd>
+    </div>
+  </dl>
+</section>
+
+<%= render "checkouts/options", checkout: checkout, card: @card, outcome: nil %>

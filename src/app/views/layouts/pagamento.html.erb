@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="robots" content="noindex, nofollow, noarchive">
+    <meta name="referrer" content="no-referrer">
+    <title><%= [ content_for(:title).presence || "Pagamento", @checkout&.tenant&.display_name ].compact_blank.join(" · ") %></title>
+    <%= csrf_meta_tags %>
+    <%= yield :head %>
+    <link rel="icon" href="<%= image_path("simbolo.svg") %>" type="image/svg+xml">
+    <%= stylesheet_link_tag :app %>
+  </head>
+
+  <body data-pagina="pagamento">
+    <a href="#conteudo" class="pular-para-o-conteudo">Ir para o conteúdo</a>
+    <header>
+      <p class="marca"><strong><%= @checkout&.tenant&.display_name || "Pagamento" %></strong></p>
+    </header>
+    <main id="conteudo" tabindex="-1">
+      <%= yield %>
+    </main>
+  </body>
+</html>

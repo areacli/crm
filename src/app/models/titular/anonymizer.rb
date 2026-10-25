@@ -69,6 +69,11 @@ module Titular
       scrub_summaries(t)
       scrub_history(targets)
       Sql.execute("delete from customer_contacts where customer_id in #{targets}")
+      # 12: o instrumento de pagamento guarda nome, documento e endereço do pagador no momento da emissão; saem junto com o cadastro.
+      Sql.execute("update payment_instruments set payer_name = tg.new_name, payer_document = tg.new_document, payer_address = '{}'::jsonb from anon_targets tg where payment_instruments.customer_id = tg.customer_id")
+      # 12, parte C: o link de checkout também guarda uma cópia do pagador (e e-mail e telefone); saem junto, e o link deixa de abrir (cancelado).
+      Sql.execute("update payment_checkouts set payer_name = tg.new_name, payer_document = tg.new_document, payer_address = '{}'::jsonb, payer_email = null, payer_phone = null, " \
+                  "state = 'canceled' from anon_targets tg where payment_checkouts.customer_id = tg.customer_id")
       Sql.run("update contact_attempts set contact_used = case when contact_used is not null then ? end, text = case when text is not null then ? end " \
               "where customer_id in #{targets} and (contact_used is not null or text is not null)", REMOVED, REMOVED)
       Sql.execute("update bills set description = null where customer_id in #{targets} and description is not null")

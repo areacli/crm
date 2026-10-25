@@ -6,6 +6,7 @@ class PaymentChannel < ApplicationRecord
   encrypts :webhook_secret
 
   has_many :payments, foreign_key: :channel_id, inverse_of: :channel, dependent: :restrict_with_error
+  has_many :payment_accounts, foreign_key: :channel_id, inverse_of: :channel, dependent: :restrict_with_error
   has_many :webhook_events, foreign_key: :channel_id, inverse_of: :channel, dependent: :delete_all
 
   enum :kind, { account: "account", agreement: "agreement", card: "card" }, validate: true

@@ -1,0 +1,100 @@
+# Página pública de pagamento (12, parte C): textos do cliente final, mensagens de recusa do cartão e erros do serviço de links.
+pt-BR:
+  activerecord:
+    attributes:
+      payment_checkout:
+        modalities: "Formas de pagamento"
+        highlight: "Forma em destaque"
+        amount_cents: "Valor"
+        expires_at: "Validade"
+    errors:
+      models:
+        payment_checkout:
+          attributes:
+            modalities:
+              invalid: "não é válida"
+            highlight:
+              invalid: "não está entre as formas oferecidas"
+        payment_instrument:
+          attributes:
+            checkout:
+              other_tenant: "é de outro credor"
+        payment_event:
+          attributes:
+            account:
+              other_tenant: "é de outro credor"
+  payments:
+    events:
+      provider_unavailable: "Fornecedor indisponível no código: o aviso não foi processado."
+      nothing_to_do: "O aviso não traz nada a conferir."
+      not_ours: "O aviso não é de um instrumento nosso."
+    reconcile:
+      note: "Avisos reprocessados: %{reprocessed}; instrumentos a conferir: %{count}."
+    sync:
+      refund_reason:
+        boleto: "devolução de boleto"
+        pix: "devolução de Pix"
+        card: "reembolso de cartão"
+    checkout:
+      errors:
+        nothing_to_offer: "O link não tem forma de pagamento: informe um boleto ou Pix ativo, ou use um credor com conta de cartão ativa e pagador com documento válido."
+        other_tenant: "O instrumento é de outro credor."
+        instrument_not_active: "Só boleto ou Pix ativo entra no link."
+        amounts_differ: "Os instrumentos do link têm valores diferentes."
+        amount_required: "Informe o valor do link."
+        amount_differs: "O valor informado difere do valor dos instrumentos."
+        card_unavailable: "O cartão não está disponível: falta conta de cartão ativa do credor, ou o pagador não tem documento válido."
+        not_renewable: "Só se renova link que não foi pago nem cancelado."
+        paid_untouchable: "Link pago não pode ser cancelado."
+        stale_attempt: "A tentativa de cartão ficou sem resposta; não se sabe se foi cobrada."
+      page:
+        title: "Pagamento"
+        greeting: "Olá, %{name}. Escolha como pagar."
+        summary: "Resumo"
+        amount: "Valor"
+        valid_until: "Link válido até"
+        unavailable_title: "Este link de pagamento não está disponível"
+        unavailable_text: "O endereço pode ter vencido ou estar incorreto. Peça um novo link a quem o enviou."
+        expired_page: "Esta página venceu. Atualize a página e tente de novo."
+        paid: "Pagamento confirmado. Obrigado."
+        card_approved: "Pagamento no cartão aprovado. A confirmação pode levar alguns instantes; esta página se atualiza sozinha."
+        card_unconfirmed: "Não conseguimos confirmar o pagamento no cartão. Não tente pagar de novo agora: entre em contato com quem enviou este link."
+        nothing_available: "Nenhuma forma de pagamento está disponível neste momento. Entre em contato com quem enviou este link."
+        pix: "Pix"
+        pix_hint: "Vence em %{date}."
+        pix_qr_alt: "QR Code do Pix no valor de %{amount}"
+        pix_code: "Pix copia e cola"
+        boleto: "Boleto"
+        boleto_hint: "Vence em %{date}."
+        boleto_overdue: "Este boleto venceu em %{due} e ainda pode ser pago até %{until}, pelo valor impresso nele."
+        digitable_line: "Linha digitável"
+        open_boleto: "Abrir o boleto (PDF)"
+        copy: "Copiar"
+        copied: "Copiado."
+        card: "Cartão de crédito"
+        card_hint: "Os dados do cartão vão direto ao fornecedor do pagamento, que devolve um código; este site não recebe nem guarda o cartão."
+        number_on_card: "Número do cartão"
+        name_on_card: "Nome impresso no cartão"
+        card_expiry: "Validade (mês/ano)"
+        card_code: "Código de segurança"
+        installments: "Parcelas"
+        installment_option: "%{n}x de %{each}"
+        installment_total: " (total %{total})"
+        pay: "Pagar %{amount}"
+        needs_javascript: "O pagamento no cartão precisa de JavaScript. Ative-o no navegador ou pague por Pix ou boleto."
+        card_form_error: "Não foi possível validar os dados do cartão. Confira número, validade e código e tente de novo."
+        card_script_blocked: "O navegador bloqueou o serviço de pagamento. Desative bloqueadores para este site e tente de novo."
+        card_brand_unsupported: "Bandeira de cartão não aceita. Use outro cartão ou outra forma de pagamento."
+        card_connection_error: "Não foi possível falar com o serviço de pagamento. Verifique a conexão e tente de novo."
+      outcome:
+        declined:
+          invalid_data: "Os dados do cartão não foram aceitos."
+          security: "O emissor do cartão não autorizou o pagamento por segurança."
+          try_later: "O pagamento não pôde ser autorizado agora."
+          other: "O pagamento não foi aprovado."
+        can_retry: "Você pode tentar de novo."
+        cannot_retry: "Esta tentativa não pode ser repetida: use outro cartão ou outra forma de pagamento."
+        processing: "Seu pagamento está sendo processado. Esta página se atualiza sozinha; não envie de novo."
+        unavailable: "O serviço de pagamento está indisponível agora. Nada foi cobrado; tente de novo em instantes."
+        error: "Não foi possível processar o pagamento. Confira os dados e tente de novo com o cartão."
+        invalid: "Não foi possível processar este pedido. Atualize a página e tente de novo."

@@ -1,0 +1,16 @@
+<%# locals: (outcome:) %>
+<% case outcome.kind
+   when :declined %>
+  <%= aviso(tom: :danger) do %>
+    <p><%= t("payments.checkout.outcome.declined.#{outcome.code.presence_in(%w[invalid_data security try_later]) || 'other'}") %>
+       <%= t(outcome.retry ? "payments.checkout.outcome.can_retry" : "payments.checkout.outcome.cannot_retry") %></p>
+  <% end %>
+<% when :processing %>
+  <%= aviso(tom: :info) { tag.p t("payments.checkout.outcome.processing") } %>
+<% when :unavailable %>
+  <%= aviso(tom: :warning) { tag.p t("payments.checkout.outcome.unavailable") } %>
+<% when :error %>
+  <%= aviso(tom: :danger) { tag.p t("payments.checkout.outcome.error") } %>
+<% when :invalid, :not_payable %>
+  <%= aviso(tom: :warning) { tag.p t("payments.checkout.outcome.invalid") } %>
+<% end %>

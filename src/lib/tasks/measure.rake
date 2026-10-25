@@ -916,4 +916,119 @@ namespace :crm do
     tenant.destroy
     puts "credor de medição apagado"
   end
+
+  desc "V4 dos instrumentos de pagamento (12, parte B): N boletos e Pix emitidos com o fornecedor falso (grava no disco, confere o SHA-256); mede o pedido, a emissão e a leitura: crm:measure_instruments[instrumentos]"
+  task :measure_instruments, %i[count] => :environment do |_task, args|
+    abort "Recusado em produção." if Rails.env.production?
+
+    count = (args[:count].presence || 2_000).to_i
+    tenant = Tenant.provision!("Medição de instrumentos #{Time.current.strftime('%H%M%S')}")
+    channel = PaymentChannel.create!(tenant: tenant, kind: :account, code: "MED-#{tenant.id}", description: "Canal de medição", active: true)
+    accounts = %w[boleto pix].to_h do |kind|
+      account = tenant.payment_accounts.build(channel: channel, modality: kind, provider: "fake", environment: "production", nickname: "Medição #{kind}")
+      account.assign_values(config: { "connection_result" => "ok", "pix_key" => "medicao@exemplo.com.br" }, secrets: { "api_key" => "medicao" })
+      account.save!
+      [ kind, account ]
+    end
+    measure = lambda do |label, &work|
+      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      result = work.call
+      elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+      puts format("%-62s %8.3f s", label, elapsed)
+      result
+    end
+
+    Portfolio::Sql.execute("insert into customers (tenant_id, document, name, created_at, updated_at) select #{tenant.id}, '52998224725', 'Cliente de medição', now(), now()")
+    customer = Customer.find_by!(tenant_id: tenant.id)
+    issuer = Payments::Issuer.new
+    ids = measure.call("pedido de #{count} instrumentos (grava emitting, sem fila)") do
+      Array.new(count) { |i| issuer.send(:build, tenant: tenant, kind: i.even? ? "boleto" : "pix", amount_cents: 10_000 + i, customer: customer, due_on: Date.current + 5).id }
+    end
+    measure.call("emissão de #{count} (fornecedor falso, arquivo em disco, SHA-256 conferido)") do
+      PaymentInstrument.where(id: ids).find_each { |instrument| issuer.perform(instrument) }
+    end
+    puts "ativos: #{PaymentInstrument.where(tenant_id: tenant.id, state: 'active').count}, falhos: #{PaymentInstrument.where(tenant_id: tenant.id, state: 'failed').count}"
+    measure.call("leitura de #{count} arquivos pelo leitor (SHA-256 conferido)") do
+      PaymentInstrument.where(id: ids).find_each { |instrument| reader = Payments::InstrumentReader.new(instrument); instrument.boleto? ? reader.pdf : reader.qr_png }
+    end
+    measure.call("limite de taxa: espaçamento de 1.000 jobs a #{Payments::Issuer.per_minute} por minuto") { (0...1000).map { |i| (i * 60.0 / Payments::Issuer.per_minute) }.last }
+
+    exit if ENV["KEEP_DATA"] == "1"
+    PaymentInstrument.where(tenant_id: tenant.id).find_each { |instrument| instrument.boleto_pdf.purge; instrument.pix_qr_png.purge }
+    PaymentInstrument.where(tenant_id: tenant.id).delete_all
+    Change.where(tenant_id: tenant.id).delete_all
+    PaymentAccount.where(tenant_id: tenant.id).delete_all
+    PaymentChannel.where(tenant_id: tenant.id).delete_all
+    Customer.where(tenant_id: tenant.id).delete_all
+    tenant.contact_results.delete_all
+    Membership.where(tenant_id: tenant.id).delete_all
+    tenant.destroy
+    puts "credor de medição apagado"
+  end
+
+  desc "V4 da conciliação (12, parte D): N instrumentos Pix ativos ligados a títulos, P% pagos no fornecedor falso; mede a seleção, a conciliação inteira (consulta + baixa pelo caminho do pagamento) e o aviso: crm:measure_reconciliation[instrumentos,percentual_pago]"
+  task :measure_reconciliation, %i[count paid_percent] => :environment do |_task, args|
+    abort "Recusado em produção." if Rails.env.production?
+
+    count = (args[:count].presence || 2_000).to_i
+    paid_count = count * (args[:paid_percent].presence || 10).to_i / 100
+    tenant = Tenant.provision!("Medição de conciliação #{Time.current.strftime('%H%M%S')}")
+    channel = PaymentChannel.create!(tenant: tenant, kind: :account, code: "MED-#{tenant.id}", description: "Canal de medição", active: true)
+    account = tenant.payment_accounts.build(channel: channel, modality: "pix", provider: "fake", environment: "production", nickname: "Medição Pix")
+    account.assign_values(config: { "connection_result" => "ok", "pix_key" => "medicao@exemplo.com.br" }, secrets: { "api_key" => "medicao" })
+    account.save!
+    ActiveJob::Base.queue_adapter = :test
+    measure = lambda do |label, &work|
+      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      result = work.call
+      puts format("%-66s %8.3f s", label, Process.clock_gettime(Process::CLOCK_MONOTONIC) - started)
+      result
+    end
+
+    measure.call("carteira de #{count} títulos e #{count} instrumentos Pix ativos (lote)") do
+      Customer.insert_all!((0...count).map { |i| { tenant_id: tenant.id, document: FakeData.cpf(i), name: FakeData.name(i) } })
+      customers = Customer.where(tenant_id: tenant.id).pluck(:document, :id).to_h
+      Contract.insert_all!((0...count).map { |i| { tenant_id: tenant.id, code: "CT-#{i}" } })
+      contracts = Contract.where(tenant_id: tenant.id).pluck(:code, :id).to_h
+      ContractCustomer.insert_all!((0...count).map { |i| { contract_id: contracts["CT-#{i}"], customer_id: customers[FakeData.cpf(i)] } })
+      Bill.insert_all!((0...count).map { |i| { tenant_id: tenant.id, contract_id: contracts["CT-#{i}"], customer_id: customers[FakeData.cpf(i)], number: "NF-#{i}", due_date: Date.current - 30, amount_cents: 50_000, status: "active" } })
+      bills = Bill.where(tenant_id: tenant.id).pluck(:number, :id).to_h
+      PaymentInstrument.insert_all!((0...count).map do |i|
+        { tenant_id: tenant.id, account_id: account.id, provider: "fake", customer_id: customers[FakeData.cpf(i)], kind: "pix", state: "active", amount_cents: 50_000, due_on: Date.current + 5,
+          external_id: "FAKE-PIX-#{i}", custom_id: format("MED%031d", i), payer_name: FakeData.name(i), payer_document: FakeData.cpf(i), reference_type: "bill", reference_id: bills["NF-#{i}"],
+          issued_at: 5.days.ago, created_at: 5.days.ago, updated_at: 5.days.ago }
+      end)
+      store = Payments::Providers::Fake.store[:instruments]
+      (0...count).each { |i| store["FAKE-PIX-#{i}"] = { custom_id: format("MED%031d", i), external_id: "FAKE-PIX-#{i}", status: i < paid_count ? "paid" : "active", kind: "pix", amount_cents: 50_000, due_on: Date.current + 5 } }
+    end
+
+    reconciler = Payments::Reconciler.new(tenant)
+    measure.call("seleção dos instrumentos a conciliar (índice parcial dos ativos)") { reconciler.due.count }
+    measure.call("execução da conciliação (TaskRun e #{count} jobs enfileirados com espaçamento)") { reconciler.call }
+    ids = PaymentInstrument.where(tenant_id: tenant.id).order(:id).pluck(:id)
+    sync = Payments::InstrumentSync.new
+    measure.call("conferência de #{count} instrumentos (consulta ao falso; #{paid_count} pagos baixam o título)") { PaymentInstrument.where(id: ids).find_each { |instrument| sync.call(instrument) } }
+    puts "pagamentos: #{Payment.where(tenant_id: tenant.id).count}, instrumentos pagos: #{PaymentInstrument.where(tenant_id: tenant.id, state: 'paid').count}, títulos pagos: #{Bill.where(tenant_id: tenant.id, status: 'paid').count}"
+    measure.call("segunda conciliação (nada a fazer: tudo conferido agora)") { reconciler.due.count }
+    event = PaymentEvent.record(account, Payments::Providers::Notification.new(event_id: "MED-1", kind: :paid, external_id: "FAKE-PIX-#{count - 1}")).first
+    measure.call("aviso: gravar o evento + processar (consulta, ignora)") { Payments::EventProcessor.new.run(event) }
+
+    exit if ENV["KEEP_DATA"] == "1"
+    Portfolio::Sql.run("delete from payment_rows where import_id in (?)", Import.where(tenant_id: tenant.id).pluck(:id).presence || [ 0 ])
+    PaymentEvent.where(tenant_id: tenant.id).delete_all
+    PaymentInstrument.where(tenant_id: tenant.id).delete_all
+    PaymentAllocation.where(payment_id: Payment.where(tenant_id: tenant.id)).delete_all
+    [ Abatement, Credit, PaymentReversal, Payment, Change, TaskRun ].each { |model| model.unscoped.where(tenant_id: tenant.id).delete_all }
+    Bill.where(tenant_id: tenant.id).delete_all
+    ContractCustomer.where(customer_id: Customer.where(tenant_id: tenant.id)).delete_all
+    Customer.where(tenant_id: tenant.id).delete_all
+    Contract.where(tenant_id: tenant.id).delete_all
+    Import.where(tenant_id: tenant.id).destroy_all
+    PaymentAccount.where(tenant_id: tenant.id).delete_all
+    PaymentChannel.where(tenant_id: tenant.id).delete_all
+    tenant.contact_results.delete_all
+    Membership.where(tenant_id: tenant.id).delete_all
+    tenant.destroy
+    puts "credor de medição apagado"
+  end
 end

@@ -210,6 +210,30 @@ class CapturasTest < ApplicationSystemTestCase
                                        contract: effectuated_contract, action_on: Date.current, processed_on: Date.current)
     Credit.create!(tenant: @tenant, contract: effectuated_contract, kind: :entry, amount_cents: 10_000, reason: :excess, occurred_at: 2.days.ago)
     @renegotiation_customer = broken_customer
+
+    # Incremento 12 (parte A): contas de pagamento (boleto e Pix do fornecedor de teste, cartão da Efí) e o certificado do Pix.
+    pix = make_account(@tenant, modality: "pix", nickname: "Pix principal", environment: "production", config: { "connection_result" => "ok", "pix_key" => "pagamentos@escolaalfa.com.br" })
+    pix.assign_values(secrets: { "certificate_password" => "senha-da-captura" }, files: { "certificate" => p12_upload(subject: "CN=Escola Alfa Educação Ltda,O=Escola Alfa", days: 200, password: "senha-da-captura") })
+    pix.save!
+    make_account(@tenant, modality: "boleto", nickname: "Boleto principal", environment: "production")
+    efi_card = @tenant.payment_accounts.build(channel: @channel, modality: "card", provider: "efi", environment: "sandbox", nickname: "Cartão Efí (homologação)")
+    efi_card.assign_values(config: { "payee_code" => "a1b2c3d4", "max_installments" => "6" }, secrets: { "client_id" => "Client_Id_da_captura", "client_secret" => "Client_Secret_da_captura" })
+    efi_card.save!
+    manager = Payments::AccountManager.new(users(:joana))
+    manager.test_connection(pix)
+    manager.regenerate_webhook_secret(pix)
+    manager.update(pix, nickname: "Pix principal", values: { config: { "expire_days" => "10" } })
+    @pix_account = pix
+    # Incremento 12, parte C: link de checkout com Pix, boleto e cartão (fornecedor de teste), para a foto da página pública.
+    make_account(@tenant, modality: "card", nickname: "Cartão principal", environment: "production", config: { "connection_result" => "ok", "max_installments" => 6 })
+    payer = @paid_customer
+    Payments::Providers::Fake.omit_qr_image! # o QR Code é gerado aqui, como acontece quando o fornecedor só dá o texto
+    issued = %w[boleto pix].map do |kind|
+      instrument = Payments::Issuer.new.request(tenant: @tenant, kind: kind, amount_cents: 48_750, customer: payer, due_on: Date.current + 12, environment: "production")
+      IssueInstrumentJob.perform_now(instrument.id)
+      instrument.reload
+    end
+    @checkout = Payments::Checkouts.create(tenant: @tenant, customer: payer, instruments: issued, card: true, description: "Mensalidade de novembro")
   end
 
   # Acordo de um cliente da carteira fictícia, aceito e com a entrada paga hoje: efetivado. Devolve o cliente.
@@ -349,6 +373,12 @@ class CapturasTest < ApplicationSystemTestCase
       assert_selector "#simulacao h2", text: "Entrada e parcelas", wait: 10
       :current
     },
+    # Incremento 12, parte A: contas de pagamento.
+    "contas-de-pagamento" => -> { settings_payment_accounts_path },
+    "nova-conta-de-pagamento" => -> { new_settings_payment_account_path(tenant_id: @tenant.id, modality: "pix", provider: "efi") },
+    "conta-de-pagamento" => -> { edit_settings_payment_account_path(@pix_account) },
+    # Incremento 12, parte C: a página pública de pagamento (sem login), com o token de exemplo da captura.
+    "pagamento-do-cliente" => -> { checkout_path(@checkout) },
     "exportacao-de-dados" => -> { customer_data_export_path(@forecast_customer, token: Rails.application.message_verifier(:data_export).generate([ @forecast_customer.id, users(:joana).id ], expires_in: 10.minutes, purpose: :data_export)) }
   }.freeze
 
@@ -358,7 +388,7 @@ class CapturasTest < ApplicationSystemTestCase
   # Telas longas, fotografadas com a janela mais alta para mostrar o que importa (o histórico, o formulário).
   ALTAS = %w[ficha-com-acionamentos ficha-com-contatos formulario-de-promessa configuracao-de-promessas ficha-com-promessas politica-de-correcao exportacao-de-dados guarda-de-dados indices novo-segmento ficha-com-segmentos segmentos
              regra-de-encargos conferencia-de-encargos conferencia-da-carteira resumo ficha-com-valor-atualizado simulacao-de-acordo termo-do-acordo lista-de-acordos proposta-de-acordo acordo-efetivado acordo-quebrado ficha-com-titulos-de-acordo
-             acordo-em-reversao ficha-com-credito-por-estado estornos-a-espera simulacao-de-acordo-sobre-acordo].freeze
+             acordo-em-reversao ficha-com-credito-por-estado estornos-a-espera simulacao-de-acordo-sobre-acordo nova-conta-de-pagamento conta-de-pagamento pagamento-do-cliente].freeze
 
   test "recria as fotos do README" do
     TELAS.each do |nome, caminho|

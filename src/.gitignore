@@ -12,3 +12,6 @@
 /.env*
 /node_modules
 /test/fixtures/files/tmp
+
+# Chaves de desenvolvimento e produção ficam fora do repositório; a de teste só decifra chaves de teste, descartáveis, e é versionada.
+!/config/credentials/test.key

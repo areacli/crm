@@ -32,6 +32,10 @@
     border: 1px solid var(--cor-linha-forte); border-radius: var(--raio-controle);
   }
   textarea { min-height: 6rem; resize: vertical; }
+  /* Código para copiar (Pix copia e cola, linha digitável): só leitura, em fonte de código, quebrando em qualquer ponto. */
+  .campo :is(input, textarea)[readonly] { font-family: var(--fonte-codigo); background: var(--cor-superficie); overflow-wrap: anywhere; }
+  .campo > button { justify-self: start; }
+  form [role="alert"]:not([hidden]) { margin: 0; color: var(--cor-perigo-texto); font-weight: 600; }
   input[type="checkbox"], input[type="radio"] { width: 1.25rem; min-height: 1.25rem; accent-color: var(--cor-azul); }
   fieldset { border: 1px solid var(--cor-linha); border-radius: var(--raio-cartao); padding: var(--espaco-4); }
   legend { font-weight: 600; padding-inline: var(--espaco-2); }

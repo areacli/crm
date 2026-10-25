@@ -33,3 +33,17 @@ agreements_daily:
   queue: default
   active_job: true
   description: "Acordos (11): expira as propostas, quebra os acordos em atraso (R234), reavalia os ativos e gera o arquivo do dia"
+
+payment_accounts_daily:
+  cron: "0 7 * * *"
+  class: "PaymentAccountsDailyJob"
+  queue: default
+  active_job: true
+  description: "Contas de pagamento (12): avisa os certificados que vencem em 30 dias ou menos"
+
+payment_reconciliation:
+  cron: "20 7 * * *"
+  class: "PaymentReconciliationDispatchJob"
+  queue: default
+  active_job: true
+  description: "Pagamentos (12): reprocessa os avisos que falharam e confere no fornecedor os instrumentos ativos sem conferência há alguns dias"

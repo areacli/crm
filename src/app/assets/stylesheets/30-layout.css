@@ -118,6 +118,11 @@
 @layer layout {
   .pagina-em-secoes { display: grid; gap: var(--espaco-6); }
   body[data-pagina="impressao"] { display: block; }
+  /* Página pública de pagamento (12, parte C): uma coluna só, sem menu, para o celular do cliente. */
+  body[data-pagina="pagamento"] { display: block; }
+  body[data-pagina="pagamento"] > main { max-width: 48rem; }
+  body[data-pagina="pagamento"] > header .marca strong { font-size: var(--texto-subtitulo); }
+  body[data-pagina="pagamento"] .vazio h1 { font-size: var(--texto-titulo); margin-bottom: var(--espaco-3); }
   @media print {
     .nao-imprimir, body > header, body > nav { display: none; }
     body > main { padding: 0; max-width: none; }

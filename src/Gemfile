@@ -22,6 +22,9 @@ gem "sidekiq-cron", "~> 2.4"
 # Leitura da planilha de importação (o CSV deixou de ser gem padrão no Ruby 3.4)
 gem "csv"
 
+# QR Code do Pix gerado aqui a partir do "copia e cola" quando o fornecedor não devolve a imagem em PNG (12, R273); Ruby puro, sem imagem do sistema
+gem "rqrcode", "~> 3.2"
+
 # Políticas de autorização, uma por modelo
 gem "pundit"
 
