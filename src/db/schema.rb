@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_24_100600) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_24_100700) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -170,8 +170,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_100600) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["customer_id", "kind", "key"], name: "index_customer_contacts_on_customer_id_and_kind_and_key", unique: true
-    t.check_constraint "kind::text = ANY (ARRAY['phone'::character varying, 'email'::character varying, 'address'::character varying]::text[])", name: "customer_contacts_kind"
-    t.check_constraint "status::text = ANY (ARRAY['valid'::character varying, 'invalid'::character varying, 'do_not_disturb'::character varying]::text[])", name: "customer_contacts_status"
+    t.check_constraint "kind::text = ANY (ARRAY['phone'::character varying::text, 'email'::character varying::text, 'address'::character varying::text])", name: "customer_contacts_kind"
+    t.check_constraint "status::text = ANY (ARRAY['valid'::character varying::text, 'invalid'::character varying::text, 'do_not_disturb'::character varying::text])", name: "customer_contacts_status"
   end
 
   create_table "customers", force: :cascade do |t|
@@ -181,7 +181,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_100600) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.boolean "name_kept", default: false, null: false
+    t.datetime "anonymized_at"
+    t.datetime "retained_at"
+    t.string "retained_reason", limit: 300
+    t.bigint "retained_by_id"
     t.index ["tenant_id", "document"], name: "index_customers_on_tenant_id_and_document", unique: true
+    t.index ["tenant_id"], name: "index_customers_retained_by_tenant", where: "(retained_at IS NOT NULL)"
+    t.check_constraint "retained_at IS NULL OR anonymized_at IS NULL", name: "customers_anonymized_not_retained"
   end
 
   create_table "import_contacts", id: false, force: :cascade do |t|
@@ -258,7 +264,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_100600) do
     t.datetime "updated_at", null: false
     t.bigint "confirmed_by_id"
     t.index ["tenant_id", "status"], name: "index_imports_on_tenant_id_and_status"
-    t.index ["tenant_id"], name: "index_imports_one_running_per_tenant", unique: true, where: "((status)::text = ANY ((ARRAY['received'::character varying, 'checking'::character varying, 'checked'::character varying, 'confirming'::character varying])::text[]))"
+    t.index ["tenant_id"], name: "index_imports_one_running_per_tenant", unique: true, where: "((status)::text = ANY (ARRAY[('received'::character varying)::text, ('checking'::character varying)::text, ('checked'::character varying)::text, ('confirming'::character varying)::text]))"
     t.index ["user_id"], name: "index_imports_on_user_id"
     t.check_constraint "progress_percent >= 0 AND progress_percent <= 100", name: "imports_progress_percent_range"
   end
@@ -392,6 +398,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_100600) do
     t.index ["user_id"], name: "index_sessions_on_user_id"
   end
 
+  create_table "task_runs", force: :cascade do |t|
+    t.bigint "tenant_id"
+    t.string "name", limit: 60, null: false
+    t.string "status", limit: 20, default: "running", null: false
+    t.datetime "started_at", null: false
+    t.datetime "finished_at"
+    t.integer "processed", default: 0, null: false
+    t.integer "failed", default: 0, null: false
+    t.string "error_kind", limit: 120
+    t.string "note", limit: 300
+    t.index ["tenant_id", "name", "started_at"], name: "index_task_runs_on_tenant_name_started"
+  end
+
   create_table "tenant_settings", force: :cascade do |t|
     t.bigint "tenant_id", null: false
     t.jsonb "aging_brackets", null: false
@@ -404,7 +423,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_100600) do
     t.datetime "updated_at", null: false
     t.string "discrepancy_policy", limit: 20, default: "follow", null: false
     t.string "correction_policy", limit: 20, default: "screen", null: false
+    t.integer "retention_years", default: 5, null: false
     t.index ["tenant_id"], name: "index_tenant_settings_on_tenant_id", unique: true
+    t.check_constraint "retention_years >= 1", name: "tenant_settings_retention_years_min"
   end
 
   create_table "tenants", force: :cascade do |t|
@@ -512,6 +533,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_100600) do
   add_foreign_key "customer_contacts", "tenants"
   add_foreign_key "customer_contacts", "users", column: "updated_by_id", on_delete: :nullify
   add_foreign_key "customers", "tenants"
+  add_foreign_key "customers", "users", column: "retained_by_id", on_delete: :nullify
   add_foreign_key "import_rejections", "imports", on_delete: :cascade
   add_foreign_key "import_warnings", "imports", on_delete: :cascade
   add_foreign_key "imports", "tenants"
@@ -535,6 +557,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_100600) do
   add_foreign_key "reported_surcharges", "imports", on_delete: :nullify
   add_foreign_key "reported_surcharges", "tenants"
   add_foreign_key "sessions", "users"
+  add_foreign_key "task_runs", "tenants"
   add_foreign_key "tenant_settings", "tenants"
   add_foreign_key "value_discrepancies", "bills", on_delete: :restrict
   add_foreign_key "value_discrepancies", "imports", on_delete: :nullify

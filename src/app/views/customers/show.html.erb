@@ -14,8 +14,17 @@
   worst = overdue.map { |bill| bill.days_overdue(@today) }.max
 %>
 <section class="cartao" aria-labelledby="dados">
-  <header><h2 id="dados">Dados do cliente</h2></header>
+  <header>
+    <h2 id="dados">Dados do cliente</h2>
+    <% if @can_handle_rights %>
+      <div class="acoes">
+        <button type="button" command="show-modal" commandfor="exportar-dados" data-variant="secondary" data-size="small">Exportar dados</button>
+        <% unless @customer.anonymized? %><button type="button" command="show-modal" commandfor="anonimizar-cliente" data-variant="danger-outline" data-size="small">Anonimizar</button><% end %>
+      </div>
+    <% end %>
+  </header>
   <div>
+    <% if @customer.anonymized? %><%= aviso(tom: :info) { tag.p "Cliente anonimizado em #{date_br(@customer.anonymized_at.to_date)}. Só restam os dados que não identificam a pessoa." } %><% end %>
     <dl class="valores">
       <div><dt>Documento</dt><dd><%= @customer.formatted_document %></dd></div>
       <div><dt>Telefone</dt><dd><%= @contacts.find { |contact| contact.phone? && contact.status_valid? }&.value || "—" %></dd></div>
@@ -217,4 +226,45 @@
       </footer>
     <% end %>
   </dialog>
+<% end %>
+
+<% if @can_handle_rights %>
+  <dialog id="exportar-dados" aria-labelledby="exportar-dados-titulo">
+    <%= form_with scope: :export, url: customer_data_export_path(@customer), method: :post, html: { "hx-boost": "false" } do |form| %>
+      <header>
+        <div><h2 id="exportar-dados-titulo">Exportar dados</h2><p>Tudo o que este credor guarda sobre o cliente, em página para imprimir e em JSON. A exportação fica registrada, sem o conteúdo.</p></div>
+        <button type="button" command="close" commandfor="exportar-dados" data-variant="link" aria-label="Fechar a janela"><%= icone("x-mark") %></button>
+      </header>
+      <div>
+        <div class="campo"><%= form.label :reason, "Motivo" %><%= form.text_field :reason, required: true, maxlength: 300 %><small>Por exemplo, o pedido do titular e o protocolo. Não escreva dados pessoais.</small></div>
+      </div>
+      <footer>
+        <button type="button" command="close" commandfor="exportar-dados" data-variant="secondary">Cancelar</button>
+        <button type="submit">Exportar dados</button>
+      </footer>
+    <% end %>
+  </dialog>
+
+  <% unless @customer.anonymized? %>
+    <dialog id="anonimizar-cliente" aria-labelledby="anonimizar-cliente-titulo">
+      <%= form_with scope: :anonymization, url: customer_anonymization_path(@customer), method: :post, html: { "hx-boost": "false" } do |form| %>
+        <header>
+          <div><h2 id="anonimizar-cliente-titulo">Anonimizar cliente</h2><p>Troca, sem volta, o nome, o documento, os contatos e os textos por um identificador sem significado. Valores, datas e situações ficam.</p></div>
+          <button type="button" command="close" commandfor="anonimizar-cliente" data-variant="link" aria-label="Fechar a janela"><%= icone("x-mark") %></button>
+        </header>
+        <div>
+          <% if @open_relations&.any? %>
+            <%= aviso(tom: :danger) { tag.p "Não é possível anonimizar: #{@open_relations.message}." } %>
+          <% else %>
+            <div class="campo"><%= form.label :reason, "Motivo" %><%= form.text_field :reason, required: true, maxlength: 300 %><small>Por exemplo, o pedido do titular e o protocolo. Não escreva dados pessoais.</small></div>
+            <div class="campo"><%= form.label :document, "Documento do cliente" %><%= form.text_field :document, required: true, maxlength: 18, autocomplete: "off", inputmode: "text" %><small>Digite o documento para confirmar, com ou sem pontuação.</small></div>
+          <% end %>
+        </div>
+        <footer>
+          <button type="button" command="close" commandfor="anonimizar-cliente" data-variant="secondary">Cancelar</button>
+          <% unless @open_relations&.any? %><button type="submit" data-variant="danger">Anonimizar cliente</button><% end %>
+        </footer>
+      <% end %>
+    </dialog>
+  <% end %>
 <% end %>

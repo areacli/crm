@@ -16,9 +16,16 @@ Rails.application.routes.draw do
     end
     # Transferência de crédito entre contratos do mesmo credor (R55a).
     resources :credit_transfers, path: "transferencias-de-credito", only: :create, module: :customers
+    # Direitos do titular (07): exportar (registra e abre a página com endereço assinado), anonimizar e reter.
+    resource :data_export, path: "exportacao", only: %i[show create], module: :customers
+    resource :anonymization, path: "anonimizacao", only: :create, module: :customers
+    resource :retention, path: "retencao", only: %i[create destroy], module: :customers
     # Acionamentos do cliente: histórico, campos que dependem da escolha e registro (04).
     resources :contact_attempts, path: "acionamentos", path_names: { new: "campos" }, only: %i[index new create], module: :customers
   end
+
+  # Guarda de dados (07, R138): previsão dos próximos 30 dias, retidos e últimas execuções.
+  resource :data_retention, path: "guarda-de-dados", only: :show
 
   # Histórico do título (05, R100) e divergências de valor (05, R99).
   resources :bills, path: "titulos", only: :show
@@ -49,6 +56,7 @@ Rails.application.routes.draw do
 
   namespace :settings, path: "configuracao" do
     resource :tenant_registry, path: "dados-do-credor", only: %i[show update]
+    resource :retention_period, path: "prazo-de-guarda", only: :update
     resource :portfolio, path: "carteira", only: %i[show update]
     resources :channels, path: "canais-de-recebimento", path_names: { new: "novo", edit: "editar" }, except: :show do
       resource :webhook_secret, path: "segredo-do-webhook", only: :create, module: :channels

@@ -28,9 +28,16 @@ class CustomersController < ApplicationController
     load_payments_and_credits
     load_contact_attempts
     load_registry
+    load_rights
   end
 
   private
+    # Direitos do titular (07, R141): os botões da ficha só para quem tem a 13 (e a 1) no credor, e o que impede anonimizar, dito antes (R130).
+    def load_rights
+      @can_handle_rights = policy(@customer).handle_rights?
+      @open_relations = Titular::OpenRelations.new(@customer) if @can_handle_rights && !@customer.anonymized?
+    end
+
     # Cadastro (06): contatos do cliente (R124), o histórico do cadastro (R116) e os contratos com os papéis, só para leitura (R124a). Consulta dos
     # contatos: `customer_contacts (customer_id, kind, key)`; do histórico: `changes (subject_type, subject_id)`.
     def load_registry
@@ -46,7 +53,7 @@ class CustomersController < ApplicationController
     # Acionamentos (04): o histórico de 20 em 20 (R74) e o formulário, só para quem registra no credor do cliente (R76).
     def load_contact_attempts
       @contact_history = ContactAttempt.history_for(@customer, page: params[:page])
-      @contact_form = Contacts::Form.new(@customer) if policy(ContactAttempt.new(tenant: @customer.tenant)).create?
+      @contact_form = Contacts::Form.new(@customer) if !@customer.anonymized? && policy(ContactAttempt.new(tenant: @customer.tenant)).create?
     end
 
     # Pagos (R54) e crédito por contrato (R55b): o crédito é do contrato, visível a todos os clientes dele, sem total por cliente.

@@ -16,6 +16,9 @@ gem "redis", ">= 4.0.1"
 # Filas em Valkey com Sidekiq 8, pelo adaptador da própria gem (o embutido do Active Job está deprecado no Rails 8.1)
 gem "sidekiq", "~> 8.0"
 
+# Agendador das tarefas diárias (guarda de dados, 07): lê config/schedule.yml no Sidekiq, sem processo extra (premissa A4 da arquitetura)
+gem "sidekiq-cron", "~> 2.4"
+
 # Leitura da planilha de importação (o CSV deixou de ser gem padrão no Ruby 3.4)
 gem "csv"
 

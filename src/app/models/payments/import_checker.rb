@@ -140,6 +140,18 @@ module Payments
           where r.import_id = ? and r.ok and ch.tenant_id = ? and ch.code = r.channel_code and #{match} and r.paid_on < p.paid_on
         SQL
 
+        # 07, revisão 5: estorno de título de cliente anonimizado é recusado quando todos os clientes do contrato estão anonimizados; com um
+        # cliente ainda identificável o estorno segue. Consulta: `contract_customers (contract_id, customer_id)`.
+        anonymized = <<~SQL
+          join bills b on b.id = p.bill_id
+          where r.import_id = ? and r.ok and exists (select 1 from contract_customers cc where cc.contract_id = b.contract_id)
+            and not exists (select 1 from contract_customers cc join customers cu on cu.id = cc.customer_id where cc.contract_id = b.contract_id and cu.anonymized_at is null)
+        SQL
+        Sql.run("insert into import_rejections (import_id, line, reason) select r.import_id, r.line, 'título de cliente anonimizado' #{found} join payments p on #{match} #{anonymized}", t, t, i)
+        Sql.run("update payment_rows r set ok = false from payment_channels ch, payments p, bills b where r.import_id = ? and r.ok and ch.tenant_id = ? and ch.code = r.channel_code and " \
+                "#{match} and b.id = p.bill_id and exists (select 1 from contract_customers cc where cc.contract_id = b.contract_id) and " \
+                "not exists (select 1 from contract_customers cc join customers cu on cu.id = cc.customer_id where cc.contract_id = b.contract_id and cu.anonymized_at is null)", i, t, t)
+
         # Valor acima do que ainda não foi estornado do pagamento, somando as linhas do próprio arquivo em ordem.
         over = Sql.rows(<<~SQL, t, t, i)
           select x.line, x.reversible - (x.cum - x.amount_cents) as left_cents from (

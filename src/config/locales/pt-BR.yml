@@ -226,6 +226,17 @@ pt-BR:
       name_required: "Informe o nome."
       name_too_long: "O nome tem no máximo %{max} caracteres."
   customers:
+    data_exports:
+      create:
+        reason_required: "Informe o motivo da exportação."
+    anonymizations:
+      create:
+        done: "Cliente anonimizado. Não há volta."
+    retentions:
+      create:
+        done: "Cliente retido: a tarefa diária não o anonimiza até a retenção ser desfeita."
+      destroy:
+        done: "Retenção desfeita."
     names:
       update:
         done: "Nome corrigido."
@@ -246,6 +257,10 @@ pt-BR:
       update:
         done: "Situação do contato alterada."
   settings:
+    retention_periods:
+      update:
+        done: "Prazo de guarda de %{tenant} salvo. Vale para a próxima execução da tarefa diária."
+        invalid: "O prazo de guarda é um número inteiro de anos, de 1 a 50."
     tenant_registries:
       update:
         done: "Dados de %{tenant} salvos."
@@ -336,6 +351,42 @@ pt-BR:
     admin_user_reactivated: "Usuário reativado pelo administrador"
     admin_password_reset: "Senha redefinida pelo administrador"
     admin_tenant_created: "Credor %{name} criado pelo administrador"
+  titular:
+    import_running: "Há uma importação em andamento para este credor; tente depois."
+    anonymized_customer: "Cliente anonimizado: não há a quem dirigir o acionamento."
+    anonymize:
+      reason_required: "Informe o motivo da anonimização."
+      document_mismatch: "O documento digitado não é o deste cliente."
+      already: "Este cliente já está anonimizado."
+      retained: "Este cliente está retido: desfaça a retenção antes de anonimizar."
+      open: "Não é possível anonimizar: %{relations}."
+    open:
+      no_code: "sem código"
+      active: "contrato %{contract} com título em aberto de R$ %{value}"
+      withdrawn: "contrato %{contract} com título retirado com saldo de R$ %{value}"
+      credit: "crédito do contrato %{contract} de R$ %{value} em aberto"
+      pending: "pagamento pendente com o documento do cliente, de R$ %{value}"
+    retention:
+      reason_required: "Informe o motivo."
+      anonymized: "Cliente anonimizado não pode ser retido."
+      already: "Este cliente já está retido."
+      not_retained: "Este cliente não está retido."
+    run_status:
+      running: "Em andamento"
+      succeeded: "Concluída"
+      failed: "Falhou"
+      skipped: "Adiada"
+    run:
+      import_running: "Há uma importação em andamento."
+    export:
+      credit_transferred: "crédito transferido a outro contrato"
+      roles:
+        holder: "titular"
+        financial_responsible: "responsável financeiro"
+      bill_status:
+        active: "Em cobrança"
+        withdrawn: "Retirado"
+        paid: "Pago"
   permissions:
     view_portfolio: "Consultar a carteira"
     upload_imports: "Enviar e conferir importação"

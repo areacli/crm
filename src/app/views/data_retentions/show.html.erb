@@ -1,0 +1,20 @@
+<% content_for :title, "Guarda de dados" %>
+<% content_for :cable_channels, @tenant_ids.map { |id| { channel: "RetentionChannel", tenant_id: id } }.to_json %>
+<header class="cabecalho-da-pagina">
+  <div>
+    <h1>Guarda de dados</h1>
+    <p>Quem passou do prazo de guarda é anonimizado todo dia, às 3h, salvo se estiver retido. Confira a lista dos próximos 30 dias e retenha os casos em que a lei manda conservar os dados.</p>
+  </div>
+</header>
+
+<% if @several_tenants %>
+  <form class="filtros" role="search" action="<%= data_retention_path %>" method="get">
+    <div class="campo">
+      <label for="tenant">Credor</label>
+      <select id="tenant" name="tenant"><option value="">Todos</option><%= options_for_select(@tenants.map { |t| [ t.name, t.id ] }, params[:tenant]) %></select>
+    </div>
+    <button type="submit" data-variant="secondary">Filtrar</button>
+  </form>
+<% end %>
+
+<%= render "data_retentions/page" %>
