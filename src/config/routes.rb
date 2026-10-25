@@ -62,6 +62,17 @@ Rails.application.routes.draw do
       resource :webhook_secret, path: "segredo-do-webhook", only: :create, module: :channels
     end
     resource :payment_policy, path: "politicas-de-pagamento", only: %i[show update]
+    # Segmentos do contrato (08): toda mudança passa pela conferência do impacto (R154) antes de valer.
+    resources :segments, path: "segmentos", path_names: { new: "novo", edit: "editar" }, except: %i[show destroy] do
+      resource :activation, path: "ativacao", only: %i[create destroy], module: :segments
+      resource :movement, path: "movimento", only: :create, module: :segments
+    end
+    resource :segment_policy, path: "produto-do-contrato-no-segmento", only: :update
+    resource :segment_confirmation, path: "confirmacao-dos-segmentos", only: :create
+    # Índices do Banco Central (08): valores globais, correções do credor e "Buscar índices agora".
+    resource :indexes, path: "indices", only: :show
+    resources :index_adjustments, path: "correcoes-de-indices", only: %i[create destroy]
+    resource :index_search, path: "busca-de-indices", only: :create
     resources :contact_results, path: "resultados-de-acionamento", path_names: { new: "novo", edit: "editar" }, except: %i[show destroy] do
       resource :activation, path: "ativacao", only: %i[create destroy], module: :contact_results
       resource :movement, path: "movimento", only: :create, module: :contact_results

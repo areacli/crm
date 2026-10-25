@@ -15,7 +15,7 @@ module Portfolio
 
     # Lista de clientes (R21): valores, maior atraso e faixa. Sem busca, só quem tem título em cobrança (no modo "só na ficha", só
     # quem tem título vencido); com busca, qualquer cliente do credor. `bracket` é o índice da faixa pedida, ou -1 para "sem atraso".
-    def customers(search: nil, bracket: nil, tenant_id: nil, sort: "overdue_cents", direction: "desc")
+    def customers(search: nil, bracket: nil, segment: nil, tenant_id: nil, sort: "overdue_cents", direction: "desc")
       ids = tenant_ids
       relation = Customer.visible_to(@user, "view_portfolio").joins("left join (#{aggregate_sql(ids)}) agg on agg.customer_id = customers.id")
         .select("customers.*", "coalesce(agg.bills_count, 0) as bills_count", "coalesce(agg.overdue_cents, 0) as overdue_cents",
@@ -23,6 +23,7 @@ module Portfolio
       relation = relation.where(tenant_id: tenant_id) if tenant_id.present? && ids.include?(tenant_id.to_i)
       relation = search.present? ? search_by(relation, search) : restrict_to_collection(relation, ids)
       relation = restrict_to_bracket(relation, ids, bracket) if bracket
+      relation = restrict_to_segment(relation, ids, segment) if segment.present?
       order(relation, sort, direction)
     end
 
@@ -37,7 +38,41 @@ module Portfolio
       brackets.label(brackets.index_for(max_days_overdue.to_i))
     end
 
+    # Segmento do contrato mais atrasado de cada cliente da página (R159); empate no atraso, o de maior saldo (P-S3). Uma consulta para os (até 100)
+    # clientes mostrados, e não uma subconsulta na lista inteira: a medição com 200 mil clientes mostrou 7,6 s contra 0,1 s. Índices:
+    # `contract_customers (customer_id)` e `bills (contract_id)`.
+    def segment_names(customer_ids)
+      return {} if customer_ids.empty?
+
+      rows = Portfolio::Sql.rows(<<~SQL, @reference, @reference, customer_ids)
+        select distinct on (cc.customer_id) cc.customer_id, s.name
+        from contract_customers cc
+        join contracts c on c.id = cc.contract_id and c.segment_id is not null
+        join segments s on s.id = c.segment_id
+        left join lateral (
+          select max(?::date - b.due_date) filter (where b.due_date < ?::date) as days, sum(greatest(b.amount_cents - b.paid_cents, 0)) as balance
+          from bills b where b.contract_id = c.id and b.status = 'active'
+        ) late on true
+        where cc.customer_id in (?)
+        order by cc.customer_id, late.days desc nulls last, late.balance desc nulls last, c.id
+      SQL
+      rows.to_h { |row| [ row["customer_id"].to_i, row["name"] ] }
+    end
+
+    # Segmentos que o usuário pode escolher no filtro: os ativos dos credores em que consulta (R159).
+    def segment_options(ids = tenant_ids) = Segment.where(tenant_id: ids, active: true).includes(:tenant).ordered.to_a
+
     private
+      # O filtro casa com qualquer contrato do cliente, inclusive "sem segmento" (R159). `segment` é o id ou "none".
+      def restrict_to_segment(relation, ids, segment)
+        if segment == "none"
+          relation.where("exists (select 1 from contract_customers cc join contracts c on c.id = cc.contract_id where cc.customer_id = customers.id and c.segment_id is null)")
+        else
+          id = Segment.where(tenant_id: ids, id: segment.to_i).pick(:id)
+          relation.where("exists (select 1 from contract_customers cc join contracts c on c.id = cc.contract_id where cc.customer_id = customers.id and c.segment_id = ?)", id || 0)
+        end
+      end
+
       def aggregate_sql(ids)
         ActiveRecord::Base.sanitize_sql_array([ <<~SQL, @reference, @reference, @reference, @reference, ids.presence || [ 0 ] ])
           select customer_id, count(*) as bills_count,

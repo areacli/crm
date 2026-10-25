@@ -1,0 +1,12 @@
+alfa_catch_all:
+  tenant: alfa
+  name: Demais
+  name_key: demais
+  catch_all: true
+  position: 0
+beta_catch_all:
+  tenant: beta
+  name: Demais
+  name_key: demais
+  catch_all: true
+  position: 0

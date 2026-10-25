@@ -123,7 +123,8 @@ class PaymentsScreensTest < ActionDispatch::IntegrationTest
     get root_path
     assert_select "nav[aria-label=Menu] a[href='#{settings_payment_policy_path}']", text: "Configuração"
     get settings_payment_policy_path
-    assert_select "nav.abas a", count: 1
+    # Com a 14 também aparecem as abas Segmentos e Índices (08, R158).
+    assert_select "nav.abas a", count: 3
   end
 
   test "importar pagamentos exige a permissão 5; confirmar, a 6, também por link direto (R47)" do

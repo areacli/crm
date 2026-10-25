@@ -1,0 +1,47 @@
+<%# Campos do segmento (R148, R150). Locais: form, segment, raw (o que foi digitado, quando houve erro). Critério vazio aceita qualquer valor. %>
+<div class="campo">
+  <%= form.label :name, "Nome" %>
+  <%= form.text_field :name, value: segment.name, required: true, maxlength: 100 %>
+  <small>Único dentro do credor, sem diferença de maiúsculas e acentos.</small>
+</div>
+
+<% ranges = [
+  [ :overdue_days, "Atraso do contrato (dias)", "Pelo título em cobrança mais atrasado do contrato." ],
+  [ :balance_cents, "Saldo em cobrança (R$)", "Soma dos saldos dos títulos em cobrança do contrato, sem encargos." ],
+  [ :overdue_bills, "Títulos vencidos", "Quantidade de títulos do contrato em cobrança com vencimento passado." ],
+  [ :overdue_percent, "Valor vencido (%)", "Saldo dos títulos vencidos dividido pelo saldo em cobrança do contrato, de 0 a 100." ],
+  [ :customers, "Clientes no contrato", "Clientes do contrato em qualquer papel." ],
+  [ :age_days, "Idade do contrato (dias)", "Dias desde que o contrato foi criado no CRM." ]
+] %>
+<% ranges.each do |name, legend, help| %>
+  <fieldset>
+    <legend><%= legend %></legend>
+    <p><small><%= help %> Vazio aceita qualquer valor.</small></p>
+    <div class="campo">
+      <%= form.label :"min_#{name}", "Mínimo", for: "segment_min_#{name}" %>
+      <%= form.text_field :"min_#{name}", value: segment_field_value(segment, raw, :"min_#{name}"), inputmode: "decimal", autocomplete: "off", "aria-describedby": ("erro-min_#{name}" if segment.errors[:"min_#{name}"].any?) %>
+      <% segment.errors[:"min_#{name}"].each do |message| %><small id="erro-min_<%= name %>" role="alert"><%= message %></small><% end %>
+    </div>
+    <div class="campo">
+      <%= form.label :"max_#{name}", "Máximo", for: "segment_max_#{name}" %>
+      <%= form.text_field :"max_#{name}", value: segment_field_value(segment, raw, :"max_#{name}"), inputmode: "decimal", autocomplete: "off", "aria-describedby": ("erro-max_#{name}" if segment.errors[:"max_#{name}"].any?) %>
+      <% segment.errors[:"max_#{name}"].each do |message| %><small id="erro-max_<%= name %>" role="alert"><%= message %></small><% end %>
+    </div>
+  </fieldset>
+<% end %>
+
+<div class="campo">
+  <%= form.label :person_type, "Tipo" %>
+  <%= form.select :person_type, [ [ "Tanto faz", "" ] ] + Segment::PERSON_TYPES.map { |type| [ t("segments.person_types.#{type}"), type ] }, { selected: segment.person_type.to_s } %>
+  <small>Vale o tipo dos responsáveis financeiros do contrato (ou dos titulares, se nenhum for declarado). Responsáveis de tipos diferentes tornam o contrato misto.</small>
+</div>
+<div class="campo">
+  <%= form.label :products, "Produtos" %>
+  <%= form.text_field :products, value: segment_products_value(segment, raw), autocomplete: "off" %>
+  <small>Separe por vírgula. Compara sem acento e sem diferença de maiúsculas; o produto do contrato segue a política "Produto do contrato no segmento". Vazio aceita qualquer produto.</small>
+</div>
+<div class="campo">
+  <%= form.label :broke_agreement, "Já quebrou acordo" %>
+  <%= form.select :broke_agreement, [ [ "Tanto faz", "" ], [ "Sim", "yes" ], [ "Não", "no" ] ], { selected: segment.broke_agreement.to_s } %>
+  <small>Até o escopo de acordos, nenhum contrato quebrou acordo: segmento que exige "sim" não pega ninguém.</small>
+</div>

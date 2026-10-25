@@ -1,0 +1,88 @@
+pt-BR:
+  indexes:
+    series:
+      ipca: "IPCA"
+      inpc: "INPC"
+      igpm: "IGP-M"
+      selic: "Selic"
+    errors:
+      http: "o Banco Central respondeu com erro %{status}"
+      unreachable: "o Banco Central não respondeu"
+      invalid: "resposta inválida do Banco Central"
+    run:
+      already_running: "Adiada: outra busca está em andamento."
+      summary: "%{new} meses novos e %{revised} revisados."
+      unexpected: "Falha inesperada; o detalhe está no registro da aplicação."
+    adjust:
+      series: "Série desconhecida."
+      reason_required: "Informe o motivo da correção."
+      month_invalid: "Informe o mês no formato mm/aaaa, a partir de janeiro de 2000."
+      month_open: "O mês corrente ainda não terminou: só meses fechados são corrigidos ou incluídos."
+      value_invalid: "Informe o valor em porcentagem, por exemplo 1,52."
+      done: "Índice corrigido para %{tenant}."
+      undone: "Correção desfeita para %{tenant}."
+      search_started: "Busca de índices iniciada; o resultado aparece em instantes."
+      search_running: "Já há uma busca de índices em andamento."
+    run_status:
+      running: "Em andamento"
+      succeeded: "Concluída"
+      failed: "Falhou"
+      skipped: "Adiada"
+  segments:
+    none: "Sem segmento"
+    person_types:
+      person: "Pessoa física"
+      company: "Pessoa jurídica"
+      mixed: "Misto"
+    broke_agreement:
+      "yes": "Sim"
+      "no": "Não"
+    policies:
+      most_overdue: "Pelo título mais atrasado"
+      largest_balance: "Pelo maior saldo"
+      any_bill: "Por qualquer título"
+    flash:
+      confirmed: "Segmentos de %{tenant} atualizados; os contratos já foram reclassificados."
+    errors:
+      invalid_token: "A conferência não vale mais. Refaça a mudança."
+      stale: "Os segmentos mudaram depois da sua conferência; confira de novo."
+      number_invalid: "informe um número inteiro"
+      money_invalid: "informe o valor em reais, por exemplo 5.000,00"
+  activerecord:
+    attributes:
+      segment:
+        name: "Nome"
+        min_overdue_days: "Atraso mínimo"
+        max_overdue_days: "Atraso máximo"
+        min_balance_cents: "Saldo mínimo"
+        max_balance_cents: "Saldo máximo"
+        min_overdue_bills: "Mínimo de títulos vencidos"
+        max_overdue_bills: "Máximo de títulos vencidos"
+        min_overdue_percent: "Percentual vencido mínimo"
+        max_overdue_percent: "Percentual vencido máximo"
+        min_customers: "Mínimo de clientes"
+        max_customers: "Máximo de clientes"
+        min_age_days: "Idade mínima"
+        max_age_days: "Idade máxima"
+    errors:
+      models:
+        segment:
+          attributes:
+            name:
+              taken: "já existe um segmento com esse nome neste credor"
+              blank: "é obrigatório"
+              too_long: "tem no máximo 100 caracteres"
+            min_overdue_days: { negative: "não pode ser negativo" }
+            max_overdue_days: { negative: "não pode ser negativo", range_inverted: "não pode ser menor que o mínimo" }
+            min_balance_cents: { negative: "não pode ser negativo" }
+            max_balance_cents: { negative: "não pode ser negativo", range_inverted: "não pode ser menor que o mínimo" }
+            min_overdue_bills: { negative: "não pode ser negativo" }
+            max_overdue_bills: { negative: "não pode ser negativo", range_inverted: "não pode ser menor que o mínimo" }
+            min_overdue_percent: { negative: "não pode ser negativo", percent: "vai de 0 a 100" }
+            max_overdue_percent: { negative: "não pode ser negativo", range_inverted: "não pode ser menor que o mínimo", percent: "vai de 0 a 100" }
+            min_customers: { negative: "não pode ser negativo" }
+            max_customers: { negative: "não pode ser negativo", range_inverted: "não pode ser menor que o mínimo" }
+            min_age_days: { negative: "não pode ser negativo" }
+            max_age_days: { negative: "não pode ser negativo", range_inverted: "não pode ser menor que o mínimo" }
+          base:
+            catch_all_criteria: "o segmento Demais não tem critérios"

@@ -20,6 +20,9 @@ class TenantSetting < ApplicationRecord
   # Prazo de guarda dos dados do cliente, em anos (07, R136): mínimo 1, padrão 5 (PG1).
   validates :retention_years, numericality: { only_integer: true, greater_than_or_equal_to: 1, less_than_or_equal_to: 50 }
 
+  # Produto do contrato no segmento (R150, R151, DS1): pelo título mais atrasado (padrão), pelo maior saldo ou por qualquer título.
+  enum :segment_product_policy, { most_overdue: "most_overdue", largest_balance: "largest_balance", any_bill: "any_bill" }, prefix: true, validate: true
+
   PAYMENT_POLICIES = %w[partial_payment_policy withdrawn_payment_policy withdrawn_reversal_policy reversal_month_policy].freeze
 
   # Faixas iniciais de atraso, em dias: de 1 a 30, de 31 a 60, de 61 a 90, de 91 a 180, de 181 a 360 e mais de 360.

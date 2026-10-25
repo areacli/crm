@@ -104,4 +104,23 @@ class AccessScreensSystemTest < ApplicationSystemTestCase
     assert_no_selector "#sino .contador"
     assert_equal 0, users(:carlos).notices.unread.count
   end
+
+  test "o e-mail muito longo não estoura o menu do usuário e o cabeçalho tem 56 px" do
+    users(:joana).update!(email_address: "#{'nome.muito.longo.' * 6}joana@exemplo.com.br")
+    sign_in users(:joana)
+    page.driver.resize(1440, 900)
+    assert_equal 56, page.evaluate_script("document.querySelector('body > header').getBoundingClientRect().height")
+    find("header .usuario summary").click
+
+    dentro = page.evaluate_script(<<~JS)
+      (() => {
+        const painel = document.querySelector("header .usuario[open] > div").getBoundingClientRect()
+        const email = document.querySelector("header .usuario[open] > div p").getBoundingClientRect()
+        return painel.right <= window.innerWidth && painel.left >= 0 && email.right <= painel.right + 1 && email.left >= painel.left - 1
+      })()
+    JS
+    assert dentro, "o e-mail ou o painel saiu da janela"
+    page.driver.resize(390, 800)
+    assert page.evaluate_script("document.querySelector('header .usuario[open] > div').getBoundingClientRect().right <= window.innerWidth")
+  end
 end

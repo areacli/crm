@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_24_100700) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_24_100800) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -122,12 +122,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_100700) do
     t.index ["customer_id"], name: "index_contract_customers_on_customer_id"
   end
 
+  create_table "contract_segments", force: :cascade do |t|
+    t.bigint "contract_id", null: false
+    t.bigint "segment_id"
+    t.date "since", null: false
+    t.index ["contract_id", "since"], name: "index_contract_segments_on_contract_id_and_since", unique: true
+  end
+
   create_table "contracts", force: :cascade do |t|
     t.bigint "tenant_id", null: false
     t.string "code", limit: 100
     t.boolean "created_by_omission", default: false, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "segment_id"
+    t.boolean "broke_agreement", default: false, null: false
+    t.index ["segment_id"], name: "index_contracts_on_segment_id"
     t.index ["tenant_id", "code"], name: "index_contracts_on_tenant_id_and_code", unique: true, where: "(code IS NOT NULL)"
   end
 
@@ -269,6 +279,28 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_100700) do
     t.check_constraint "progress_percent >= 0 AND progress_percent <= 100", name: "imports_progress_percent_range"
   end
 
+  create_table "index_adjustments", force: :cascade do |t|
+    t.bigint "tenant_id", null: false
+    t.string "series", limit: 10, null: false
+    t.date "month", null: false
+    t.decimal "value", precision: 9, scale: 4, null: false
+    t.string "reason", limit: 300, null: false
+    t.bigint "user_id"
+    t.datetime "adjusted_at", null: false
+    t.index ["tenant_id", "series", "month"], name: "index_index_adjustments_on_tenant_id_and_series_and_month", unique: true
+    t.check_constraint "series::text = ANY (ARRAY['ipca'::character varying, 'inpc'::character varying, 'igpm'::character varying, 'selic'::character varying]::text[])", name: "index_adjustments_series"
+  end
+
+  create_table "index_rates", force: :cascade do |t|
+    t.string "series", limit: 10, null: false
+    t.date "month", null: false
+    t.decimal "value", precision: 9, scale: 4, null: false
+    t.boolean "partial", default: false, null: false
+    t.datetime "fetched_at", null: false
+    t.index ["series", "month"], name: "index_index_rates_on_series_and_month", unique: true
+    t.check_constraint "series::text = ANY (ARRAY['ipca'::character varying, 'inpc'::character varying, 'igpm'::character varying, 'selic'::character varying]::text[])", name: "index_rates_series"
+  end
+
   create_table "memberships", force: :cascade do |t|
     t.bigint "user_id", null: false
     t.bigint "tenant_id", null: false
@@ -389,6 +421,36 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_100700) do
     t.index ["bill_id"], name: "index_reported_surcharges_on_bill_id", unique: true
   end
 
+  create_table "segments", force: :cascade do |t|
+    t.bigint "tenant_id", null: false
+    t.string "name", limit: 100, null: false
+    t.string "name_key", limit: 100, null: false
+    t.integer "position", default: 0, null: false
+    t.boolean "active", default: true, null: false
+    t.boolean "catch_all", default: false, null: false
+    t.integer "min_overdue_days"
+    t.integer "max_overdue_days"
+    t.bigint "min_balance_cents"
+    t.bigint "max_balance_cents"
+    t.integer "min_overdue_bills"
+    t.integer "max_overdue_bills"
+    t.integer "min_overdue_percent"
+    t.integer "max_overdue_percent"
+    t.integer "min_customers"
+    t.integer "max_customers"
+    t.integer "min_age_days"
+    t.integer "max_age_days"
+    t.string "person_type", limit: 10
+    t.string "broke_agreement", limit: 5
+    t.jsonb "products", default: [], null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["tenant_id", "name_key"], name: "index_segments_on_tenant_id_and_name_key", unique: true
+    t.index ["tenant_id"], name: "index_segments_one_catch_all_per_tenant", unique: true, where: "catch_all"
+    t.check_constraint "broke_agreement IS NULL OR (broke_agreement::text = ANY (ARRAY['yes'::character varying, 'no'::character varying]::text[]))", name: "segments_broke_agreement"
+    t.check_constraint "person_type IS NULL OR (person_type::text = ANY (ARRAY['person'::character varying, 'company'::character varying, 'mixed'::character varying]::text[]))", name: "segments_person_type"
+  end
+
   create_table "sessions", force: :cascade do |t|
     t.bigint "user_id", null: false
     t.string "ip_address", limit: 45
@@ -424,6 +486,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_100700) do
     t.string "discrepancy_policy", limit: 20, default: "follow", null: false
     t.string "correction_policy", limit: 20, default: "screen", null: false
     t.integer "retention_years", default: 5, null: false
+    t.string "segment_product_policy", limit: 20, default: "most_overdue", null: false
+    t.integer "segments_version", default: 0, null: false
     t.index ["tenant_id"], name: "index_tenant_settings_on_tenant_id", unique: true
     t.check_constraint "retention_years >= 1", name: "tenant_settings_retention_years_min"
   end
@@ -523,6 +587,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_100700) do
   add_foreign_key "contact_results", "tenants"
   add_foreign_key "contract_customers", "contracts", on_delete: :cascade
   add_foreign_key "contract_customers", "customers", on_delete: :cascade
+  add_foreign_key "contract_segments", "contracts", on_delete: :cascade
+  add_foreign_key "contract_segments", "segments", on_delete: :restrict
+  add_foreign_key "contracts", "segments", on_delete: :nullify
   add_foreign_key "contracts", "tenants"
   add_foreign_key "credits", "contracts", column: "related_contract_id", on_delete: :restrict
   add_foreign_key "credits", "contracts", on_delete: :restrict
@@ -539,6 +606,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_100700) do
   add_foreign_key "imports", "tenants"
   add_foreign_key "imports", "users", column: "confirmed_by_id", on_delete: :nullify
   add_foreign_key "imports", "users", on_delete: :nullify
+  add_foreign_key "index_adjustments", "tenants"
+  add_foreign_key "index_adjustments", "users", on_delete: :nullify
   add_foreign_key "memberships", "profiles", on_delete: :restrict
   add_foreign_key "memberships", "tenants"
   add_foreign_key "memberships", "users"
@@ -556,6 +625,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_100700) do
   add_foreign_key "reported_surcharges", "bills", on_delete: :cascade
   add_foreign_key "reported_surcharges", "imports", on_delete: :nullify
   add_foreign_key "reported_surcharges", "tenants"
+  add_foreign_key "segments", "tenants"
   add_foreign_key "sessions", "users"
   add_foreign_key "task_runs", "tenants"
   add_foreign_key "tenant_settings", "tenants"
