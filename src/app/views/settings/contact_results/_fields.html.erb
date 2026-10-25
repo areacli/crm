@@ -1,0 +1,16 @@
+<%# Campos do resultado. Locais: form, result, kind_locked (o tipo só se escolhe na criação). %>
+<div class="campo">
+  <%= form.label :name, "Nome" %>
+  <%= form.text_field :name, value: result.name, required: true, maxlength: 100 %>
+  <small>Único dentro do credor, sem diferença de maiúsculas e acentos. Renomear muda o nome também nos acionamentos antigos.</small>
+</div>
+<div class="campo">
+  <%= form.label :kind, "Tipo" %>
+  <%= form.select :kind, ContactResult::KINDS.keys.map { |kind| [ t("contacts.kinds.#{kind}"), kind ] }, { selected: result.kind }, required: true, disabled: kind_locked %>
+  <small><%= kind_locked ? "O tipo não muda depois de criado, para não alterar o significado dos acionamentos antigos." : "Permite medir contatos mesmo com nomes livres. Não muda depois." %></small>
+</div>
+<div class="campo">
+  <%= form.label :return_rule, "Data de retorno" %>
+  <%= form.select :return_rule, ContactResult.return_rules.keys.map { |rule| [ t("contacts.return_rules.#{rule}"), rule ] }, { selected: result.return_rule }, required: true %>
+  <small>O retorno só fica registrado no acionamento; não há agenda nem aviso.</small>
+</div>

@@ -97,12 +97,59 @@ pt-BR:
       reversal_month_policy:
         reversal: "No mês do estorno (meses anteriores não mudam)"
         payment: "No mês do pagamento estornado"
+  contacts:
+    channels:
+      phone: "Telefone"
+      whatsapp: "WhatsApp"
+      sms: "SMS"
+      email: "E-mail"
+      letter: "Carta"
+      in_person: "Presencial"
+      other: "Outro"
+    kinds:
+      spoke_with_customer: "Falou com o cliente"
+      spoke_with_third_party: "Falou com terceiro"
+      no_contact: "Sem contato"
+    return_rules:
+      required: "Exige data de retorno"
+      allowed: "Permite data de retorno"
+      not_allowed: "Não permite data de retorno"
+    responsible_notice:
+      one: "O responsável financeiro deste contrato é %{names}. É só uma sugestão: o registro vale igual."
+      other: "Os responsáveis financeiros deste contrato são %{names}. É só uma sugestão: o registro vale igual."
+    refused:
+      channel: "Escolha o canal do contato."
+      result: "Escolha o resultado do contato."
+      result_inactive: "Resultado desativado; escolha outro."
+      customer_not_in_contract: "O cliente não figura neste contrato."
+      invalid_time: "Data e hora inválidas."
+      future_contact: "A data do contato não pode ser futura."
+      past_contact: "Data do contato até %{days} dias atrás."
+      return_not_allowed: "Este resultado não permite data de retorno."
+      return_required: "Este resultado exige data de retorno."
+      return_before_contact: "O retorno deve ser depois do contato."
+      return_too_far: "Retorno até %{days} dias depois do contato."
+      text_too_long: "O texto tem no máximo %{max} caracteres."
+      contact_too_long: "O contato usado tem no máximo %{max} caracteres para este canal."
   customers:
+    contact_attempts:
+      create:
+        done: "Acionamento registrado."
     credit_transfers:
       create:
         done: "R$ %{amount} transferidos para o contrato %{to}."
         destination_not_found: "Contrato de destino não encontrado neste credor."
   settings:
+    contact_results:
+      create:
+        done: "Resultado %{name} criado."
+      update:
+        done: "Resultado %{name} salvo."
+      activations:
+        create:
+          done: "Resultado %{name} reativado."
+        destroy:
+          done: "Resultado %{name} desativado: some da escolha e continua nos acionamentos antigos."
     channels:
       create:
         done: "Canal %{code} cadastrado."
@@ -188,7 +235,6 @@ pt-BR:
     upload_payments: "Enviar e conferir pagamentos"
     confirm_payments: "Confirmar pagamentos"
     record_contact_attempts: "Registrar acionamentos"
-    void_others_contact_attempts: "Anular acionamentos de outros"
     manage_contact_results: "Gerenciar resultados de acionamento"
     manage_users: "Gerenciar usuários"
     manage_profiles: "Gerenciar perfis"
@@ -216,6 +262,10 @@ pt-BR:
         permissions: "Permissões"
       tenant:
         name: "Nome"
+      contact_result:
+        name: "Nome"
+        kind: "Tipo"
+        return_rule: "Data de retorno"
     errors:
       models:
         user:
@@ -237,6 +287,11 @@ pt-BR:
               unknown: "tem permissões desconhecidas: %{list}"
               needs_view_portfolio: "precisa incluir consultar a carteira"
               needs_negotiate_agreements: "precisa incluir negociar acordos para administrar acordos"
+        contact_result:
+          attributes:
+            name:
+              taken: "já existe um resultado com esse nome neste credor"
+              too_long: "tem no máximo 100 caracteres"
         membership:
           attributes:
             profile:

@@ -1,0 +1,35 @@
+<%# Trecho que o htmx refaz a cada filtro, página ou aviso do WebSocket: contagem, tabela e paginação. %>
+<div id="resultado" aria-live="polite" hx-get="<%= contact_attempts_path(request.query_parameters) %>" hx-trigger="cable:contact-attempts-changed from:body, cable:connected from:body" hx-swap="outerHTML" hx-push-url="false">
+  <% if @attempts.empty? %>
+    <p class="vazio">Nenhum acionamento no período.</p>
+  <% else %>
+    <p><small>Mostrando <%= number_br(@pagination.first_item) %> a <%= number_br(@pagination.last_item) %> de <%= number_br(@pagination.total) %> acionamentos, de <%= date_br(@from) %> a <%= date_br(@to) %>.</small></p>
+    <div class="tabela">
+      <table>
+        <caption class="apenas-leitor-de-tela">Acionamentos</caption>
+        <thead>
+          <tr>
+            <th scope="col">Contato</th><th scope="col">Cliente</th>
+            <% if @several_tenants %><th scope="col">Credor</th><% end %>
+            <th scope="col">Canal</th><th scope="col">Resultado</th><th scope="col">Tipo</th><th scope="col">Operador</th><th scope="col">Retorno</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @attempts.each do |attempt| %>
+            <tr>
+              <th scope="row"><%= datetime_br(attempt.contacted_at) %></th>
+              <td><%= link_to attempt.customer.name, customer_path(attempt.customer, anchor: "acionamentos") %><% if attempt.contract %><small>Contrato <%= attempt.contract.label %></small><% end %></td>
+              <% if @several_tenants %><td><%= attempt.tenant.name %></td><% end %>
+              <td><%= t("contacts.channels.#{attempt.channel}") %></td>
+              <td><%= attempt.result.name %></td>
+              <td><%= t("contacts.kinds.#{attempt.result_kind}") %></td>
+              <td><%= attempt.user&.name || "—" %></td>
+              <td><%= attempt.return_at ? datetime_br(attempt.return_at) : "—" %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+    <%= render "shared/paginacao", pagination: @pagination, path: ->(page) { contact_attempts_path(request.query_parameters.merge("page" => page)) } %>
+  <% end %>
+</div>

@@ -36,6 +36,12 @@
   fieldset { border: 1px solid var(--cor-linha); border-radius: var(--raio-cartao); padding: var(--espaco-4); }
   legend { font-weight: 600; padding-inline: var(--espaco-2); }
   form { display: grid; gap: var(--espaco-4); }
+  /* Filtros de lista: uma linha de campos (a regra de `layout` perdia para o `form` em grade, por vir antes na ordem das camadas). */
+  form.filtros { display: flex; flex-wrap: wrap; align-items: end; gap: var(--espaco-3); }
+  form > div:empty, .grupo-de-campos > div:empty { display: none; }
+  /* Campos curtos lado a lado, quebrando linha quando falta largura. */
+  .grupo-de-campos { display: flex; flex-wrap: wrap; align-items: start; gap: var(--espaco-4); }
+  .grupo-de-campos > div { flex: 1 1 14rem; min-width: 0; }
 
   /* Cartão: seção com título e ações. */
   .cartao { background: var(--cor-branco); border: 1px solid var(--cor-linha); border-radius: var(--raio-cartao); }
@@ -54,6 +60,9 @@
   [data-numerico] { text-align: right; }
   th a { color: inherit; text-decoration: none; display: inline-flex; align-items: center; gap: var(--espaco-1); }
   tfoot td { color: var(--cor-texto-suave); font-size: var(--texto-legenda); }
+  td small, th small { display: block; font-weight: 400; color: var(--cor-texto-suave); }
+  /* Texto digitado pelo operador (04, R72): texto puro, com as quebras de linha como foram escritas. */
+  .texto-do-operador { margin: 0; max-width: 40rem; white-space: pre-line; overflow-wrap: anywhere; }
 
   /* Situação: selo de texto e tom (data-tone: success, warning, danger, info, neutral); a cor nunca fala sozinha. */
   .situacao { display: inline-flex; align-items: center; padding: 0 var(--espaco-3); border-radius: 999px; font-size: var(--texto-legenda); font-weight: 600; background: var(--cor-neutro-fundo); color: var(--cor-neutro-texto); }

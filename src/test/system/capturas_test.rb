@@ -41,6 +41,16 @@ class CapturasTest < ApplicationSystemTestCase
     @payments_import.rejections.create!(line: 12, reason: "canal não cadastrado ou desativado")
     @payments_import.rejections.create!(line: 31, reason: "título não informado")
     @payments_import.rejections.create!(line: 45, reason: "pagamento já registrado, ignorado", ignored: true)
+    # Incremento 4: acionamentos de três operadores nos últimos dias, em dois clientes.
+    @contacted_customer = Customer.order(:id).second
+    @contacted_customer.update!(phone: "(11) 98888-0001")
+    [ [ :call_back, 1, "phone", "Pediu para ligar na sexta, depois das 14h.", 2.days.from_now ], [ :negotiating, 3, "whatsapp", "Quer parcelar em três vezes.\nEnviei a simulação.", nil ],
+      [ :no_answer, 26, "phone", nil, nil ], [ :voicemail, 50, "phone", nil, nil ], [ :says_paid, 70, "email", "Informou pagamento no dia 10; conferir.", nil ] ].each_with_index do |(key, hours, channel, text, back), index|
+      operator = [ users(:joana), users(:carlos), users(:ana) ][index % 3]
+      customer = index.even? ? @contacted_customer : Customer.order(:id).third
+      record_attempt(customer, operator, result: result_of(@tenant, key), channel: channel, text: text, contacted_at: (Time.current - hours.hours).strftime("%Y-%m-%dT%H:%M"),
+                     return_at: back&.strftime("%Y-%m-%dT%H:%M"), contact_used: (channel == "phone" ? "(11) 98888-0001" : nil))
+    end
     Import.create!(tenant: @tenant, user: users(:joana), mode: :full_sync, status: :checked, original_name: "carteira-outubro.csv", size_bytes: 40_960,
                    progress_percent: 100, checked_at: Time.current,
                    summary: { lines: 24, valid: 24, rejected: 0, customers: 12, customers_new: 0, amount_formatted: "6.200,00", bills_new: 4, bills_updated: 3,
@@ -69,11 +79,19 @@ class CapturasTest < ApplicationSystemTestCase
     "canais-de-recebimento" => -> { settings_channels_path },
     "canal-de-recebimento" => -> { edit_settings_channel_path(@channel) },
     "politicas-de-pagamento" => -> { settings_payment_policy_path },
-    "ficha-com-pagos-e-credito" => -> { customer_path(@paid_customer) }
+    "ficha-com-pagos-e-credito" => -> { customer_path(@paid_customer) },
+    # Incremento 4: acionamentos.
+    "ficha-com-acionamentos" => -> { customer_path(@contacted_customer) },
+    "acionamentos" => -> { contact_attempts_path },
+    "resultados-de-acionamento" => -> { settings_contact_results_path }
   }.freeze
+
+  # Telas longas, fotografadas com a janela mais alta para mostrar o que importa (o histórico, o formulário).
+  ALTAS = %w[ficha-com-acionamentos].freeze
 
   test "recria as fotos do README" do
     TELAS.each do |nome, caminho|
+      page.driver.resize(1440, ALTAS.include?(nome) ? 1700 : 900)
       visit instance_exec(&caminho)
       assert_selector "h1"
       page.save_screenshot(Rails.root.join("tmp/capturas/#{nome}.png").to_s)

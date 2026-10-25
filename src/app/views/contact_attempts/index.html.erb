@@ -1,0 +1,46 @@
+<% content_for :title, "Acionamentos" %>
+<% content_for :cable_channels, contact_cable_channels(@tenant_ids) %>
+<header class="cabecalho-da-pagina">
+  <div><h1>Acionamentos</h1><p>As tentativas de contato dos credores que você consulta, do contato mais recente ao mais antigo. Por padrão, os últimos 7 dias.</p></div>
+</header>
+
+<form class="filtros" role="search" action="<%= contact_attempts_path %>" method="get"
+      hx-get="<%= contact_attempts_path %>" hx-trigger="change, submit" hx-target="#resultado" hx-push-url="true" hx-swap="outerHTML">
+  <div class="campo">
+    <label for="from">De</label>
+    <input type="date" id="from" name="from" value="<%= @from.iso8601 %>">
+  </div>
+  <div class="campo">
+    <label for="to">Até</label>
+    <input type="date" id="to" name="to" value="<%= @to.iso8601 %>">
+  </div>
+  <div class="campo">
+    <label for="operator">Operador</label>
+    <select id="operator" name="operator"><option value="">Todos</option><%= options_for_select(@operators, params[:operator]) %></select>
+  </div>
+  <div class="campo">
+    <label for="channel">Canal</label>
+    <select id="channel" name="channel"><option value="">Todos</option><%= options_for_select(ContactAttempt::CHANNELS.map { |channel| [ t("contacts.channels.#{channel}"), channel ] }, params[:channel]) %></select>
+  </div>
+  <div class="campo">
+    <label for="result">Resultado</label>
+    <select id="result" name="result"><option value="">Todos</option><%= options_for_select(@result_options, params[:result]) %></select>
+  </div>
+  <div class="campo">
+    <label for="kind">Tipo</label>
+    <select id="kind" name="kind"><option value="">Todos</option><%= options_for_select(ContactResult::KINDS.keys.map { |kind| [ t("contacts.kinds.#{kind}"), kind ] }, params[:kind]) %></select>
+  </div>
+  <% if @several_tenants %>
+    <div class="campo">
+      <label for="tenant">Credor</label>
+      <select id="tenant" name="tenant"><option value="">Todos</option><%= options_for_select(@tenants, params[:tenant]) %></select>
+    </div>
+  <% end %>
+  <div class="campo">
+    <label for="per_page">Por página</label>
+    <select id="per_page" name="per_page"><%= options_for_select(Pagination::PER_PAGE_OPTIONS, @pagination.per_page) %></select>
+  </div>
+  <button type="submit" data-variant="secondary">Filtrar</button>
+</form>
+
+<%= render "contact_attempts/result" %>

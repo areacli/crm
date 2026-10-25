@@ -1,4 +1,4 @@
-<%# Formulário de perfil: nome e as 17 permissões (R30). Locais: profile, tenants (só na criação), url, method. %>
+<%# Formulário de perfil: nome e as 16 permissões (R30). Locais: profile, tenants (só na criação), url, method. %>
 <% if @error || profile.errors.any? %>
   <%= aviso(tom: :danger) { tag.p(@error || profile.errors.full_messages.to_sentence) } %>
 <% end %>

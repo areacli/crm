@@ -37,10 +37,34 @@ module Portfolio
       SQL
       { tenant: tenant, customers: totals["customers"].to_i, customers_overdue: totals["customers_overdue"].to_i, bills: totals["bills"].to_i,
         overdue_cents: totals["overdue_cents"].to_i, upcoming_cents: totals["upcoming_cents"].to_i, upcoming_display: tenant.setting.upcoming_display,
-        labels: brackets.labels, by_customer: distribution(brackets, by_customer), by_bill: distribution(brackets, by_bill) }.merge(payments(tenant))
+        labels: brackets.labels, by_customer: distribution(brackets, by_customer), by_bill: distribution(brackets, by_bill) }.merge(payments(tenant)).merge(contacts: contacts(tenant))
     end
 
     private
+      # Acionamentos dos últimos 7 e 30 dias (04, R79), pela data do contato: número de acionamentos e de clientes acionados, no total e por
+      # tipo de resultado; o cliente acionado mais de uma vez conta uma vez em cada tipo em que apareceu. Uma só leitura do índice
+      # `contact_attempts (tenant_id, contacted_at)` nos 30 dias, agrupada por cliente e tipo e por cliente (GROUPING SETS); a linha sem tipo é o
+      # total. Contar `count(distinct customer_id)` no SQL ordenava centenas de milhares de linhas em disco (2,2 s com 1 milhão de acionamentos
+      # no Laravel); o agrupamento por cliente evita a ordenação.
+      def contacts(tenant)
+        since7 = Time.current - 7.days
+        since30 = Time.current - 30.days
+        rows = Sql.rows(<<~SQL, since7, tenant.id, since30)
+          select result_kind, coalesce(sum(n7), 0) as attempts7, coalesce(sum(n30), 0) as attempts30,
+                 count(*) filter (where n7 > 0) as customers7, count(*) as customers30
+          from (
+            select customer_id, result_kind, count(*) filter (where contacted_at >= ?) as n7, count(*) as n30
+            from contact_attempts where tenant_id = ? and contacted_at >= ?
+            group by grouping sets ((customer_id, result_kind), (customer_id))
+          ) g group by result_kind
+        SQL
+        [ [ 7, "7" ], [ 30, "30" ] ].map do |days, suffix|
+          pick = ->(row) { { attempts: row["attempts#{suffix}"].to_i, customers: row["customers#{suffix}"].to_i } }
+          { days: days, total: pick.call(rows.find { |row| row["result_kind"].nil? } || {}),
+            kinds: ContactResult::KINDS.keys.index_with { |kind| pick.call(rows.find { |row| row["result_kind"] == kind.to_s } || {}) } }
+        end
+      end
+
       # Valor recuperado no mês corrente e no anterior, por meio de pagamento (R58, R64), crédito do credor (cada contrato uma vez, R55b)
       # e pagamentos pendentes. Crédito e pendente não contam como recuperado. O estorno desconta no mês que o credor escolheu (R64).
       # Consultas: `payments (tenant_id, paid_on)` e `payment_reversals (tenant_id, reversed_on)`; o pendente usa o índice parcial.

@@ -4,7 +4,8 @@ module NavigationHelper
   SETTINGS_TABS = [
     [ "Carteira", :settings_portfolio_path, "change_settings" ],
     [ "Canais de recebimento", :settings_channels_path, "change_settings" ],
-    [ "Políticas de pagamento", :settings_payment_policy_path, "change_financial_policies" ]
+    [ "Políticas de pagamento", :settings_payment_policy_path, "change_financial_policies" ],
+    [ "Resultados de acionamento", :settings_contact_results_path, "manage_contact_results" ]
   ].freeze
 
   # Abas visíveis para o usuário, com o caminho e se é a da página atual.
@@ -28,6 +29,7 @@ module NavigationHelper
     sections = [
       { titulo: nil, itens: [ [ "Resumo", root_path, "view_portfolio", %r{\A/\z} ] ] },
       { titulo: "Carteira", itens: [ [ "Clientes", customers_path, "view_portfolio", %r{\A/clientes} ],
+                                     [ "Acionamentos", contact_attempts_path, "view_portfolio", %r{\A/acionamentos} ],
                                      [ "Importar carteira", new_import_path, "upload_imports", %r{\A/importacoes/nova(?!\?kind=(payments|reversals))} ],
                                      [ "Importar pagamentos", new_import_path(kind: "payments"), "upload_payments", %r{\A/importacoes/nova\?kind=payments} ],
                                      [ "Importar estornos", new_import_path(kind: "reversals"), "upload_payments", %r{\A/importacoes/nova\?kind=reversals} ],
@@ -51,6 +53,11 @@ module NavigationHelper
     tenant_ids = (ImportPolicy::UPLOAD.values + ImportPolicy::CONFIRM.values).uniq.flat_map { |permission| Current.user.tenant_ids_with(permission) }.uniq
     tenant_ids.map { |id| { channel: "ImportsChannel", tenant_id: id } }.to_json
   end
+
+  # Canais dos acionamentos: a lista assina um por credor em que o usuário consulta a carteira; a ficha assina o do cliente.
+  def contact_cable_channels(tenant_ids) = tenant_ids.map { |id| { channel: "ContactAttemptsChannel", tenant_id: id } }.to_json
+
+  def customer_contact_cable_channels(customer) = [ { channel: "ContactAttemptsChannel", customer_id: customer.id } ].to_json
 
   # Canais que a página assina, lidos por `cable.js`: os da própria tela (`content_for :cable_channels`) e, para quem está logado e
   # já definiu a senha, o canal de avisos do próprio usuário (o sino).

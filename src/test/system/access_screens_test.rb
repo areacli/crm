@@ -37,7 +37,7 @@ class AccessScreensSystemTest < ApplicationSystemTestCase
     assert_acessivel
 
     visit new_profile_path
-    assert_selector "input[type=checkbox]", count: 17
+    assert_selector "input[type=checkbox]", count: 16
     assert_acessivel
 
     visit edit_password_path

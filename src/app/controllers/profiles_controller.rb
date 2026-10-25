@@ -1,4 +1,4 @@
-# Perfis dos credores em que a pessoa gerencia perfis (permissão 11): criar, alterar e apagar, com as 17 permissões (R30 a R35).
+# Perfis dos credores em que a pessoa gerencia perfis (permissão 11): criar, alterar e apagar, com as 16 permissões (R30 a R35).
 # As regras de dados (R35, R41, PD6, PD7, AC7) estão em `Access::ProfileManager`.
 class ProfilesController < ApplicationController
   before_action :set_profile, only: %i[ edit update destroy ]

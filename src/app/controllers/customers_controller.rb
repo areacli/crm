@@ -23,9 +23,16 @@ class CustomersController < ApplicationController
     @bills = Bill.where(customer: @customer).includes(:contract).order(:due_date)
     @today = Date.current
     load_payments_and_credits
+    load_contact_attempts
   end
 
   private
+    # Acionamentos (04): o histórico de 20 em 20 (R74) e o formulário, só para quem registra no credor do cliente (R76).
+    def load_contact_attempts
+      @contact_history = ContactAttempt.history_for(@customer, page: params[:page])
+      @contact_form = Contacts::Form.new(@customer) if policy(ContactAttempt.new(tenant: @customer.tenant)).create?
+    end
+
     # Pagos (R54) e crédito por contrato (R55b): o crédito é do contrato, visível a todos os clientes dele, sem total por cliente.
     def load_payments_and_credits
       @payments = Payment.where(bill_id: @bills.map(&:id)).applied.includes(:channel, :bill).order(paid_on: :desc, id: :desc)

@@ -1,4 +1,5 @@
 <% content_for :title, @customer.name %>
+<% content_for :cable_channels, customer_contact_cable_channels(@customer) %>
 <header class="cabecalho-da-pagina">
   <div>
     <h1><%= @customer.name %></h1>
@@ -36,6 +37,8 @@
     </dl>
   </div>
 </section>
+
+<%= render "customers/contact_attempts", customer: @customer, history: @contact_history, form: @contact_form %>
 
 <section class="cartao" aria-labelledby="titulos">
   <header><h2 id="titulos">Títulos</h2></header>

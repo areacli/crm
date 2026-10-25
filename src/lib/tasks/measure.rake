@@ -161,4 +161,75 @@ namespace :crm do
     tenant.destroy
     puts "credor de medição apagado"
   end
+  desc "V4 de acionamentos: gera N acionamentos num credor de medição e mede ficha, lista, resumo e registro: crm:measure_contacts[acionamentos]"
+  task :measure_contacts, %i[attempts] => :environment do |_task, args|
+    abort "Recusado em produção." if Rails.env.production?
+
+    count = (args[:attempts].presence || 1_000_000).to_i
+    tenant = Tenant.provision!("Medição de acionamentos #{Time.current.strftime('%H%M%S')}")
+    user = User.create!(name: "Medição", email_address: "medicao#{tenant.id}@exemplo.com.br", password: SecureRandom.base58(24))
+    Membership.create!(user: user, tenant: tenant, profile: tenant.profiles.find_by!(name: "Gestor"))
+    operators = [ user.id ] + 4.times.map { |i| User.create!(name: "Operador #{i}", email_address: "op#{i}-#{tenant.id}@exemplo.com.br", password: SecureRandom.base58(24)).id }
+    connection = Portfolio::Sql
+    t = tenant.id
+
+    measure = lambda do |label, &work|
+      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      result = work.call
+      elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+      puts format("%-62s %8.3f s", label, elapsed)
+      result
+    end
+
+    # 20 mil clientes e N acionamentos espalhados pelos últimos 92 dias, nos 11 resultados, em 5 operadores e 5 canais.
+    connection.execute("insert into customers (tenant_id, document, name, created_at, updated_at) select #{t}, lpad(g::text, 11, '0'), 'Cliente ' || g, now(), now() from generate_series(1, 20000) g")
+    first_customer = Customer.where(tenant_id: t).minimum(:id)
+    results = tenant.contact_results.ordered.to_a
+    result_case = "case (g % 11) #{results.each_with_index.map { |result, i| "when #{i} then #{result.id}" }.join(' ')} end"
+    kind_case = "case (g % 11) #{results.each_with_index.map { |result, i| "when #{i} then '#{result.kind}'" }.join(' ')} end"
+    measure.call("gerar #{count} acionamentos (com os 3 índices)") do
+      connection.execute(<<~SQL)
+        insert into contact_attempts (tenant_id, customer_id, user_id, result_id, result_kind, channel, text, contacted_at, created_at, updated_at)
+        select #{t}, #{first_customer} + case when g <= 1000 then 0 else g % 20000 end, (array[#{operators.join(',')}])[1 + g % 5], #{result_case}, #{kind_case},
+               (array['phone','whatsapp','sms','email','letter'])[1 + g % 5], 'Texto de medição ' || g,
+               now() - ((g % 92) || ' days')::interval - ((g % 86400) || ' seconds')::interval,
+               now(), now()
+        from generate_series(1, #{count}) g
+      SQL
+    end
+    # Os 1.000 primeiros acionamentos são do primeiro cliente (a ficha pesada).
+    heavy = Customer.where(tenant_id: t).order(:id).first
+    connection.execute("analyze contact_attempts")
+
+    measure.call("ficha: primeira página (20) de um cliente com 1.000 acionamentos") { ContactAttempt.history_for(heavy, page: 1).records.to_a }
+    measure.call("ficha: contagem para a paginação") { ContactAttempt.history_for(heavy, page: 1).total }
+
+    controller_scope = lambda do |from, to, extra = {}|
+      scope = ContactAttempt.visible_to(user, "view_portfolio").where(contacted_at: from..to)
+      scope = scope.where(user_id: extra[:operator]) if extra[:operator]
+      scope = scope.where(result_kind: extra[:kind]) if extra[:kind]
+      scope
+    end
+    now = Time.current
+    measure.call("lista: primeira página (20), últimos 7 dias") { Pagination.new(controller_scope.call(now - 7.days, now).includes(:customer, :result, :user, :tenant).recent, page: 1, per_page: 20).records.to_a }
+    measure.call("lista: contagem do período de 7 dias") { Pagination.new(controller_scope.call(now - 7.days, now), page: 1, per_page: 20).total }
+    measure.call("lista: período de 92 dias, primeira página") { Pagination.new(controller_scope.call(now - 92.days, now).includes(:customer, :result, :user, :tenant).recent, page: 1, per_page: 20).records.to_a }
+    measure.call("lista: período de 92 dias, contagem") { Pagination.new(controller_scope.call(now - 92.days, now), page: 1, per_page: 20).total }
+    measure.call("lista: 92 dias filtrada por operador e tipo") do
+      Pagination.new(controller_scope.call(now - 92.days, now, operator: operators[1], kind: "no_contact").includes(:customer, :result, :user, :tenant).recent, page: 1, per_page: 20).records.to_a
+    end
+    measure.call("resumo da carteira (inclui os acionamentos de 7 e 30 dias)") { Portfolio::Summary.new(user).per_tenant }
+    measure.call("registrar um acionamento (regras, gravação e histórico)") do
+      Contacts::Recorder.new(user).record(heavy, channel: "phone", result_id: results.last.id, text: "medição do registro")
+    end
+
+    ContactAttempt.where(tenant_id: t).delete_all
+    [ Change, ContractCustomer ].each { |model| model.where(tenant_id: t).delete_all if model.column_names.include?("tenant_id") }
+    Customer.where(tenant_id: t).delete_all
+    tenant.contact_results.delete_all
+    Membership.where(tenant_id: t).delete_all
+    User.where(id: operators).destroy_all
+    tenant.destroy
+    puts "credor de medição apagado"
+  end
 end

@@ -1,0 +1,4 @@
+<%# Sugestão do responsável financeiro (R69c): só aviso, nunca bloqueio. Locais: form, oob. %>
+<% wrapper = { id: "aviso-contrato" }.merge(local_assigns[:oob] ? { "hx-swap-oob": "true" } : {}) %>
+<% names = form.other_responsible_names %>
+<%= tag.div(**wrapper) do %><% if names %><%= aviso(tom: :info) { tag.p t("contacts.responsible_notice", count: names.size, names: names.to_sentence) } %><% end %><% end %>

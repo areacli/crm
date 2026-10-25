@@ -54,6 +54,35 @@
     </div>
   </section>
 
+  <section class="cartao" aria-labelledby="acionamentos-<%= summary[:tenant].id %>">
+    <header><div><h2 id="acionamentos-<%= summary[:tenant].id %>">Acionamentos — <%= summary[:tenant].name %></h2><p>Pela data do contato. O cliente acionado mais de uma vez conta uma vez em cada tipo.</p></div></header>
+    <div class="tabela">
+      <table>
+        <caption class="apenas-leitor-de-tela">Acionamentos de <%= summary[:tenant].name %> nos últimos 7 e 30 dias</caption>
+        <thead>
+          <tr>
+            <th scope="col">Tipo do resultado</th>
+            <% summary[:contacts].each do |window| %>
+              <th scope="col" data-numerico>Acionamentos em <%= window[:days] %> dias</th><th scope="col" data-numerico>Clientes em <%= window[:days] %> dias</th>
+            <% end %>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row">Total</th>
+            <% summary[:contacts].each do |window| %><td data-numerico><%= number_br(window[:total][:attempts]) %></td><td data-numerico><%= number_br(window[:total][:customers]) %></td><% end %>
+          </tr>
+          <% ContactResult::KINDS.each_key do |kind| %>
+            <tr>
+              <th scope="row"><%= t("contacts.kinds.#{kind}") %></th>
+              <% summary[:contacts].each do |window| %><td data-numerico><%= number_br(window[:kinds][kind][:attempts]) %></td><td data-numerico><%= number_br(window[:kinds][kind][:customers]) %></td><% end %>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
   <div class="duas-colunas">
     <% [ [ "Por cliente", "Cada cliente na faixa do título mais atrasado, com todo o seu vencido.", summary[:by_customer], "Clientes" ],
          [ "Por título", "Cada título vencido na faixa do próprio atraso.", summary[:by_bill], "Títulos" ] ].each do |title, help, rows, unit| %>
