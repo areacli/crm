@@ -1,0 +1,45 @@
+<%# Promessas abertas e pendentes (10, R203, P17): uma linha por promessa sob o resumo, sem cartão, com o selo da situação, o número, os títulos, o valor, o meio, a
+    data prometida e o pago. As ações ficam no fim da linha: "Aprovar promessa" e, recolhidas, "Recusar promessa" e "Cancelar promessa", que pedem motivo.
+    Refeita a cada evento do WebSocket. Locais: customer, promises. %>
+<div id="promessas" hx-get="<%= customer_promises_path(customer) %>" hx-trigger="cable:promises-changed from:body" hx-swap="outerHTML" hx-target="this">
+  <% if promises.any? %>
+    <h2 class="apenas-leitor-de-tela">Promessas</h2>
+    <ul class="promessas">
+      <% promises.each do |promise| %>
+        <li>
+          <%= promise_state(promise) %>
+          <span class="detalhe">
+            <strong><%= promise.label %></strong>
+            <%= promise_bill_numbers(promise) %>, <%= money(promise.total_cents) %> por <%= t("payments.methods.#{promise.payment_method}") %> até <%= date_br(promise.promised_on) %>.
+            Pago <%= money(promise.paid_cents) %>.
+            Feita por <%= promise.customer.id == customer.id ? "este cliente" : promise.customer.name %><% if promise.contract.code.present? %>, contrato <%= promise.contract.label %><% end %>.
+          </span>
+          <% policy = PaymentPromisePolicy.new(Current.user, promise) %>
+          <div class="acoes">
+            <% if policy.approve? %>
+              <%= button_to "Aprovar promessa", promise_approval_path(promise), form: { "hx-boost": "false" }, data: { variant: "secondary", size: "small" } %>
+            <% end %>
+          </div>
+          <% if policy.approve? %>
+            <details>
+              <summary>Recusar promessa</summary>
+              <%= form_with scope: :promise, url: promise_refusal_path(promise), html: { "hx-boost": "false" } do |form| %>
+                <div class="campo"><%= form.label :reason, "Motivo da recusa", for: "recusa-#{promise.id}" %><%= form.text_field :reason, id: "recusa-#{promise.id}", required: true, maxlength: 300 %></div>
+                <div class="acoes"><button type="submit" data-variant="danger-outline" data-size="small">Recusar promessa</button></div>
+              <% end %>
+            </details>
+          <% end %>
+          <% if policy.cancel? %>
+            <details>
+              <summary>Cancelar promessa</summary>
+              <%= form_with scope: :promise, url: promise_cancellation_path(promise), html: { "hx-boost": "false" } do |form| %>
+                <div class="campo"><%= form.label :reason, "Motivo do cancelamento", for: "cancelamento-#{promise.id}" %><%= form.text_field :reason, id: "cancelamento-#{promise.id}", required: true, maxlength: 300 %></div>
+                <div class="acoes"><button type="submit" data-variant="danger-outline" data-size="small">Cancelar promessa</button></div>
+              <% end %>
+            </details>
+          <% end %>
+        </li>
+      <% end %>
+    </ul>
+  <% end %>
+</div>

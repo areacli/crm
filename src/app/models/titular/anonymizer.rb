@@ -74,6 +74,8 @@ module Titular
       Sql.execute("update bills set description = null where customer_id in #{targets} and description is not null")
       Sql.execute("update payments set document = ap.new_document from anon_payments ap where payments.id = ap.id")
       Sql.run("update payment_reversals set reason = ? where reason is not null and payment_id in (select id from anon_payments)", REMOVED)
+      # 10, R132: o motivo de cancelamento e de recusa das promessas feitas pelo cliente é texto livre e sai também.
+      Sql.run("update payment_promises set reason = ? where reason is not null and customer_id in #{targets}", REMOVED)
       Sql.run("update value_discrepancies set note = ? where note is not null and bill_id in (select id from bills where customer_id in #{targets})", REMOVED)
       Sql.run("update credits set note = ? where reason = 'transfer' and note is not null and contract_id in " \
               "(select cc.contract_id from contract_customers cc where cc.customer_id in #{targets})", REMOVED)
@@ -102,6 +104,7 @@ module Titular
         Sql.execute("update changes set #{sets} where subject_type = 'customer' and subject_id in #{targets} and event <> 'anonymized'")
         Sql.execute("update changes set #{sets} where subject_type = 'customer_contact' and subject_id in (select id from customer_contacts where customer_id in #{targets})")
         Sql.execute("update changes set #{sets} where subject_type = 'contact_attempt' and subject_id in (select id from contact_attempts where customer_id in #{targets})")
+        Sql.execute("update changes set #{sets} where subject_type = 'payment_promise' and subject_id in (select id from payment_promises where customer_id in #{targets})")
         Sql.execute("update changes set #{sets} where subject_type = 'bill' and field = 'description' and subject_id in (select id from bills where customer_id in #{targets})")
       end
 

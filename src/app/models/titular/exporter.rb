@@ -9,7 +9,7 @@ module Titular
         credor: @customer.tenant.display_name, exportado_em: Time.current.iso8601, anonimizado: @customer.anonymized?,
         cliente: { nome: @customer.name, documento: (@customer.anonymized? ? nil : @customer.formatted_document), anonimizado_em: @customer.anonymized_at&.iso8601 },
         contatos: contacts, contratos: contracts, titulos: bills, pagamentos: payments, estornos: reversals, creditos: credits,
-        divergencias_de_valor: discrepancies, acionamentos: attempts, historico: history
+        divergencias_de_valor: discrepancies, promessas: promises, acionamentos: attempts, historico: history
       }
     end
 
@@ -69,6 +69,14 @@ module Titular
       def discrepancies
         ValueDiscrepancy.where(bill_id: bill_scope.select(:id)).includes(:bill).order(:id).map do |d|
           { titulo: d.bill.number, valor_anterior_centavos: d.previous_cents, valor_informado_centavos: d.reported_cents, efeito: d.effect, situacao: d.status, nota: d.note }
+        end
+      end
+
+      # As promessas feitas pelo cliente (10), com o motivo de cancelamento ou recusa, que é texto livre.
+      def promises
+        @customer.payment_promises.includes(:contract, promise_bills: :bill).order(:created_at, :id).map do |p|
+          { numero: p.number, situacao: p.state, contrato: p.contract.code, titulos: p.promise_bills.map { |row| row.bill.number }, valor_centavos: p.total_cents, pago_centavos: p.paid_cents,
+            meio: p.payment_method, data_prometida: p.promised_on.iso8601, motivo: p.reason }
         end
       end
 

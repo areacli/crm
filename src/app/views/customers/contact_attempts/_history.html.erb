@@ -25,6 +25,10 @@
               <td><%= t("contacts.channels.#{attempt.channel}") %><% if attempt.contact_used.present? %><small><%= attempt.contact_used %></small><% end %></td>
               <td>
                 <%= attempt.result.name %><small><%= t("contacts.kinds.#{attempt.result_kind}") %></small>
+                <% if (promise = attempt.promise) %>
+                  <small>Promessa <%= promise.label %>, <%= money(promise.total_cents) %> por <%= t("payments.methods.#{promise.payment_method}") %> até <%= date_br(promise.promised_on) %>:
+                    <%= promise_state(promise) %><% if promise.reason.present? %> — <%= promise.reason %><% end %></small>
+                <% end %>
               </td>
               <td><%= attempt.return_at ? datetime_br(attempt.return_at) : "—" %></td>
               <td><%= attempt.user&.name || "—" %><small>lançado em <%= datetime_br(attempt.created_at) %></small></td>

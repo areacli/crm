@@ -10,6 +10,8 @@ class ContactAttempt < ApplicationRecord
   belongs_to :contract, optional: true
   belongs_to :user, optional: true
   belongs_to :result, class_name: "ContactResult"
+  # A promessa que nasceu deste acionamento, se houve (10, R203).
+  has_one :promise, class_name: "PaymentPromise", dependent: :restrict_with_error
 
   enum :channel, CHANNELS.index_with(&:itself), prefix: :via, validate: true
   # Cópia do tipo do resultado no momento do registro (o tipo nunca muda, R66).
@@ -19,7 +21,7 @@ class ContactAttempt < ApplicationRecord
 
   # Histórico da ficha (R74): do contato mais recente ao mais antigo, 20 por vez. Consulta: `contact_attempts (customer_id, contacted_at)`.
   def self.history_for(customer, page:)
-    Pagination.new(where(customer_id: customer.id).includes(:result, :user, :contract).recent, page: page, per_page: 20)
+    Pagination.new(where(customer_id: customer.id).includes(:result, :user, :contract, :promise).recent, page: page, per_page: 20)
   end
 
   after_commit :announce_change, on: :create

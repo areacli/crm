@@ -1,0 +1,46 @@
+<%# Promessas pendentes que o usuário pode aprovar (R192, R204). Refeita a cada evento do WebSocket (cable:promises-changed). %>
+<div id="resultado" hx-get="<%= pending_promises_path(tenant: params[:tenant].presence) %>" hx-trigger="cable:promises-changed from:body" hx-swap="outerHTML" hx-target="this">
+  <% if @promises.empty? %>
+    <p class="vazio">Nenhuma promessa pendente para você aprovar.</p>
+  <% else %>
+    <div class="tabela">
+      <table>
+        <caption class="apenas-leitor-de-tela">Promessas pendentes de aprovação</caption>
+        <thead>
+          <tr>
+            <% if @several_tenants %><th scope="col">Credor</th><% end %>
+            <th scope="col">Cliente que prometeu</th><th scope="col">Contrato</th><th scope="col">Títulos</th><th scope="col" data-numerico>Valor</th>
+            <th scope="col">Meio</th><th scope="col">Data prometida</th><th scope="col" data-numerico>Prazo pedido</th><th scope="col">Registrada por</th><th scope="col">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @promises.each do |promise| %>
+            <tr>
+              <% if @several_tenants %><td><%= promise.tenant.name %></td><% end %>
+              <th scope="row"><%= link_to promise.customer.name, customer_path(promise.customer, anchor: "promessas") %></th>
+              <td><%= promise.contract.label %></td>
+              <td><%= promise_bill_numbers(promise) %></td>
+              <td data-numerico><%= money(promise.total_cents) %></td>
+              <td><%= t("payments.methods.#{promise.payment_method}") %></td>
+              <td><%= date_br(promise.promised_on) %></td>
+              <td data-numerico><%= number_br(promise.days_asked) %> dias</td>
+              <td><%= promise.user&.name || "—" %></td>
+              <td>
+                <div class="acoes">
+                  <%= button_to "Aprovar promessa", promise_approval_path(promise), form: { "hx-boost": "false" }, data: { variant: "secondary", size: "small" }, "aria-label": "Aprovar promessa de #{promise.customer.name}" %>
+                </div>
+                <details>
+                  <summary>Recusar promessa</summary>
+                  <%= form_with scope: :promise, url: promise_refusal_path(promise), html: { "hx-boost": "false" } do |form| %>
+                    <div class="campo"><%= form.label :reason, "Motivo da recusa", for: "recusa-#{promise.id}" %><%= form.text_field :reason, id: "recusa-#{promise.id}", required: true, maxlength: 300 %></div>
+                    <div class="acoes"><button type="submit" data-variant="danger-outline" data-size="small" aria-label="Recusar promessa de <%= promise.customer.name %>">Recusar promessa</button></div>
+                  <% end %>
+                </details>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
+</div>

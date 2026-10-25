@@ -2,6 +2,10 @@
 class Profile < ApplicationRecord
   belongs_to :tenant
   has_many :memberships, dependent: :restrict_with_error
+  has_many :promise_limits, dependent: :delete_all
+
+  # A alçada do perfil em cada segmento nasce no mesmo ato em que o perfil nasce (10, R190).
+  after_create { PromiseLimit.create_for_profile(self) }
 
   validates :name, presence: true, uniqueness: { scope: :tenant_id }
   validate :permissions_are_known

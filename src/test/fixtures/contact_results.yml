@@ -1,7 +1,7 @@
 <%# A lista inicial (R68) para os dois credores dos testes, na ordem da especificação; o nome da fixture é "<credor>_<chave>". %>
-<% keys = %w[call_back negotiating says_paid contests refused third_party_message third_party_unknown no_answer voicemail message_unanswered wrong_number] %>
+<% keys = %w[call_back negotiating promised says_paid contests refused third_party_message third_party_unknown no_answer voicemail message_unanswered wrong_number] %>
 <% %w[alfa beta].each do |tenant| %>
-<% Contacts::InitialResults::LIST.each_with_index do |(name, kind, rule), index| %>
+<% Contacts::InitialResults::LIST.each_with_index do |(name, kind, rule, _invalidates, promise), index| %>
 <%= tenant %>_<%= keys[index] %>:
   tenant: <%= tenant %>
   name: <%= name %>
@@ -10,5 +10,6 @@
   return_rule: <%= rule %>
   position: <%= index + 1 %>
   invalidates_contact: <%= name == "Número ou endereço inexistente" %>
+  allows_promise: <%= promise == true %>
 <% end %>
 <% end %>

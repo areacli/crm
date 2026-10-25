@@ -1,0 +1,17 @@
+# Alçada dos perfis dos testes no segmento "Demais" (10, R190): fixtures não rodam os gatilhos que criam a alçada junto do segmento e do perfil.
+alfa_manager_demais:
+  segment: alfa_catch_all
+  profile: alfa_manager
+  max_days: 30
+alfa_operator_demais:
+  segment: alfa_catch_all
+  profile: alfa_operator
+  max_days: 30
+beta_manager_demais:
+  segment: beta_catch_all
+  profile: beta_manager
+  max_days: 30
+beta_operator_demais:
+  segment: beta_catch_all
+  profile: beta_operator
+  max_days: 30

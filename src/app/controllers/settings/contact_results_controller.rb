@@ -20,11 +20,11 @@ module Settings
 
     def create
       @tenants = manageable_tenants.to_a
-      attributes = params.expect(contact_result: %i[tenant_id name kind return_rule invalidates_contact])
+      attributes = params.expect(contact_result: %i[tenant_id name kind return_rule invalidates_contact allows_promise])
       tenant = @tenants.find { |candidate| candidate.id.to_s == attributes[:tenant_id].to_s } or return head(:not_found)
       authorize ContactResult.new(tenant: tenant)
       @result = manager.create(tenant: tenant, name: attributes[:name], kind: attributes[:kind], return_rule: attributes[:return_rule],
-                              invalidates_contact: attributes[:invalidates_contact] == "1")
+                              invalidates_contact: attributes[:invalidates_contact] == "1", allows_promise: attributes[:allows_promise] == "1")
       redirect_to settings_contact_results_path, notice: t(".done", name: @result.name), status: :see_other
     rescue ActiveRecord::RecordInvalid => error
       @result = error.record
@@ -35,8 +35,9 @@ module Settings
     end
 
     def update
-      attributes = params.expect(contact_result: %i[name return_rule invalidates_contact])
-      manager.update(@result, name: attributes[:name], return_rule: attributes[:return_rule], invalidates_contact: attributes[:invalidates_contact] == "1")
+      attributes = params.expect(contact_result: %i[name return_rule invalidates_contact allows_promise])
+      manager.update(@result, name: attributes[:name], return_rule: attributes[:return_rule], invalidates_contact: attributes[:invalidates_contact] == "1",
+                     allows_promise: attributes[:allows_promise] == "1")
       redirect_to settings_contact_results_path, notice: t(".done", name: @result.name), status: :see_other
     rescue ActiveRecord::RecordInvalid => error
       @result = error.record

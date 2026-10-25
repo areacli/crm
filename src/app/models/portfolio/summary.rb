@@ -38,7 +38,7 @@ module Portfolio
       updated = valuations(tenant, brackets)
       { tenant: tenant, updated: updated, customers: totals["customers"].to_i, customers_overdue: totals["customers_overdue"].to_i, bills: totals["bills"].to_i,
         overdue_cents: totals["overdue_cents"].to_i, upcoming_cents: totals["upcoming_cents"].to_i, upcoming_display: tenant.setting.upcoming_display,
-        labels: brackets.labels, by_customer: distribution(brackets, by_customer, updated[:by_customer]), by_bill: distribution(brackets, by_bill, updated[:by_bill]) }.merge(payments(tenant)).merge(contacts: contacts(tenant))
+        labels: brackets.labels, by_customer: distribution(brackets, by_customer, updated[:by_customer]), by_bill: distribution(brackets, by_bill, updated[:by_bill]) }.merge(payments(tenant)).merge(contacts: contacts(tenant), promises: promises(tenant))
     end
 
     private
@@ -87,6 +87,21 @@ module Portfolio
           pick = ->(row) { { attempts: row["attempts#{suffix}"].to_i, customers: row["customers#{suffix}"].to_i } }
           { days: days, total: pick.call(rows.find { |row| row["result_kind"].nil? } || {}),
             kinds: ContactResult::KINDS.keys.index_with { |kind| pick.call(rows.find { |row| row["result_kind"] == kind.to_s } || {}) } }
+        end
+      end
+
+      # Promessas dos últimos 7 e 30 dias (10, R205, DP4): clientes que prometeram e promessas feitas, pela data do registro, e as encerradas no período (cumpridas,
+      # cumpridas com atraso à parte, e quebradas); canceladas, recusadas e não aprovadas ficam fora. Um cartão por credor, sem somar entre credores.
+      # Consultas: `payment_promises (tenant_id, created_at)` e `(tenant_id, closed_at)`.
+      def promises(tenant)
+        [ 7, 30 ].map do |days|
+          since = Time.current - days.days
+          made = Sql.one("select count(*) as promises, count(distinct customer_id) as customers from payment_promises where tenant_id = ? and created_at >= ?", tenant.id, since)
+          closed = Sql.one(<<~SQL, tenant.id, since)
+            select count(*) filter (where state = 'fulfilled') as fulfilled, count(*) filter (where state = 'fulfilled_late') as late, count(*) filter (where state = 'broken') as broken
+            from payment_promises where tenant_id = ? and closed_at >= ? and state in ('fulfilled', 'fulfilled_late', 'broken')
+          SQL
+          { days: days, promises: made["promises"].to_i, customers: made["customers"].to_i, fulfilled: closed["fulfilled"].to_i, late: closed["late"].to_i, broken: closed["broken"].to_i }
         end
       end
 

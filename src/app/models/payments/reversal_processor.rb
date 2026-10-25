@@ -17,11 +17,12 @@ module Payments
         create temporary table reversal_stream on commit drop as
         select row_number() over (order by r.paid_on, r.line) as n, r.line, r.identifier, r.paid_on as reversed_on, r.amount_cents, r.reason,
                p.id as payment_id, p.channel_id, p.status as payment_status, p.amount_cents as payment_amount, p.applied_cents, p.credit_cents,
-               p.reversed_cents, p.credit_reversed_cents, p.bill_id, b.contract_id, b.amount_cents as bill_amount, b.paid_cents, b.paid_on as bill_paid_on, b.status as bill_status, b.withdrawn_at
+               p.reversed_cents, p.credit_reversed_cents, p.bill_id, p.promise_id, p.promise_counted, coalesce(b.contract_id, pr.contract_id) as contract_id, b.amount_cents as bill_amount, b.paid_cents, b.paid_on as bill_paid_on, b.status as bill_status, b.withdrawn_at
         from payment_rows r
         join payment_channels ch on ch.tenant_id = ? and ch.code = r.channel_code
         join payments p on p.tenant_id = ? and p.channel_id = ch.id and p.identifier = r.payment_identifier
         left join bills b on b.id = p.bill_id
+        left join payment_promises pr on pr.id = p.promise_id
         where r.import_id = ? and r.ok
       SQL
       Sql.connection.execute("create unique index on reversal_stream (n)")
@@ -31,6 +32,11 @@ module Payments
       payments = {}
       bills = {}
       parts = {} # por pagamento: o que ele ainda tem alocado em cada componente (09, R226); sem alocação, tudo é principal
+      promise_parts = {} # por pagamento de promessa: o que ainda tem alocado em cada título e componente, na ordem da alocação (10, R199)
+      promise_undo = {} # por promessa: o que o estorno tirou do que contava para ela, por título e componente
+      touched_bill_ids = Set.new
+      touched_promises = Set.new
+      bill_meta = {}
       (1..total).step(CHUNK) do |from|
         rows = Sql.rows("select * from reversal_stream where n between ? and ? order by n", from, from + CHUNK - 1)
         reversals = []
@@ -39,7 +45,8 @@ module Payments
         touched_payments = {}
         touched_bills = {}
         allocations = []
-        load_parts(rows.map { |row| row["payment_id"].to_i }.uniq - parts.keys, parts)
+        load_parts(rows.reject { |row| row["promise_id"] && row["bill_id"].nil? }.map { |row| row["payment_id"].to_i }.uniq - parts.keys, parts)
+        load_promise_parts(rows.select { |row| row["promise_id"] && row["bill_id"].nil? }.map { |row| row["payment_id"].to_i }.uniq - promise_parts.keys, promise_parts)
 
         rows.each do |row|
           payment_id = row["payment_id"].to_i
@@ -49,9 +56,40 @@ module Payments
           from_credit = 0
           from_bill = 0
 
-          if row["bill_id"].nil?
+          promise_payment = row["promise_id"] && row["bill_id"].nil?
+          if row["bill_id"].nil? && !promise_payment
             # Pagamento pendente estornado deixa de ser pendente pelo valor estornado (R62).
             summary[:pending_reduced] += 1
+          elsif promise_payment
+            # 10, R199: pagamento de promessa; o estorno desfaz a alocação nos títulos dela, o último alocado primeiro, e a promessa é reavaliada depois.
+            from_credit = [ amount, row["credit_cents"].to_i - payment[:credit_reversed] ].min
+            from_bill = amount - from_credit
+            payment[:credit_reversed] += from_credit
+            if from_credit.positive?
+              summary[:credit_reduced] += 1
+              summary[:from_credit_cents] += from_credit
+              credits << { tenant_id: tenant_id, contract_id: row["contract_id"].to_i, payment_id: payment_id, user_id: import.user_id, kind: "reversal",
+                           amount_cents: -from_credit, reason: "reversed", occurred_at: Time.current }
+            end
+            if from_bill.positive?
+              summary[:from_bill_cents] += from_bill
+              promise_id = row["promise_id"].to_i
+              touched_promises << promise_id
+              promise_take(promise_parts[payment_id], from_bill).each do |bill_id, component, cents|
+                allocations << { payment_id: payment_id, bill_id: bill_id, component: component, cents: -cents }
+                bill = bills[bill_id] ||= load_bill(bill_id, bill_meta)
+                bill[:paid] -= cents if component == "principal"
+                if bill[:status] == "paid" && bill[:paid] < bill_meta.fetch(bill_id)[:amount]
+                  bill[:status] = bill_meta[bill_id][:withdrawn_at].present? && setting.withdrawn_reversal_policy_withdrawn? ? "withdrawn" : "active"
+                  bill[:paid_on] = nil
+                  summary[:reopened] += 1
+                end
+                touched_bills[bill_id] = true
+                touched_bill_ids << bill_id
+                changes << { subject_type: "bill", subject_id: bill_id, event: "payment_reversed", after: bill[:paid].to_s }
+                ((promise_undo[promise_id] ||= {})[bill_id] ||= Hash.new(0))[component] += cents if row["promise_counted"] == true || row["promise_counted"] == "t"
+              end
+            end
           else
             from_credit = [ amount, row["credit_cents"].to_i - payment[:credit_reversed] ].min
             from_bill = amount - from_credit
@@ -68,6 +106,12 @@ module Payments
               # R226: o estorno desfaz a alocação na ordem inversa da baixa (principal, correção, honorários, multa, juros); só o principal mexe no saldo.
               taken = take(parts[payment_id], from_bill)
               taken.each { |component, cents| allocations << { payment_id: payment_id, bill_id: bill_id, component: component, cents: -cents } }
+              # DP1: o pagamento direto que contou para uma promessa deixa de contar pelo que o estorno tirou.
+              if row["promise_id"] && (row["promise_counted"] == true || row["promise_counted"] == "t")
+                touched_promises << row["promise_id"].to_i
+                taken.each { |component, cents| ((promise_undo[row["promise_id"].to_i] ||= {})[bill_id] ||= Hash.new(0))[component] += cents }
+              end
+              touched_bill_ids << bill_id
               bill[:paid] -= taken.fetch("principal", 0)
               summary[:from_bill_cents] += from_bill
               # R92: o estorno consome primeiro o excedente (valor reduzido abaixo do alocado); o título só volta à cobrança se o saldo reabre.
@@ -83,13 +127,19 @@ module Payments
           end
 
           payment[:reversed] += amount
-          payment[:status] = "cancelled" if row["bill_id"].nil? && payment[:reversed] >= row["payment_amount"].to_i
+          payment[:status] = "cancelled" if row["bill_id"].nil? && row["promise_id"].nil? && payment[:reversed] >= row["payment_amount"].to_i
           touched_payments[payment_id] = true
           reversals << { tenant_id: tenant_id, channel_id: row["channel_id"].to_i, payment_id: payment_id, import_id: import.id, identifier: row["identifier"],
                          reversed_on: row["reversed_on"], amount_cents: amount, from_credit_cents: from_credit, from_bill_cents: from_bill, reason: row["reason"] }
         end
 
         write(import, reversals, credits, changes, payments.slice(*touched_payments.keys), bills.slice(*touched_bills.keys), allocations) if commit
+      end
+      if commit && (touched_promises.any? || touched_bill_ids.any?)
+        undo_promise_counts(promise_undo)
+        # R199: a promessa cumprida cujo pagamento foi estornado reabre no prazo, ou quebra.
+        evaluator = Promises::Evaluator.new(tenant_id)
+        evaluator.reassess((touched_promises.to_a + Promises::Evaluator.promises_of_bills(touched_bill_ids.to_a, states: %w[fulfilled fulfilled_late])).uniq)
       end
       summary.to_h.symbolize_keys
     end
@@ -104,6 +154,54 @@ module Payments
         payment_ids.each { |id| parts[id] = nil }
         Sql.rows("select payment_id, component, sum(amount_cents)::bigint as cents from payment_allocations where payment_id in (?) group by 1, 2", payment_ids).each do |row|
           (parts[row["payment_id"].to_i] ||= {})[row["component"]] = row["cents"].to_i
+        end
+      end
+
+      # Alocação que cada pagamento de promessa ainda tem em cada título e componente; a ordem dos títulos é a da alocação (10, R199).
+      def load_promise_parts(payment_ids, promise_parts)
+        return if payment_ids.empty?
+
+        payment_ids.each { |id| promise_parts[id] = [] }
+        Sql.rows("select payment_id, bill_id, component, sum(amount_cents)::bigint as cents, min(id) as first_id from payment_allocations where payment_id in (?) group by 1, 2, 3 order by 1, 5",
+                 payment_ids).each do |row|
+          promise_parts[row["payment_id"].to_i] << { bill_id: row["bill_id"].to_i, component: row["component"], cents: row["cents"].to_i, first_id: row["first_id"].to_i }
+        end
+      end
+
+      # Desfaz `amount` do pagamento de promessa: o último título alocado primeiro e, em cada um, o último componente primeiro. Devolve [título, componente, centavos].
+      def promise_take(entries, amount)
+        taken = []
+        entries.sort_by { |entry| [ -entry[:first_id].to_i ] }.group_by { |entry| entry[:bill_id] }.each_value do |bill_entries|
+          REMOVAL_ORDER.each do |component|
+            entry = bill_entries.find { |item| item[:component] == component } or next
+            part = [ amount, entry[:cents] ].min
+            next unless part.positive?
+
+            entry[:cents] -= part
+            amount -= part
+            taken << [ entry[:bill_id], component, part ]
+          end
+          break if amount <= 0
+        end
+        taken
+      end
+
+      def load_bill(bill_id, meta)
+        row = Sql.one("select amount_cents, paid_cents, status, paid_on, withdrawn_at from bills where id = ?", bill_id)
+        meta[bill_id] = { amount: row["amount_cents"].to_i, withdrawn_at: row["withdrawn_at"] }
+        { paid: row["paid_cents"].to_i, status: row["status"], paid_on: row["paid_on"] }
+      end
+
+      # O que o estorno tirou do que contava para a promessa sai do valor alocado dela (por título e componente) e do total pago (10, R199).
+      def undo_promise_counts(undo)
+        undo.each do |promise_id, by_bill|
+          by_bill.each do |bill_id, components|
+            paid = Sql.one("select id, paid from payment_promise_bills where promise_id = ? and bill_id = ?", promise_id, bill_id) or next
+            current = paid["paid"].is_a?(String) ? JSON.parse(paid["paid"]) : paid["paid"]
+            components.each { |component, cents| current[component] = [ current.fetch(component, 0) - cents, 0 ].max }
+            Sql.run("update payment_promise_bills set paid = ?::jsonb where id = ?", current.to_json, paid["id"].to_i)
+          end
+          Sql.run("update payment_promises set paid_cents = greatest(paid_cents - ?, 0), updated_at = now() where id = ?", by_bill.values.sum { |components| components.values.sum }, promise_id)
         end
       end
 

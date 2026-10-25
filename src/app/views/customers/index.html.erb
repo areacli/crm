@@ -31,6 +31,13 @@
     </select>
   </div>
   <div class="campo">
+    <label for="promise">Promessa</label>
+    <select id="promise" name="promise">
+      <option value="">Todas</option>
+      <%= options_for_select([ [ "Aberta", "open" ], [ "Pendente de aprovação", "pending" ], [ "Quebrada nos últimos 30 dias", "broken" ], [ "Sem promessa", "none" ] ], params[:promise]) %>
+    </select>
+  </div>
+  <div class="campo">
     <label for="per_page">Por página</label>
     <select id="per_page" name="per_page"><%= options_for_select(Pagination::PER_PAGE_OPTIONS, @pagination.per_page) %></select>
   </div>

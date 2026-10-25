@@ -18,3 +18,7 @@
   <label><%= form.check_box :invalidates_contact, { checked: result.invalidates_contact }, "1", "0" %> Invalida o contato</label>
   <small>Ao registrar um acionamento com este resultado, o contato usado, se estiver cadastrado, passa a inválido (não existe, não é do cliente).</small>
 </div>
+<div class="campo">
+  <label><%= form.check_box :allows_promise, { checked: result.allows_promise }, "1", "0" %> Admite promessa</label>
+  <small>Só nos resultados do tipo "falou com o cliente". Com a marca, o formulário do acionamento oferece "Registrar promessa" (títulos, meio de pagamento e data prometida).</small>
+</div>

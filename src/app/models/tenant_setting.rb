@@ -40,6 +40,18 @@ class TenantSetting < ApplicationRecord
   # A política "comparação dos acréscimos" não muda valores: grava sem mudar o valor atualizado (R182); as outras passam pela conferência.
   CHARGE_FIELDS = (CHARGE_PARAMS + CHARGE_POLICIES).freeze
 
+  # Políticas das promessas (10, tabela "Políticas do credor e do segmento"; permissão 14). `promise_min_paid_pct` vazio é "sem tolerância" (DP-T).
+  PROMISE_COUNTING = %w[promise_only also_direct].freeze
+  PROMISE_AFTER_BREAK = %w[fulfilled stays_broken].freeze
+  PROMISE_PARTIAL = %w[prevails r46].freeze
+  PROMISE_POLICIES = %w[promise_tolerance_days promise_counting promise_min_paid_pct promise_after_break promise_grace_days promise_partial].freeze
+  validates :promise_counting, inclusion: { in: PROMISE_COUNTING }
+  validates :promise_after_break, inclusion: { in: PROMISE_AFTER_BREAK }
+  validates :promise_partial, inclusion: { in: PROMISE_PARTIAL }
+  validates :promise_tolerance_days, numericality: { only_integer: true, greater_than_or_equal_to: 0, less_than_or_equal_to: 60 }
+  validates :promise_grace_days, numericality: { only_integer: true, greater_than_or_equal_to: 0, less_than_or_equal_to: 365 }
+  validates :promise_min_paid_pct, numericality: { only_integer: true, greater_than_or_equal_to: 1, less_than_or_equal_to: 99 }, allow_nil: true
+
   PAYMENT_POLICIES = %w[partial_payment_policy withdrawn_payment_policy withdrawn_reversal_policy reversal_month_policy].freeze
 
   # Faixas iniciais de atraso, em dias: de 1 a 30, de 31 a 60, de 61 a 90, de 91 a 180, de 181 a 360 e mais de 360.

@@ -7,6 +7,7 @@ class Customer < ApplicationRecord
   has_many :contracts, through: :contract_customers
   has_many :bills, dependent: :restrict_with_error
   has_many :contact_attempts, dependent: :restrict_with_error
+  has_many :payment_promises, dependent: :restrict_with_error
   has_many :contacts, class_name: "CustomerContact", dependent: :destroy
   belongs_to :retained_by, class_name: "User", optional: true
 

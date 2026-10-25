@@ -9,6 +9,7 @@ require_relative "support/registry_test_helper"
 require_relative "support/titular_helper"
 require_relative "support/segments_test_helper"
 require_relative "support/charges_test_helper"
+require_relative "support/promises_test_helper"
 require_relative "test_helpers/session_test_helper"
 
 module ActiveSupport
@@ -27,6 +28,7 @@ module ActiveSupport
     include TitularHelper
     include SegmentsTestHelper
     include ChargesTestHelper
+    include PromisesTestHelper
 
     # O limite de entradas por IP (`rate_limit`) conta no cache em memória do processo: cada teste começa sem a contagem dos outros.
     setup { Rails.cache.clear }

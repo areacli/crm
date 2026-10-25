@@ -1,0 +1,78 @@
+<%# Registrar promessa (10, R183 a R186, R189 a R191): só aparece quando o resultado admite promessa (R184). Os títulos são de um contrato só (R183b);
+    o valor de cada um na data prometida aparece antes de gravar, sem campo de isenção nem de desconto. Locais: form, oob. %>
+<% wrapper = { id: "promessa-do-acionamento" }.merge(local_assigns[:oob] ? { "hx-swap-oob": "true" } : {}) %>
+<% fields = "#bloco-promessa input, #bloco-promessa select" %>
+<%= tag.div(**wrapper) do %>
+  <% if form.promise_offered? %>
+    <% contract = form.promise_contract %>
+    <fieldset id="bloco-promessa" aria-describedby="ajuda-promessa"
+              hx-get="<%= new_customer_contact_attempt_path(form.customer) %>" hx-trigger="change" hx-swap="none"
+              hx-include="[name='contact_attempt[channel]'], [name='contact_attempt[result_id]'], [name='contact_attempt[contract_id]'], [name='contact_attempt[contacted_at]'], <%= fields %>">
+      <legend>Registrar promessa</legend>
+      <p id="ajuda-promessa"><small>O cliente promete pagar títulos de um contrato por um meio até uma data. O valor sai dos títulos, com todos os encargos até a data prometida; a promessa não concede isenção nem desconto.</small></p>
+      <div class="grupo-de-campos">
+        <div class="campo">
+          <% if form.promise_contract_locked? %>
+            <p><strong>Contrato</strong> <%= contract.label %></p>
+            <small>É o contrato do acionamento.</small>
+          <% else %>
+            <label for="contact_attempt_promise_contract_id">Contrato da promessa</label>
+            <%= select_tag "contact_attempt[promise_contract_id]", options_for_select(form.contracts.map { |item| [ item.label, item.id ] }, form.value(:promise_contract_id)), prompt: "Escolha o contrato", id: "contact_attempt_promise_contract_id" %>
+          <% end %>
+        </div>
+        <div class="campo">
+          <label for="contact_attempt_promise_payment_method">Meio de pagamento</label>
+          <%= select_tag "contact_attempt[promise_payment_method]", options_for_select(Payment.payment_methods.keys.map { |method| [ t("payments.methods.#{method}"), method ] }, form.value(:promise_payment_method)), prompt: "Escolha o meio", id: "contact_attempt_promise_payment_method" %>
+        </div>
+        <div class="campo">
+          <label for="contact_attempt_promise_on">Data prometida</label>
+          <input type="date" id="contact_attempt_promise_on" name="contact_attempt[promise_on]" value="<%= form.value(:promise_on) %>" aria-describedby="ajuda-data-prometida">
+          <% if form.promise_last_day %>
+            <small id="ajuda-data-prometida">Até <%= date_br(form.promise_last_day) %>, o prazo máximo do segmento. Até <%= form.promise_own_days %> dias depois do contato, a promessa nasce aberta; depois, aguarda aprovação.</small>
+          <% else %>
+            <small id="ajuda-data-prometida">Escolha o contrato para ver o prazo máximo.</small>
+          <% end %>
+        </div>
+      </div>
+      <% if contract %>
+        <% entries = form.promise_availability.entries %>
+        <% if entries.empty? %>
+          <p class="vazio">Este contrato não tem títulos em aberto.</p>
+        <% else %>
+          <fieldset>
+            <legend>Títulos da promessa</legend>
+            <ul class="caixas">
+            <% entries.each do |entry| %>
+              <% bill = entry.bill %>
+              <li><label>
+                <input type="checkbox" name="contact_attempt[promise_bill_ids][]" value="<%= bill.id %>" <%= "checked" if form.promise_bill_ids.include?(bill.id.to_s) && entry.blocked.nil? %> <%= "disabled" if entry.blocked %>>
+                <%= bill.number %>, vence em <%= date_br(bill.due_date) %>, saldo <%= money(bill.balance_cents) %>
+                <% if entry.blocked %><small><%= entry.blocked %></small><% end %>
+              </label></li>
+            <% end %>
+            </ul>
+          </fieldset>
+        <% end %>
+      <% end %>
+      <% quote = form.promise_quote %>
+      <% if quote %>
+        <div class="tabela">
+          <table>
+            <caption>Valor da promessa para <%= date_br(quote.promised_on) %></caption>
+            <thead><tr><th scope="col">Título</th><th scope="col" data-numerico>Principal</th><th scope="col" data-numerico>Correção</th><th scope="col" data-numerico>Multa</th><th scope="col" data-numerico>Juros</th><th scope="col" data-numerico>Honorários</th><th scope="col" data-numerico>Total</th></tr></thead>
+            <tbody>
+              <% quote.rows.each do |row| %>
+                <tr>
+                  <th scope="row"><%= row.bill.number %></th>
+                  <% %w[principal correction fine interest fees].each do |component| %><td data-numerico><%= money(row.components.fetch(component, 0)) %></td><% end %>
+                  <td data-numerico><%= money(row.total_cents) %></td>
+                </tr>
+              <% end %>
+            </tbody>
+            <tfoot><tr><th scope="row" colspan="6">Total da promessa</th><td data-numerico><%= money(quote.total_cents) %></td></tr></tfoot>
+          </table>
+        </div>
+      <% end %>
+    </fieldset>
+  <% end %>
+<% end %>

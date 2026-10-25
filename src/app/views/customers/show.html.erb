@@ -7,6 +7,8 @@
   </div>
 </header>
 
+<%= render "customers/promises/lines", customer: @customer, promises: @promises %>
+
 <%
   active = @bills.select(&:active?)
   overdue = active.select { |bill| bill.due_date < @today }
@@ -91,6 +93,7 @@
             <tr>
               <th scope="row">
                 <%= link_to bill.number, bill_path(bill) %>
+                <% if (held = @held_bills[bill.id]) %><small>Em promessa <%= held.promise.label %>.</small><% end %>
                 <% if @open_discrepancies.include?(bill.id) %><small>Divergência de valor aberta. <%= link_to "Ver histórico", bill_path(bill) %></small>
                 <% elsif @version_counts.fetch(bill.id, 1) > 1 %><small>O valor mudou <%= @version_counts[bill.id] - 1 %> vez(es). <%= link_to "Ver histórico", bill_path(bill) %></small><% end %>
               </th>
@@ -142,7 +145,7 @@
         <tbody>
           <% @payments.each do |payment| %>
             <tr>
-              <th scope="row"><%= payment.bill.number %></th>
+              <th scope="row"><%= payment.bill&.number || payment.bill_number %></th>
               <td><%= date_br(payment.paid_on) %></td>
               <td data-numerico><%= money(payment.amount_cents) %></td>
               <td data-numerico><%= money(payment.applied_cents) %></td>

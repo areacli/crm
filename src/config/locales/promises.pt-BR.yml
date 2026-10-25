@@ -1,0 +1,80 @@
+pt-BR:
+  promises:
+    states:
+      pending: "Pendente de aprovação"
+      open: "Aberta"
+      fulfilled: "Cumprida"
+      fulfilled_late: "Cumprida com atraso"
+      broken: "Quebrada"
+      canceled: "Cancelada"
+      refused: "Recusada"
+      not_approved: "Não aprovada"
+    blocked:
+      in_promise: "em promessa de %{name}"
+      grace: "em carência até %{date}"
+    refused:
+      result_not_allowed: "Este resultado não admite promessa."
+      contract_differs: "O contrato da promessa é o do acionamento."
+      contract_required: "Escolha o contrato da promessa."
+      customer_not_in_contract: "O cliente não figura neste contrato."
+      bills_required: "Escolha os títulos da promessa."
+      bill_unknown: "Título não encontrado neste credor."
+      one_contract: "A promessa é de um contrato só."
+      bill_not_open: "O título %{number} não está em aberto neste contrato."
+      bill_blocked: "O título %{number} não pode entrar na promessa: %{reason}."
+      method: "Escolha o meio de pagamento da promessa."
+      date_invalid: "Informe a data prometida."
+      date_before_contact: "A data prometida não pode ser anterior ao dia do contato."
+      date_too_far: "A data prometida vai até %{date}."
+      bill_taken: "Um dos títulos acabou de entrar em outra promessa."
+      not_pending: "A promessa não está pendente de aprovação."
+      deadline_passed: "O prazo da promessa passou; ela termina como não aprovada."
+      reason_required: "Informe o motivo da recusa."
+      reason_too_long: "O motivo tem no máximo %{max} caracteres."
+      cancel_reason_required: "Informe o motivo do cancelamento."
+      not_cancelable: "A promessa não está aberta nem pendente."
+    settings:
+      invalid_days: "O prazo máximo de %{segment} vai de 1 a 365 dias."
+      invalid_limit: "A alçada em %{segment} vai de 0 dias até o prazo máximo do segmento."
+    policies:
+      counting:
+        promise_only: "Só os pagamentos da promessa, com o número dela"
+        also_direct: "Também os pagamentos diretos aos títulos dela pelo meio combinado"
+      after_break:
+        fulfilled: "A promessa passa a cumprida, com registro"
+        stays_broken: "A promessa continua quebrada e o pagamento é comum"
+      partial:
+        prevails: "A promessa prevalece: liquida o que der, do título mais antigo ao mais novo"
+        r46: "A política de pagamento menor que o saldo vale também na promessa"
+      fields:
+        promise_tolerance_days: "Tolerância de dias"
+        promise_counting: "Pagamentos que contam"
+        promise_min_paid_pct: "Cumprida a partir de (%)"
+        promise_after_break: "Pagamento depois da quebra"
+        promise_grace_days: "Carência (dias)"
+        promise_partial: "Pagamento parcial"
+    approvals:
+      create:
+        done: "Promessa %{number} aprovada."
+    refusals:
+      create:
+        done: "Promessa recusada; os títulos ficam livres."
+    cancellations:
+      create:
+        done: "Promessa cancelada; os títulos ficam livres."
+    summary:
+      title: "Promessas"
+  settings:
+    promise_policies:
+      update:
+        done: "Políticas das promessas de %{tenant} salvas."
+    promise_limits:
+      update:
+        done: "Prazos e alçadas de %{tenant} salvos."
+  activerecord:
+    errors:
+      models:
+        contact_result:
+          attributes:
+            allows_promise:
+              only_spoke_with_customer: "só vale para resultados do tipo falou com o cliente"
