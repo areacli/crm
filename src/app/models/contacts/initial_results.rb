@@ -7,12 +7,12 @@ module Contacts
       [ "Recusou pagar", :spoke_with_customer, :allowed ], [ "Recado com terceiro", :spoke_with_third_party, :allowed ],
       [ "Terceiro não conhece o cliente", :spoke_with_third_party, :not_allowed ], [ "Não atendeu", :no_contact, :allowed ],
       [ "Caixa postal", :no_contact, :allowed ], [ "Mensagem enviada, sem resposta", :no_contact, :allowed ],
-      [ "Número ou endereço inexistente", :no_contact, :not_allowed ]
+      [ "Número ou endereço inexistente", :no_contact, :not_allowed, true ]
     ].freeze
 
     def self.create_for(tenant)
-      LIST.each_with_index do |(name, kind, rule), index|
-        tenant.contact_results.create!(name: name, kind: kind, return_rule: rule, position: index + 1)
+      LIST.each_with_index do |(name, kind, rule, invalidates), index|
+        tenant.contact_results.create!(name: name, kind: kind, return_rule: rule, position: index + 1, invalidates_contact: invalidates == true)
       end
     end
   end

@@ -26,6 +26,8 @@ module Portfolio
       def clean(import)
         Sql.run("delete from import_rows where import_id = ?", import.id)
         Sql.run("delete from import_rejections where import_id = ?", import.id)
+        Sql.run("delete from import_contacts where import_id = ?", import.id)
+        Sql.run("delete from import_warnings where import_id = ?", import.id)
       end
 
       def check(import)
@@ -34,12 +36,16 @@ module Portfolio
         total = [ File.size(import.file_path) / 90, 1 ].max
         lines = 0
         rejected = []
+        warned = []
+        tenant = import.tenant
+        tenant_keys = { "phone" => tenant.phone_key, "email" => tenant.email_key }
 
         file.each_row do |csv_row|
           lines += 1
           parsed, reason = @validator.validate(csv_row)
           if parsed
             staging.add(parsed, FoldedText.fold(parsed.name))
+            (parsed.warnings + staging.add_contacts(parsed, tenant_keys)).each { |reason| warned << { import_id: import.id, line: csv_row.line, reason: reason } }
           else
             rejected << { import_id: import.id, line: csv_row.line, reason: reason }
             # Mantém a chave do título para ele não ser retirado no batimento (R15).
@@ -53,11 +59,16 @@ module Portfolio
         staging.flush
         # Tabela recém-carregada não tem estatísticas: sem ANALYZE o planejador subestima o tamanho e escolhe plano ruim.
         Sql.connection.execute("analyze import_rows")
+        Sql.connection.execute("analyze import_contacts")
         rejected.each_slice(2000) { |chunk| ImportRejection.insert_all(chunk) }
+        warned.each_slice(2000) { |chunk| ImportWarning.insert_all(chunk) }
 
         import.update!(progress_percent: 65, progress_label: "Procurando repetições e nomes divergentes")
         reject_divergent_names(import)
         reject_duplicate_bills(import)
+        # Os contatos das linhas recusadas (nomes divergentes, título repetido) não entram: saem da preparação aqui, uma vez, e a confirmação
+        # não precisa juntar de novo com as linhas aceitas.
+        Sql.run("delete from import_contacts c using import_rows r where c.import_id = ? and r.import_id = c.import_id and r.line = c.line and not r.ok", import.id)
         import.update!(progress_percent: 80, progress_label: "Comparando com a carteira")
         summarize(import, file, lines)
       end
@@ -150,10 +161,12 @@ module Portfolio
         SQL
         roles_declared = Sql.one("select count(*) as n from import_rows where import_id = ? and ok and roles is not null", id)["n"]
 
-        policy = TenantSetting.find_by!(tenant_id: tenant_id).discrepancy_policy
+        setting = TenantSetting.find_by!(tenant_id: tenant_id)
+        policy = setting.discrepancy_policy
         reported = surcharges_reported(id)
 
-        { lines: lines, valid: ok["bills"].to_i, discrepancy_policy: policy, discrepancies: discrepancies(tenant_id, id, policy), reported_surcharges: reported, rejected: ImportRejection.where(import_id: id).count, blank_lines: file.blank_lines,
+        { lines: lines, valid: ok["bills"].to_i, discrepancy_policy: policy, correction_policy: setting.correction_policy, kept_by_tenant: kept_by_tenant(tenant_id, id),
+          contact_warnings: ImportWarning.where(import_id: id).count, contacts: Sql.one("select count(*) as n from import_contacts where import_id = ?", id)["n"].to_i, discrepancies: discrepancies(tenant_id, id, policy), reported_surcharges: reported, rejected: ImportRejection.where(import_id: id).count, blank_lines: file.blank_lines,
           ignored_columns: file.ignored_columns, customers: ok["customers"].to_i, customers_new: new_customers.to_i, amount_cents: ok["amount"].to_i,
           bills_new: existing["bills_new"].to_i, bills_updated: existing["bills_updated"].to_i, bills_unchanged: existing["bills_unchanged"].to_i,
           bills_reincluded: existing["bills_reincluded"].to_i, bills_paid_kept: existing["bills_paid_kept"].to_i, to_withdraw: withdraw,
@@ -193,6 +206,28 @@ module Portfolio
           from import_rows where import_id = ? and ok
         SQL
         row.transform_values(&:to_i)
+      end
+
+      # R118: o que a carga queria mudar em dados mantidos pelo credor (nome marcado e diferente; contato inválido ou "não perturbe" que
+      # voltaria a válido), com o total e as primeiras linhas; o efeito depende da política (`correction_policy`, guardada no resumo).
+      # Consultas: `customers (tenant_id, document)` e `customer_contacts (customer_id, kind, key)`.
+      def kept_by_tenant(tenant_id, import_id)
+        names_from = <<~SQL
+          from (select distinct on (document) document, name from import_rows where import_id = ? and ok order by document, line desc) n
+          join customers c on c.tenant_id = ? and c.document = n.document where c.name_kept and c.name is distinct from n.name
+        SQL
+        contacts_from = <<~SQL
+          from import_contacts ic
+          join customers c on c.tenant_id = ? and c.document = ic.document
+          join customer_contacts k on k.customer_id = c.id and k.kind = ic.kind and k.key = ic.key
+          where ic.import_id = ? and k.status <> 'valid' and not ic.tenant_contact
+        SQL
+        {
+          names: { count: Sql.one("select count(*) as n #{names_from}", import_id, tenant_id)["n"].to_i,
+                   items: Sql.rows("select c.name as current_name, n.name as load_name #{names_from} order by c.name limit 50", import_id, tenant_id).map(&:symbolize_keys) },
+          contacts: { count: Sql.one("select count(distinct k.id) as n #{contacts_from}", tenant_id, import_id)["n"].to_i,
+                      items: Sql.rows("select c.name as customer, k.kind, k.value, k.status #{contacts_from} group by k.id, c.name order by c.name limit 50", tenant_id, import_id).map(&:symbolize_keys) }
+        }
       end
 
       def join_lines(lines)

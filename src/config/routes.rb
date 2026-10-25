@@ -9,6 +9,11 @@ Rails.application.routes.draw do
 
   # Nomes das rotas em inglês, caminhos em português (decisão 0013).
   resources :customers, path: "clientes", only: %i[index show] do
+    # Cadastro do cliente (06): nome corrigido na tela e contatos com a situação de cada um.
+    resource :name, path: "nome", only: :update, module: :customers
+    resources :contacts, path: "contatos", controller: "customer_contacts", only: %i[create update] do
+      resource :status, path: "situacao", only: :update, controller: "customer_contacts/statuses"
+    end
     # Transferência de crédito entre contratos do mesmo credor (R55a).
     resources :credit_transfers, path: "transferencias-de-credito", only: :create, module: :customers
     # Acionamentos do cliente: histórico, campos que dependem da escolha e registro (04).
@@ -43,6 +48,7 @@ Rails.application.routes.draw do
   end
 
   namespace :settings, path: "configuracao" do
+    resource :tenant_registry, path: "dados-do-credor", only: %i[show update]
     resource :portfolio, path: "carteira", only: %i[show update]
     resources :channels, path: "canais-de-recebimento", path_names: { new: "novo", edit: "editar" }, except: :show do
       resource :webhook_secret, path: "segredo-do-webhook", only: :create, module: :channels

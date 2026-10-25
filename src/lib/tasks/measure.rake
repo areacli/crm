@@ -58,6 +58,7 @@ namespace :crm do
 
     File.delete(path) if File.exist?(path)
     Portfolio::Sql.run("delete from import_rows where import_id = ?", import.id)
+    %w[bill_value_versions reported_surcharges value_discrepancies].each { |table| Portfolio::Sql.run("delete from #{table} where tenant_id = ?", tenant.id) }
     [ Bill, Change, ContractCustomer ].each { |model| model.where(tenant_id: tenant.id).delete_all if model.column_names.include?("tenant_id") }
     ContractCustomer.where(customer_id: Customer.where(tenant_id: tenant.id)).delete_all
     Bill.where(tenant_id: tenant.id).delete_all
@@ -220,7 +221,7 @@ namespace :crm do
     end
     measure.call("resumo da carteira (inclui os acionamentos de 7 e 30 dias)") { Portfolio::Summary.new(user).per_tenant }
     measure.call("registrar um acionamento (regras, gravação e histórico)") do
-      Contacts::Recorder.new(user).record(heavy, channel: "phone", result_id: results.last.id, text: "medição do registro")
+      Contacts::Recorder.new(user).record(heavy, { channel: "phone", result_id: results.last.id, text: "medição do registro" })
     end
 
     ContactAttempt.where(tenant_id: t).delete_all
@@ -306,6 +307,101 @@ namespace :crm do
     [ first, second ].each { |path| File.delete(path) if File.exist?(path) }
     %w[value_discrepancies reported_surcharges bill_value_versions changes].each { |table| sql.run("delete from #{table} where tenant_id = ?", t) }
     sql.run("delete from import_rows where import_id in (select id from imports where tenant_id = ?)", t)
+    ContractCustomer.where(customer_id: Customer.where(tenant_id: t)).delete_all
+    [ Bill, Customer, Contract ].each { |model| model.where(tenant_id: t).delete_all }
+    Import.where(tenant_id: t).destroy_all
+    tenant.contact_results.delete_all
+    Membership.where(tenant_id: t).delete_all
+    user.destroy
+    tenant.destroy
+    puts "credor de medição apagado"
+  end
+  desc "V4 de cadastros: carga de N linhas com 3 telefones, 2 e-mails e endereço, duas vezes (a segunda com dados mantidos), ficha com 50 contatos: crm:measure_registry[linhas]"
+  task :measure_registry, %i[lines] => :environment do |_task, args|
+    abort "Recusado em produção." if Rails.env.production?
+
+    lines = (args[:lines].presence || 10_000).to_i
+    tenant = Tenant.provision!("Medição de cadastros #{Time.current.strftime('%H%M%S')}")
+    t = tenant.id
+    user = User.create!(name: "Medição", email_address: "medicao#{t}@exemplo.com.br", password: SecureRandom.base58(24))
+    Membership.create!(user: user, tenant: tenant, profile: tenant.profiles.find_by!(name: "Gestor"))
+    tenant.update!(phone: "(11) 3000-1000", legal_name: "Credor de medição")
+    ActiveJob::Base.queue_adapter = :test
+    sql = Portfolio::Sql
+
+    measure = lambda do |label, &work|
+      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      result = work.call
+      elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+      peak = (File.read("/proc/self/status")[/VmHWM:\s+(\d+)/, 1].to_i / 1024 rescue 0)
+      puts format("%-58s %8.2f s   (pico de memória %d MB)", label, elapsed, peak)
+      result
+    end
+
+    # Um título por cliente, com 3 telefones (1% com o do credor), 2 e-mails e o endereço completo: até 6 contatos por linha.
+    write_file = lambda do |path, new_phones|
+      today = Date.current
+      File.open(path, "wb") do |file|
+        file.write "documento;nome;telefone;telefone2;telefone3;email;email2;contrato;titulo;vencimento;valor;descricao;logradouro;numero;bairro;cidade;uf;cep\n"
+        lines.times do |i|
+          days = 1 + ((i * 37) % 500)
+          phones = [ "(11) 9#{(i % 100_000_000).to_s.rjust(8, '0')}", "(21) 3#{((i + 7) % 10_000_000).to_s.rjust(7, '0')}", (i % 100).zero? ? "(11) 3000-1000" : "(31) 9#{((i + 11) % 100_000_000).to_s.rjust(8, '0')}" ]
+          phones[1] = "(41) 9#{(i % 100_000_000).to_s.rjust(8, '0')}" if new_phones && (i % 20).zero?
+          file.write [ FakeData.cpf(i), FakeData.name(i), *phones, "cliente#{i}@exemplo.com.br", "outro#{i}@exemplo.com.br", "CT-#{i.to_s.rjust(7, '0')}", "NF-#{i}/1",
+                       (today - (days - 20)).strftime("%d/%m/%Y"), Money.format(5000 + ((i * 7919) % 250_000)), "Mensalidade", "Rua #{i % 900} de Teste", (i % 400) + 1, "Centro",
+                       "São Paulo", "SP", "01#{(i % 1000).to_s.rjust(3, '0')}-000" ].join(";") + "\n"
+        end
+      end
+    end
+
+    # SQL_LENTO=2 mostra os comandos que levam mais de 2 s (para achar onde o tempo vai).
+    if ENV["SQL_LENTO"]
+      ActiveSupport::Notifications.subscribe("sql.active_record") do |_name, started, finished, _id, payload|
+        puts format("    [sql %.1f s] %s", finished - started, payload[:sql].squish[0, 110]) if finished - started > (ENV["SQL_LENTO"].to_f)
+      end
+    end
+    first = Rails.root.join("tmp", "cad1-#{t}.csv").to_s
+    second = Rails.root.join("tmp", "cad2-#{t}.csv").to_s
+    write_file.call(first, false)
+    write_file.call(second, true)
+    service = Portfolio::ImportService.new
+    import = service.start(tenant: tenant, user: user, file: first, mode: :incremental)
+    measure.call("1ª carga: conferência de #{lines} linhas (até 6 contatos)") { import.checker.run(import) }
+    puts "  avisos: #{import.reload.summary['contact_warnings']}; contatos lidos: #{import.summary['contacts']}"
+    measure.call("1ª carga: confirmação de #{lines} linhas") { import.confirmer.run(import) }
+    puts "  situação: #{import.reload.status}; contatos: #{CustomerContact.where(tenant_id: t).count}; inválidos (do credor): #{CustomerContact.where(tenant_id: t, status: 'invalid').count}"
+
+    # Antes da 2ª carga: 10% dos clientes com nome corrigido na tela e um contato em "não perturbe" que a carga traz de novo.
+    sql.run("update customers set name = name || ' Souza', name_kept = true where tenant_id = ? and id % 10 = 0", t)
+    sql.run("update customer_contacts set status = 'do_not_disturb', do_not_disturb_on = current_date, kept_by_tenant = true where tenant_id = ? and kind = 'phone' and customer_id % 10 = 0 and key like '11%'", t)
+    sql.connection.execute("analyze customers")
+    sql.connection.execute("analyze customer_contacts")
+
+    import = service.start(tenant: tenant, user: user, file: second, mode: :incremental)
+    measure.call("2ª carga: conferência (dados mantidos, 5% com telefone novo)") { import.checker.run(import) }
+    kept = import.reload.summary["kept_by_tenant"]
+    puts "  mantidos: #{kept['names']['count']} nomes, #{kept['contacts']['count']} contatos"
+    measure.call("2ª carga: confirmação (atualiza a data de todos os contatos)") { import.confirmer.run(import) }
+    puts "  situação: #{import.reload.status}; contatos: #{CustomerContact.where(tenant_id: t).count}"
+
+    # Ficha com 50 contatos: as consultas que a tela faz.
+    some = Customer.where(tenant_id: t).order(:id).offset(5).first
+    50.times { |i| CustomerContact.create!(tenant_id: t, customer: some, kind: "phone", key: "5#{i.to_s.rjust(9, '0')}", value: "(51) 9#{i.to_s.rjust(7, '0')}", origin: "screen", status: i.even? ? "valid" : "invalid") }
+    measure.call("ficha com #{some.contacts.count} contatos (consultas da tela)") do
+      contacts = some.contacts.includes(:updated_by).to_a
+      CustomerContact.top_valid(some, contacts)
+      CustomerContact.listed(contacts)
+      Change.where("(subject_type = 'customer' and subject_id = ? and field = 'name') or (subject_type = 'customer_contact' and subject_id in (?))", some.id, contacts.map(&:id)).order(occurred_at: :desc).limit(50).to_a
+    end
+    measure.call("sugestões do acionamento (contatos válidos do canal)") { some.contacts.status_valid.where(kind: "phone").order(:kind, :id).pluck(:value) }
+    measure.call("R126: o credor muda o telefone (varre os contatos do credor)") { Registry::TenantEditor.new(user).update(tenant, phone: "(11) 3000-1000".sub("3000", "3001")) }
+    measure.call("lista de clientes (primeira página)") { Portfolio::Query.new(user).customers.limit(20).to_a }
+    measure.call("resumo da carteira") { Portfolio::Summary.new(user).per_tenant }
+
+    [ first, second ].each { |path| File.delete(path) if File.exist?(path) }
+    sql.run("delete from import_rows where import_id in (select id from imports where tenant_id = ?)", t)
+    sql.run("delete from import_contacts where import_id in (select id from imports where tenant_id = ?)", t)
+    %w[bill_value_versions reported_surcharges changes customer_contacts].each { |table| sql.run("delete from #{table} where tenant_id = ?", t) }
     ContractCustomer.where(customer_id: Customer.where(tenant_id: t)).delete_all
     [ Bill, Customer, Contract ].each { |model| model.where(tenant_id: t).delete_all }
     Import.where(tenant_id: t).destroy_all

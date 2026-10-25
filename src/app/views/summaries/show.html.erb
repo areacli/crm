@@ -22,7 +22,14 @@
 <% @summaries.each do |summary| %>
   <% detail_only = summary[:upcoming_display] == "detail_only" %>
   <section class="cartao" aria-labelledby="carteira-<%= summary[:tenant].id %>">
-    <header><h2 id="carteira-<%= summary[:tenant].id %>"><%= summary[:tenant].name %></h2></header>
+    <header>
+      <div>
+        <h2 id="carteira-<%= summary[:tenant].id %>"><%= summary[:tenant].name %></h2>
+        <% if summary[:tenant].trade_name.present? || summary[:tenant].legal_name.present? %>
+          <p><%= summary[:tenant].display_name %> · carteira de <%= number_br(summary[:customers]) %> clientes · referência <%= date_br(Date.current) %></p>
+        <% end %>
+      </div>
+    </header>
     <div>
       <dl class="valores">
         <div><dt>Clientes em cobrança</dt><dd><%= number_br(detail_only ? summary[:customers_overdue] : summary[:customers]) %></dd></div>

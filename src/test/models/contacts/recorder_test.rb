@@ -48,11 +48,11 @@ class Contacts::RecorderTest < ActiveSupport::TestCase
   end
 
   test "R71: o contato digitado fica só no acionamento, e o cadastro do cliente não muda" do
-    @customer.update!(phone: "(11) 98765-4321")
+    add_contact(@customer, "phone", "(11) 98765-4321")
     attempt = record_attempt(@customer, @joana, contact_used: "(11) 3333-4444")
 
     assert_equal "(11) 3333-4444", attempt.contact_used
-    assert_equal "(11) 98765-4321", @customer.reload.phone
+    assert_equal [ "(11) 98765-4321" ], @customer.contacts.pluck(:value)
   end
 
   test "R71: o tamanho do contato usado depende do canal (telefone 60, e-mail 254, carta 300)" do

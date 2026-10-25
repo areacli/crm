@@ -27,9 +27,22 @@ class CustomersController < ApplicationController
     @today = Date.current
     load_payments_and_credits
     load_contact_attempts
+    load_registry
   end
 
   private
+    # Cadastro (06): contatos do cliente (R124), o histórico do cadastro (R116) e os contratos com os papéis, só para leitura (R124a). Consulta dos
+    # contatos: `customer_contacts (customer_id, kind, key)`; do histórico: `changes (subject_type, subject_id)`.
+    def load_registry
+      @contacts = @customer.contacts.includes(:updated_by).to_a
+      @top_contacts = CustomerContact.top_valid(@customer, @contacts)
+      @listed_contacts = CustomerContact.listed(@contacts)
+      @can_edit_registry = policy(@customer).edit_registry?
+      @registry_history = Change.where("(subject_type = 'customer' and subject_id = ? and field = 'name') or (subject_type = 'customer_contact' and subject_id in (?))",
+                                       @customer.id, @contacts.map(&:id).presence || [ 0 ]).includes(:user).order(occurred_at: :desc, id: :desc).limit(50).to_a
+      @contract_members = ContractCustomer.where(contract_id: @contracts.map(&:id)).includes(:customer).group_by(&:contract_id)
+    end
+
     # Acionamentos (04): o histórico de 20 em 20 (R74) e o formulário, só para quem registra no credor do cliente (R76).
     def load_contact_attempts
       @contact_history = ContactAttempt.history_for(@customer, page: params[:page])

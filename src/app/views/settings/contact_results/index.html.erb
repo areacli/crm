@@ -16,7 +16,7 @@
         <table>
           <caption class="apenas-leitor-de-tela">Resultados de acionamento de <%= tenant.name %></caption>
           <thead>
-            <tr><th scope="col">Resultado</th><th scope="col">Tipo</th><th scope="col">Retorno</th><th scope="col" data-numerico>Acionamentos</th><th scope="col">Situação</th><th scope="col">Ações</th></tr>
+            <tr><th scope="col">Resultado</th><th scope="col">Tipo</th><th scope="col">Retorno</th><th scope="col">Invalida o contato</th><th scope="col" data-numerico>Acionamentos</th><th scope="col">Situação</th><th scope="col">Ações</th></tr>
           </thead>
           <tbody>
             <% results.each_with_index do |result, index| %>
@@ -24,6 +24,7 @@
                 <th scope="row"><%= link_to result.name, edit_settings_contact_result_path(result) %></th>
                 <td><%= t("contacts.kinds.#{result.kind}") %></td>
                 <td><%= t("contacts.return_rules.#{result.return_rule}") %></td>
+                <td><%= result.invalidates_contact? ? "Sim" : "Não" %></td>
                 <td data-numerico><%= number_br(@used.fetch(result.id, 0)) %></td>
                 <td><%= result.active? ? situacao("Ativo", tom: :success) : situacao("Desativado", tom: :neutral) %></td>
                 <td>

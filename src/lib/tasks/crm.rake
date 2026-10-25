@@ -16,12 +16,16 @@ namespace :crm do
     abort error.message
   end
 
-  desc "Cria um credor com a configuração inicial e os perfis Gestor e Operador (MT-21): crm:tenant[Nome do credor]"
+  desc "Cria um credor com a configuração inicial e os perfis Gestor e Operador (MT-21): crm:tenant[Nome do credor], com CNPJ e LEGAL_NAME opcionais no ambiente (R106)"
   task :tenant, [ :name ] => :environment do |_task, args|
     abort "Informe o nome do credor." if args[:name].blank?
     abort "Já existe um credor com esse nome." if Tenant.exists?(name: args[:name])
 
-    tenant = Tenant.provision!(args[:name])
+    tenant = begin
+      Tenant.provision!(args[:name], cnpj: ENV["CNPJ"], legal_name: ENV["LEGAL_NAME"])
+    rescue ActiveRecord::RecordInvalid => error
+      abort error.record.errors.full_messages.to_sentence
+    end
     AccessEvent.record("admin_tenant_created", tenant: tenant, details: { name: tenant.name })
     puts "Credor #{tenant.name} criado com os perfis Gestor e Operador."
   end

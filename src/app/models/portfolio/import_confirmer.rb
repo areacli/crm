@@ -5,7 +5,7 @@ module Portfolio
     # Papéis de um cliente que entra num contrato: nascem vazios e são preenchidos, em seguida, pelos papéis declarados nas linhas
     # da planilha (R9b); coluna `papel` vazia vale os dois papéis.
     NO_ROLES = "[]".freeze
-    TEMPORARY_TABLES = %w[import_customers import_omission import_bills import_withdrawn import_discrepancies import_before].freeze
+    TEMPORARY_TABLES = %w[import_customers import_new_customers import_new_customer_ids import_contact_rows import_omission import_bills import_withdrawn import_discrepancies import_before].freeze
 
     def run(import)
       import.update!(status: :confirming, progress_percent: 1, progress_label: "Gravando a carteira")
@@ -22,8 +22,9 @@ module Portfolio
         return
       end
       # Carga em massa deixa as estatísticas defasadas (o autovacuum demora): sem isto, a primeira consulta depois da carga pega um plano ruim.
-      %w[customers contracts contract_customers bills].each { |table| Sql.connection.execute("analyze #{table}") }
+      %w[customers customer_contacts contracts contract_customers bills].each { |table| Sql.connection.execute("analyze #{table}") }
       Sql.run("delete from import_rows where import_id = ?", import.id)
+      Sql.run("delete from import_contacts where import_id = ?", import.id)
       FileUtils.rm_f(import.file_path) if import.stored_path
       import.update!(status: :confirmed, progress_percent: 100, progress_label: nil, finished_at: Time.current)
     end
@@ -33,31 +34,40 @@ module Portfolio
         t = import.tenant_id
         i = import.id
         u = import.user_id
+        # Memória de trabalho maior só nesta transação: as junções por hash dos contatos (1,2 milhão de linhas na V4 de cadastros) gastavam o
+        # tempo em arquivos temporários com os 4 MB padrão. O banco tem limite de 1 GB e há uma confirmação por credor.
+        Sql.execute("set local work_mem = '96MB'")
         # As tabelas temporárias somem no fim da transação; o descarte explícito cobre a transação aninhada (como nos testes).
         TEMPORARY_TABLES.each { |name| Sql.connection.execute("drop table if exists #{name}") }
 
-        # Uma linha por cliente: nome, telefone e e-mail da última linha válida do documento.
+        # Uma linha por cliente: o nome da última linha válida do documento. Os contatos vêm da tabela própria (06, R109).
         Sql.run(<<~SQL, i)
           create temporary table import_customers on commit drop as
-          select distinct on (document) document, name, phone, email from import_rows where import_id = ? and ok order by document, line desc
+          select distinct on (document) document, name from import_rows where import_id = ? and ok order by document, line desc
         SQL
         Sql.connection.execute("analyze import_customers")
-        # R8: a mudança de nome, telefone ou e-mail fica registrada; contato vazio na carga nova não apaga o anterior.
-        %w[name phone email].each do |field|
-          guard = field == "name" ? "" : "and new.#{field} is not null"
-          Sql.run(<<~SQL, t, u, i, t)
-            insert into changes (tenant_id, user_id, import_id, subject_type, subject_id, event, field, before, after, occurred_at)
-            select ?, ?, ?, 'customer', c.id, 'updated', '#{field}', c.#{field}, new.#{field}, now()
-            from import_customers new join customers c on c.tenant_id = ? and c.document = new.document
-            where c.#{field} is distinct from new.#{field} #{guard}
-          SQL
-        end
+        # Clientes que ainda não existem: a criação do cliente já é o registro, então os contatos deles não geram histórico um a um.
         Sql.run(<<~SQL, t)
-          insert into customers (tenant_id, document, name, phone, email, created_at, updated_at)
-          select ?, document, name, phone, email, now(), now() from import_customers
-          on conflict (tenant_id, document) do update set
-            name = excluded.name, phone = coalesce(excluded.phone, customers.phone), email = coalesce(excluded.email, customers.email), updated_at = now()
+          create temporary table import_new_customers on commit drop as
+          select ic.document from import_customers ic where not exists (select 1 from customers c where c.tenant_id = ? and c.document = ic.document)
         SQL
+        # R8 e R117: a mudança de nome fica registrada; com "a tela prevalece", o nome marcado "mantido pelo credor" não muda.
+        screen_prevails = import.tenant.setting.correction_policy_screen?
+        Sql.run(<<~SQL, t, u, i, t, screen_prevails)
+          insert into changes (tenant_id, user_id, import_id, subject_type, subject_id, event, field, before, after, origin, occurred_at)
+          select ?, ?, ?, 'customer', c.id, 'updated', 'name', c.name, new.name, 'load', now()
+          from import_customers new join customers c on c.tenant_id = ? and c.document = new.document
+          where c.name is distinct from new.name and not (c.name_kept and ?::boolean)
+        SQL
+        Sql.run(<<~SQL, t, screen_prevails, screen_prevails, screen_prevails)
+          insert into customers (tenant_id, document, name, created_at, updated_at)
+          select ?, document, name, now(), now() from import_customers
+          on conflict (tenant_id, document) do update set
+            name = case when customers.name_kept and ?::boolean then customers.name else excluded.name end,
+            name_kept = customers.name_kept and ?::boolean, updated_at = now()
+          where customers.name is distinct from excluded.name or (customers.name_kept and not ?::boolean)
+        SQL
+        write_contacts(import, !screen_prevails)
         # Contratos declarados na planilha (MT-14).
         Sql.run(<<~SQL, t, i)
           insert into contracts (tenant_id, code, created_by_omission, created_at, updated_at)
@@ -184,6 +194,61 @@ module Portfolio
           select ?, ?, ?, 'bill', id, 'withdrawn', 'status', 'active', 'withdrawn', now() from import_withdrawn
         SQL
         Sql.run("update bills set status = 'withdrawn', withdrawn_at = now(), withdrawn_import_id = ?, updated_at = now() where id in (select id from import_withdrawn)", i)
+      end
+
+      # Contatos da carga (06, R109, R117, R126), em SQL de conjunto: um contato igual a um que o cliente já tem só atualiza a data em que veio
+      # (com "a carga vence", também o devolve a válido, com registro); o novo é criado, inválido se for igual ao do credor. A carga nunca apaga
+      # nem desativa um contato. O histórico é gravado no mesmo comando (`returning old/new`). Consultas: `customer_contacts (customer_id, kind, key)`.
+      def write_contacts(import, load_wins)
+        t = import.tenant_id
+        i = import.id
+        u = import.user_id
+        # Um contato por linha da preparação (as recusadas já saíram na conferência). O mesmo contato em duas linhas do cliente aparece duas
+        # vezes: a atualização usa uma delas e o `ON CONFLICT DO NOTHING` da inserção descarta a outra, sem a ordenação que um DISTINCT exigiria.
+        Sql.run(<<~SQL, t, i)
+          create temporary table import_contact_rows on commit drop as
+          select c.id as customer_id, c.document, ic.kind, ic.key, ic.value, ic.street, ic.number, ic.complement, ic.district,
+                 ic.city, ic.state, ic.zip, ic.tenant_contact
+          from import_contacts ic join customers c on c.tenant_id = ? and c.document = ic.document
+          where ic.import_id = ?
+        SQL
+        Sql.connection.execute("create index on import_contact_rows (customer_id, kind, key)")
+        Sql.connection.execute("analyze import_contact_rows")
+        Sql.run("create temporary table import_new_customer_ids on commit drop as select c.id from customers c join import_new_customers x on x.document = c.document where c.tenant_id = ?", t)
+        Sql.connection.execute("create index on import_new_customer_ids (id)")
+
+        reactivate = "(#{load_wins ? 'true' : 'false'} and k.status <> 'valid' and not n.tenant_contact)"
+        Sql.run(<<~SQL, t, u, i)
+          with touched as (
+            update customer_contacts k set
+              status = case when #{reactivate} then 'valid' else k.status end,
+              reason = case when #{reactivate} then 'a carga vence' else k.reason end,
+              do_not_disturb_on = case when #{reactivate} then null else k.do_not_disturb_on end,
+              kept_by_tenant = case when #{reactivate} then false else k.kept_by_tenant end,
+              updated_at = case when #{reactivate} then now() else k.updated_at end,
+              updated_by_id = case when #{reactivate} then null else k.updated_by_id end,
+              seen_in_import_at = now()
+            from import_contact_rows n where k.customer_id = n.customer_id and k.kind = n.kind and k.key = n.key
+            returning k.id, old.status as before_status, new.status as after_status
+          )
+          insert into changes (tenant_id, user_id, import_id, subject_type, subject_id, event, field, before, after, note, origin, occurred_at)
+          select ?, ?, ?, 'customer_contact', id, 'status_changed', 'status', before_status, after_status, 'a carga vence', 'load', now()
+          from touched where before_status <> after_status
+        SQL
+        Sql.run(<<~SQL, t, t, u, i)
+          with inserted as (
+            insert into customer_contacts (tenant_id, customer_id, kind, key, value, street, number, complement, district, city, state, zip, origin, status, reason,
+                                           kept_by_tenant, seen_in_import_at, created_at, updated_at)
+            select ?, customer_id, kind, key, value, street, number, complement, district, city, state, zip, 'load',
+                   case when tenant_contact then 'invalid' else 'valid' end, case when tenant_contact then 'é contato do credor' end, false, now(), now(), now()
+            from import_contact_rows
+            on conflict (customer_id, kind, key) do nothing
+            returning id, customer_id, status, reason
+          )
+          insert into changes (tenant_id, user_id, import_id, subject_type, subject_id, event, field, before, after, note, origin, occurred_at)
+          select ?, ?, ?, 'customer_contact', id, 'created', 'status', null, status, reason, 'load', now()
+          from inserted where not exists (select 1 from import_new_customer_ids x where x.id = inserted.customer_id)
+        SQL
       end
 
       # R93 a R98: os títulos com pagamento cujo valor muda ganham uma divergência aberta, com o efeito da política da hora da confirmação. Com

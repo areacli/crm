@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_24_100500) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_24_100600) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -75,6 +75,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_100500) do
     t.text "before"
     t.text "after"
     t.datetime "occurred_at", precision: nil, default: -> { "CURRENT_TIMESTAMP" }, null: false
+    t.string "origin", limit: 20
+    t.string "note", limit: 300
     t.index ["subject_type", "subject_id"], name: "index_changes_on_subject_type_and_subject_id"
     t.index ["tenant_id"], name: "index_changes_on_tenant_id"
   end
@@ -108,6 +110,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_100500) do
     t.integer "position", default: 0, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.boolean "invalidates_contact", default: false, null: false
     t.index ["tenant_id", "name_key"], name: "index_contact_results_on_tenant_id_and_name_key", unique: true
     t.index ["tenant_id", "position"], name: "index_contact_results_on_tenant_id_and_position"
   end
@@ -144,15 +147,59 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_100500) do
     t.check_constraint "amount_cents <> 0", name: "credits_amount_not_zero"
   end
 
+  create_table "customer_contacts", force: :cascade do |t|
+    t.bigint "tenant_id", null: false
+    t.bigint "customer_id", null: false
+    t.string "kind", limit: 10, null: false
+    t.string "key", limit: 300, null: false
+    t.string "value", limit: 400, null: false
+    t.string "street", limit: 200
+    t.string "number", limit: 20
+    t.string "complement", limit: 100
+    t.string "district", limit: 100
+    t.string "city", limit: 100
+    t.string "state", limit: 2
+    t.string "zip", limit: 8
+    t.string "origin", limit: 20, null: false
+    t.string "status", limit: 20, default: "valid", null: false
+    t.string "reason", limit: 300
+    t.date "do_not_disturb_on"
+    t.boolean "kept_by_tenant", default: false, null: false
+    t.datetime "seen_in_import_at"
+    t.bigint "updated_by_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["customer_id", "kind", "key"], name: "index_customer_contacts_on_customer_id_and_kind_and_key", unique: true
+    t.check_constraint "kind::text = ANY (ARRAY['phone'::character varying, 'email'::character varying, 'address'::character varying]::text[])", name: "customer_contacts_kind"
+    t.check_constraint "status::text = ANY (ARRAY['valid'::character varying, 'invalid'::character varying, 'do_not_disturb'::character varying]::text[])", name: "customer_contacts_status"
+  end
+
   create_table "customers", force: :cascade do |t|
     t.bigint "tenant_id", null: false
     t.string "document", limit: 14, null: false
     t.string "name", limit: 300, null: false
-    t.string "phone", limit: 60
-    t.string "email", limit: 254
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.boolean "name_kept", default: false, null: false
     t.index ["tenant_id", "document"], name: "index_customers_on_tenant_id_and_document", unique: true
+  end
+
+  create_table "import_contacts", id: false, force: :cascade do |t|
+    t.bigint "import_id", null: false
+    t.integer "line", null: false
+    t.string "document", limit: 14, null: false
+    t.string "kind", limit: 10, null: false
+    t.string "key", limit: 300, null: false
+    t.string "value", limit: 400, null: false
+    t.string "street", limit: 200
+    t.string "number", limit: 20
+    t.string "complement", limit: 100
+    t.string "district", limit: 100
+    t.string "city", limit: 100
+    t.string "state", limit: 2
+    t.string "zip", limit: 8
+    t.boolean "tenant_contact", default: false, null: false
+    t.index ["import_id"], name: "index_import_contacts_on_import_id"
   end
 
   create_table "import_rejections", force: :cascade do |t|
@@ -170,8 +217,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_100500) do
     t.string "number", limit: 100, null: false
     t.string "name", limit: 300
     t.string "name_key", limit: 300
-    t.string "phone", limit: 60
-    t.string "email", limit: 254
     t.string "contract", limit: 100
     t.string "roles", limit: 60
     t.date "due_date"
@@ -185,6 +230,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_100500) do
     t.bigint "correction_cents"
     t.bigint "other_cents"
     t.index ["import_id", "document", "number"], name: "index_import_rows_on_import_id_and_document_and_number"
+  end
+
+  create_table "import_warnings", force: :cascade do |t|
+    t.bigint "import_id", null: false
+    t.integer "line", null: false
+    t.string "reason", null: false
+    t.index ["import_id"], name: "index_import_warnings_on_import_id"
   end
 
   create_table "imports", force: :cascade do |t|
@@ -206,7 +258,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_100500) do
     t.datetime "updated_at", null: false
     t.bigint "confirmed_by_id"
     t.index ["tenant_id", "status"], name: "index_imports_on_tenant_id_and_status"
-    t.index ["tenant_id"], name: "index_imports_one_running_per_tenant", unique: true, where: "((status)::text = ANY (ARRAY[('received'::character varying)::text, ('checking'::character varying)::text, ('checked'::character varying)::text, ('confirming'::character varying)::text]))"
+    t.index ["tenant_id"], name: "index_imports_one_running_per_tenant", unique: true, where: "((status)::text = ANY ((ARRAY['received'::character varying, 'checking'::character varying, 'checked'::character varying, 'confirming'::character varying])::text[]))"
     t.index ["user_id"], name: "index_imports_on_user_id"
     t.check_constraint "progress_percent >= 0 AND progress_percent <= 100", name: "imports_progress_percent_range"
   end
@@ -351,6 +403,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_100500) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "discrepancy_policy", limit: 20, default: "follow", null: false
+    t.string "correction_policy", limit: 20, default: "screen", null: false
     t.index ["tenant_id"], name: "index_tenant_settings_on_tenant_id", unique: true
   end
 
@@ -359,6 +412,21 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_100500) do
     t.boolean "active", default: true, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "cnpj", limit: 14
+    t.string "legal_name", limit: 300
+    t.string "trade_name", limit: 300
+    t.string "street", limit: 200
+    t.string "number", limit: 20
+    t.string "complement", limit: 100
+    t.string "district", limit: 100
+    t.string "city", limit: 100
+    t.string "state", limit: 2
+    t.string "zip", limit: 8
+    t.string "email", limit: 254
+    t.string "phone", limit: 60
+    t.string "email_key", limit: 254
+    t.string "phone_key", limit: 20
+    t.index ["cnpj"], name: "index_tenants_on_cnpj", unique: true, where: "(cnpj IS NOT NULL)"
   end
 
   create_table "users", force: :cascade do |t|
@@ -440,8 +508,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_100500) do
   add_foreign_key "credits", "payments", on_delete: :restrict
   add_foreign_key "credits", "tenants"
   add_foreign_key "credits", "users", on_delete: :nullify
+  add_foreign_key "customer_contacts", "customers", on_delete: :cascade
+  add_foreign_key "customer_contacts", "tenants"
+  add_foreign_key "customer_contacts", "users", column: "updated_by_id", on_delete: :nullify
   add_foreign_key "customers", "tenants"
   add_foreign_key "import_rejections", "imports", on_delete: :cascade
+  add_foreign_key "import_warnings", "imports", on_delete: :cascade
   add_foreign_key "imports", "tenants"
   add_foreign_key "imports", "users", column: "confirmed_by_id", on_delete: :nullify
   add_foreign_key "imports", "users", on_delete: :nullify

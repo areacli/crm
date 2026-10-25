@@ -16,7 +16,7 @@ module Contacts
 
     # `attributes`: channel, result_id, contract_id, contact_used, text, contacted_at e return_at (estes dois como o campo de data e hora
     # envia). Devolve o acionamento criado, ou o idêntico já registrado há pouco (duplo envio).
-    def record(customer, attributes)
+    def record(customer, attributes, save_contact: false)
       channel = attributes[:channel].to_s
       refuse!(:channel) unless ContactAttempt::CHANNELS.include?(channel)
       result = ContactResult.find_by(id: attributes[:result_id], tenant_id: customer.tenant_id)
@@ -46,7 +46,20 @@ module Contacts
         ContactAttempt.create!(tenant_id: customer.tenant_id, customer: customer, contract: contract, user: @actor, result: result, result_kind: result.kind,
                                channel: channel, contact_used: contact, text: text, contacted_at: contacted_at, return_at: return_at).tap do |attempt|
           log(attempt, "created", nil, result.name)
+          apply_to_registry(customer, attempt, result, save_contact)
         end
+      end
+    end
+
+    # R120 (DC2): o aviso de contato inválido ou em "não perturbe" digitado no registro; o acionamento é aceito do mesmo jeito. Nil se não há aviso.
+    def self.contact_warning(customer, channel, text)
+      contact = Registry::ContactEditor.find_used(customer, channel, clean(text)&.squish)
+      return if contact.nil? || contact.status_valid?
+
+      if contact.status_do_not_disturb?
+        I18n.t("registry.attempt_warning.do_not_disturb", date: (contact.do_not_disturb_on || contact.updated_at.to_date).strftime("%d/%m/%Y"))
+      else
+        I18n.t("registry.attempt_warning.invalid", reason: contact.reason.to_s.presence || "sem motivo registrado")
       end
     end
 
@@ -57,6 +70,19 @@ module Contacts
     end
 
     private
+      # R121 e R122: o resultado que invalida o contato marca o contato usado; "salvar este contato no cadastro" (só com a permissão 12, conferida
+      # por quem chama) cria o contato digitado, de origem acionamento.
+      def apply_to_registry(customer, attempt, result, save_contact)
+        return if attempt.contact_used.blank?
+
+        editor = Registry::ContactEditor.new(@actor)
+        if result.invalidates_contact?
+          editor.invalidate_used(customer, attempt.channel, attempt.contact_used, on: attempt.contacted_at.to_date)
+        elsif save_contact
+          editor.save_from_attempt(customer, attempt.channel, attempt.contact_used)
+        end
+      end
+
       def clean(text) = self.class.clean(text)
 
       def refuse!(key, **options) = raise(Refused, I18n.t("contacts.refused.#{key}", **options))

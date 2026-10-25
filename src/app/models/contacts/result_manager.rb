@@ -5,23 +5,24 @@ module Contacts
     def initialize(actor) = @actor = actor
 
     # Resultado novo entra no fim da lista (revisão 2).
-    def create(tenant:, name:, kind:, return_rule:)
+    def create(tenant:, name:, kind:, return_rule:, invalidates_contact: false)
       ApplicationRecord.transaction do
         position = tenant.contact_results.maximum(:position).to_i + 1
-        tenant.contact_results.build(name: name, kind: kind, return_rule: return_rule, position: position).tap do |result|
+        tenant.contact_results.build(name: name, kind: kind, return_rule: return_rule, position: position, invalidates_contact: invalidates_contact).tap do |result|
           result.save!
           log(result, "created", nil, result.name)
         end
       end
     end
 
-    def update(result, name:, return_rule:)
-      result.assign_attributes(name: name, return_rule: return_rule)
+    def update(result, name:, return_rule:, invalidates_contact: result.invalidates_contact)
+      result.assign_attributes(name: name, return_rule: return_rule, invalidates_contact: invalidates_contact)
       ApplicationRecord.transaction do
         result.save!
         changes = result.saved_changes
         log(result, "renamed", changes["name"].first, result.name) if changes.key?("name")
         log(result, "return_rule_changed", changes["return_rule"].first, result.return_rule) if changes.key?("return_rule")
+        log(result, "invalidates_contact_changed", changes["invalidates_contact"].first.to_s, result.invalidates_contact.to_s) if changes.key?("invalidates_contact")
       end
       result
     end

@@ -2,6 +2,7 @@
 module NavigationHelper
   # Abas da configuração (P21): rótulo, rota e a permissão de cada uma. A entrada "Configuração" do menu abre a primeira que o usuário vê.
   SETTINGS_TABS = [
+    [ "Dados do credor", :settings_tenant_registry_path, "change_settings" ],
     [ "Carteira", :settings_portfolio_path, "change_settings" ],
     [ "Canais de recebimento", :settings_channels_path, "change_settings" ],
     [ "Políticas de pagamento", :settings_payment_policy_path, "change_financial_policies" ],

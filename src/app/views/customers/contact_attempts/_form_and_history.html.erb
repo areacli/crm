@@ -1,6 +1,6 @@
 <%# Resposta do registro pelo htmx: o formulário (vazio, com o aviso de sucesso, ou preenchido, com o motivo da recusa) e, no sucesso, o
-    histórico refeito fora de banda. Locais: form, customer, history, notice. %>
-<%= render "customers/contact_attempts/form", form: form, customer: customer, notice: notice %>
+    histórico refeito fora de banda. Locais: form, customer, history, notice, warning. %>
+<%= render "customers/contact_attempts/form", form: form, customer: customer, notice: notice, warning: local_assigns[:warning] %>
 <% if history %>
   <%= render "customers/contact_attempts/history", customer: customer, history: history, oob: true %>
 <% end %>

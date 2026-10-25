@@ -1,0 +1,43 @@
+<% content_for :title, "Configuração · Dados do credor" %>
+<header class="cabecalho-da-pagina"><div><h1>Dados do credor</h1><p>O cadastro de cada credor. O painel mostra o nome fantasia (ou a razão social); o termo de acordo, as mensagens e os documentos que falam em nome do credor usam este cadastro.</p></div></header>
+<%= render "settings/abas" %>
+
+<% @tenants.each do |registered| %>
+  <% tenant = @invalid && @invalid.id == registered.id ? @invalid : registered %>
+  <% last = @last_change[tenant.id] %>
+  <section class="cartao" aria-labelledby="credor-<%= tenant.id %>">
+    <header><h2 id="credor-<%= tenant.id %>"><%= registered.name %></h2></header>
+    <div>
+      <% if tenant.errors.any? %>
+        <%= aviso(tom: :danger) { safe_join(tenant.errors.full_messages.map { |message| tag.p(message) }) } %>
+      <% end %>
+      <%= form_with model: tenant, scope: :tenant, namespace: "credor#{tenant.id}", url: settings_tenant_registry_path, method: :patch, html: { "hx-boost": "false" } do |form| %>
+        <%= hidden_field_tag :tenant_id, tenant.id %>
+        <div class="grupo-de-campos">
+          <div class="campo"><%= form.label :cnpj, "CNPJ" %><%= form.text_field :cnpj, value: (tenant.cnpj.present? && tenant.cnpj.length == 14 ? Document.format(tenant.cnpj) : tenant.cnpj), maxlength: 18, autocomplete: "off" %><small>Numérico ou alfanumérico; único entre os credores.</small></div>
+          <div class="campo"><%= form.label :legal_name, "Razão social" %><%= form.text_field :legal_name, required: true, maxlength: 300 %></div>
+          <div class="campo"><%= form.label :trade_name, "Nome fantasia (opcional)" %><%= form.text_field :trade_name, maxlength: 300 %></div>
+        </div>
+        <fieldset>
+          <legend>Endereço</legend>
+          <p><small>Logradouro, cidade, UF e CEP são obrigatórios para o endereço existir; número vazio vale "s/n".</small></p>
+          <div class="grupo-de-campos">
+            <div class="campo"><%= form.label :street, "Logradouro" %><%= form.text_field :street, maxlength: 200 %></div>
+            <div class="campo"><%= form.label :number, "Número" %><%= form.text_field :number, maxlength: 20 %></div>
+            <div class="campo"><%= form.label :complement, "Complemento" %><%= form.text_field :complement, maxlength: 100 %></div>
+            <div class="campo"><%= form.label :district, "Bairro" %><%= form.text_field :district, maxlength: 100 %></div>
+            <div class="campo"><%= form.label :city, "Cidade" %><%= form.text_field :city, maxlength: 100 %></div>
+            <div class="campo"><%= form.label :state, "UF" %><%= form.select :state, Registry::Normalizer::UFS, include_blank: true %></div>
+            <div class="campo"><%= form.label :zip, "CEP" %><%= form.text_field :zip, value: (tenant.zip.to_s.length == 8 ? "#{tenant.zip[0, 5]}-#{tenant.zip[5, 3]}" : tenant.zip), maxlength: 9, inputmode: "numeric" %></div>
+          </div>
+        </fieldset>
+        <div class="grupo-de-campos">
+          <div class="campo"><%= form.label :email, "E-mail" %><%= form.text_field :email, type: "email", maxlength: 254 %></div>
+          <div class="campo"><%= form.label :phone, "Telefone" %><%= form.text_field :phone, type: "tel", maxlength: 60 %><small>Um contato de cliente igual a este passa a inválido ("é contato do credor").</small></div>
+        </div>
+        <div class="acoes"><button type="submit">Salvar dados do credor</button></div>
+      <% end %>
+      <p><small><%= last ? "Última alteração: #{last.user&.name || 'sistema'} em #{datetime_br(last.occurred_at)}." : "Cadastro ainda não preenchido." %></small></p>
+    </div>
+  </section>
+<% end %>

@@ -14,3 +14,7 @@
   <%= form.select :return_rule, ContactResult.return_rules.keys.map { |rule| [ t("contacts.return_rules.#{rule}"), rule ] }, { selected: result.return_rule }, required: true %>
   <small>O retorno só fica registrado no acionamento; não há agenda nem aviso.</small>
 </div>
+<div class="campo">
+  <label><%= form.check_box :invalidates_contact, { checked: result.invalidates_contact }, "1", "0" %> Invalida o contato</label>
+  <small>Ao registrar um acionamento com este resultado, o contato usado, se estiver cadastrado, passa a inválido (não existe, não é do cliente).</small>
+</div>

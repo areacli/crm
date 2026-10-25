@@ -126,14 +126,13 @@ class Portfolio::ImportFlowTest < ActiveSupport::TestCase
     assert_equal "active", Bill.find_by!(number: "NF-1").status
   end
 
-  test "nome mudado fica registrado e contato vazio não apaga o anterior (R8)" do
+  test "nome mudado fica registrado e contato vazio não apaga o anterior (R8, R109)" do
     confirm(send_file([ csv_line("nome" => "Maria da Silva", "telefone" => "(11) 98765-4321") ]))
     confirm(send_file([ csv_line("nome" => "Maria da Silva Souza", "telefone" => "", "email" => "", "titulo" => "NF-2") ]))
 
     customer = Customer.find_by!(document: Document.normalize(MARIA))
     assert_equal "Maria da Silva Souza", customer.name
-    assert_equal "(11) 98765-4321", customer.phone
-    assert_equal "maria@exemplo.com.br", customer.email
+    assert_equal [ "(11) 98765-4321", "maria@exemplo.com.br" ], customer.contacts.status_valid.order(:kind).pluck(:value).sort_by { |value| value.include?("@") ? 1 : 0 }
     change = Change.find_by!(subject_type: "customer", subject_id: customer.id, field: "name")
     assert_equal [ "Maria da Silva", "Maria da Silva Souza" ], [ change.before, change.after ]
   end
