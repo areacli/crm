@@ -30,6 +30,35 @@
         </table>
       </div>
     <% end %>
+    <% charges_changes = @proposal.charges.reject { |name, value| value.to_s == @tenant.setting[name].to_s } %>
+    <% if charges_changes.any? %>
+      <h3>Encargos do credor</h3>
+      <ul>
+        <% charges_changes.each do |name, value| %><li><%= charge_field_title(name) %>: <%= charge_value_text(name, @tenant.setting[name]) %> → <%= charge_value_text(name, value) %></li><% end %>
+      </ul>
+    <% end %>
+    <% @charges_impact.cdc_warnings.each do |name| %>
+      <%= aviso(tom: :warning) { tag.p "Multa acima de 2% em #{name}: em relação de consumo com crédito ou financiamento, o limite é 2% (CDC, art. 52, § 1º). Confirme se os contratos deste segmento estão fora dessa regra." } %>
+    <% end %>
+    <% if @charges_impact.changes_values? %>
+      <h3>Valor atualizado da carteira</h3>
+      <p><small>Calculado hoje, antes e depois da mudança. Títulos pagos ou retirados não mudam, e a regra nova vale já para todos os títulos em aberto, desde o vencimento. O recálculo roda em segundo plano, em até 2 minutos.</small></p>
+      <% if @charges_impact.rows.empty? %>
+        <p class="vazio">Nenhum título em cobrança é afetado.</p>
+      <% else %>
+        <div class="tabela">
+          <table>
+            <caption class="apenas-leitor-de-tela">Valor atualizado por segmento, antes e depois</caption>
+            <thead><tr><th scope="col">Segmento</th><th scope="col" data-numerico>Clientes afetados</th><th scope="col" data-numerico>Antes</th><th scope="col" data-numerico>Depois</th><th scope="col" data-numerico>Diferença</th></tr></thead>
+            <tbody>
+              <% @charges_impact.rows.each do |row| %>
+                <tr><th scope="row"><%= row.name %></th><td data-numerico><%= number_br(row.customers) %></td><td data-numerico><%= money(row.before_cents) %></td><td data-numerico><%= money(row.after_cents) %></td><td data-numerico><%= money(row.difference_cents) %></td></tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      <% end %>
+    <% end %>
     <%= form_with scope: :confirmation, url: settings_segment_confirmation_path, html: { "hx-boost": "false" } do |form| %>
       <%= hidden_field_tag :tenant_id, @tenant.id %>
       <%= form.hidden_field :token, value: @token %>

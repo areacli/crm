@@ -67,7 +67,10 @@ class CapturasTest < ApplicationSystemTestCase
                                   balance_after_cents: 0, excess_cents: 10_000, effect: "becomes_paid" },
                                 { number: "NF-2001", customer: "João Pereira", previous_cents: 50_000, reported_cents: 52_000, allocated_cents: 50_000, balance_before_cents: 0,
                                   balance_after_cents: 0, excess_cents: 0, effect: "record_only" } ] },
-                              reported_surcharges: { lines: 3, penalty_cents: 6_000, interest_cents: 1_240, correction_cents: 310, other_cents: 0 } })
+                              reported_surcharges: { lines: 3, penalty_cents: 6_000, interest_cents: 1_240, correction_cents: 310, other_cents: 0 },
+                              surcharge_comparison: { moment: "before", lines: 3, totals: [ { name: "correction", informed: 310, calculated: 402, difference: -92 }, { name: "fine", informed: 6_000, calculated: 6_184, difference: -184 },
+                                                                                           { name: "interest", informed: 1_240, calculated: 1_617, difference: -377 }, { name: "fees", informed: 0, calculated: 0, difference: 0 } ],
+                                                      largest: [ { line: 7, number: "NF-1024/3", informed_total: 3_200, calculated_total: 3_790, difference: -590 }, { line: 12, number: "NF-2001", informed_total: 2_000, calculated_total: 2_100, difference: -100 } ] } })
     # Incremento 6: cadastro do credor, contatos do cliente (carga, tela e acionamento, em várias situações) e avisos da conferência.
     Registry::TenantEditor.new(users(:joana)).update(@tenant, cnpj: "11.222.333/0001-81", legal_name: "Escola Alfa Educação Ltda", trade_name: "Escola Alfa", street: "Rua das Palmeiras",
                                                      number: "450", district: "Centro", city: "Campinas", state: "SP", zip: "13010-000", email: "contato@escolaalfa.com.br", phone: "(19) 3000-1000")
@@ -123,6 +126,20 @@ class CapturasTest < ApplicationSystemTestCase
     IndexAdjustment.create!(tenant: @tenant, series: "igpm", month: (Date.current - 3.months).beginning_of_month, value: "1.52", reason: "Valor da FGV, divulgação de 29/09", user: users(:joana), adjusted_at: 1.day.ago)
     TaskRun.create!(name: "index_fetch", status: "failed", started_at: 1.day.ago.change(hour: 5), finished_at: 1.day.ago.change(hour: 5), failed: 1, note: "IPCA: o Banco Central não respondeu")
     TaskRun.create!(name: "index_fetch", status: "succeeded", started_at: Time.current.change(hour: 5), finished_at: Time.current.change(hour: 5, min: 1), processed: 6, note: "0 meses novos e 6 revisados.")
+    # Incremento 9: encargos. Taxa legal, parâmetros do credor, regras dos segmentos, valor atualizado calculado e a baixa de um pagamento parcial por componente.
+    13.downto(1) do |back|
+      IndexRate.create!(series: "legal", month: (Date.current - back.months).beginning_of_month, value: (0.38 + (back % 4) * 0.21).round(6), fetched_at: Time.current.change(hour: 5))
+    end
+    @tenant.setting.update!(charge_fine_pct: 2, charge_interest_pct: 1, charge_index: "ipca")
+    Segment.catch_all_of(@tenant).update!(interest_kind: "fixed", fees_pct: 10, fees_in_contract: true)
+    @varejo = Segment.find_by!(tenant: @tenant, name: "Varejo PF recente")
+    @varejo.update!(interest_kind: "fixed", interest_pct: 1.5, index_code: "ipca")
+    Segment.find_by!(tenant: @tenant, name: "Contratos antigos").update!(interest_kind: "legal", index_code: "ipca", fine_pct: 2)
+    Segment.find_by!(tenant: @tenant, name: "Muito vencido").update!(interest_kind: "fixed", interest_form: "compound", index_code: "igpm")
+    Charges::RuleHistory.record!(@tenant, since: Date.current - 400)
+    Charges::Recalculation.new(@tenant).apply(today: Date.current)
+    TaskRun.create!(tenant: @tenant, name: "values_recalculation", status: "succeeded", started_at: Time.current.change(hour: 5, min: 31), finished_at: Time.current.change(hour: 5, min: 32), processed: BillValuation.where(tenant_id: @tenant.id).count)
+    TaskRun.where(name: "values_recalculation", status: "running").delete_all # os jobs da carga de fotos não rodam: nada "em andamento" na foto
     visit new_session_path
     fill_in "E-mail", with: users(:joana).email_address
     fill_in "Senha", with: "senha-de-teste-1"
@@ -176,6 +193,22 @@ class CapturasTest < ApplicationSystemTestCase
       :current
     },
     "ficha-com-segmentos" => -> { customer_path(@contacted_customer) },
+    # Incremento 9: encargos e valor atualizado.
+    "ficha-com-valor-atualizado" => lambda {
+      visit customer_path(@contacted_customer)
+      find("summary", text: "Ver memória de cálculo", match: :first).click
+      assert_selector "caption", text: /Memória de cálculo/, visible: :all, wait: 10
+      :current
+    },
+    "regra-de-encargos" => -> { edit_settings_segment_path(@varejo) },
+    "conferencia-de-encargos" => lambda {
+      visit edit_settings_segment_path(@varejo)
+      fill_in "segment_interest_pct", with: "2,5"
+      fill_in "segment_fees_pct", with: "8"
+      check "O contrato prevê honorários"
+      click_button "Conferir mudança"
+      :current
+    },
     "exportacao-de-dados" => -> { customer_data_export_path(@forecast_customer, token: Rails.application.message_verifier(:data_export).generate([ @forecast_customer.id, users(:joana).id ], expires_in: 10.minutes, purpose: :data_export)) }
   }.freeze
 
@@ -183,11 +216,12 @@ class CapturasTest < ApplicationSystemTestCase
   ABERTAS = %w[ficha-com-contatos].freeze
 
   # Telas longas, fotografadas com a janela mais alta para mostrar o que importa (o histórico, o formulário).
-  ALTAS = %w[ficha-com-acionamentos ficha-com-contatos politica-de-correcao exportacao-de-dados guarda-de-dados indices novo-segmento ficha-com-segmentos].freeze
+  ALTAS = %w[ficha-com-acionamentos ficha-com-contatos politica-de-correcao exportacao-de-dados guarda-de-dados indices novo-segmento ficha-com-segmentos segmentos
+             regra-de-encargos conferencia-de-encargos conferencia-da-carteira resumo ficha-com-valor-atualizado].freeze
 
   test "recria as fotos do README" do
     TELAS.each do |nome, caminho|
-      page.driver.resize(1440, nome == "ficha-com-segmentos" ? 2900 : (ALTAS.include?(nome) ? 1700 : 900))
+      page.driver.resize(1440, nome == "ficha-com-valor-atualizado" ? 3500 : (nome == "ficha-com-segmentos" ? 2900 : (ALTAS.include?(nome) ? 1700 : 900)))
       destino = instance_exec(&caminho)
       visit destino unless destino == :current
       assert_selector "h1"

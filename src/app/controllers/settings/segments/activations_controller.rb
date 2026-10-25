@@ -10,7 +10,7 @@ module Settings
       private
         def change(active)
           segment = Segment.find(params[:segment_id])
-          authorize segment, :update?
+          authorize segment, :rearrange?
           render_review(::Segments::Proposal.current(segment.tenant).with_active(segment.id, active))
         end
     end

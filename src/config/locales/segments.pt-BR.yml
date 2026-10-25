@@ -5,6 +5,7 @@ pt-BR:
       inpc: "INPC"
       igpm: "IGP-M"
       selic: "Selic"
+      legal: "Taxa legal"
     errors:
       http: "o Banco Central respondeu com erro %{status}"
       unreachable: "o Banco Central não respondeu"
@@ -48,6 +49,7 @@ pt-BR:
       stale: "Os segmentos mudaram depois da sua conferência; confira de novo."
       number_invalid: "informe um número inteiro"
       money_invalid: "informe o valor em reais, por exemplo 5.000,00"
+      percent_invalid: "informe o percentual, por exemplo 2,5"
   activerecord:
     attributes:
       segment:
@@ -72,6 +74,9 @@ pt-BR:
               taken: "já existe um segmento com esse nome neste credor"
               blank: "é obrigatório"
               too_long: "tem no máximo 100 caracteres"
+            fees_pct: { fees_without_contract: "marque se o contrato prevê honorários", greater_than_or_equal_to: "não pode ser negativo", less_than_or_equal_to: "vai de 0 a 100" }
+            fine_pct: { greater_than_or_equal_to: "não pode ser negativo", less_than_or_equal_to: "vai de 0 a 100" }
+            interest_pct: { greater_than_or_equal_to: "não pode ser negativo", less_than_or_equal_to: "vai de 0 a 100" }
             min_overdue_days: { negative: "não pode ser negativo" }
             max_overdue_days: { negative: "não pode ser negativo", range_inverted: "não pode ser menor que o mínimo" }
             min_balance_cents: { negative: "não pode ser negativo" }

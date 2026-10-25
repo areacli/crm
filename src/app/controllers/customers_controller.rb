@@ -9,6 +9,7 @@ class CustomersController < ApplicationController
     @customers = @pagination.records.includes(:tenant)
     @query = query
     @segment_names = query.segment_names(@customers.map(&:id))
+    @updated_totals = query.updated_totals(@customers.map(&:id))
     @settings = query.settings_by_tenant
     @several_tenants = @settings.size > 1
     @tenants = Tenant.where(id: @settings.keys).order(:name).pluck(:name, :id)
@@ -28,6 +29,7 @@ class CustomersController < ApplicationController
     @open_discrepancies = ValueDiscrepancy.where(bill_id: @bills.map(&:id), status: "open").distinct.pluck(:bill_id)
     @today = Date.current
     load_payments_and_credits
+    load_valuations
     load_segments
     load_contact_attempts
     load_registry
@@ -35,6 +37,12 @@ class CustomersController < ApplicationController
   end
 
   private
+    # Valor atualizado dos títulos vencidos (09, R174): o último recálculo gravado, com a data dele. Consulta: chave de `bill_valuations`.
+    def load_valuations
+      @valuations = BillValuation.where(bill_id: @bills.map(&:id)).index_by(&:bill_id)
+      @value_status = Charges::Recalculation.status(@customer.tenant)
+    end
+
     # Direitos do titular (07, R141): os botões da ficha só para quem tem a 13 (e a 1) no credor, e o que impede anonimizar, dito antes (R130).
     def load_rights
       @can_handle_rights = policy(@customer).handle_rights?

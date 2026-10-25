@@ -2,12 +2,12 @@
 <header class="cabecalho-da-pagina"><div><h1>Editar segmento</h1><p><%= @tenant.name %> · <%= link_to "Voltar para os segmentos", settings_segments_path %></p></div></header>
 <%= render "settings/abas" %>
 <section class="cartao" aria-labelledby="dados">
-  <header><h2 id="dados">Critérios do segmento</h2></header>
+  <header><h2 id="dados"><%= @segment.catch_all? ? "Encargos do segmento" : "Critérios e encargos do segmento" %></h2></header>
   <div>
     <% if @segment.errors.any? %><%= aviso(tom: :danger) { tag.p @segment.errors.full_messages.to_sentence } %><% end %>
     <%= form_with model: @segment, scope: :segment, url: settings_segment_path(@segment), method: :patch, html: { "hx-boost": "false" } do |form| %>
       <%= hidden_field_tag :tenant_id, @tenant.id %>
-      <%= render "settings/segments/fields", form: form, segment: @segment, raw: @raw %>
+      <%= render "settings/segments/fields", form: form, segment: @segment, raw: @raw, setting: @tenant.setting %>
       <div class="acoes">
         <button type="submit">Conferir mudança</button>
         <%= link_to "Cancelar", settings_segments_path, class: "botao", data: { variant: "secondary" } %>

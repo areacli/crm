@@ -4,5 +4,10 @@ class FetchIndexesJob < ApplicationJob
   queue_as :default
   retry_on(Indexes::Fetch::Failed, wait: 5.minutes, attempts: 3) { |_job, _error| nil }
 
-  def perform = Indexes::Fetch.new.call
+  # `recalculate`: na busca manual, os valores atualizados de todos os credores são recalculados depois (09, R173); a diária já tem o recálculo
+  # encadeado ao dos segmentos.
+  def perform(recalculate = false)
+    Indexes::Fetch.new.call
+    ValuesDispatchJob.perform_later if recalculate
+  end
 end

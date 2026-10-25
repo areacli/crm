@@ -35,12 +35,37 @@ module Portfolio
           from bills, r where tenant_id = ? and status = 'active' and due_date < r.d group by customer_id
         ) c group by 1
       SQL
-      { tenant: tenant, customers: totals["customers"].to_i, customers_overdue: totals["customers_overdue"].to_i, bills: totals["bills"].to_i,
+      updated = valuations(tenant, brackets)
+      { tenant: tenant, updated: updated, customers: totals["customers"].to_i, customers_overdue: totals["customers_overdue"].to_i, bills: totals["bills"].to_i,
         overdue_cents: totals["overdue_cents"].to_i, upcoming_cents: totals["upcoming_cents"].to_i, upcoming_display: tenant.setting.upcoming_display,
-        labels: brackets.labels, by_customer: distribution(brackets, by_customer), by_bill: distribution(brackets, by_bill) }.merge(payments(tenant)).merge(contacts: contacts(tenant))
+        labels: brackets.labels, by_customer: distribution(brackets, by_customer, updated[:by_customer]), by_bill: distribution(brackets, by_bill, updated[:by_bill]) }.merge(payments(tenant)).merge(contacts: contacts(tenant))
     end
 
     private
+      # Valor atualizado do credor (09, R176): total, por faixa (do cliente e do título) e por segmento do contrato, somado no banco sobre `bill_valuations` (um
+      # cartão por credor: o atualizado não se soma entre credores, MT-20). Consulta: `bill_valuations (tenant_id)` e a chave de `bills`.
+      def valuations(tenant, brackets)
+        total = Sql.one("select coalesce(sum(total_cents), 0) as cents, max(calculated_on) as on_date from bill_valuations where tenant_id = ?", tenant.id)
+        by_bill = Sql.rows(<<~SQL, @reference, tenant.id).to_h { |row| [ row["idx"].to_i, row["cents"].to_i ] }
+          with r as (select ?::date as d)
+          select #{brackets.sql_index('(r.d - b.due_date)')} as idx, sum(v.total_cents) as cents
+          from bill_valuations v join bills b on b.id = v.bill_id, r where v.tenant_id = ? group by 1
+        SQL
+        by_customer = Sql.rows(<<~SQL, @reference, tenant.id).to_h { |row| [ row["idx"].to_i, row["cents"].to_i ] }
+          with r as (select ?::date as d)
+          select #{brackets.sql_index('max_days')} as idx, sum(total) as cents from (
+            select max(r.d - b.due_date) as max_days, sum(v.total_cents) as total
+            from bill_valuations v join bills b on b.id = v.bill_id, r where v.tenant_id = ? group by b.customer_id
+          ) c group by 1
+        SQL
+        segments = Sql.rows(<<~SQL, tenant.id).map { |row| { name: row["name"] || I18n.t("segments.none"), customers: row["customers"].to_i, balance_cents: row["balance"].to_i, updated_cents: row["updated"].to_i } }
+          select s.name, count(distinct b.customer_id) as customers, sum(v.principal_cents) as balance, sum(v.total_cents) as updated
+          from bill_valuations v join bills b on b.id = v.bill_id join contracts c on c.id = b.contract_id left join segments s on s.id = c.segment_id
+          where v.tenant_id = ? group by s.id, s.name, s.catch_all, s.position order by s.catch_all nulls first, s.position, s.name
+        SQL
+        { total_cents: total["cents"].to_i, calculated_on: total["on_date"], by_bill: by_bill, by_customer: by_customer, segments: segments }
+      end
+
       # Acionamentos dos últimos 7 e 30 dias (04, R79), pela data do contato: número de acionamentos e de clientes acionados, no total e por
       # tipo de resultado; o cliente acionado mais de uma vez conta uma vez em cada tipo em que apareceu. Uma só leitura do índice
       # `contact_attempts (tenant_id, contacted_at)` nos 30 dias, agrupada por cliente e tipo e por cliente (GROUPING SETS); a linha sem tipo é o
@@ -113,10 +138,10 @@ module Portfolio
         Sql.one("select coalesce(sum(paid_cents - amount_cents), 0) as cents from bills where tenant_id = ? and paid_cents > amount_cents", tenant.id)["cents"].to_i
       end
 
-      def distribution(brackets, rows)
+      def distribution(brackets, rows, updated = {})
         by_index = rows.index_by { |row| row["idx"].to_i }
         brackets.brackets.each_index.map do |index|
-          { label: brackets.label(index), count: by_index.dig(index, "n").to_i, cents: by_index.dig(index, "cents").to_i }
+          { label: brackets.label(index), count: by_index.dig(index, "n").to_i, cents: by_index.dig(index, "cents").to_i, updated_cents: updated.fetch(index, 0) }
         end
       end
   end

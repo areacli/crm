@@ -6,6 +6,13 @@ class ConfirmImportJob < ApplicationJob
   def perform(import)
     import.confirmer.run(import)
     # Os segmentos mudam alguns segundos depois da confirmação (R153): o recálculo fica fora do tempo da confirmação, que já é longo com 200 mil linhas.
-    SegmentsRecalculationJob.perform_later(import.tenant) if import.reload.confirmed? && import.portfolio?
+    return unless import.reload.confirmed?
+
+    if import.portfolio?
+      SegmentsRecalculationJob.perform_later(import.tenant, import)
+    else
+      # Pagamentos e estornos mudam o principal em aberto e os encargos pagos (09, R173).
+      ValuesRecalculationJob.enqueue_for(import.tenant, reason: "pagamentos")
+    end
   end
 end

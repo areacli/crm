@@ -6,7 +6,7 @@ module NavigationHelper
     [ "Carteira", :settings_portfolio_path, "change_settings" ],
     [ "Canais de recebimento", :settings_channels_path, "change_settings" ],
     [ "Políticas de pagamento", :settings_payment_policy_path, "change_financial_policies" ],
-    [ "Segmentos", :settings_segments_path, %w[change_settings change_financial_policies] ],
+    [ "Segmentos e encargos", :settings_segments_path, %w[change_settings change_financial_policies] ],
     [ "Índices", :settings_indexes_path, %w[change_settings change_financial_policies] ],
     [ "Resultados de acionamento", :settings_contact_results_path, "manage_contact_results" ]
   ].freeze

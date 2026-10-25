@@ -1,0 +1,52 @@
+pt-BR:
+  charges:
+    interest_kind:
+      none: "Sem juros"
+      fixed: "Taxa fixa"
+      legal: "Taxa legal"
+    interest_form:
+      simple: "Simples, pro rata por dia"
+      compound: "Compostos, mês a mês"
+    index:
+      none: "Sem correção"
+      ipca: "IPCA"
+      inpc: "INPC"
+      igpm: "IGP-M"
+    days_convention:
+      calendar: "Fração do mês do calendário"
+      thirty: "Taxa ÷ 30 por dia corrido"
+    fine_base:
+      corrected: "Valor corrigido"
+      face: "Valor de face"
+    policies:
+      missing_index_policy:
+        title: "Mês sem índice"
+        help: "Como o cálculo trata um mês em que o índice ainda não foi publicado."
+        closed_only: "Só meses fechados: o mês fica de fora até ser publicado"
+        last_prorated: "Último índice publicado, pro rata dia"
+      default_interest_form:
+        title: "Forma dos juros"
+        help: "Padrão de cada segmento novo com juros de taxa fixa. A taxa legal é sempre em juros simples."
+        simple: "Simples, pro rata por dia"
+        compound: "Compostos, mês a mês"
+      negative_index_policy:
+        title: "Índice negativo"
+        help: "O que a deflação faz com a correção."
+        floor: "Aplica, sem ficar abaixo do original"
+        always: "Aplica sempre"
+        ignore: "Ignora meses negativos (contam 0%)"
+      old_legal_interest_policy:
+        title: "Juros legais antes de 30/08/2024"
+        help: "Para segmentos com juros pela taxa legal, nos dias anteriores à Lei 14.905/2024."
+        selic: "Selic do mês, sem correção nesse período"
+        one_percent: "1% ao mês, com a correção do segmento"
+        none: "Sem juros nesse período, só a correção"
+      surcharge_comparison_policy:
+        title: "Comparação dos acréscimos da carga"
+        help: "Quando a carga com acréscimos informados pelo credor é comparada com o que o CRM calcula."
+        before: "Antes de confirmar (aproximação, a tempo de desistir)"
+        after: "Depois de confirmar (com o segmento exato, depois do recálculo)"
+    flash:
+      invalid: "Valor inválido nos encargos do credor."
+    errors:
+      percent: "informe o percentual, por exemplo 2,5 (de 0 a 100)"

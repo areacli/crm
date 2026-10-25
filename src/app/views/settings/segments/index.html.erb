@@ -1,7 +1,7 @@
 <% content_for :title, "Configuração · Segmentos" %>
 <% content_for :cable_channels, @tenants.map { |tenant| { channel: "SegmentsChannel", tenant_id: tenant.id } }.to_json %>
 <header class="cabecalho-da-pagina">
-  <div><h1>Segmentos</h1><p>Grupos de contratos definidos por critérios, em ordem: vale o primeiro que casar, e "Demais" recebe o resto. Cada segmento terá a sua política de encargos. Cada credor tem os seus.</p></div>
+  <div><h1>Segmentos</h1><p>Grupos de contratos definidos por critérios, em ordem: vale o primeiro que casar, e "Demais" recebe o resto. Cada segmento tem a sua regra de encargos, e o que ele não define vem dos parâmetros do credor. Cada credor tem os seus.</p></div>
 </header>
 <%= render "settings/abas" %>
 
@@ -24,22 +24,33 @@
         <% else %>
           <p><small>O recálculo ainda não rodou para este credor.</small></p>
         <% end %>
+        <% status = @value_status.fetch(tenant.id) %>
+        <% if status[:running] %>
+          <p role="status"><small>Valores atualizados sendo recalculados. A lista, a ficha e o resumo mostram o último cálculo até o recálculo terminar.</small></p>
+        <% elsif status[:last]&.failed? %>
+          <%= aviso(tom: :danger) { tag.p "O recálculo dos valores atualizados de #{datetime_br(status[:last].started_at)} falhou#{" (#{status[:last].error_kind})" if status[:last].error_kind.present?}. A lista, a ficha e o resumo mostram o último valor calculado#{" (atualizado até #{date_br(status[:calculated_on])})" if status[:calculated_on]}." } %>
+        <% elsif status[:calculated_on] %>
+          <p><small>Valores atualizados calculados em <%= date_br(status[:calculated_on]) %> (<%= number_br(status[:last]&.processed.to_i) %> títulos).</small></p>
+        <% end %>
         <div class="tabela">
           <table>
             <caption class="apenas-leitor-de-tela">Segmentos de <%= tenant.name %>, em ordem</caption>
-            <thead><tr><th scope="col">Segmento</th><th scope="col">Critérios</th><th scope="col" data-numerico>Contratos</th><th scope="col" data-numerico>Saldo</th><th scope="col">Situação</th><% if can_change %><th scope="col">Ações</th><% end %></tr></thead>
+            <thead><tr><th scope="col">Segmento</th><th scope="col">Critérios</th><th scope="col">Encargos</th><th scope="col" data-numerico>Contratos</th><th scope="col" data-numerico>Saldo</th><th scope="col">Situação</th><% if can_change %><th scope="col">Ações</th><% end %></tr></thead>
             <tbody>
               <% segments.each_with_index do |segment, index| %>
                 <% count, cents = @totals.fetch(segment.id, [ 0, 0 ]) %>
                 <tr id="segmento-<%= segment.id %>">
                   <th scope="row"><%= segment.catch_all? ? segment.name : (can_change ? link_to(segment.name, edit_settings_segment_path(segment)) : segment.name) %></th>
                   <td><%= segment.catch_all? ? "Quem não casou com nenhum outro" : segment_criteria_summary(segment) %></td>
+                  <td><%= charge_rule_summary(segment, setting) %></td>
                   <td data-numerico><%= number_br(count) %></td>
                   <td data-numerico><%= money(cents) %></td>
                   <td><%= segment.active? ? situacao("Ativo", tom: :success) : situacao("Desativado", tom: :neutral) %></td>
                   <% if can_change %>
                     <td>
-                      <% unless segment.catch_all? %>
+                      <% if segment.catch_all? %>
+                        <div class="acoes"><%= link_to "Editar encargos", edit_settings_segment_path(segment), class: "botao", data: { variant: "secondary", size: "small" }, "aria-label": "Editar encargos: #{segment.name}" %></div>
+                      <% else %>
                         <div class="acoes">
                           <% if index.positive? %><%= button_to "Mover para cima", settings_segment_movement_path(segment), params: { "movement[direction]": "up" }, form: { "hx-boost": "false" }, data: { variant: "secondary", size: "small" }, "aria-label": "Mover para cima: #{segment.name}" %><% end %>
                           <% if index < segments.size - 2 %><%= button_to "Mover para baixo", settings_segment_movement_path(segment), params: { "movement[direction]": "down" }, form: { "hx-boost": "false" }, data: { variant: "secondary", size: "small" }, "aria-label": "Mover para baixo: #{segment.name}" %><% end %>
@@ -72,6 +83,37 @@
             <% end %>
           </fieldset>
           <% if can_change %><div class="acoes"><button type="submit" data-variant="secondary">Conferir mudança</button></div><% end %>
+        <% end %>
+
+        <%= form_with scope: :charges, url: settings_charges_path, method: :patch, html: { "hx-boost": "false" } do |form| %>
+          <%= hidden_field_tag :tenant_id, tenant.id %>
+          <fieldset <%= "disabled" unless can_change %>>
+            <legend>Parâmetros de encargos do credor</legend>
+            <p><small>Valem para os segmentos que não definem o próprio valor. Mudar um parâmetro passa pela conferência do impacto em todos os segmentos que o herdam.</small></p>
+            <div class="campo"><%= label_tag "charge_fine_pct-#{tenant.id}", "Multa (%)" %><%= text_field_tag "charges[charge_fine_pct]", charge_field_value(setting, nil, :charge_fine_pct), id: "charge_fine_pct-#{tenant.id}", inputmode: "decimal", autocomplete: "off" %></div>
+            <div class="campo"><%= label_tag "charge_interest_pct-#{tenant.id}", "Juros de taxa fixa (% ao mês)" %><%= text_field_tag "charges[charge_interest_pct]", charge_field_value(setting, nil, :charge_interest_pct), id: "charge_interest_pct-#{tenant.id}", inputmode: "decimal", autocomplete: "off" %></div>
+            <div class="campo"><%= label_tag "charge_index-#{tenant.id}", "Correção monetária" %><%= select_tag "charges[charge_index]", options_for_select(Segment::INDEX_CODES.map { |value| [ charge_label(:index, value), value ] }, setting.charge_index), id: "charge_index-#{tenant.id}" %></div>
+            <div class="campo"><%= label_tag "charge_days_convention-#{tenant.id}", "Convenção de dias dos juros" %><%= select_tag "charges[charge_days_convention]", options_for_select(Segment::DAYS_CONVENTIONS.map { |value| [ charge_label(:days_convention, value), value ] }, setting.charge_days_convention), id: "charge_days_convention-#{tenant.id}" %></div>
+            <div class="campo"><%= label_tag "charge_fine_base-#{tenant.id}", "Base da multa" %><%= select_tag "charges[charge_fine_base]", options_for_select(Segment::FINE_BASES.map { |value| [ charge_label(:fine_base, value), value ] }, setting.charge_fine_base), id: "charge_fine_base-#{tenant.id}" %></div>
+          </fieldset>
+          <% if can_change %><div class="acoes"><button type="submit" data-variant="secondary">Conferir mudança</button></div><% end %>
+        <% end %>
+
+        <% TenantSetting::CHARGE_POLICIES.each do |policy| %>
+          <%= form_with scope: :charges, url: settings_charges_path, method: :patch, html: { "hx-boost": "false" } do |form| %>
+            <%= hidden_field_tag :tenant_id, tenant.id %>
+            <fieldset <%= "disabled" unless can_change %>>
+              <legend><%= t("charges.policies.#{policy}.title") %></legend>
+              <p><small><%= t("charges.policies.#{policy}.help") %></small></p>
+              <% TenantSetting.defined_enums.fetch(policy).each_key do |value| %>
+                <label>
+                  <%= radio_button_tag "charges[#{policy}]", value, setting[policy] == value, id: "#{policy}-#{tenant.id}-#{value}" %>
+                  <%= t("charges.policies.#{policy}.#{value}") %>
+                </label>
+              <% end %>
+            </fieldset>
+            <% if can_change %><div class="acoes"><button type="submit" data-variant="secondary">Conferir mudança</button></div><% end %>
+          <% end %>
         <% end %>
       </div>
     </section>

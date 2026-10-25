@@ -28,7 +28,10 @@ Rails.application.routes.draw do
   resource :data_retention, path: "guarda-de-dados", only: :show
 
   # Histórico do título (05, R100) e divergências de valor (05, R99).
-  resources :bills, path: "titulos", only: :show
+  resources :bills, path: "titulos", only: :show do
+    # Memória de cálculo do valor atualizado (09, R174): carregada sob pedido pelo htmx.
+    resource :calculation_memory, path: "memoria-de-calculo", only: :show, module: :bills
+  end
   resources :value_discrepancies, path: "divergencias-de-valor", only: %i[index show] do
     resource :handling, path: "tratamento", only: :create, module: :value_discrepancies
   end
@@ -68,6 +71,8 @@ Rails.application.routes.draw do
       resource :movement, path: "movimento", only: :create, module: :segments
     end
     resource :segment_policy, path: "produto-do-contrato-no-segmento", only: :update
+    # Parâmetros de encargos do credor e as políticas de encargos (09): também passam pela conferência do impacto.
+    resource :charges, path: "encargos", only: :update
     resource :segment_confirmation, path: "confirmacao-dos-segmentos", only: :create
     # Índices do Banco Central (08): valores globais, correções do credor e "Buscar índices agora".
     resource :indexes, path: "indices", only: :show

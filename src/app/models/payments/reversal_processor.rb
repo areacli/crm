@@ -30,6 +30,7 @@ module Payments
 
       payments = {}
       bills = {}
+      parts = {} # por pagamento: o que ele ainda tem alocado em cada componente (09, R226); sem alocação, tudo é principal
       (1..total).step(CHUNK) do |from|
         rows = Sql.rows("select * from reversal_stream where n between ? and ? order by n", from, from + CHUNK - 1)
         reversals = []
@@ -37,6 +38,8 @@ module Payments
         changes = []
         touched_payments = {}
         touched_bills = {}
+        allocations = []
+        load_parts(rows.map { |row| row["payment_id"].to_i }.uniq - parts.keys, parts)
 
         rows.each do |row|
           payment_id = row["payment_id"].to_i
@@ -62,7 +65,10 @@ module Payments
             if from_bill.positive?
               bill_id = row["bill_id"].to_i
               bill = bills[bill_id] ||= { paid: row["paid_cents"].to_i, status: row["bill_status"], paid_on: row["bill_paid_on"] }
-              bill[:paid] -= from_bill
+              # R226: o estorno desfaz a alocação na ordem inversa da baixa (principal, correção, honorários, multa, juros); só o principal mexe no saldo.
+              taken = take(parts[payment_id], from_bill)
+              taken.each { |component, cents| allocations << { payment_id: payment_id, bill_id: bill_id, component: component, cents: -cents } }
+              bill[:paid] -= taken.fetch("principal", 0)
               summary[:from_bill_cents] += from_bill
               # R92: o estorno consome primeiro o excedente (valor reduzido abaixo do alocado); o título só volta à cobrança se o saldo reabre.
               if bill[:status] == "paid" && bill[:paid] < row["bill_amount"].to_i
@@ -83,22 +89,54 @@ module Payments
                          reversed_on: row["reversed_on"], amount_cents: amount, from_credit_cents: from_credit, from_bill_cents: from_bill, reason: row["reason"] }
         end
 
-        write(import, reversals, credits, changes, payments.slice(*touched_payments.keys), bills.slice(*touched_bills.keys)) if commit
+        write(import, reversals, credits, changes, payments.slice(*touched_payments.keys), bills.slice(*touched_bills.keys), allocations) if commit
       end
       summary.to_h.symbolize_keys
     end
 
     private
+      REMOVAL_ORDER = %w[principal correction fees fine interest].freeze
+
+      # Quanto cada componente ainda tem alocado nos pagamentos: soma das linhas de alocação, que já inclui os estornos anteriores.
+      def load_parts(payment_ids, parts)
+        return if payment_ids.empty?
+
+        payment_ids.each { |id| parts[id] = nil }
+        Sql.rows("select payment_id, component, sum(amount_cents)::bigint as cents from payment_allocations where payment_id in (?) group by 1, 2", payment_ids).each do |row|
+          (parts[row["payment_id"].to_i] ||= {})[row["component"]] = row["cents"].to_i
+        end
+      end
+
+      # Tira `amount` dos componentes do pagamento na ordem inversa da baixa; o que passa do alocado (pagamento sem alocação, de antes dos encargos)
+      # sai do principal.
+      def take(parts, amount)
+        taken = {}
+        if parts
+          REMOVAL_ORDER.each do |component|
+            part = [ amount, parts.fetch(component, 0) ].min
+            next unless part.positive?
+
+            taken[component] = part
+            parts[component] -= part
+            amount -= part
+          end
+        end
+        taken["principal"] = taken.fetch("principal", 0) + amount if amount.positive?
+        taken
+      end
+
       REVERSAL_COLUMNS = %w[tenant_id channel_id payment_id import_id identifier reversed_on amount_cents from_credit_cents from_bill_cents reason created_at updated_at].freeze
 
       # Grava pelo COPY (ver Payments::Processor#write).
-      def write(import, reversals, credits, changes, payments, bills)
+      def write(import, reversals, credits, changes, payments, bills, allocations)
         now = Time.current
         Sql.copy_in("payment_reversals", REVERSAL_COLUMNS, reversals.map { |row| REVERSAL_COLUMNS.map { |column| row.fetch(column.to_sym) { now } } })
         Sql.copy_in("credits", %w[tenant_id contract_id payment_id user_id kind amount_cents reason occurred_at],
                     credits.map { |row| [ row[:tenant_id], row[:contract_id], row[:payment_id], row[:user_id], row[:kind], row[:amount_cents], row[:reason], row[:occurred_at] ] })
         Sql.copy_in("changes", %w[tenant_id user_id import_id subject_type subject_id event after occurred_at],
                     changes.map { |row| [ import.tenant_id, import.user_id, import.id, row[:subject_type], row[:subject_id], row[:event], row[:after], now ] })
+
+        Sql.copy_in("payment_allocations", %w[payment_id bill_id component amount_cents created_at], allocations.map { |row| [ row[:payment_id], row[:bill_id], row[:component], row[:cents], now ] })
 
         payments.each_slice(CHUNK) do |slice|
           values = slice.map { |id, p| "(#{id.to_i}::bigint, #{p[:reversed].to_i}::bigint, #{p[:credit_reversed].to_i}::bigint, #{Sql.connection.quote(p[:status])}::varchar)" }.join(",")

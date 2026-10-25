@@ -13,13 +13,13 @@ module Settings
 
     def new
       @tenant = tenant_for_change(params[:tenant_id])
-      @segment = Segment.new(tenant: @tenant)
+      @segment = Segment.new(tenant: @tenant, interest_form: @tenant.setting.default_interest_form)
       @raw = {}
     end
 
     def create
       @tenant = tenant_for_change(params[:tenant_id])
-      @segment = Segment.new(tenant: @tenant)
+      @segment = Segment.new(tenant: @tenant, interest_form: @tenant.setting.default_interest_form)
       build(@segment) ? render_review(::Segments::Proposal.current(@tenant).with_created(@segment)) : render(:new, status: :unprocessable_content)
     end
 
@@ -43,6 +43,8 @@ module Settings
       def build(segment)
         @raw = params.expect(segment: ::Segments::Params::FIELDS + [ :tenant_id ]).to_h.symbolize_keys
         attributes, invalid = ::Segments::Params.parse(@raw)
+        # O "Demais" não tem critérios nem muda de nome, mas tem regra de encargos (R160).
+        attributes = attributes.slice(*Segment::CHARGE_FIELDS) if segment.catch_all?
         segment.assign_attributes(attributes)
         segment.valid?
         invalid.each { |column, key| segment.errors.add(column, t("segments.errors.#{key}")) }
@@ -56,6 +58,7 @@ module Settings
         @settings = TenantSetting.where(tenant_id: @tenant_ids).index_by(&:tenant_id)
         @totals = ::Segments::Totals.new(@tenants).call
         @runs = @tenants.to_h { |tenant| [ tenant.id, TaskRun.where(tenant_id: tenant.id, name: ::Segments::Recalculation::NAME).recent.first ] }
+        @value_status = @tenants.to_h { |tenant| [ tenant.id, Charges::Recalculation.status(tenant) ] }
         @can_change = Current.user.tenant_ids_with("change_financial_policies")
       end
   end
