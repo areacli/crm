@@ -94,6 +94,44 @@
     </div>
   </section>
 
+  <section class="cartao" aria-labelledby="promessas-<%= summary[:tenant].id %>">
+    <header><div><h2 id="promessas-<%= summary[:tenant].id %>">Promessas — <%= summary[:tenant].name %></h2><p>Promessas registradas e encerradas no período. Canceladas, recusadas e não aprovadas ficam fora das taxas; não se somam com as de outro credor.</p></div></header>
+    <div class="tabela">
+      <table>
+        <caption class="apenas-leitor-de-tela">Promessas de <%= summary[:tenant].name %> nos últimos 7 e 30 dias</caption>
+        <thead><tr><th scope="col">Indicador</th><% summary[:promises].each do |window| %><th scope="col" data-numerico>Últimos <%= window[:days] %> dias</th><% end %></tr></thead>
+        <tbody>
+          <tr>
+            <th scope="row">Clientes que prometeram, entre os que falaram com a cobrança</th>
+            <% summary[:promises].each_with_index do |window, index| %>
+              <% spoke = summary[:contacts][index][:kinds][:spoke_with_customer][:customers] %>
+              <td data-numerico><%= number_br(window[:customers]) %> de <%= number_br(spoke) %> <small>(<%= spoke.positive? ? "#{window[:customers] * 100 / spoke}%" : "—" %>)</small></td>
+            <% end %>
+          </tr>
+          <tr>
+            <th scope="row">Promessas registradas</th>
+            <% summary[:promises].each do |window| %><td data-numerico><%= number_br(window[:promises]) %></td><% end %>
+          </tr>
+          <tr>
+            <th scope="row">Cumpridas no prazo, entre as encerradas</th>
+            <% summary[:promises].each do |window| %>
+              <% closed = window[:fulfilled] + window[:late] + window[:broken] %>
+              <td data-numerico><%= number_br(window[:fulfilled]) %> de <%= number_br(closed) %> <small>(<%= closed.positive? ? "#{window[:fulfilled] * 100 / closed}%" : "—" %>)</small></td>
+            <% end %>
+          </tr>
+          <tr>
+            <th scope="row">Cumpridas com atraso</th>
+            <% summary[:promises].each do |window| %><td data-numerico><%= number_br(window[:late]) %></td><% end %>
+          </tr>
+          <tr>
+            <th scope="row">Quebradas</th>
+            <% summary[:promises].each do |window| %><td data-numerico><%= number_br(window[:broken]) %></td><% end %>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
   <div class="duas-colunas">
     <% [ [ "Por cliente", "Cada cliente na faixa do título mais atrasado, com todo o seu vencido.", summary[:by_customer], "Clientes" ],
          [ "Por título", "Cada título vencido na faixa do próprio atraso.", summary[:by_bill], "Títulos" ] ].each do |title, help, rows, unit| %>

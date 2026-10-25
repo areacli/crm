@@ -21,6 +21,10 @@ class Segment < ApplicationRecord
 
   has_many :contract_segments, dependent: :restrict_with_error
   has_many :contracts, dependent: :nullify
+  has_many :promise_limits, dependent: :delete_all
+
+  # A alçada de cada perfil nasce no mesmo ato em que o segmento nasce (10, R190).
+  after_create { PromiseLimit.create_for_segment(self) }
 
   before_validation :normalize
 
@@ -32,6 +36,7 @@ class Segment < ApplicationRecord
   validates :index_code, inclusion: { in: INDEX_CODES }, allow_nil: true
   validates :days_convention, inclusion: { in: DAYS_CONVENTIONS }, allow_nil: true
   validates :fine_base, inclusion: { in: FINE_BASES }, allow_nil: true
+  validates :promise_max_days, numericality: { only_integer: true, greater_than_or_equal_to: 1, less_than_or_equal_to: 365 }
   validates :fine_pct, :interest_pct, :fees_pct, numericality: { greater_than_or_equal_to: 0, less_than_or_equal_to: 100 }, allow_nil: true
   validate :unique_name, :ranges_consistent, :catch_all_has_no_criteria, :fees_need_contract_mark
 

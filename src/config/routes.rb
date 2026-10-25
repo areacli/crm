@@ -20,6 +20,8 @@ Rails.application.routes.draw do
     resource :data_export, path: "exportacao", only: %i[show create], module: :customers
     resource :anonymization, path: "anonimizacao", only: :create, module: :customers
     resource :retention, path: "retencao", only: %i[create destroy], module: :customers
+    # Promessas abertas e pendentes na ficha (10, R203): o trecho do cabeçalho, refeito a cada evento.
+    resources :promises, path: "promessas", only: :index, module: :customers
     # Acionamentos do cliente: histórico, campos que dependem da escolha e registro (04).
     resources :contact_attempts, path: "acionamentos", path_names: { new: "campos" }, only: %i[index new create], module: :customers
   end
@@ -34,6 +36,14 @@ Rails.application.routes.draw do
   end
   resources :value_discrepancies, path: "divergencias-de-valor", only: %i[index show] do
     resource :handling, path: "tratamento", only: :create, module: :value_discrepancies
+  end
+
+  # Promessas de pagamento (10): aprovar, recusar e cancelar (R192, R200) e a lista das pendentes (R204).
+  resources :promises, path: "promessas", only: [] do
+    get "pendentes", on: :collection, to: "promises/pendings#index", as: :pending
+    resource :approval, path: "aprovacao", only: :create, module: :promises
+    resource :refusal, path: "recusa", only: :create, module: :promises
+    resource :cancellation, path: "cancelamento", only: :create, module: :promises
   end
 
   # Lista de acionamentos dos credores (04, R78).
@@ -65,6 +75,10 @@ Rails.application.routes.draw do
       resource :webhook_secret, path: "segredo-do-webhook", only: :create, module: :channels
     end
     resource :payment_policy, path: "politicas-de-pagamento", only: %i[show update]
+    # Promessas (10): políticas do credor, prazo máximo do segmento e alçada por perfil (R189, R190, R206).
+    resource :promises, path: "promessas", only: :show
+    resource :promise_policy, path: "politicas-de-promessa", only: :update
+    resource :promise_limits, path: "alcada-de-promessa", only: :update
     # Segmentos do contrato (08): toda mudança passa pela conferência do impacto (R154) antes de valer.
     resources :segments, path: "segmentos", path_names: { new: "novo", edit: "editar" }, except: %i[show destroy] do
       resource :activation, path: "ativacao", only: %i[create destroy], module: :segments

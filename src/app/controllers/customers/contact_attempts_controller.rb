@@ -19,13 +19,13 @@ module Customers
       authorize ContactAttempt.new(tenant: @customer.tenant), :create?
       return redirect_to(customer_path(@customer, anchor: "acionamentos")) unless htmx_fragment?
 
-      form = Contacts::Form.new(@customer, params.fetch(:contact_attempt, {}).permit(*Contacts::Form::FIELDS))
+      form = Contacts::Form.new(@customer, params.fetch(:contact_attempt, {}).permit(*Contacts::Form::PERMITTED))
       render partial: "customers/contact_attempts/dependents", locals: { form: form }
     end
 
     def create
       authorize ContactAttempt.new(tenant: @customer.tenant), :create?
-      values = params.expect(contact_attempt: Contacts::Form::FIELDS).to_h
+      values = params.expect(contact_attempt: Contacts::Form::PERMITTED).to_h
       # R122 e PD5: "salvar este contato no cadastro" só vale com a permissão 12 no credor do cliente; sem ela a marca é ignorada.
       save_contact = values[:save_contact].to_s == "1" && policy(@customer).edit_registry?
       warning = Contacts::Recorder.contact_warning(@customer, values[:channel], values[:contact_used])

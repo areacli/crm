@@ -5,24 +5,26 @@ module Contacts
     def initialize(actor) = @actor = actor
 
     # Resultado novo entra no fim da lista (revisão 2).
-    def create(tenant:, name:, kind:, return_rule:, invalidates_contact: false)
+    def create(tenant:, name:, kind:, return_rule:, invalidates_contact: false, allows_promise: false)
       ApplicationRecord.transaction do
         position = tenant.contact_results.maximum(:position).to_i + 1
-        tenant.contact_results.build(name: name, kind: kind, return_rule: return_rule, position: position, invalidates_contact: invalidates_contact).tap do |result|
+        tenant.contact_results.build(name: name, kind: kind, return_rule: return_rule, position: position, invalidates_contact: invalidates_contact,
+                                     allows_promise: allows_promise).tap do |result|
           result.save!
           log(result, "created", nil, result.name)
         end
       end
     end
 
-    def update(result, name:, return_rule:, invalidates_contact: result.invalidates_contact)
-      result.assign_attributes(name: name, return_rule: return_rule, invalidates_contact: invalidates_contact)
+    def update(result, name:, return_rule:, invalidates_contact: result.invalidates_contact, allows_promise: result.allows_promise)
+      result.assign_attributes(name: name, return_rule: return_rule, invalidates_contact: invalidates_contact, allows_promise: allows_promise)
       ApplicationRecord.transaction do
         result.save!
         changes = result.saved_changes
         log(result, "renamed", changes["name"].first, result.name) if changes.key?("name")
         log(result, "return_rule_changed", changes["return_rule"].first, result.return_rule) if changes.key?("return_rule")
         log(result, "invalidates_contact_changed", changes["invalidates_contact"].first.to_s, result.invalidates_contact.to_s) if changes.key?("invalidates_contact")
+        log(result, "allows_promise_changed", changes["allows_promise"].first.to_s, result.allows_promise.to_s) if changes.key?("allows_promise")
       end
       result
     end

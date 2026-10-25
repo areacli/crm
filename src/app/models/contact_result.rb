@@ -16,6 +16,8 @@ class ContactResult < ApplicationRecord
 
   validates :name, presence: true, length: { maximum: 100 }
   validate :name_not_taken
+  # R183: a marca "admite promessa" só existe nos resultados do tipo "falou com o cliente".
+  validate { errors.add(:allows_promise, :only_spoke_with_customer) if allows_promise? && !spoke_with_customer? }
 
   scope :active, -> { where(active: true) }
   scope :ordered, -> { order(:position, :id) }

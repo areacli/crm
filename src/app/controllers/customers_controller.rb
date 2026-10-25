@@ -4,7 +4,7 @@ class CustomersController < ApplicationController
     authorize Customer
     query = Portfolio::Query.new(Current.user)
     bracket = params[:bracket].presence&.to_i
-    @pagination = Pagination.new(query.customers(search: params[:q], bracket: bracket, segment: params[:segment], tenant_id: params[:tenant], sort: params[:sort], direction: params[:dir]),
+    @pagination = Pagination.new(query.customers(search: params[:q], bracket: bracket, segment: params[:segment], tenant_id: params[:tenant], sort: params[:sort], direction: params[:dir], promise: params[:promise]),
                                  page: params[:page], per_page: params[:per_page])
     @customers = @pagination.records.includes(:tenant)
     @query = query
@@ -32,6 +32,7 @@ class CustomersController < ApplicationController
     load_valuations
     load_segments
     load_contact_attempts
+    load_promises
     load_registry
     load_rights
   end
@@ -41,6 +42,13 @@ class CustomersController < ApplicationController
     def load_valuations
       @valuations = BillValuation.where(bill_id: @bills.map(&:id)).index_by(&:bill_id)
       @value_status = Charges::Recalculation.status(@customer.tenant)
+    end
+
+    # Promessas (10, R203): as abertas e pendentes dos contratos do cliente vão ao cabeçalho; cada título mostra a promessa que o prende. Consultas:
+    # `payment_promises (contract_id)` e o índice único parcial dos títulos presos.
+    def load_promises
+      @promises = Customers::PromisesController.holding_for(@customer)
+      @held_bills = PaymentPromiseBill.where(bill_id: @bills.map(&:id), held: true).includes(:promise).index_by(&:bill_id)
     end
 
     # Direitos do titular (07, R141): os botões da ficha só para quem tem a 13 (e a 1) no credor, e o que impede anonimizar, dito antes (R130).
@@ -78,7 +86,9 @@ class CustomersController < ApplicationController
 
     # Pagos (R54) e crédito por contrato (R55b): o crédito é do contrato, visível a todos os clientes dele, sem total por cliente.
     def load_payments_and_credits
-      @payments = Payment.where(bill_id: @bills.map(&:id)).applied.includes(:channel, :bill).order(paid_on: :desc, id: :desc)
+      # Pagamentos de promessa não têm título (10, R194): aparecem pelo número da promessa, nas promessas dos contratos do cliente.
+      promise_ids = PaymentPromise.where(contract_id: ContractCustomer.where(customer_id: @customer.id).select(:contract_id)).select(:id)
+      @payments = Payment.where(bill_id: @bills.map(&:id)).or(Payment.where(promise_id: promise_ids)).applied.includes(:channel, :bill).order(paid_on: :desc, id: :desc)
       @contracts = @customer.contracts.order(:code, :id).to_a
       @credit_totals = Credit.where(contract_id: @contracts.map(&:id)).group(:contract_id).sum(:amount_cents)
       @credit_entries = Credit.where(contract_id: @contracts.map(&:id)).includes(:payment, :related_contract).recent.limit(100).group_by(&:contract_id)

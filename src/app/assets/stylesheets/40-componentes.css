@@ -115,4 +115,17 @@
   /* Lista de contatos: um por linha, sem marcador, com o detalhe em texto menor. */
   ul.contatos { display: grid; gap: var(--espaco-2); margin: 0; padding: 0; list-style: none; }
   ul.contatos small { color: var(--cor-texto-suave); }
+
+  /* Promessas vigentes no cabeçalho da ficha (10, P17): uma linha por promessa, sem cartão; as ações ficam no fim da linha. */
+  .promessas { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--espaco-2); }
+  .promessas > li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espaco-3); padding: var(--espaco-3) var(--espaco-4); background: var(--cor-branco); border: 1px solid var(--cor-linha); border-radius: var(--raio-cartao); }
+  .promessas .detalhe { flex: 1 1 20rem; min-width: 0; overflow-wrap: anywhere; }
+  .promessas .acoes { margin-left: auto; }
+  .promessas details { flex-basis: 100%; }
+  .promessas details form { max-width: var(--largura-formulario); }
+
+  /* Lista de caixas de seleção: uma por linha (títulos da promessa, 10, R183). */
+  ul.caixas { display: grid; gap: var(--espaco-2); margin: 0; padding: 0; list-style: none; }
+  ul.caixas label { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espaco-2); }
+  ul.caixas small { color: var(--cor-texto-suave); }
 }

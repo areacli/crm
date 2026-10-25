@@ -8,11 +8,12 @@ class Contacts::ResultManagerTest < ActiveSupport::TestCase
     @manager = Contacts::ResultManager.new(users(:joana))
   end
 
-  test "R68: o credor novo recebe os 11 resultados da lista inicial, com tipo e regra de retorno" do
+  test "R68: o credor novo recebe os 12 resultados da lista inicial, com tipo e regra de retorno" do
     tenant = Tenant.provision!("Gama")
     results = tenant.contact_results.ordered.to_a
 
-    assert_equal 11, results.size
+    assert_equal 12, results.size
+    assert_equal [ "Negociação em andamento", "Prometeu pagar" ], results.select(&:allows_promise?).map(&:name) # R184
     assert_equal [ "Pediu para retornar depois", "spoke_with_customer", "required" ], results.first.values_at(:name, :kind, :return_rule)
     assert_equal [ "Número ou endereço inexistente", "no_contact", "not_allowed" ], results.last.values_at(:name, :kind, :return_rule)
     assert_equal 3, results.map(&:kind).uniq.size

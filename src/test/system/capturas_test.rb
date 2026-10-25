@@ -145,6 +145,25 @@ class CapturasTest < ApplicationSystemTestCase
     fill_in "Senha", with: "senha-de-teste-1"
     click_button "Entrar"
     assert_selector "h1", text: "Resumo da carteira"
+    # Incremento 10: uma promessa aberta, uma pendente de aprovação e uma quebrada, com o credor com encargos e a alçada do Operador de 30 dias.
+    @promise_customer = Customer.order(:id).fourth
+    [ @promise_customer, Customer.order(:id).fifth, @contacted_customer ].each { |customer| ContractCustomer.find_or_create_by!(contract: customer.bills.first.contract, customer: customer) }
+    @promise_customer.bills.order(:id).each { |bill| bill.update_columns(due_date: Date.current - 70) }
+    seed_indexes! if IndexRate.none?
+    Segment.catch_all_of(@tenant).update!(interest_kind: "fixed")
+    Segment.where(tenant: @tenant).update_all(promise_max_days: 60)
+    PromiseLimit.where(segment: Segment.where(tenant: @tenant), profile: profiles(:alfa_manager)).update_all(max_days: 60)
+    @tenant.setting.update!(charge_fine_pct: 2, charge_interest_pct: 1, charge_index: "ipca")
+    Charges::RuleHistory.record!(@tenant, since: Date.current - 400)
+    bills = @promise_customer.bills.order(:id).to_a
+    @promise = register_promise(@promise_customer, [ bills.first ], on: Date.current + 8, text: "Combinou o pagamento por Pix.")
+    @pending_promise = register_promise(@promise_customer, [ bills.second ], user: users(:carlos), on: Date.current + 45, text: "Pediu mais prazo.")
+    broken_customer = Customer.order(:id).fifth
+    broken_bill = broken_customer.bills.order(:id).first
+    broken_bill.update_columns(due_date: Date.current - 80)
+    broken = register_promise(broken_customer, [ broken_bill ], on: Date.current + 2, text: "Disse que paga depois do salário.")
+    broken.update_columns(promised_on: Date.current - 9, contacted_on: Date.current - 12)
+    Promises::Daily.new(@tenant).apply
   end
 
   # nome do arquivo => caminho (lambda para os que dependem de registros criados no setup)
@@ -209,6 +228,30 @@ class CapturasTest < ApplicationSystemTestCase
       click_button "Conferir mudança"
       :current
     },
+    # Incremento 10: promessas.
+    "ficha-com-promessas" => -> { customer_path(@promise_customer) },
+    "formulario-de-promessa" => lambda {
+      visit customer_path(@contacted_customer)
+      select "Prometeu pagar", from: "Resultado"
+      assert_no_selector ".htmx-request"
+      select "Telefone", from: "Canal"
+      assert_no_selector ".htmx-request"
+      select @contacted_customer.bills.first.contract.label, from: "Contrato da promessa"
+      assert_no_selector ".htmx-request"
+      2.times do |index|
+        all("#bloco-promessa input[type=checkbox]:not([disabled]):not(:checked)").first.check
+        assert_no_selector ".htmx-request"
+        assert_selector "#bloco-promessa input[type=checkbox]:checked", count: index + 1
+      end
+      select "Pix", from: "Meio de pagamento"
+      assert_no_selector ".htmx-request"
+      find("#contact_attempt_promise_on").set(Date.current + 9)
+      page.execute_script("document.getElementById('contact_attempt_promise_on').dispatchEvent(new Event('change', { bubbles: true }))")
+      assert_selector "#bloco-promessa tfoot td", wait: 10
+      :current
+    },
+    "promessas-pendentes" => -> { pending_promises_path },
+    "configuracao-de-promessas" => -> { settings_promises_path },
     "exportacao-de-dados" => -> { customer_data_export_path(@forecast_customer, token: Rails.application.message_verifier(:data_export).generate([ @forecast_customer.id, users(:joana).id ], expires_in: 10.minutes, purpose: :data_export)) }
   }.freeze
 
@@ -216,7 +259,7 @@ class CapturasTest < ApplicationSystemTestCase
   ABERTAS = %w[ficha-com-contatos].freeze
 
   # Telas longas, fotografadas com a janela mais alta para mostrar o que importa (o histórico, o formulário).
-  ALTAS = %w[ficha-com-acionamentos ficha-com-contatos politica-de-correcao exportacao-de-dados guarda-de-dados indices novo-segmento ficha-com-segmentos segmentos
+  ALTAS = %w[ficha-com-acionamentos ficha-com-contatos formulario-de-promessa configuracao-de-promessas ficha-com-promessas politica-de-correcao exportacao-de-dados guarda-de-dados indices novo-segmento ficha-com-segmentos segmentos
              regra-de-encargos conferencia-de-encargos conferencia-da-carteira resumo ficha-com-valor-atualizado].freeze
 
   test "recria as fotos do README" do

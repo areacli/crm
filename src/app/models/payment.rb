@@ -5,6 +5,8 @@ class Payment < ApplicationRecord
   belongs_to :channel, class_name: "PaymentChannel"
   belongs_to :bill, optional: true
   belongs_to :import, optional: true
+  # A promessa que este pagamento paga, ou a que ele contou para (10, R194, DP1); o pagamento de promessa não tem título.
+  belongs_to :promise, class_name: "PaymentPromise", optional: true
   has_many :reversals, class_name: "PaymentReversal", dependent: :restrict_with_error
 
   enum :status, { applied: "applied", pending: "pending", cancelled: "cancelled" }, validate: true

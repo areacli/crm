@@ -23,6 +23,9 @@ module Portfolio
       LIMITS.each do |field, max|
         return [ nil, "#{FIELD_NAMES.fetch(field, field)} acima de #{max} caracteres" ] if values[field].to_s.length > max
       end
+      # 10, R187a: o número da promessa chega no lugar do número do título; um título não pode ter o formato dele.
+      return [ nil, "título no formato de número de promessa (PRM-)" ] if Promises.number?(values["titulo"])
+
       due = BrDate.parse(values["vencimento"])
       return [ nil, "data inválida" ] unless due
 

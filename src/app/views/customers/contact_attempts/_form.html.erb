@@ -3,7 +3,7 @@
 <% path = customer_contact_attempts_path(customer) %>
 <% fields_path = new_customer_contact_attempt_path(customer) %>
 <% dependents = { "hx-get": fields_path, "hx-trigger": "change", "hx-swap": "none",
-                  "hx-include": "[name='contact_attempt[channel]'], [name='contact_attempt[result_id]'], [name='contact_attempt[contract_id]'], [name='contact_attempt[return_at]']" } %>
+                  "hx-include": "[name='contact_attempt[channel]'], [name='contact_attempt[result_id]'], [name='contact_attempt[contract_id]'], [name='contact_attempt[return_at]'], [name='contact_attempt[contacted_at]'], #bloco-promessa input, #bloco-promessa select" } %>
 <div id="form-acionamento">
   <% if local_assigns[:notice] %><%= aviso(tom: :success) { tag.p notice } %><% end %>
   <% if local_assigns[:warning] %><%= aviso(tom: :warning) { tag.p warning } %><% end %>
@@ -25,6 +25,7 @@
       </div>
     </div>
     <%= render "customers/contact_attempts/contract_notice", form: form, oob: false %>
+    <%= render "customers/contact_attempts/promise", form: form, oob: false %>
     <div class="grupo-de-campos">
       <div class="campo">
         <%= f.label :contact_used, "Contato usado (opcional)" %>
@@ -37,7 +38,7 @@
       </div>
       <div class="campo">
         <%= f.label :contacted_at, "Data e hora do contato (opcional)" %>
-        <%= f.datetime_local_field :contacted_at, value: form.value(:contacted_at), "aria-describedby": "ajuda-data" %>
+        <%= f.datetime_local_field :contacted_at, value: form.value(:contacted_at), "aria-describedby": "ajuda-data", **dependents %>
         <small id="ajuda-data">Vazio vale agora. Contato feito fora do sistema: até 7 dias atrás.</small>
       </div>
       <%= render "customers/contact_attempts/return_field", form: form, oob: false %>

@@ -2,6 +2,8 @@ module Portfolio
   # Consultas da carteira (R17 a R23), sempre limitadas aos credores em que o usuário pode consultar a carteira (MT-5). Situação
   # (vencido ou a vencer) e dias de atraso são calculados na consulta com a data de referência; nada disso é gravado (R6, R17).
   class Query
+    # Filtro "Promessa" da lista (10, R204): olha as promessas feitas pelo cliente da linha. Consulta: `payment_promises (customer_id)`.
+    PROMISE_FILTERS = %w[open pending broken none].freeze
     SORTS = %w[name bills_count overdue_cents upcoming_cents max_days_overdue].freeze
     ACCENTED = "áàâãäéèêëíìîïóòôõöúùûüç".freeze
     PLAIN = "aaaaaeeeeiiiiooooouuuuc".freeze
@@ -15,7 +17,7 @@ module Portfolio
 
     # Lista de clientes (R21): valores, maior atraso e faixa. Sem busca, só quem tem título em cobrança (no modo "só na ficha", só
     # quem tem título vencido); com busca, qualquer cliente do credor. `bracket` é o índice da faixa pedida, ou -1 para "sem atraso".
-    def customers(search: nil, bracket: nil, segment: nil, tenant_id: nil, sort: "overdue_cents", direction: "desc")
+    def customers(search: nil, bracket: nil, segment: nil, tenant_id: nil, sort: "overdue_cents", direction: "desc", promise: nil)
       ids = tenant_ids
       relation = Customer.visible_to(@user, "view_portfolio").joins("left join (#{aggregate_sql(ids)}) agg on agg.customer_id = customers.id")
         .select("customers.*", "coalesce(agg.bills_count, 0) as bills_count", "coalesce(agg.overdue_cents, 0) as overdue_cents",
@@ -24,6 +26,7 @@ module Portfolio
       relation = search.present? ? search_by(relation, search) : restrict_to_collection(relation, ids)
       relation = restrict_to_bracket(relation, ids, bracket) if bracket
       relation = restrict_to_segment(relation, ids, segment) if segment.present?
+      relation = restrict_to_promise(relation, promise) if PROMISE_FILTERS.include?(promise.to_s)
       order(relation, sort, direction)
     end
 
@@ -72,6 +75,14 @@ module Portfolio
     def segment_options(ids = tenant_ids) = Segment.where(tenant_id: ids, active: true).includes(:tenant).ordered.to_a
 
     private
+      def restrict_to_promise(relation, filter)
+        case filter
+        when "open", "pending" then relation.where("exists (select 1 from payment_promises pp where pp.customer_id = customers.id and pp.state = ?)", filter)
+        when "broken" then relation.where("exists (select 1 from payment_promises pp where pp.customer_id = customers.id and pp.state = 'broken' and pp.closed_at >= ?)", 30.days.ago)
+        else relation.where("not exists (select 1 from payment_promises pp where pp.customer_id = customers.id and pp.state in ('open', 'pending'))")
+        end
+      end
+
       # O filtro casa com qualquer contrato do cliente, inclusive "sem segmento" (R159). `segment` é o id ou "none".
       def restrict_to_segment(relation, ids, segment)
         if segment == "none"

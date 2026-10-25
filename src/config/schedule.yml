@@ -19,3 +19,10 @@ segments_recalculation:
   queue: default
   active_job: true
   description: "Segmentos (08): enfileira o recálculo dos contratos de cada credor"
+
+promises_daily:
+  cron: "50 6 * * *"
+  class: "PromisesDispatchJob"
+  queue: default
+  active_job: true
+  description: "Promessas (10): quebra as abertas com prazo vencido e encerra as pendentes sem aprovação"

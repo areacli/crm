@@ -14,6 +14,8 @@ module Portfolio
           # Uma importação por vez por credor (R10, caso de exceção): bloqueio consultivo da transação.
           Sql.execute("select pg_advisory_xact_lock(1, ?)", import.tenant_id)
           write(import)
+          # 10, R202 e R202a: título retirado ou passado a outro contrato sai das promessas dele.
+          Promises::BillExit.run(import.tenant_id)
         end
       rescue StandardError => error
         Rails.error.report(error, handled: true, context: { import_id: import.id })

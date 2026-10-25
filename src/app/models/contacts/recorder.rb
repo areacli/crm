@@ -49,6 +49,8 @@ module Contacts
                                channel: channel, contact_used: contact, text: text, contacted_at: contacted_at, return_at: return_at).tap do |attempt|
           log(attempt, "created", nil, result.name)
           apply_to_registry(customer, attempt, result, save_contact)
+          # 10, R183: acionamento e promessa são gravados juntos; se a promessa for recusada, nada é gravado.
+          Promises::Recorder.new(@actor).register(attempt, customer, result, attributes) if Promises::Recorder.requested?(attributes)
         end
       end
     end
