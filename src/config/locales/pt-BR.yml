@@ -15,6 +15,86 @@ pt-BR:
       discarded: "Descartada"
       rejected: "Recusada"
       failed: "Falhou"
+  portfolio:
+    sheet:
+      columns:
+        documento: "CPF ou CNPJ, com ou sem pontuação"
+        nome: "Texto, até 300 caracteres"
+        titulo: "Número do título, até 100 caracteres; não se repete para o mesmo cliente"
+        vencimento: "Data no formato dd/mm/aaaa"
+        valor: "Reais, com vírgula nos centavos e ponto nos milhares"
+        telefone: "Texto, até 60 caracteres"
+        email: "E-mail, até 254 caracteres"
+        contrato: "Código do contrato, até 100 caracteres; vazio cria um contrato só para o cliente"
+        descricao: "Texto, até 300 caracteres"
+        papel: "titular, responsável financeiro ou os dois separados por barra; vazio vale os dois"
+  passwords:
+    update:
+      done: "Senha alterada. As outras sessões abertas foram encerradas."
+  memberships:
+    create:
+      profile_required: "Escolha um perfil deste credor."
+      name_required: "Informe o nome do novo usuário."
+      linked: "%{name} (%{email}) foi ligado(a) a %{tenant}. A pessoa recebeu um aviso no sistema."
+    update:
+      done: "Nome alterado."
+    profiles:
+      update:
+        done: "Perfil alterado."
+    activations:
+      create:
+        done: "Acesso reativado."
+      destroy:
+        done: "Acesso desativado."
+  profiles:
+    create:
+      done: "Perfil %{name} criado."
+    update:
+      done: "Perfil %{name} alterado."
+    destroy:
+      done: "Perfil %{name} apagado."
+  notices:
+    kinds:
+      linked_to_tenant:
+        title: "%{actor_name} ligou você a %{tenant_name}"
+        body: "Perfil: %{profile_name}."
+  access:
+    refused:
+      manager_must_remain: "Ao menos um usuário ativo precisa poder gerenciar usuários e perfis."
+      self_membership: "Você não pode alterar o seu próprio acesso: outra pessoa com a permissão de gerenciar usuários faz a alteração."
+      own_profile: "Você não pode mudar as permissões do seu próprio perfil: outra pessoa com a permissão de gerenciar perfis faz a alteração."
+      profile_other_tenant: "O perfil não é deste credor."
+      user_inactive: "Esse usuário está desativado no sistema; só o administrador o reativa."
+      already_linked: "Esse usuário já está ligado a este credor."
+      personal_data: "Nome e senha de quem atua também em outro credor só o próprio usuário e o administrador alteram."
+      profile_in_use:
+        one: "Perfil em uso por %{count} usuário."
+        other: "Perfil em uso por %{count} usuários."
+  access_events:
+    login: "Entrou no sistema"
+    logout: "Saiu do sistema"
+    login_refused: "Tentativa de entrada recusada"
+    login_locked: "Tentativa de entrada durante o bloqueio"
+    account_locked: "Conta bloqueada por %{minutes} minutos depois de tentativas erradas"
+    access_denied: "Acesso recusado por falta de permissão (%{path})"
+    user_created: "Usuário criado com o perfil %{profile}"
+    membership_linked: "Ligado ao credor com o perfil %{profile}"
+    profile_changed: "Perfil mudou de %{before} para %{after}"
+    membership_deactivated: "Acesso ao credor desativado"
+    membership_reactivated: "Acesso ao credor reativado"
+    user_renamed: "Nome mudou de %{before} para %{after}"
+    password_reset: "Senha redefinida (nova senha temporária)"
+    password_changed: "Senha trocada pelo próprio usuário"
+    profile_created: "Perfil %{profile} criado"
+    profile_updated: "Perfil %{profile} alterado"
+    profile_deleted: "Perfil %{profile} apagado"
+    admin_user_created: "Usuário criado pelo administrador"
+    admin_membership_linked: "Ligado ao credor pelo administrador, com o perfil %{profile}"
+    admin_user_renamed: "Nome mudou de %{before} para %{after} (administrador)"
+    admin_user_deactivated: "Usuário desativado pelo administrador"
+    admin_user_reactivated: "Usuário reativado pelo administrador"
+    admin_password_reset: "Senha redefinida pelo administrador"
+    admin_tenant_created: "Credor %{name} criado pelo administrador"
   permissions:
     view_portfolio: "Consultar a carteira"
     upload_imports: "Enviar e conferir importação"
@@ -43,7 +123,9 @@ pt-BR:
       user:
         name: "Nome"
         email_address: "E-mail"
-        password: "Senha"
+        password: "A nova senha"
+        current_password: "A senha atual"
+        password_confirmation: "A confirmação da senha"
       profile:
         name: "Nome"
         permissions: "Permissões"
@@ -51,6 +133,19 @@ pt-BR:
         name: "Nome"
     errors:
       models:
+        user:
+          attributes:
+            email_address:
+              taken: "já pertence a um usuário"
+            password:
+              password_too_short: "precisa ter no mínimo %{count} caracteres"
+              password_only_digits: "não pode ter só números"
+              password_common: "é muito comum"
+              password_like_user: "é parecida com o usuário"
+              same_as_current: "não pode ser igual à senha atual"
+              confirmation: "não confere com a confirmação"
+            current_password:
+              invalid: "não confere"
         profile:
           attributes:
             permissions:

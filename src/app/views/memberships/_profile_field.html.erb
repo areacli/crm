@@ -1,0 +1,6 @@
+<%# Perfis do credor escolhido: o htmx troca só este campo quando o credor muda (hx-get no seletor de credor). %>
+<div class="campo" id="campo-perfil">
+  <label for="membership_profile_id">Perfil</label>
+  <%= select_tag "membership[profile_id]", options_for_select(@profiles.map { |profile| [ profile.name, profile.id ] }, @form&.dig(:profile_id)),
+                 id: "membership_profile_id", required: true %>
+</div>

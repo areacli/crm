@@ -1,0 +1,34 @@
+<%# Formulário de perfil: nome e as 17 permissões (R30). Locais: profile, tenants (só na criação), url, method. %>
+<% if @error || profile.errors.any? %>
+  <%= aviso(tom: :danger) { tag.p(@error || profile.errors.full_messages.to_sentence) } %>
+<% end %>
+<%= form_with scope: :profile, url: url, method: method, html: { "hx-boost": "false" } do |form| %>
+  <% if local_assigns[:tenants] && tenants.size > 1 %>
+    <div class="campo">
+      <%= form.label :tenant_id, "Credor" %>
+      <%= form.select :tenant_id, tenants.map { |tenant| [ tenant.name, tenant.id ] }, { selected: profile.tenant_id }, required: true %>
+    </div>
+  <% else %>
+    <%= form.hidden_field :tenant_id, value: profile.tenant_id unless profile.persisted? %>
+    <p>Credor: <strong><%= profile.tenant.name %></strong></p>
+  <% end %>
+  <div class="campo">
+    <%= form.label :name, "Nome do perfil" %>
+    <%= form.text_field :name, value: profile.name, required: true, maxlength: 100 %>
+  </div>
+  <fieldset>
+    <legend>Permissões</legend>
+    <p><small>Todas exigem "Consultar a carteira"; "Administrar acordos" exige também "Negociar acordos".</small></p>
+    <%= hidden_field_tag "profile[permissions][]", "", id: nil %>
+    <% Permission::ALL.each do |key| %>
+      <label>
+        <%= check_box_tag "profile[permissions][]", key, profile.permissions.include?(key), id: "permissao-#{key}" %>
+        <%= Permission.number(key) %>. <%= Permission.label(key) %>
+      </label>
+    <% end %>
+  </fieldset>
+  <div class="acoes">
+    <button type="submit">Salvar o perfil</button>
+    <%= link_to "Cancelar", profiles_path, class: "botao", data: { variant: "secondary" } %>
+  </div>
+<% end %>

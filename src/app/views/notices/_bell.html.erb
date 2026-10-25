@@ -1,0 +1,31 @@
+<%# Sino do cabeçalho: refeito pelo htmx quando o WebSocket avisa de um aviso novo (cable:notice-created) e a cada (re)conexão. %>
+<% notices = unread_notices.to_a %>
+<% count = unread_notices_count %>
+<div id="sino" class="avisos" hx-get="<%= notices_path %>" hx-trigger="cable:notice-created from:body, cable:connected from:body" hx-swap="outerHTML" hx-push-url="false">
+  <details>
+    <summary>
+      <%= icone("bell") %>
+      <span class="apenas-leitor-de-tela"><%= count.zero? ? "Avisos, nenhum não lido" : "Avisos, #{count} #{'não lido'.pluralize(count)}" %></span>
+      <% if count.positive? %><span class="contador" aria-hidden="true"><%= count %></span><% end %>
+    </summary>
+    <div>
+      <% if notices.empty? %>
+        <p>Nenhum aviso novo.</p>
+      <% else %>
+        <ul>
+          <% notices.each do |notice| %>
+            <li>
+              <p><strong><%= notice_title(notice) %></strong></p>
+              <p><small><%= notice_body(notice) %></small></p>
+              <div>
+                <small><%= datetime_br(notice.created_at) %></small>
+                <button type="button" data-variant="link" data-size="small" hx-patch="<%= notice_path(notice) %>" hx-target="#sino" hx-swap="outerHTML" hx-push-url="false">Marcar como lido</button>
+              </div>
+            </li>
+          <% end %>
+        </ul>
+        <button type="button" data-variant="secondary" data-size="small" hx-post="<%= notices_reading_path %>" hx-target="#sino" hx-swap="outerHTML" hx-push-url="false">Marcar todos como lidos</button>
+      <% end %>
+    </div>
+  </details>
+</div>

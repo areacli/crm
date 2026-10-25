@@ -13,5 +13,8 @@ module ActiveSupport
     fixtures :all
 
     include CsvHelper
+
+    # O limite de entradas por IP (`rate_limit`) conta no cache em memória do processo: cada teste começa sem a contagem dos outros.
+    setup { Rails.cache.clear }
   end
 end

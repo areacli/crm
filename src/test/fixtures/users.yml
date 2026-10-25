@@ -20,3 +20,9 @@ sem_vinculo:
   name: Sem Vínculo
   email_address: semvinculo@exemplo.com.br
   password_digest: <%= digest %>
+
+# Atua só na Beta (operadora): o caso da Marta da especificação 02, R36a.
+marta:
+  name: Marta Nunes
+  email_address: marta@exemplo.com.br
+  password_digest: <%= digest %>

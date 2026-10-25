@@ -81,12 +81,24 @@
   }
 }
 
-/* Menu do usuário: <details> no cabeçalho; o conteúdo abre sobre a página. */
+/* Menu do usuário e sino de avisos: <details> no cabeçalho; o conteúdo abre sobre a página. */
 @layer layout {
-  .usuario { position: relative; }
-  .usuario[open] > :not(summary) { position: absolute; right: 0; z-index: 50; margin: 0; padding: var(--espaco-3) var(--espaco-4); background: var(--cor-branco); color: var(--cor-texto); box-shadow: var(--sombra-menu); }
-  .usuario[open] > p { top: calc(100% + var(--espaco-2)); border-radius: var(--raio-controle) var(--raio-controle) 0 0; white-space: nowrap; }
-  .usuario[open] > form { top: calc(100% + 3.5rem); border-radius: 0 0 var(--raio-controle) var(--raio-controle); width: 100%; }
+  .conta { display: flex; align-items: center; gap: var(--espaco-4); }
+  .usuario, .avisos > details { position: relative; }
+  .usuario[open] > div, .avisos > details[open] > div { position: absolute; right: 0; top: calc(100% + var(--espaco-2)); z-index: 50; display: grid; gap: var(--espaco-3); padding: var(--espaco-3) var(--espaco-4); background: var(--cor-branco); color: var(--cor-texto); border-radius: var(--raio-controle); box-shadow: var(--sombra-menu); }
+  .usuario[open] > div { white-space: nowrap; }
+  .usuario > div p { margin: 0; }
+
+  /* Sino: o ícone, com o contador dos não lidos; o painel lista cada aviso com o botão de marcar como lido. */
+  .avisos summary { position: relative; list-style: none; cursor: pointer; display: grid; place-items: center; width: var(--altura-controle); height: var(--altura-controle); border-radius: var(--raio-controle); }
+  .avisos summary::-webkit-details-marker { display: none; }
+  .avisos summary:hover { background: var(--cor-azul-escuro); }
+  .avisos > details[open] > div { width: min(26rem, calc(100vw - 2rem)); max-height: 70vh; overflow-y: auto; }
+  .avisos ul { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--espaco-3); }
+  .avisos li { display: grid; gap: var(--espaco-1); padding-bottom: var(--espaco-3); border-bottom: 1px solid var(--cor-linha); }
+  .avisos li:last-child { border-bottom: 0; padding-bottom: 0; }
+  .avisos li p { margin: 0; }
+  .avisos li > div { display: flex; justify-content: space-between; align-items: center; gap: var(--espaco-3); }
 }
 
 /* Telas da carteira: filtros, colunas e paginação. */

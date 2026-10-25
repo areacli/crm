@@ -4,8 +4,8 @@ class AccessEvent < ApplicationRecord
   belongs_to :tenant, optional: true
   belongs_to :actor, class_name: "User", optional: true
 
-  def self.record(event, request: nil, user: nil, email_address: nil, tenant: nil, actor: nil, details: nil)
-    create!(event: event, user: user, tenant: tenant, actor: actor, email_address: email_address || user&.email_address,
+  def self.record(event, request: nil, user: nil, email_address: nil, tenant: nil, tenant_id: nil, actor: nil, details: nil)
+    create!(event: event, user: user, tenant_id: tenant&.id || tenant_id, actor: actor, email_address: email_address || user&.email_address,
             ip_address: request&.remote_ip, details: details)
   end
 end

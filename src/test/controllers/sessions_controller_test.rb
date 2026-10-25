@@ -68,4 +68,71 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to new_session_url
     assert_equal 1, AccessEvent.where(event: "logout").count
   end
+
+  test "R27: cinco senhas erradas bloqueiam por 15 minutos, nem a senha certa entra, e a mensagem é a mesma" do
+    5.times do
+      post session_url, params: { email_address: users(:joana).email_address, password: "errada" }
+      assert_equal "E-mail ou senha incorretos.", flash[:alert]
+    end
+    assert users(:joana).reload.locked?
+    assert_equal 1, AccessEvent.where(event: "account_locked", user: users(:joana)).count
+
+    post session_url, params: { email_address: users(:joana).email_address, password: "senha-de-teste-1" }
+    assert_redirected_to new_session_url
+    assert_equal "E-mail ou senha incorretos.", flash[:alert]
+    assert_equal 1, AccessEvent.where(event: "login_locked", user: users(:joana)).count
+
+    travel 15.minutes + 1.second do
+      post session_url, params: { email_address: users(:joana).email_address, password: "senha-de-teste-1" }
+      assert_redirected_to root_url
+    end
+  end
+
+  test "R27: um login certo zera a contagem de erros" do
+    4.times { post session_url, params: { email_address: users(:joana).email_address, password: "errada" } }
+    post session_url, params: { email_address: users(:joana).email_address, password: "senha-de-teste-1" }
+    delete session_url
+    4.times { post session_url, params: { email_address: users(:joana).email_address, password: "errada" } }
+
+    assert_not users(:joana).reload.locked?
+  end
+
+  test "R37: a senha temporária de 73 horas é recusada com a mensagem de sempre; a redefinição a devolve" do
+    password = Access::TemporaryPassword.generate
+    users(:carlos).update!(password: password, temporary_password_until: 72.hours.from_now)
+
+    travel 73.hours do
+      post session_url, params: { email_address: users(:carlos).email_address, password: password }
+      assert_redirected_to new_session_url
+      assert_equal "E-mail ou senha incorretos.", flash[:alert]
+    end
+
+    nova = Access::UserManager.new(users(:joana)).reset_password(memberships(:carlos_alfa))
+    post session_url, params: { email_address: users(:carlos).email_address, password: nova }
+    assert_redirected_to root_url
+  end
+
+  test "R38: com senha temporária só a tela de definir a senha abre; sair continua possível" do
+    users(:carlos).update!(temporary_password_until: 72.hours.from_now)
+    sign_in_as users(:carlos)
+
+    %w[/ /clientes /importacoes /usuarios /perfis /avisos].each do |path|
+      get path
+      assert_redirected_to edit_password_url, path
+    end
+    get edit_password_url
+    assert_response :success
+    assert_select "h1", "Defina sua senha"
+    assert_select "nav[aria-label=Menu]", count: 0
+    assert_select "#sino", count: 0
+
+    delete session_url
+    assert_redirected_to new_session_url
+  end
+
+  test "o e-mail digitado em outra grafia entra (R36)" do
+    post session_url, params: { email_address: "  JOANA@EXEMPLO.COM.BR ", password: "senha-de-teste-1" }
+
+    assert_redirected_to root_url
+  end
 end
