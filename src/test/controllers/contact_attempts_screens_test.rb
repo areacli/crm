@@ -248,7 +248,7 @@ class ContactAttemptsScreensTest < ActionDispatch::IntegrationTest
     entrar(users(:joana))
     get customer_path(@maria)
     assert_select "button", text: /Anular/, count: 0
-    assert_select "dialog", 0
+    assert_select "dialog:not(#exportar-dados):not(#anonimizar-cliente):not(#transferir-credito)", 0
     post "/acionamentos/#{attempt.id}/anulacao", params: { void: { reason: "x" } }
     assert_response :not_found
     patch "/clientes/#{@maria.id}/acionamentos/#{attempt.id}", params: { contact_attempt: { text: "x" } }

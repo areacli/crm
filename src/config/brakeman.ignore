@@ -11,11 +11,40 @@
       "link": "https://brakemanscanner.org/docs/warning_types/sql_injection/",
       "code": "Customer.visible_to(@user, \"view_portfolio\").joins(\"left join (#{aggregate_sql(tenant_ids)}) agg on agg.customer_id = customers.id\")",
       "render_path": null,
-      "location": { "type": "method", "class": "Portfolio::Query", "method": "customers" },
+      "location": {
+        "type": "method",
+        "class": "Portfolio::Query",
+        "method": "customers"
+      },
       "user_input": "aggregate_sql(tenant_ids)",
       "confidence": "Medium",
-      "cwe_id": [ 89 ],
+      "cwe_id": [
+        89
+      ],
       "note": "Falso positivo: aggregate_sql monta o texto com sanitize_sql_array, e os ids dos credores vêm das permissões do usuário no banco."
+    },
+    {
+      "warning_type": "SQL Injection",
+      "warning_code": 0,
+      "fingerprint": "3df7d7bc9bdb3a9afbe2ba116bb872f7a793392b88674de899ec5fcc5bf1aab0",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "app/models/titular/retention.rb",
+      "line": 11,
+      "link": "https://brakemanscanner.org/docs/warning_types/sql_injection/",
+      "code": "Arel.sql(\"(#{sql(tenant_ids, within, today)}) customers\")",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Titular::Retention",
+        "method": "due"
+      },
+      "user_input": "sql(tenant_ids, within, today)",
+      "confidence": "Medium",
+      "cwe_id": [
+        89
+      ],
+      "note": "Falso positivo: os ids dos credores passam por to_i, a data vai citada pelo connection.quote e o resto do texto é fixo."
     }
   ],
   "brakeman_version": "8.0.2"

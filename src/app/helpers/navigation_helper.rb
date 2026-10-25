@@ -37,6 +37,7 @@ module NavigationHelper
                                      [ discrepancies_label, value_discrepancies_path, "confirm_payments", %r{\A/divergencias-de-valor} ],
                                      [ "Importações", imports_path, ImportPolicy::UPLOAD.values.uniq + ImportPolicy::CONFIRM.values.uniq, %r{\A/importacoes(?!/nova)} ] ] },
       { titulo: "Administração", itens: [ [ "Usuários", memberships_path, "manage_users", %r{\A/usuarios} ],
+                                          [ "Guarda de dados", data_retention_path, "handle_data_subject_rights", %r{\A/guarda-de-dados} ],
                                           [ "Perfis", profiles_path, "manage_profiles", %r{\A/perfis} ],
                                           [ "Configuração", settings_entry_path, SETTINGS_TABS.map(&:last), %r{\A/configuracao} ] ] }
     ]

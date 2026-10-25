@@ -87,6 +87,17 @@ class CapturasTest < ApplicationSystemTestCase
     @conference.warnings.create!(line: 12, reason: "endereço ignorado (CEP inválido)")
     @conference.warnings.create!(line: 31, reason: "telefone2 ignorado (menos de 8 dígitos)")
     @conference.warnings.create!(line: 44, reason: "telefone igual ao do credor (entra inválido)")
+    # Incremento 7: guarda de dados (dois previstos, um retido, um já anonimizado, execuções) e a exportação dos dados de um cliente.
+    @tenant.setting.update!(retention_years: 5)
+    @forecast_customer = make_full_customer(@tenant, ended_on: Date.current - 5.years + 12.days, document: FakeData.cpf(300), name: FakeData.name(300), code: "CT-P1")
+    make_full_customer(@tenant, ended_on: Date.current - 5.years + 25.days, document: FakeData.cpf(301), name: FakeData.name(301), code: "CT-P2")
+    retained = make_full_customer(@tenant, ended_on: Date.current - 6.years, document: FakeData.cpf(302), name: FakeData.name(302), code: "CT-P3")
+    Titular::Retainer.new(users(:joana)).retain(retained, "Ação judicial nº 0001234-56.2025 em curso (art. 16 da LGPD)")
+    @anonymized_customer = make_full_customer(@tenant, ended_on: Date.current - 7.years, document: FakeData.cpf(303), name: FakeData.name(303), code: "CT-P4")
+    Titular::Anonymizer.in_batch(@tenant.id, [ @anonymized_customer.id ])
+    TaskRun.create!(tenant: @tenant, name: "data_retention", status: "succeeded", started_at: Time.current.change(hour: 3), finished_at: Time.current.change(hour: 3, min: 1), processed: 4)
+    TaskRun.create!(tenant: @tenant, name: "data_retention", status: "skipped", started_at: 1.day.ago.change(hour: 3), finished_at: 1.day.ago.change(hour: 3), note: "Há uma importação em andamento.")
+    TaskRun.create!(tenant: @tenant, name: "data_retention", status: "succeeded", started_at: 2.days.ago.change(hour: 3), finished_at: 2.days.ago.change(hour: 3, min: 1), processed: 0)
     visit new_session_path
     fill_in "E-mail", with: users(:joana).email_address
     fill_in "Senha", with: "senha-de-teste-1"
@@ -123,14 +134,18 @@ class CapturasTest < ApplicationSystemTestCase
     # Incremento 6: cadastros.
     "ficha-com-contatos" => -> { customer_path(@contacted_customer) },
     "dados-do-credor" => -> { settings_tenant_registry_path },
-    "politica-de-correcao" => -> { settings_portfolio_path }
+    "politica-de-correcao" => -> { settings_portfolio_path },
+    # Incremento 7: direitos do titular e guarda de dados.
+    "guarda-de-dados" => -> { data_retention_path },
+    "ficha-anonimizada" => -> { customer_path(@anonymized_customer) },
+    "exportacao-de-dados" => -> { customer_data_export_path(@forecast_customer, token: Rails.application.message_verifier(:data_export).generate([ @forecast_customer.id, users(:joana).id ], expires_in: 10.minutes, purpose: :data_export)) }
   }.freeze
 
   # Telas fotografadas com os blocos recolhidos (`<details>`) abertos, para mostrar o que há dentro.
   ABERTAS = %w[ficha-com-contatos].freeze
 
   # Telas longas, fotografadas com a janela mais alta para mostrar o que importa (o histórico, o formulário).
-  ALTAS = %w[ficha-com-acionamentos ficha-com-contatos politica-de-correcao].freeze
+  ALTAS = %w[ficha-com-acionamentos ficha-com-contatos politica-de-correcao exportacao-de-dados guarda-de-dados].freeze
 
   test "recria as fotos do README" do
     TELAS.each do |nome, caminho|

@@ -37,6 +37,16 @@
         </div>
         <div class="acoes"><button type="submit">Salvar dados do credor</button></div>
       <% end %>
+      <% setting = registered.setting %>
+      <%= form_with scope: :retention, namespace: "guarda#{tenant.id}", url: settings_retention_period_path, method: :patch, html: { "hx-boost": "false" } do |form| %>
+        <%= hidden_field_tag :tenant_id, tenant.id %>
+        <fieldset>
+          <legend>Prazo de guarda dos dados</legend>
+          <p><small>Anos contados do fim da última relação em aberto do cliente; depois disso a tarefa diária anonimiza, salvo os retidos.</small></p>
+          <div class="campo"><%= form.label :years, "Prazo, em anos" %><%= form.number_field :years, value: setting.retention_years, min: 1, max: 50, required: true %></div>
+          <div class="acoes"><button type="submit" data-variant="secondary">Salvar prazo de guarda</button></div>
+        </fieldset>
+      <% end %>
       <p><small><%= last ? "Última alteração: #{last.user&.name || 'sistema'} em #{datetime_br(last.occurred_at)}." : "Cadastro ainda não preenchido." %></small></p>
     </div>
   </section>

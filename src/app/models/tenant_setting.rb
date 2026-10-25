@@ -17,6 +17,9 @@ class TenantSetting < ApplicationRecord
   # Correção na tela ou carga: qual vale (06, R117). Padrão: a tela prevalece.
   enum :correction_policy, { screen: "screen", load: "load" }, prefix: true, validate: true
 
+  # Prazo de guarda dos dados do cliente, em anos (07, R136): mínimo 1, padrão 5 (PG1).
+  validates :retention_years, numericality: { only_integer: true, greater_than_or_equal_to: 1, less_than_or_equal_to: 50 }
+
   PAYMENT_POLICIES = %w[partial_payment_policy withdrawn_payment_policy withdrawn_reversal_policy reversal_month_policy].freeze
 
   # Faixas iniciais de atraso, em dias: de 1 a 30, de 31 a 60, de 61 a 90, de 91 a 180, de 181 a 360 e mais de 360.

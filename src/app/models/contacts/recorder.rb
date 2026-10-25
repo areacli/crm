@@ -17,6 +17,8 @@ module Contacts
     # `attributes`: channel, result_id, contract_id, contact_used, text, contacted_at e return_at (estes dois como o campo de data e hora
     # envia). Devolve o acionamento criado, ou o idêntico já registrado há pouco (duplo envio).
     def record(customer, attributes, save_contact: false)
+      raise Refused, I18n.t("titular.anonymized_customer") if customer.anonymized?
+
       channel = attributes[:channel].to_s
       refuse!(:channel) unless ContactAttempt::CHANNELS.include?(channel)
       result = ContactResult.find_by(id: attributes[:result_id], tenant_id: customer.tenant_id)

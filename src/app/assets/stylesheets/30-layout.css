@@ -112,3 +112,13 @@
   .apenas-leitor-de-tela { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   progress { width: 100%; max-width: 20rem; height: var(--espaco-3); vertical-align: middle; accent-color: var(--cor-azul); }
 }
+
+/* Páginas feitas de seções (guarda de dados) e a página para imprimir (07, R128): sem menu e sem botões ao imprimir. */
+@layer layout {
+  .pagina-em-secoes { display: grid; gap: var(--espaco-6); }
+  body[data-pagina="impressao"] { display: block; }
+  @media print {
+    .nao-imprimir, body > header, body > nav { display: none; }
+    body > main { padding: 0; max-width: none; }
+  }
+}

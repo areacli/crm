@@ -1,0 +1,7 @@
+# Tarefas agendadas (sidekiq-cron lê este arquivo ao subir o Sidekiq). A hora é a de Brasília (config.time_zone).
+data_retention:
+  cron: "0 3 * * *"
+  class: "RetentionDispatchJob"
+  queue: default
+  active_job: true
+  description: "Guarda de dados (07): enfileira a anonimização por prazo de cada credor"

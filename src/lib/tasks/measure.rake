@@ -411,4 +411,69 @@ namespace :crm do
     tenant.destroy
     puts "credor de medição apagado"
   end
+
+  desc "V4 dos direitos do titular (07): N clientes com título pago há 6 anos, contatos, acionamentos e pagamentos; mede exportar, anonimizar um, previsão e a tarefa diária: crm:measure_titular[clientes]"
+  task :measure_titular, %i[customers] => :environment do |_task, args|
+    abort "Recusado em produção." if Rails.env.production?
+
+    count = (args[:customers].presence || 10_000).to_i
+    tenant = Tenant.provision!("Medição de direitos do titular #{Time.current.strftime('%H%M%S')}")
+    t = tenant.id
+    user = User.create!(name: "Medição", email_address: "medicao#{t}@exemplo.com.br", password: SecureRandom.base58(24))
+    Membership.create!(user: user, tenant: tenant, profile: tenant.profiles.find_by!(name: "Gestor"))
+    sql = Portfolio::Sql
+    measure = lambda do |label, limit = nil, &work|
+      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      result = work.call
+      elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+      peak = (File.read("/proc/self/status")[/VmHWM:\s+(\d+)/, 1].to_i / 1024 rescue 0)
+      verdict = limit ? (elapsed <= limit ? "  ok (limite #{limit} s)" : "  ACIMA do limite de #{limit} s") : ""
+      puts format("%-62s %8.2f s   (pico de memória %d MB)%s", label, elapsed, peak, verdict)
+      result
+    end
+
+    # Um cliente por linha, um contrato por cliente, um título pago há 6 anos com o pagamento, 3 contatos, 1 acionamento com texto e histórico.
+    sql.run("insert into customers (tenant_id, document, name, created_at, updated_at) select ?, lpad(i::text, 11, '0'), 'Cliente ' || i, now(), now() from generate_series(1, ?) i", t, count)
+    sql.run("insert into contracts (tenant_id, code, created_at, updated_at) select ?, 'CT-' || id, now(), now() from customers where tenant_id = ?", t, t)
+    sql.execute("analyze customers, contracts")
+    sql.run("insert into contract_customers (contract_id, customer_id, roles) select k.id, c.id, '[]'::jsonb from customers c join contracts k on k.tenant_id = c.tenant_id and k.code = 'CT-' || c.id where c.tenant_id = ?", t)
+    sql.run("insert into bills (tenant_id, contract_id, customer_id, number, due_date, amount_cents, paid_cents, paid_on, description, status, created_at, updated_at) " \
+            "select ?, cc.contract_id, c.id, 'NF-' || c.id, current_date - 2300, 10000, 10000, current_date - 2200, 'Mensalidade de ' || c.name, 'paid', now(), now() " \
+            "from customers c join contract_customers cc on cc.customer_id = c.id where c.tenant_id = ?", t, t)
+    channel = PaymentChannel.create!(tenant: tenant, kind: :account, code: "MEDICAO", description: "Canal de medição")
+    sql.run("insert into payments (tenant_id, channel_id, identifier, document, bill_number, bill_id, paid_on, amount_cents, payment_method, status, applied_cents, created_at, updated_at) " \
+            "select ?, ?, 'P-' || b.id, c.document, b.number, b.id, current_date - 2200, 10000, 'pix', 'applied', 10000, now(), now() from bills b join customers c on c.id = b.customer_id where b.tenant_id = ?", t, channel.id, t)
+    sql.run("insert into customer_contacts (tenant_id, customer_id, kind, key, value, origin, status, created_at, updated_at) " \
+            "select ?, c.id, k.kind, k.kind || c.id, 'contato ' || k.kind || ' ' || c.id, 'load', 'valid', now(), now() from customers c cross join (values ('phone'), ('email'), ('address')) k(kind) where c.tenant_id = ?", t, t)
+    result = ContactResult.where(tenant_id: t).first
+    sql.run("insert into contact_attempts (tenant_id, customer_id, result_id, result_kind, channel, contact_used, text, contacted_at, created_at, updated_at) " \
+            "select ?, id, ?, ?, 'phone', 'contato phone ' || id, 'Falou com ' || name, now() - interval '2200 days', now(), now() from customers where tenant_id = ?", t, result.id, result.kind, t)
+    sql.run("insert into changes (tenant_id, subject_type, subject_id, event, field, before, after, occurred_at) select ?, 'customer', id, 'updated', 'name', 'Antigo ' || name, name, now() from customers where tenant_id = ?", t, t)
+    sql.execute("analyze customers, bills, payments, contracts, contract_customers, contact_attempts, customer_contacts, changes")
+    puts "#{count} clientes criados no credor de medição"
+
+    # Exportação e anonimização de um cliente com 1.000 acionamentos (limites da especificação: 3 s e 5 s).
+    heavy = Customer.where(tenant_id: t).order(:id).first
+    sql.run("insert into contact_attempts (tenant_id, customer_id, result_id, result_kind, channel, contact_used, text, contacted_at, created_at, updated_at) " \
+            "select ?, ?, ?, ?, 'phone', 'contato phone', 'Texto do acionamento ' || i, now() - interval '2200 days' + i * interval '1 minute', now(), now() from generate_series(1, 1000) i", t, heavy.id, result.id, result.kind)
+    measure.call("exportar um cliente com 1.000 acionamentos", 3) { Titular::Exporter.new(heavy).to_h }
+    measure.call("anonimizar um cliente com 1.000 acionamentos (a pedido)", 5) { Titular::Anonymizer.on_request(heavy, actor: user, reason: "medição", document: heavy.document) }
+
+    due = measure.call("previsão de 30 dias e vencidos (consulta de conjunto)") { Titular::Retention.due([ t ], within: 30).count }
+    puts "  vencidos ou previstos: #{due}"
+    measure.call("página de guarda: primeira página da previsão (20)") { Pagination.new(Titular::Retention.due([ t ], within: 30).order("due_on, id"), page: 1, per_page: 20).records.to_a }
+    run = measure.call("tarefa diária: anonimiza #{count - 1} clientes vencidos", 600) { Titular::RetentionRun.new(tenant).call }
+    puts "  execução: #{run.status}, #{run.processed} anonimizados, #{run.failed} falhas"
+    puts "  clientes ainda identificados: #{Customer.where(tenant_id: t, anonymized_at: nil).count}"
+    puts "  dado pessoal restante nos acionamentos: #{ContactAttempt.where(tenant_id: t).where("text like 'Falou com%' or text like 'Texto do%'").count}"
+
+    %w[bill_value_versions changes customer_contacts contact_attempts payments task_runs].each { |table| sql.run("delete from #{table} where tenant_id = ?", t) }
+    ContractCustomer.where(customer_id: Customer.where(tenant_id: t)).delete_all
+    [ Bill, Customer, Contract, PaymentChannel ].each { |model| model.where(tenant_id: t).delete_all }
+    tenant.contact_results.delete_all
+    Membership.where(tenant_id: t).delete_all
+    user.destroy
+    tenant.destroy
+    puts "credor de medição apagado"
+  end
 end
