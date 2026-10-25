@@ -1,0 +1,198 @@
+# Contas de pagamento e instrumentos (12): fornecedores, campos do manifesto, certificado, telas e avisos.
+pt-BR:
+  activerecord:
+    attributes:
+      payment_account:
+        nickname: "Apelido"
+        provider: "Fornecedor"
+        modality: "Modalidade"
+        channel: "Canal"
+    errors:
+      models:
+        payment_account:
+          attributes:
+            provider:
+              unavailable: "não está instalado neste sistema"
+            modality:
+              unsupported: "não é atendida por esse fornecedor"
+            channel:
+              other_tenant: "é de outro credor"
+            nickname:
+              taken: "já está em uso neste credor"
+              blank: "não pode ficar em branco"
+              too_long: "tem no máximo 100 caracteres"
+            base:
+              active_exists: "Já existe uma conta de %{modality} ativa neste ambiente (%{environment}). Desative a outra antes."
+              required_field: "%{field} é obrigatório."
+              invalid_option: "%{field}: escolha uma das opções."
+              too_long_field: "%{field} tem no máximo %{count} caracteres."
+              not_a_number: "%{field} deve ser um número."
+              out_of_range: "%{field} deve estar entre %{min} e %{max}."
+        payment_channel:
+          attributes:
+            base:
+              "restrict_dependent_destroy":
+                has_many: "O canal tem contas de pagamento e não pode ser apagado."
+  payments:
+    instruments:
+      no_account: "O credor não tem conta de %{kind} ativa neste ambiente."
+      account_unavailable: "A conta de pagamento está inativa ou o fornecedor não está instalado."
+      payer_document_missing: "Documento do pagador ausente."
+      payer_document_invalid: "Documento do pagador inválido."
+      no_identifier: "O fornecedor não devolveu o identificador do instrumento."
+      no_digitable_line: "O fornecedor não devolveu a linha digitável."
+      no_copy_paste: "O fornecedor não devolveu o copia e cola do Pix."
+      pdf_invalid: "O arquivo do boleto não é um PDF."
+      hash_mismatch: "O arquivo guardado não confere com o recebido (SHA-256)."
+      network_failed: "Falha de comunicação com o fornecedor: %{detail}"
+      paid_untouchable: "Instrumento pago não pode ser cancelado nem alterado."
+      not_cancelable: "Só o instrumento ativo pode ser cancelado ou alterado."
+      due_date_boleto_only: "Só o vencimento de boleto pode ser mudado."
+      due_date_past: "O novo vencimento deve ser uma data futura."
+      pdf_outdated: "O vencimento mudou, mas o PDF novo não pôde ser baixado: %{detail}"
+    certificate:
+      unreadable: "Não foi possível abrir o certificado: confira o arquivo e a senha."
+      too_large: "O arquivo é grande demais para ser um certificado (o limite é 64 KB)."
+      no_private_key: "O arquivo não tem a chave privada."
+      expired: "O certificado venceu em %{date}."
+    channels:
+      has_accounts: "O canal tem contas de pagamento. Apague-as antes de apagar o canal."
+    accounts:
+      in_use: "A conta já emitiu instrumentos e não se apaga; desative-a."
+      modalities:
+        boleto: "Boleto"
+        pix: "Pix"
+        card: "Cartão"
+      environments:
+        sandbox: "Homologação"
+        production: "Produção"
+      test:
+        ok: "Conexão com o fornecedor conferida."
+        unavailable: "Este fornecedor ainda não tem teste de conexão."
+        certificate_expired: "O certificado venceu em %{date}."
+        fake_refused: "Credencial recusada pelo fornecedor."
+        fake_unavailable: "Fornecedor indisponível."
+        bad_signature: "Assinatura do aviso inválida."
+        bad_payload: "Aviso fora do formato."
+        not_found: "Instrumento não encontrado no fornecedor."
+        refund_too_high: "O valor devolvido passa do valor do instrumento."
+        failed: "Falha: %{message}"
+      fields:
+        nickname: "Apelido"
+        channel: "Canal"
+        active: "Situação"
+        connection: "Conexão"
+      history:
+        created: "Conta criada"
+        updated: "Conta alterada"
+        secret_replaced: "Segredo trocado"
+        file_replaced: "Arquivo trocado"
+        activated: "Conta ativada"
+        deactivated: "Conta desativada"
+        deleted: "Conta apagada"
+        tested: "Conexão testada"
+        webhook_secret_generated: "Segredo do webhook gerado"
+    providers:
+      fake:
+        name: "Fornecedor de teste (falso)"
+        fields:
+          api_key:
+            label: "Chave de API"
+            help: "Qualquer texto: o fornecedor falso não a confere."
+          connection_result:
+            label: "Resultado do teste de conexão"
+            help: "O que o botão \"Testar conexão\" deve responder."
+            options:
+              ok: "Conexão boa"
+              refused: "Credencial recusada"
+              unavailable: "Fornecedor indisponível"
+      efi:
+        name: "Efí"
+        errors:
+          credential_refused: "Credencial recusada pela Efí: confira o Client ID e o Client Secret e o ambiente."
+          no_credentials: "A conta não tem Client ID e Client Secret."
+          no_certificate: "A conta não tem o certificado do Pix."
+          certificate_unreadable: "Não foi possível abrir o certificado da conta."
+          no_pix_key: "A conta não tem a chave Pix."
+          refused: "A Efí recusou o pedido: %{detail}"
+          unavailable: "A Efí está indisponível no momento."
+          unexpected: "Resposta inesperada da Efí."
+          unknown_status: "A Efí devolveu um estado de Pix desconhecido."
+          pdf_missing: "A Efí não devolveu o endereço do PDF do boleto."
+          pix_not_paid: "O Pix ainda não foi pago; não há o que devolver."
+          no_webhook_url: "Sem endereço público (CRM_PUBLIC_URL) ou sem segredo do webhook gerado na conta."
+          bad_webhook_auth: "Aviso sem a autenticação esperada."
+          pdf_host: "O endereço do PDF não é da Efí e foi ignorado."
+          pdf_download: "Não foi possível baixar o PDF do boleto (resposta %{status})."
+          pdf_invalid: "O arquivo baixado não é um PDF."
+        fields:
+          client_id:
+            label: "Client ID"
+            help: "Da aplicação da conta Efí, no ambiente escolhido."
+          client_secret:
+            label: "Client Secret"
+          payee_code:
+            label: "Identificador da conta (payee_code)"
+            help: "Código da conta Efí que o checkout de cartão usa."
+          certificate:
+            label: "Certificado (.p12)"
+            help: "Certificado da API Pix, baixado na conta Efí. Só o titular, a validade e a impressão digital voltam para a tela."
+          certificate_password:
+            label: "Senha do certificado"
+            help: "Deixe em branco se o arquivo não tem senha."
+          expire_days:
+            label: "Dias de validade"
+            help: "Dias entre a emissão e o vencimento."
+          fine_percent:
+            label: "Multa (%)"
+          interest_percent:
+            label: "Juros ao mês (%)"
+          discount_percent:
+            label: "Desconto condicional (%)"
+          write_off_days:
+            label: "Dias para baixa do boleto vencido"
+            help: "De 0 a 120: quanto tempo o boleto vencido ainda pode ser pago."
+          message:
+            label: "Mensagem do boleto"
+            help: "Até 4 linhas de 100 caracteres."
+          max_installments:
+            label: "Máximo de parcelas"
+    fields:
+      pix_key:
+        label: "Chave Pix"
+        help: "A chave do credor que recebe o Pix."
+      webhook_secret:
+        label: "Segredo do webhook"
+        help: "Gerado pelo sistema e mostrado uma única vez."
+      expire_days:
+        label: "Dias de validade"
+      max_installments:
+        label: "Máximo de parcelas"
+      certificate:
+        label: "Certificado (.p12)"
+      certificate_password:
+        label: "Senha do certificado"
+  settings:
+    payment_accounts:
+      create:
+        done: "Conta %{nickname} cadastrada."
+      update:
+        done: "Conta %{nickname} salva."
+      destroy:
+        done: "Conta %{nickname} apagada."
+      activations:
+        create:
+          done: "Conta %{nickname} ativada."
+        destroy:
+          done: "Conta %{nickname} desativada."
+      connection_tests:
+        create:
+          done: "Teste da conta %{nickname} feito. %{message}"
+  notices:
+    kinds:
+      certificate_expiring:
+        title: "O certificado da conta %{account} vence em %{expires_on}"
+        body: "Credor %{tenant_name}. Envie o certificado novo na aba Contas de pagamento antes do vencimento."
+      certificate_expired:
+        title: "O certificado da conta %{account} venceu em %{expires_on}"
+        body: "Credor %{tenant_name}. A conta não funciona até o envio de um certificado novo."

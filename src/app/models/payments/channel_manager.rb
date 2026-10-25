@@ -28,6 +28,7 @@ module Payments
     # R45 (revisão 7): só o canal sem pagamento se apaga, com confirmação.
     def destroy(channel)
       raise Access::Refused, I18n.t("payments.channels.in_use") if channel.used?
+      raise Access::Refused, I18n.t("payments.channels.has_accounts") if channel.payment_accounts.exists?
 
       ApplicationRecord.transaction do
         log(channel, "deleted", "code", channel.code, nil)

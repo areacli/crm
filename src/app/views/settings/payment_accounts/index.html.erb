@@ -1,0 +1,48 @@
+<% content_for :title, "Configuração · Contas de pagamento" %>
+<header class="cabecalho-da-pagina">
+  <div><h1>Contas de pagamento</h1><p>O fornecedor de boleto, Pix e cartão de cada credor, uma conta por modalidade e ambiente. Segredos e certificado ficam cifrados e nunca voltam para a tela.</p></div>
+  <div class="acoes"><%= link_to "Nova conta", new_settings_payment_account_path, class: "botao" %></div>
+</header>
+<%= render "settings/abas" %>
+
+<div id="resultado">
+  <% if @accounts.empty? %>
+    <p class="vazio">Nenhuma conta de pagamento cadastrada.</p>
+  <% else %>
+    <p><small>Mostrando <%= number_br(@pagination.first_item) %> a <%= number_br(@pagination.last_item) %> de <%= number_br(@pagination.total) %> contas.</small></p>
+    <div class="tabela">
+      <table>
+        <caption class="apenas-leitor-de-tela">Contas de pagamento</caption>
+        <thead>
+          <tr>
+            <th scope="col">Apelido</th>
+            <% if @several_tenants %><th scope="col">Credor</th><% end %>
+            <th scope="col">Modalidade</th>
+            <th scope="col">Fornecedor</th>
+            <th scope="col">Ambiente</th>
+            <th scope="col">Canal</th>
+            <th scope="col">Certificado</th>
+            <th scope="col">Último teste</th>
+            <th scope="col">Situação</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @accounts.each do |account| %>
+            <tr>
+              <th scope="row"><%= link_to account.nickname, edit_settings_payment_account_path(account) %></th>
+              <% if @several_tenants %><td><%= account.tenant.name %></td><% end %>
+              <td><%= t("payments.accounts.modalities.#{account.modality}") %></td>
+              <td><%= provider_name(account.provider) %></td>
+              <td><%= t("payments.accounts.environments.#{account.environment}") %></td>
+              <td><%= account.channel.code %></td>
+              <td><%= account.certificate_expires_on ? "vence em #{date_br(account.certificate_expires_on)}" : "—" %></td>
+              <td><%= account.last_test_status ? "#{account.last_test_status == 'ok' ? 'Boa' : 'Falhou'}, #{datetime_br(account.last_tested_at)}" : "Nunca testada" %></td>
+              <td><%= account.active? ? situacao("Ativa", tom: :success) : situacao("Desativada", tom: :neutral) %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+    <%= render "shared/paginacao", pagination: @pagination, path: ->(page) { settings_payment_accounts_path(request.query_parameters.merge("page" => page)) } %>
+  <% end %>
+</div>

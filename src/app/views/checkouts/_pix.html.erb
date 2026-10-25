@@ -1,0 +1,15 @@
+<%# locals: (checkout:, instrument:, card: nil, outcome: nil) %>
+<section class="cartao" aria-labelledby="forma-pix">
+  <header>
+    <h2 id="forma-pix"><%= t("payments.checkout.page.pix") %></h2>
+    <p><%= t("payments.checkout.page.pix_hint", date: date_br(instrument.due_on)) %></p>
+  </header>
+  <div class="duas-colunas">
+    <img src="<%= checkout_qr_code_path(checkout) %>" alt="<%= t("payments.checkout.page.pix_qr_alt", amount: money(instrument.amount_cents)) %>" width="240" height="240">
+    <div class="campo">
+      <label for="pix-copia-e-cola"><%= t("payments.checkout.page.pix_code") %></label>
+      <textarea id="pix-copia-e-cola" readonly rows="5"><%= instrument.copy_paste %></textarea>
+      <button type="button" data-copiar="pix-copia-e-cola" data-variant="secondary"><%= t("payments.checkout.page.copy") %></button>
+    </div>
+  </div>
+</section>

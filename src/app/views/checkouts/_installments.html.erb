@@ -1,0 +1,9 @@
+<%# locals: (checkout:, card:) %>
+<div id="parcelas" class="campo">
+  <label for="cartao-parcelas"><%= t("payments.checkout.page.installments") %></label>
+  <select id="cartao-parcelas" name="installments">
+    <% card.options.each do |option| %>
+      <option value="<%= option.installments %>"><%= t("payments.checkout.page.installment_option", n: option.installments, each: money(option.installment_cents)) %><%= t("payments.checkout.page.installment_total", total: money(option.total_cents)) if option.has_interest %></option>
+    <% end %>
+  </select>
+</div>

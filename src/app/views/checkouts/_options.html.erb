@@ -1,0 +1,27 @@
+<%# locals: (checkout:, card:, outcome: nil) %>
+<%# A área de pagamento inteira: a página a busca de novo (htmx) quando o canal avisa que o estado mudou, e o POST do cartão responde com ela. %>
+<div id="opcoes" hx-get="<%= checkout_situation_path(checkout) %>" hx-trigger="cable:checkout-changed from:body" hx-swap="outerHTML">
+  <% if checkout.state_paid? %>
+    <%= aviso(tom: :success) { tag.p t("payments.checkout.page.paid") } %>
+  <% elsif checkout.state_card_approved? %>
+    <%= aviso(tom: :success) { tag.p t("payments.checkout.page.card_approved") } %>
+  <% elsif checkout.state_card_unconfirmed? %>
+    <%= aviso(tom: :warning) { tag.p t("payments.checkout.page.card_unconfirmed") } %>
+  <% else %>
+    <% pix = checkout.offers?("pix") ? checkout.deliverable_instrument("pix") : nil %>
+    <% boleto = checkout.offers?("boleto") ? checkout.deliverable_instrument("boleto") : nil %>
+    <% pix = nil unless pix&.state_active? %>
+    <% boleto = nil unless boleto && checkout.boleto_payable?(boleto) %>
+    <% forms = [ ("pix" if pix), ("boleto" if boleto), ("card" if card) ].compact %>
+    <% forms = [ checkout.highlight, *(forms - [ checkout.highlight ]) ] & forms %>
+    <% if forms.empty? %>
+      <div class="vazio"><p><%= t("payments.checkout.page.nothing_available") %></p></div>
+    <% else %>
+      <div class="pagina-em-secoes">
+        <% forms.each do |form| %>
+          <%= render "checkouts/#{form}", checkout: checkout, instrument: (form == "pix" ? pix : boleto), card: card, outcome: outcome %>
+        <% end %>
+      </div>
+    <% end %>
+  <% end %>
+</div>

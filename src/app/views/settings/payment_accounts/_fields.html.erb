@@ -1,0 +1,36 @@
+<%# Campos do manifesto do fornecedor. Locais: form, account. Segredo e arquivo entram em branco e nunca voltam (R261). %>
+<% manifest = account.manifest %>
+<% account.fields.reject(&:generated).each do |field| %>
+  <% id = "campo-#{field.name}" %>
+  <% label = manifest.label_of(field) %>
+  <% help = manifest.help_of(field) %>
+  <div class="campo">
+    <% if field.type == "text" %>
+      <%= label_tag id, label %>
+      <%= text_field_tag "payment_account[config][#{field.name}]", account.config.fetch(field.name) { field.default if account.new_record? }, id: id, required: field.required, maxlength: field.maxlength, "aria-describedby": ("#{id}-ajuda" if help.present?) %>
+    <% elsif field.type == "number" %>
+      <%= label_tag id, label %>
+      <%= number_field_tag "payment_account[config][#{field.name}]", account.config.fetch(field.name) { field.default if account.new_record? }, id: id, required: field.required, min: field.min, max: field.max, step: "any", "aria-describedby": ("#{id}-ajuda" if help.present?) %>
+    <% elsif field.type == "select" %>
+      <%= label_tag id, label %>
+      <%= select_tag "payment_account[config][#{field.name}]", options_for_select(field.options.map { |option| [ manifest.option_label_of(field, option), option ] }, account.config[field.name] || field.default), id: id, required: field.required, "aria-describedby": ("#{id}-ajuda" if help.present?) %>
+    <% elsif field.type == "secret" %>
+      <%= label_tag id, label %>
+      <%= password_field_tag "payment_account[secrets][#{field.name}]", nil, id: id, required: field.required && !account.secret_set?(field.name), autocomplete: "off", "aria-describedby": "#{id}-ajuda" %>
+      <small id="<%= id %>-ajuda"><%= account.secret_set?(field.name) ? "Definido (não é mostrado). Deixe em branco para manter; preencha para trocar." : "Será cifrado e não voltará para a tela." %> <%= help %></small>
+    <% elsif field.type == "file" %>
+      <%= label_tag id, label %>
+      <%= file_field_tag "payment_account[files][#{field.name}]", id: id, required: field.required && !account.file_info(field.name), "aria-describedby": "#{id}-ajuda" %>
+      <small id="<%= id %>-ajuda"><%= help %> Aceita só o arquivo com a chave privada e dentro da validade.</small>
+      <% info = account.file_info(field.name) %>
+      <% if info %>
+        <dl class="valores">
+          <div><dt>Titular</dt><dd><%= info["subject"] %></dd></div>
+          <div><dt>Vence em</dt><dd><%= date_br(Date.iso8601(info["not_after"])) %></dd></div>
+          <div><dt>Impressão digital (SHA-256)</dt><dd><code><%= info["sha256"] %></code></dd></div>
+        </dl>
+      <% end %>
+    <% end %>
+    <% if field.type.in?(%w[text number select]) && help.present? %><small id="<%= id %>-ajuda"><%= help %></small><% end %>
+  </div>
+<% end %>

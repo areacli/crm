@@ -4,6 +4,7 @@ class Tenant < ApplicationRecord
   has_one :setting, class_name: "TenantSetting", dependent: :destroy
   has_many :profiles, dependent: :destroy
   has_many :memberships, dependent: :destroy
+  has_many :payment_accounts, dependent: :destroy
   has_many :payment_channels, dependent: :destroy
   has_many :contact_results, dependent: :destroy
   has_many :segments, dependent: :destroy

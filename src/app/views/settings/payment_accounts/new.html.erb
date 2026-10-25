@@ -1,0 +1,58 @@
+<% content_for :title, "Configuração · Nova conta de pagamento" %>
+<header class="cabecalho-da-pagina"><div><h1>Nova conta de pagamento</h1><p><%= link_to "Voltar para as contas", settings_payment_accounts_path %></p></div></header>
+<%= render "settings/abas" %>
+
+<section class="cartao" aria-labelledby="escolha">
+  <header><h2 id="escolha">Credor, modalidade e fornecedor</h2></header>
+  <div>
+    <%= form_with url: new_settings_payment_account_path, method: :get, html: { "hx-boost": "false" } do |form| %>
+      <div class="campo">
+        <%= label_tag :tenant_id, "Credor" %>
+        <%= select_tag :tenant_id, options_for_select(@tenants.map { |tenant| [ tenant.name, tenant.id ] }, @account.tenant_id || @tenants.first&.id), required: true %>
+      </div>
+      <div class="campo">
+        <%= label_tag :modality, "Modalidade" %>
+        <%= select_tag :modality, options_for_select(Payments::Providers::MODALITIES.map { |modality| [ t("payments.accounts.modalities.#{modality}"), modality ] }, @account.modality), required: true %>
+      </div>
+      <div class="campo">
+        <%= label_tag :provider, "Fornecedor" %>
+        <%= select_tag :provider, options_for_select(Payments::Providers.names.map { |name| [ provider_name(name), name ] }, @account.provider), required: true %>
+      </div>
+      <div class="acoes"><button type="submit" data-variant="<%= @chosen ? 'secondary' : 'primary' %>">Continuar</button></div>
+    <% end %>
+  </div>
+</section>
+
+<% if @chosen %>
+  <section class="cartao" aria-labelledby="dados">
+    <header><h2 id="dados">Dados da conta: <%= t("payments.accounts.modalities.#{@account.modality}") %> em <%= provider_name(@account.provider) %></h2></header>
+    <div>
+      <% if @account.errors.any? %><%= aviso(tom: :danger) { tag.p @account.errors.full_messages.to_sentence } %><% end %>
+      <% if @channels.empty? %>
+        <%= aviso(tom: :warning) { tag.p { safe_join([ "O credor não tem canal de recebimento ativo. ", link_to("Cadastre um canal", new_settings_channel_path), " antes." ]) } } %>
+      <% end %>
+      <%= form_with model: @account, scope: :payment_account, url: settings_payment_accounts_path, multipart: true, html: { "hx-boost": "false" } do |form| %>
+        <%= hidden_field_tag "payment_account[tenant_id]", @account.tenant_id %>
+        <%= hidden_field_tag "payment_account[modality]", @account.modality %>
+        <%= hidden_field_tag "payment_account[provider]", @account.provider %>
+        <div class="campo">
+          <%= label_tag "campo-nickname", "Apelido" %>
+          <%= text_field_tag "payment_account[nickname]", @account.nickname, id: "campo-nickname", required: true, maxlength: 100 %>
+        </div>
+        <div class="campo">
+          <%= label_tag "campo-environment", "Ambiente" %>
+          <%= select_tag "payment_account[environment]", options_for_select(PaymentAccount.environments.keys.map { |environment| [ t("payments.accounts.environments.#{environment}"), environment ] }, @account.environment), id: "campo-environment", required: true %>
+        </div>
+        <div class="campo">
+          <%= label_tag "campo-channel", "Canal de recebimento" %>
+          <%= select_tag "payment_account[channel_id]", options_for_select(@channels.map { |channel| [ "#{channel.code} · #{channel.description}", channel.id ] }, @account.channel_id), id: "campo-channel", required: true %>
+        </div>
+        <%= render "settings/payment_accounts/fields", form: form, account: @account %>
+        <div class="acoes">
+          <button type="submit">Salvar</button>
+          <%= link_to "Cancelar", settings_payment_accounts_path, class: "botao", data: { variant: "secondary" } %>
+        </div>
+      <% end %>
+    </div>
+  </section>
+<% end %>

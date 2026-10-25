@@ -9,7 +9,7 @@ module Titular
         credor: @customer.tenant.display_name, exportado_em: Time.current.iso8601, anonimizado: @customer.anonymized?,
         cliente: { nome: @customer.name, documento: (@customer.anonymized? ? nil : @customer.formatted_document), anonimizado_em: @customer.anonymized_at&.iso8601 },
         contatos: contacts, contratos: contracts, titulos: bills, pagamentos: payments, estornos: reversals, creditos: credits,
-        divergencias_de_valor: discrepancies, promessas: promises, acordos: agreements, acionamentos: attempts, historico: history
+        divergencias_de_valor: discrepancies, promessas: promises, acordos: agreements, instrumentos_de_pagamento: payment_instruments, links_de_pagamento: payment_checkouts, acionamentos: attempts, historico: history
       }
     end
 
@@ -86,6 +86,22 @@ module Titular
         Agreement.where(customer_id: @customer.id).includes(agreement_bills: :bill).order(:created_at, :id).map do |a|
           { numero: a.number, situacao: a.state, forma: a.mode, titulos: a.agreement_bills.map { |row| row.bill.number }, valor_centavos: a.value_cents, desconto_centavos: a.discount_cents,
             entrada_centavos: a.down_payment_cents, parcelas: a.installments_count, aceito_em: a.accepted_at&.iso8601, motivo: a.reason, termo: a.term_snapshot.presence }
+        end
+      end
+
+      # 12: boletos e Pix emitidos em nome do cliente (os dados do pagador são os do momento da emissão).
+      def payment_instruments
+        PaymentInstrument.where(customer_id: @customer.id).order(:created_at, :id).map do |i|
+          { tipo: i.kind, situacao: i.state, valor_centavos: i.amount_cents, vencimento: i.due_on.iso8601, emitido_em: i.issued_at&.iso8601, nome_do_pagador: i.payer_name,
+            linha_digitavel: i.digitable_line, copia_e_cola: i.copy_paste }
+        end
+      end
+
+      # 12, parte C: links de checkout enviados ao cliente (sem o endereço do link, que é segredo de quem o recebeu).
+      def payment_checkouts
+        PaymentCheckout.where(customer_id: @customer.id).order(:created_at, :id).map do |c|
+          { situacao: c.state, valor_centavos: c.amount_cents, modalidades: c.modalities, valido_ate: c.expires_at.iso8601, acessos: c.access_count, nome_do_pagador: c.payer_name,
+            email_do_pagador: c.payer_email, telefone_do_pagador: c.payer_phone }
         end
       end
 

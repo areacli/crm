@@ -6,6 +6,7 @@ module NavigationHelper
     [ "Carteira", :settings_portfolio_path, "change_settings" ],
     [ "Canais de recebimento", :settings_channels_path, "change_settings" ],
     [ "Políticas de pagamento", :settings_payment_policy_path, "change_financial_policies" ],
+    [ "Contas de pagamento", :settings_payment_accounts_path, "change_financial_policies" ],
     [ "Segmentos e encargos", :settings_segments_path, %w[change_settings change_financial_policies] ],
     [ "Promessas e acordos", :settings_promises_path, "change_financial_policies" ],
     [ "Índices", :settings_indexes_path, %w[change_settings change_financial_policies] ],

@@ -7,6 +7,9 @@ Rails.application.configure do
   # Nos testes os jobs não vão ao Sidekiq: o adaptador de teste guarda e deixa conferir (a produção e o desenvolvimento usam o Sidekiq).
   config.active_job.queue_adapter = :test
 
+  # Arquivos de instrumentos em diretório temporário (12, R273).
+  config.active_storage.service = :test
+
   # Settings specified here will take precedence over those in config/application.rb.
 
   # While tests run files are not watched, reloading is not necessary.
@@ -41,6 +44,9 @@ Rails.application.configure do
 
   # Print deprecation notices to the stderr.
   config.active_support.deprecation = :stderr
+
+  # Fixtures com coluna cifrada seriam cifradas ao carregar (nenhuma tem, e o teste de arquitetura confere).
+  config.active_record.encryption.encrypt_fixtures = true
 
   # Raises error for missing translations.
   # config.i18n.raise_on_missing_translations = true

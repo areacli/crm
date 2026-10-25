@@ -1,0 +1,9 @@
+# Active Storage (12, R273): os arquivos dos instrumentos (PDF do boleto e imagem do QR Code do Pix) ficam em disco, no volume `storage`
+# (compose de produção), e só saem por rotas autenticadas e por política. Sem serviço em nuvem.
+local:
+  service: Disk
+  root: <%= Rails.root.join("storage", "active_storage") %>
+
+test:
+  service: Disk
+  root: <%= Rails.root.join("tmp", "storage") %>

@@ -65,7 +65,7 @@ class TitularScreensTest < ActionDispatch::IntegrationTest
     assert_match(/attachment; filename="dados-cliente-#{@maria.id}\.json"/, response.headers["Content-Disposition"])
     data = JSON.parse(response.body)
     assert_equal [ "Maria Souza", "529.982.247-25" ], data["cliente"].values_at("nome", "documento")
-    assert_equal %w[acionamentos contatos contratos creditos cliente credor divergencias_de_valor estornos exportado_em anonimizado historico pagamentos acordos promessas titulos].sort, data.keys.sort
+    assert_equal %w[acionamentos contatos contratos creditos cliente credor divergencias_de_valor estornos exportado_em anonimizado historico pagamentos acordos instrumentos_de_pagamento links_de_pagamento promessas titulos].sort, data.keys.sort
     assert_equal 2, data["contatos"].size
     assert_equal 1, data["titulos"].size
     assert_equal 1, data["pagamentos"].size

@@ -71,6 +71,25 @@ Rails.application.routes.draw do
   # Arquivo de acordos (11, R244): exportar para o credor emitir os títulos; as exportações ficam registradas e os arquivos duram 30 dias.
   resources :agreement_exports, path: "arquivo-de-acordos", only: %i[index create show]
 
+  # Instrumentos de pagamento emitidos (12, R275): só leitura (dados em JSON, PDF do boleto e QR Code do Pix guardados aqui). Não há rota de emissão (R270).
+  resources :payment_instruments, path: "instrumentos", only: :show do
+    resource :pdf, only: :show, module: :payment_instruments
+    resource :qr_code, path: "qrcode", only: :show, module: :payment_instruments
+  end
+
+  # Página pública de pagamento do cliente (12, parte C, R277 a R280): sem login, pelo token do link. Cartão só por checkout transparente; o boleto e o
+  # Pix saem daqui, nunca do fornecedor. O token é qualquer texto sem barra: a página responde 404 igual para qualquer link que não sirva.
+  constraints(token: %r{[^/]+}) do
+    get "pagar/:token", to: "checkouts#show", as: :checkout, format: false
+    scope "pagar/:token", module: :checkouts, as: :checkout, format: false do
+      get "situacao", to: "situations#show", as: :situation
+      get "parcelas", to: "installments#index", as: :installments
+      post "cartao", to: "card_payments#create", as: :card_payment
+      get "boleto.pdf", to: "boletos#show", as: :boleto
+      get "qrcode.png", to: "qr_codes#show", as: :qr_code
+    end
+  end
+
   # Lista de acionamentos dos credores (04, R78).
   resources :contact_attempts, path: "acionamentos", only: :index
 
@@ -100,6 +119,12 @@ Rails.application.routes.draw do
       resource :webhook_secret, path: "segredo-do-webhook", only: :create, module: :channels
     end
     resource :payment_policy, path: "politicas-de-pagamento", only: %i[show update]
+    # Contas de pagamento (12): fornecedor de boleto, Pix e cartão por modalidade e ambiente. Não há rota de emissão de instrumento (R270).
+    resources :payment_accounts, path: "contas-de-pagamento", path_names: { new: "nova", edit: "editar" }, except: :show do
+      resource :activation, path: "ativacao", only: %i[create destroy], module: :payment_accounts
+      resource :webhook_secret, path: "segredo-do-webhook", only: :create, module: :payment_accounts
+      resource :connection_test, path: "teste-de-conexao", only: :create, module: :payment_accounts
+    end
     # Promessas (10): políticas do credor, prazo máximo do segmento e alçada por perfil (R189, R190, R206).
     resource :promises, path: "promessas-e-acordos", only: :show
     resource :promise_policy, path: "politicas-de-promessa", only: :update
@@ -130,6 +155,9 @@ Rails.application.routes.draw do
 
   # Webhook de pagamento de um canal (sem sessão: a autenticação é a assinatura HMAC do corpo).
   post "webhooks/pagamentos/:channel_id", to: "webhooks/payments#create", as: :payments_webhook
+
+  # Aviso de um fornecedor de instrumentos de pagamento (12, parte D): uma rota por conta de pagamento. O Pix da Efí acrescenta `/pix` à URL registrada.
+  post "webhooks/pagamentos/contas/:conta(/pix)", to: "webhooks/payment_accounts#create", as: :payment_account_webhook, format: false, constraints: { conta: /\d+/ }
 
   # Referência dos tokens e dos componentes: só onde se desenvolve e se testa.
   get "design-system" => "design_system#show", as: :design_system if Rails.env.local?
