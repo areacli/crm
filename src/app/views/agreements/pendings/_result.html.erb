@@ -3,14 +3,14 @@
   <% if @agreements.empty? %>
     <p class="vazio">Nenhuma proposta pendente para você aprovar.</p>
   <% else %>
-    <div class="tabela" tabindex="0">
-      <table data-compacta>
+    <div class="tabela" tabindex="0" data-fixa>
+      <table>
         <caption class="apenas-leitor-de-tela">Propostas pendentes de aprovação</caption>
         <thead>
           <tr>
             <% if @several_tenants %><th scope="col">Credor</th><% end %>
             <th scope="col">Número</th><th scope="col">Cliente</th><th scope="col" data-numerico>Valor do acordo</th><th scope="col" data-numerico>Desconto</th>
-            <th scope="col">Desconto por componente</th><th scope="col" data-numerico>Parcelas</th><th scope="col">Montou</th><th scope="col">Vale até</th><th scope="col">Ações</th>
+            <th scope="col">Desconto por componente</th><th scope="col" data-numerico>Parcelas</th><th scope="col">Montou</th><th scope="col">Vale até</th><th scope="col"><span class="apenas-leitor-de-tela">Ações</span></th>
           </tr>
         </thead>
         <tbody>
@@ -25,17 +25,14 @@
               <td data-numerico><%= number_br(agreement.installments_count) %></td>
               <td><%= agreement.user&.name || "—" %></td>
               <td><%= date_br(agreement.valid_until) %></td>
-              <td>
+              <td data-acoes>
                 <div class="acoes">
-                  <%= button_to "Aprovar proposta", agreement_approval_path(agreement), form: { "hx-boost": "false" }, data: { variant: "secondary", size: "small" }, "aria-label": "Aprovar proposta #{agreement.number}" %>
-                </div>
-                <details>
-                  <summary>Recusar proposta</summary>
-                  <%= form_with scope: :agreement, url: agreement_refusal_path(agreement), html: { "hx-boost": "false" } do |form| %>
-                    <div class="campo"><%= form.label :reason, "Motivo da recusa", for: "recusa-#{agreement.id}" %><%= form.text_field :reason, id: "recusa-#{agreement.id}", required: true, maxlength: 300 %></div>
-                    <div class="acoes"><button type="submit" data-variant="danger-outline" data-size="small" aria-label="Recusar proposta <%= agreement.number %>">Recusar proposta</button></div>
+                  <%= button_to "Aprovar", agreement_approval_path(agreement), form: { "hx-boost": "false" }, data: { variant: "secondary", size: "small" }, "aria-label": "Aprovar proposta #{agreement.number}" %>
+                  <%= menu_de_linha("pendente-#{agreement.id}", "Mais ações da proposta #{agreement.number}") do %>
+                    <%= link_to "Abrir acordo", agreement_path(agreement), class: "botao" %>
+                    <%= abrir_painel "Recusar proposta", new_agreement_refusal_path(agreement), variante: "danger-outline" %>
                   <% end %>
-                </details>
+                </div>
               </td>
             </tr>
           <% end %>

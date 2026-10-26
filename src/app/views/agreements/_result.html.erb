@@ -1,8 +1,8 @@
 <%# Trecho que o htmx refaz a cada filtro, página ou aviso do WebSocket: casos do gestor, contagem, tabela e paginação. %>
-<div id="resultado" aria-live="polite" hx-get="<%= agreements_path(request.query_parameters) %>" hx-trigger="cable:agreements-changed from:body, cable:connected from:body" hx-swap="outerHTML" hx-push-url="false">
+<div id="resultado" aria-live="polite" hx-get="<%= agreements_path(request.query_parameters) %>" hx-trigger="cable:agreements-changed from:body, cable:connected from:body" hx-include="form.filtros" hx-sync="form.filtros:replace" hx-swap="outerHTML" hx-push-url="false">
   <% if @cases.present? %>
     <section class="cartao" id="casos" aria-labelledby="casos-do-gestor">
-      <header><div><h2 id="casos-do-gestor">Casos que pedem o gestor</h2><p>Vistos só por quem administra acordos.</p></div></header>
+      <header><h2 id="casos-do-gestor">Casos que pedem o gestor</h2><%= informacao "casos do gestor", "Vistos só por quem administra acordos.", "definicao-casos" %></header>
       <div class="tabela" tabindex="0">
         <table>
           <caption class="apenas-leitor-de-tela">Casos que pedem o gestor</caption>
@@ -25,16 +25,15 @@
   <% if @agreements.empty? %>
     <p class="vazio">Nenhuma proposta ou acordo com estes filtros.</p>
   <% else %>
-    <p><small>Mostrando <%= number_br(@pagination.first_item) %> a <%= number_br(@pagination.last_item) %> de <%= number_br(@pagination.total) %> acordos.</small></p>
-    <div class="tabela" tabindex="0">
-      <table data-compacta>
+    <div class="tabela" tabindex="0" data-fixa>
+      <table>
         <caption class="apenas-leitor-de-tela">Propostas e acordos</caption>
         <thead>
           <tr>
             <th scope="col">Número</th><th scope="col">Cliente</th>
             <% if @several_tenants %><th scope="col">Credor</th><% end %>
             <th scope="col">Situação</th><th scope="col">Forma</th><th scope="col" data-numerico>Valor</th><th scope="col" data-numerico>Desconto</th>
-            <th scope="col" data-numerico>Entrada</th><th scope="col" data-numerico>Parcelas</th><th scope="col">Montou</th><th scope="col">Aprovou</th><th scope="col">Vale até</th>
+            <th scope="col" data-numerico>Entrada</th><th scope="col" data-numerico>Parcelas</th><th scope="col">Montou</th><th scope="col">Aprovou</th><th scope="col">Vale até</th><th scope="col"><span class="apenas-leitor-de-tela">Ações</span></th>
           </tr>
         </thead>
         <tbody>
@@ -52,11 +51,17 @@
               <td><%= agreement.user&.name || "—" %></td>
               <td><%= agreement.decided_by&.name || "—" %></td>
               <td><%= date_br(agreement.valid_until) %></td>
+              <td data-acoes>
+                <%= menu_de_linha("acordo-#{agreement.id}", "Ações do acordo #{agreement.number}") do %>
+                  <%= link_to "Abrir acordo", agreement_path(agreement), class: "botao" %>
+                  <%= link_to "Abrir ficha do cliente", customer_path(agreement.customer, aba: "promessas"), class: "botao" %>
+                <% end %>
+              </td>
             </tr>
           <% end %>
         </tbody>
       </table>
     </div>
-    <%= render "shared/paginacao", pagination: @pagination, path: ->(page) { agreements_path(request.query_parameters.merge("page" => page)) } %>
+    <%= render "shared/paginacao", pagination: @pagination, unit: "acordos", path: ->(page) { agreements_path(request.query_parameters.merge("page" => page)) } %>
   <% end %>
 </div>

@@ -1,5 +1,5 @@
 <% content_for :title, "Configuração · Nova conta de pagamento" %>
-<header class="cabecalho-da-pagina"><div><h1>Nova conta de pagamento</h1><p><%= link_to "Voltar para as contas", settings_payment_accounts_path %></p></div></header>
+<%= pagina "Nova conta de pagamento", subtitulo: link_to("Voltar para as contas", settings_payment_accounts_path) %>
 <%= render "settings/abas" %>
 
 <section class="cartao" aria-labelledby="escolha">
@@ -18,7 +18,7 @@
         <%= label_tag :provider, "Fornecedor" %>
         <%= select_tag :provider, options_for_select(Payments::Providers.names.map { |name| [ provider_name(name), name ] }, @account.provider), required: true %>
       </div>
-      <div class="acoes"><button type="submit" data-variant="<%= @chosen ? 'secondary' : 'primary' %>">Continuar</button></div>
+      <div class="acoes" data-rodape><button type="submit" data-variant="<%= @chosen ? 'secondary' : 'primary' %>">Continuar</button></div>
     <% end %>
   </div>
 </section>
@@ -48,9 +48,9 @@
           <%= select_tag "payment_account[channel_id]", options_for_select(@channels.map { |channel| [ "#{channel.code} · #{channel.description}", channel.id ] }, @account.channel_id), id: "campo-channel", required: true %>
         </div>
         <%= render "settings/payment_accounts/fields", form: form, account: @account %>
-        <div class="acoes">
-          <button type="submit">Salvar</button>
+        <div class="acoes" data-rodape>
           <%= link_to "Cancelar", settings_payment_accounts_path, class: "botao", data: { variant: "secondary" } %>
+          <button type="submit">Salvar</button>
         </div>
       <% end %>
     </div>

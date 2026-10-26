@@ -3,10 +3,17 @@ module Memberships
   class ProfilesController < ApplicationController
     include MembershipAction
 
+    def edit
+      @profiles = @membership.tenant.profiles.order(:name)
+    end
+
     def update
       profile = @membership.tenant.profiles.find(params.expect(membership: [ :profile_id ])[:profile_id])
       manager.change_profile(@membership, profile)
       back_to_membership notice: t(".done")
+    rescue Access::Refused => error
+      @profiles = @membership.tenant.profiles.order(:name)
+      panel_error(error.message, membership_path(@membership), :edit)
     end
   end
 end

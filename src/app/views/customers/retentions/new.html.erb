@@ -1,0 +1,8 @@
+<%= formulario_de_painel(titulo: (@release ? "Desfazer a retenção" : "Reter cliente"), descricao: @customer.name, url: customer_retention_path(@customer), metodo: (@release ? :delete : :post),
+                         enviar: (@release ? "Desfazer retenção" : "Reter cliente"), variante: :modal, escopo: :retention, erro: @error, voltar: data_retention_path) do |form| %>
+  <div class="campo">
+    <%= form.label :reason, (@release ? "Motivo" : "Motivo da retenção") %>
+    <%= form.text_field :reason, value: params.dig(:retention, :reason), required: true, maxlength: 300 %>
+    <% unless @release %><small>Por exemplo, ação judicial em curso.</small><% end %>
+  </div>
+<% end %>

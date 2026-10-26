@@ -23,19 +23,24 @@ class AgreementReversalsScreensSystemTest < ApplicationSystemTestCase
 
   test "o gestor reverte o acordo em dois passos: a marca, o crédito aguardando alocação na ficha e a alocação, no axe" do
     visit agreement_path(@agreement)
-    find("summary", text: "Reverter o acordo").click
+    find("button.menu-de-linha[aria-label='Mais ações do acordo']").click
+    click_link "Reverter o acordo"
+    assert_selector "dialog#painel[open][data-variant=modal]"
     fill_in "Motivo da reversão", with: "registrado no cliente errado"
     click_button "Abrir a reversão"
-    assert_selector "aside", text: /Em reversão desde/
-    assert_selector "button", text: "Concluir a reversão"
+    assert_selector "aside", text: /Em reversão desde/, wait: 10
+    find("button.menu-de-linha[aria-label='Mais ações do acordo']").click
+    assert_selector "a", text: "Concluir a reversão"
     assert_acessivel
     sem_rolagem_horizontal
 
-    click_button "Concluir a reversão"
-    assert_selector "aside", text: /Acordo cancelado/
-    visit customer_path(@customer)
+    click_link "Concluir a reversão"
+    within("dialog#painel[open]") { click_button "Concluir a reversão" }
+    assert_selector "aside", text: /Acordo cancelado/, wait: 10
+    visit customer_path(@customer, aba: "pagamentos")
     assert_selector "small", text: /aguardando alocação R\$ 343,66/
-    find("summary", text: /Alocar crédito aguardando alocação/).click
+    click_link(text: /Alocar crédito aguardando alocação/)
+    assert_selector "dialog#painel[open][data-variant=modal]"
     assert_acessivel
     sem_rolagem_horizontal
   end
@@ -50,20 +55,23 @@ class AgreementReversalsScreensSystemTest < ApplicationSystemTestCase
 
     visit reversal_waits_path
     assert_selector "h1", text: "Estornos à espera do gestor"
-    assert_selector "h2", text: /Pagamento PIX-P1: R\$ 50,00/
+    assert_selector "th", text: /PIX-P1/
+    assert_selector "td", text: "R$ 50,00"
     assert_acessivel
     sem_rolagem_horizontal
+    click_link "Decidir"
+    assert_selector "dialog#painel[open][data-variant=modal]"
     choose "Lançar no crédito do contrato"
     fill_in "Motivo da decisão", with: "devolvido pelo banco"
-    click_button "Decidir"
-    assert_selector "h2", text: "Decididos há pouco"
+    within("dialog#painel[open]") { click_button "Decidir" }
+    assert_selector "h2", text: "Decididos há pouco", wait: 10
     assert_acessivel
   end
 
   test "o painel traz o cartão de acordos do credor" do
     visit root_path
-    assert_selector "h2", text: "Acordos"
-    assert_selector "dt", text: "Dos quais em acordo"
+    assert_selector "h2", text: /\AAcordos/
+    assert_selector "dt", text: /Dos quais em acordo/
     assert_acessivel
     sem_rolagem_horizontal
   end
@@ -74,8 +82,9 @@ class AgreementReversalsScreensSystemTest < ApplicationSystemTestCase
     Credit.create!(tenant: @alfa, contract: @nf1.contract, kind: :entry, amount_cents: 2_000, reason: :excess, occurred_at: Time.current)
     visit customer_path(@customer)
     assert_selector "th small", text: /Título de estorno do acordo ACD-000001/
-    find("summary", text: /Usar crédito no título #{extra.number}/).click
-    within(find("form[action*='uso-de-credito']", match: :first)) do
+    find("button.menu-de-linha[aria-label='Ações do título #{extra.number}']").click
+    click_link(text: /Usar crédito/)
+    within("#painel") do
       fill_in "Valor a usar", with: "20,00"
       click_button "Usar crédito"
     end

@@ -1,8 +1,7 @@
 <% content_for :title, "Perfis" %>
-<header class="cabecalho-da-pagina">
-  <div><h1>Perfis</h1><p>Conjuntos de permissões de cada credor. Cada usuário tem um perfil em cada credor.</p></div>
-  <div class="acoes"><%= link_to "Novo perfil", new_profile_path, class: "botao" %></div>
-</header>
+<%= pagina "Perfis", subtitulo: "Conjuntos de permissões de cada credor" do %>
+  <%= abrir_painel "Novo perfil", new_profile_path %>
+<% end %>
 
 <% if @several_tenants %>
   <form class="filtros" role="search" action="<%= profiles_path %>" method="get">
@@ -17,7 +16,7 @@
 <% if @profiles.empty? %>
   <p class="vazio">Nenhum perfil encontrado.</p>
 <% else %>
-  <div class="tabela" tabindex="0">
+  <div class="tabela" tabindex="0" data-fixa>
     <table>
       <caption class="apenas-leitor-de-tela">Perfis dos credores</caption>
       <thead>
@@ -26,28 +25,28 @@
           <% if @several_tenants %><th scope="col">Credor</th><% end %>
           <th scope="col" data-numerico>Permissões</th>
           <th scope="col" data-numerico>Usuários</th>
-          <th scope="col">Ações</th>
+          <th scope="col"><span class="apenas-leitor-de-tela">Ações</span></th>
         </tr>
       </thead>
       <tbody>
         <% @profiles.each do |profile| %>
           <% users = @users_by_profile.fetch(profile.id, 0) %>
           <tr>
-            <th scope="row"><%= link_to profile.name, edit_profile_path(profile) %></th>
+            <th scope="row"><%= abrir_painel profile.name, edit_profile_path(profile), variante: "link" %></th>
             <% if @several_tenants %><td><%= profile.tenant.name %></td><% end %>
             <td data-numerico><%= profile.permissions.size %> de <%= Permission::ALL.size %></td>
             <td data-numerico><%= users %></td>
-            <td>
-              <div class="acoes">
-                <%= link_to "Editar", edit_profile_path(profile), class: "botao", data: { variant: "secondary", size: "small" } %>
-                <%= render("shared/confirmacao", id: "apagar-#{profile.id}", titulo: "Apagar o perfil #{profile.name}?", acao: "Apagar o perfil", url: profile_path(profile), metodo: :delete,
-                           mensagem: users.positive? ? "O perfil está em uso por #{users} #{'usuário'.pluralize(users)} e não pode ser apagado." : "O perfil deixa de existir.") { "Apagar" } %>
-              </div>
+            <td data-acoes>
+              <%= menu_de_linha("perfil-#{profile.id}", "Ações do perfil #{profile.name}") do %>
+                <%= abrir_painel "Editar", edit_profile_path(profile) %>
+                <%= confirmar_no_painel "Apagar", titulo: "Apagar o perfil #{profile.name}?", acao: "Apagar o perfil", url: profile_path(profile), metodo: :delete,
+                                        mensagem: users.positive? ? "O perfil está em uso por #{users} #{'usuário'.pluralize(users)} e não pode ser apagado." : "O perfil deixa de existir." %>
+              <% end %>
             </td>
           </tr>
         <% end %>
       </tbody>
     </table>
   </div>
-  <%= render "shared/paginacao", pagination: @pagination, path: ->(page) { profiles_path(request.query_parameters.merge("page" => page)) } %>
+  <%= render "shared/paginacao", pagination: @pagination, unit: "perfis", path: ->(page) { profiles_path(request.query_parameters.merge("page" => page)) } %>
 <% end %>

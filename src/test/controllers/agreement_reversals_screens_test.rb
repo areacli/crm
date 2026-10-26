@@ -23,20 +23,20 @@ class AgreementReversalsScreensTest < ActionDispatch::IntegrationTest
   test "R239: só quem administra acordos vê e usa 'Reverter o acordo'; os dois passos e a desistência pelas telas" do
     entrar(users(:carlos))
     get agreement_path(@agreement)
-    assert_select "summary", text: "Reverter o acordo", count: 0
+    assert_select "a", text: "Reverter o acordo", count: 0
     post agreement_reversion_path(@agreement), params: { reversion: { reason: "x" } }
     assert_response :not_found
     delete session_path
 
     entrar(users(:joana))
     get agreement_path(@agreement)
-    assert_select "summary", text: "Reverter o acordo"
+    assert_select "a", text: "Reverter o acordo"
     post agreement_reversion_path(@agreement), params: { reversion: { reason: "devedor errado" } }
     assert_redirected_to agreement_path(@agreement)
     assert_predicate @agreement.reload, :reversing?
     follow_redirect!
     assert_select "aside", text: /Em reversão desde/
-    assert_select "button", text: "Concluir a reversão"
+    assert_select "a", text: "Concluir a reversão"
 
     delete agreement_reversion_path(@agreement)
     assert_not_predicate @agreement.reload, :reversing?
@@ -75,7 +75,9 @@ class AgreementReversalsScreensTest < ActionDispatch::IntegrationTest
     assert_select "th", text: "Estorno à espera do gestor"
     get reversal_waits_path
     assert_response :success
-    assert_select "h2", text: /Pagamento PIX-P1: R\$ 50,00/
+    assert_select "th", text: /PIX-P1/
+    assert_select "td", text: "R$ 50,00"
+    get edit_reversal_wait_path(wait)
     assert_select "input[type=radio][value=credit]"
     assert_select "input[type=radio][value=reopen]", count: 0
     patch reversal_wait_path(wait), params: { decision: { choice: "credit", note: " " } }
@@ -95,11 +97,13 @@ class AgreementReversalsScreensTest < ActionDispatch::IntegrationTest
     Agreements::Reversion.new(users(:joana)).conclude!(@agreement.reload)
     travel_day(Date.new(2026, 11, 20))
     entrar(users(:joana))
-    get customer_path(@customer)
+    get customer_path(@customer, aba: "pagamentos")
     assert_select "small", text: /aguardando alocação R\$ 343,66/
-    assert_select "summary", text: /Alocar crédito aguardando alocação/
+    assert_select "a[hx-get*=alocacao-de-credito]", text: /Alocar crédito aguardando alocação/
+    get new_customer_credit_allocation_path(@customer, contract_id: @nf1.contract_id), headers: painel
+    assert_select "form.painel select[name='credit_allocation[bill_id]']"
     post customer_credit_allocations_path(@customer), params: { credit_allocation: { contract_id: @nf1.contract_id, bill_id: @nf2.id, amount: "100,00" } }
-    assert_redirected_to customer_path(@customer, anchor: "credito")
+    assert_redirected_to customer_path(@customer, aba: "pagamentos")
     assert_equal 24_366, @nf1.contract.credit_balances["awaiting"]
     assert_operator @nf2.reload.paid_cents, :>, 0, "encargos antes do principal (R226)"
   end
@@ -108,7 +112,7 @@ class AgreementReversalsScreensTest < ActionDispatch::IntegrationTest
     Credit.create!(tenant: @alfa, contract: @nf1.contract, kind: :entry, amount_cents: 10_000, reason: :excess, occurred_at: Time.current)
     entrar(users(:carlos))
     get customer_path(@customer)
-    assert_select "summary", text: /Usar crédito no título ACD-000001-\d+ \(disponível no contrato: R\$ 100,00\)/, minimum: 1
+    assert_select "a[hx-get*=uso-de-credito]", text: /Usar crédito \(disponível R\$ 100,00\)/, minimum: 1
     bill = Bill.find_by!(number: "ACD-000001-01")
     post customer_credit_uses_path(@customer), params: { credit_use: { bill_id: bill.id, amount: "50,00" } }
     assert_equal 5_000, bill.reload.paid_cents
@@ -121,11 +125,12 @@ class AgreementReversalsScreensTest < ActionDispatch::IntegrationTest
     entrar(users(:joana))
     get root_path
     assert_response :success
-    assert_select "h2", text: "Acordos"
-    assert_select "dt", text: "Dos quais em acordo"
+    assert_select "h2", text: /\AAcordos/
+    assert_select "dt", text: /Dos quais em acordo/
     assert_select "dd", text: /R\$ 1.200,00/
     assert_select "dd", text: /R\$ 36,27/
-    assert_select "small", text: /multa R\$ 15,08/
-    assert_select "small", text: /Carlos Lima/
+    assert_select "th", text: /Desconto: multa/
+    assert_select "td", text: /R\$ 15,08/
+    assert_select "th", text: /Carlos Lima/
   end
 end

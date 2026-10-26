@@ -1,5 +1,6 @@
 # Entrada e saída. A mesma mensagem para usuário inexistente, senha errada, bloqueio e acesso recusado (não revela quem existe).
 class SessionsController < ApplicationController
+  layout "entrada"
   allow_unauthenticated_access only: %i[ new create ]
   skip_before_action :require_password_change, only: :destroy
   rate_limit to: 10, within: 3.minutes, only: :create, with: -> { redirect_to new_session_path, alert: t("sessions.too_many") }

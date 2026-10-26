@@ -1,5 +1,5 @@
 <% content_for :title, "Configuração · Dados do credor" %>
-<header class="cabecalho-da-pagina"><div><h1>Dados do credor</h1><p>O cadastro de cada credor. O painel mostra o nome fantasia (ou a razão social); o termo de acordo, as mensagens e os documentos que falam em nome do credor usam este cadastro.</p></div></header>
+<%= pagina "Dados do credor", subtitulo: "O cadastro que o termo de acordo, as mensagens e os documentos usam." %>
 <%= render "settings/abas" %>
 
 <% @tenants.each do |registered| %>
@@ -20,7 +20,7 @@
         </div>
         <fieldset>
           <legend>Endereço</legend>
-          <p><small>Logradouro, cidade, UF e CEP são obrigatórios para o endereço existir; número vazio vale "s/n".</small></p>
+          
           <div class="grupo-de-campos">
             <div class="campo"><%= form.label :street, "Logradouro" %><%= form.text_field :street, maxlength: 200 %></div>
             <div class="campo"><%= form.label :number, "Número" %><%= form.text_field :number, maxlength: 20 %></div>
@@ -35,16 +35,15 @@
           <div class="campo"><%= form.label :email, "E-mail" %><%= form.text_field :email, type: "email", maxlength: 254 %></div>
           <div class="campo"><%= form.label :phone, "Telefone" %><%= form.text_field :phone, type: "tel", maxlength: 60 %><small>Um contato de cliente igual a este passa a inválido ("é contato do credor").</small></div>
         </div>
-        <div class="acoes"><button type="submit">Salvar dados do credor</button></div>
+        <div class="acoes" data-rodape><button type="submit">Salvar dados do credor</button></div>
       <% end %>
       <% setting = registered.setting %>
       <%= form_with scope: :retention, namespace: "guarda#{tenant.id}", url: settings_retention_period_path, method: :patch, html: { "hx-boost": "false" } do |form| %>
         <%= hidden_field_tag :tenant_id, tenant.id %>
         <fieldset>
           <legend>Prazo de guarda dos dados</legend>
-          <p><small>Anos contados do fim da última relação em aberto do cliente; depois disso a tarefa diária anonimiza, salvo os retidos.</small></p>
-          <div class="campo"><%= form.label :years, "Prazo, em anos" %><%= form.number_field :years, value: setting.retention_years, min: 1, max: 50, required: true %></div>
-          <div class="acoes"><button type="submit" data-variant="secondary">Salvar prazo de guarda</button></div>
+          <div class="campo"><%= form.label :years, "Prazo, em anos" %><%= form.number_field :years, value: setting.retention_years, min: 1, max: 50, required: true %><small>Contados do fim da última relação em aberto; depois a tarefa diária anonimiza, salvo os retidos.</small></div>
+          <div class="acoes" data-rodape><button type="submit" data-variant="secondary">Salvar prazo de guarda</button></div>
         </fieldset>
       <% end %>
       <p><small><%= last ? "Última alteração: #{last.user&.name || 'sistema'} em #{datetime_br(last.occurred_at)}." : "Cadastro ainda não preenchido." %></small></p>

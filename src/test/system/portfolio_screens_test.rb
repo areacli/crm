@@ -38,10 +38,10 @@ class PortfolioScreensSystemTest < ApplicationSystemTestCase
     visit import_path(@import)
     assert_selector "h1", text: "Importação de"
     assert_acessivel
-    click_button "Confirmar"
-    assert_selector "dialog[open]", text: "Confirmar a importação?"
+    click_link "Confirmar"
+    assert_selector "dialog#painel[open]", text: "Confirmar a importação?"
     assert_acessivel
-    within("dialog[open]") { click_button "Cancelar" }
+    within("dialog#painel[open]") { click_button "Cancelar" }
 
     visit imports_path
     assert_acessivel

@@ -1,6 +1,7 @@
 // htmx (HTML do servidor, trocado por trechos) e o WebSocket (eventos de invalidação do Action Cable). Sem Turbo, sem Stimulus.
 import htmx from "htmx.org"
 import "cable"
+import "painel"
 
 window.htmx = htmx
 

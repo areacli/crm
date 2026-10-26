@@ -1,6 +1,4 @@
 <% content_for :title, "Importação de #{datetime_br(@import.created_at)}" %>
 <% content_for :cable_channels, import_cable_channels %>
-<header class="cabecalho-da-pagina">
-  <div><h1>Importação de <%= datetime_br(@import.created_at) %></h1><p><%= @import.tenant.name %> · <%= link_to "Voltar para as importações", imports_path %></p></div>
-</header>
+<%= pagina "Importação de #{datetime_br(@import.created_at)}", subtitulo: safe_join([ @import.tenant.name, " · ", link_to("Voltar para as importações", imports_path) ]) %>
 <%= render "imports/state", import: @import, rejections: @rejections %>

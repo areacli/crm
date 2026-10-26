@@ -1,0 +1,8 @@
+<% bloqueado = @open_relations&.any? %>
+<%= formulario_de_painel(titulo: "Anonimizar cliente", descricao: "Troca, sem volta, o nome, o documento, os contatos e os textos por um identificador sem significado. Valores, datas e situações ficam.", url: customer_anonymization_path(@customer),
+                         enviar: (bloqueado ? nil : "Anonimizar cliente"), perigoso: true, variante: :modal, escopo: :anonymization, erro: (bloqueado ? "Não é possível anonimizar: #{@open_relations.message}." : @error), voltar: customer_path(@customer)) do |form| %>
+  <% unless bloqueado %>
+    <div class="campo"><%= form.label :reason, "Motivo" %><%= form.text_field :reason, value: params.dig(:anonymization, :reason), required: true, maxlength: 300 %><small>Por exemplo, o pedido do titular e o protocolo. Não escreva dados pessoais.</small></div>
+    <div class="campo"><%= form.label :document, "Documento do cliente" %><%= form.text_field :document, required: true, maxlength: 18, autocomplete: "off", inputmode: "text" %><small>Digite o documento para confirmar, com ou sem pontuação.</small></div>
+  <% end %>
+<% end %>

@@ -2,6 +2,18 @@ pt-BR:
   sessions:
     invalid: "E-mail ou senha incorretos."
     too_many: "Muitas tentativas. Aguarde alguns minutos."
+    presentation:
+      title: "CRM de cobrança"
+      subtitle: "Da carteira ao pagamento, num só lugar."
+      benefits:
+        - title: "Importação por planilha, com conferência"
+          text: "Envie a carteira em CSV; cada linha é conferida e o efeito da carga aparece antes de gravar."
+        - title: "Promessas e acordos com régua"
+          text: "Registre promessas, acompanhe os prazos e monte acordos com alçada e termo de aceite."
+        - title: "Instrumentos de pagamento"
+          text: "Pix, boleto e cartão em link público, com a baixa pelos canais de recebimento do credor."
+        - title: "Auditoria e LGPD"
+          text: "Histórico de cada alteração, acesso por perfil e os direitos do titular atendidos na ficha."
   imports:
     kinds:
       portfolio: "Carteira"

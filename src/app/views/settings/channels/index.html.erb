@@ -1,15 +1,14 @@
 <% content_for :title, "Configuração · Canais de recebimento" %>
-<header class="cabecalho-da-pagina">
-  <div><h1>Canais de recebimento</h1><p>Por onde o dinheiro entra: contas, convênios de cobrança e estabelecimentos de cartão. O código é o que a planilha de pagamentos traz.</p></div>
-  <div class="acoes"><%= link_to "Novo canal", new_settings_channel_path, class: "botao" %></div>
-</header>
+<%= pagina "Canais de recebimento", subtitulo: "Por onde o dinheiro entra. O código é o que a planilha de pagamentos traz." do %>
+  <%= abrir_painel "Novo canal", new_settings_channel_path %>
+<% end %>
 <%= render "settings/abas" %>
 
 <form class="filtros" role="search" action="<%= settings_channels_path %>" method="get"
-      hx-get="<%= settings_channels_path %>" hx-trigger="input changed delay:300ms from:#q, change" hx-target="#resultado" hx-push-url="true" hx-swap="outerHTML">
+      hx-sync="this:replace" hx-get="<%= settings_channels_path %>" hx-trigger="input changed delay:300ms from:#q, change" hx-target="#resultado" hx-push-url="true" hx-swap="outerHTML">
   <div class="campo">
-    <label for="q">Buscar por código ou descrição</label>
-    <input type="search" id="q" name="q" value="<%= params[:q] %>" autocomplete="off">
+    <label for="q" class="apenas-leitor-de-tela">Buscar por código ou descrição</label>
+    <input type="search" id="q" name="q" value="<%= params[:q] %>" autocomplete="off" placeholder="Código ou descrição">
   </div>
   <% if @several_tenants %>
     <div class="campo">
@@ -21,7 +20,7 @@
     </div>
   <% end %>
   <div class="campo">
-    <label for="per_page">Por página</label>
+    <label for="per_page" class="apenas-leitor-de-tela">Por página</label>
     <select id="per_page" name="per_page"><%= options_for_select(Pagination::PER_PAGE_OPTIONS, @pagination.per_page) %></select>
   </div>
   <button type="submit" data-variant="secondary">Buscar</button>

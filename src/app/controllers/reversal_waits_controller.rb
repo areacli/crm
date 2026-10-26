@@ -10,13 +10,21 @@ class ReversalWaitsController < ApplicationController
     render partial: "reversal_waits/result" if htmx_fragment?
   end
 
+  # A decisão (opção e motivo) se pede num modal pequeno.
+  def edit
+    @wait = policy_scope(ReversalWait).includes(:payment, :agreement).find(params[:id])
+    authorize @wait, :decide?
+    @choices = Agreements::WaitDecision.new(Current.user).options(@wait)
+  end
+
   def update
-    wait = policy_scope(ReversalWait).find(params[:id])
-    authorize wait, :decide?
+    @wait = policy_scope(ReversalWait).includes(:payment, :agreement).find(params[:id])
+    authorize @wait, :decide?
     raw = params.expect(decision: %i[choice note])
-    Agreements::WaitDecision.new(Current.user).decide!(wait, raw[:choice].to_s, raw[:note])
-    redirect_to reversal_waits_path, notice: t(".done"), status: :see_other
+    Agreements::WaitDecision.new(Current.user).decide!(@wait, raw[:choice].to_s, raw[:note])
+    panel_finish(reversal_waits_path, notice: t(".done"), atualizar: true, eventos: %w[cable:agreements-changed])
   rescue Agreements::Refused => error
-    redirect_to reversal_waits_path, alert: error.message, status: :see_other
+    @choices = Agreements::WaitDecision.new(Current.user).options(@wait)
+    panel_error(error.message, reversal_waits_path, :edit)
   end
 end

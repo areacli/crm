@@ -1,0 +1,18 @@
+<% item = @discrepancy %>
+<%= formulario_de_painel(titulo: "Tratar divergência", descricao: "Título #{item.bill.number}. A nota fica registrada com o seu nome e a data.", url: value_discrepancy_handling_path(item), enviar: "Tratar divergência", variante: :modal,
+                         escopo: :handling, erro: @error, voltar: value_discrepancy_path(item)) do |form| %>
+  <div class="campo">
+    <%= form.label :note, "Nota" %>
+    <%= form.text_area :note, value: params.dig(:handling, :note), required: true, maxlength: 500, rows: 3 %>
+    <small>Diga o que foi conferido com o credor.</small>
+  </div>
+  <fieldset>
+    <legend>O que fazer</legend>
+    <label><%= form.radio_button :choice, "keep", checked: params.dig(:handling, :choice) != "apply" %> <%= t("discrepancies.choice_help.keep") %></label>
+    <% if item.applicable? && !item.stale? %>
+      <label><%= form.radio_button :choice, "apply", checked: params.dig(:handling, :choice) == "apply" %> <%= t("discrepancies.choice_help.apply", amount: money(item.reported_cents)) %></label>
+    <% elsif item.applicable? %>
+      <p><small><%= t("discrepancies.value_changed") %></small></p>
+    <% end %>
+  </fieldset>
+<% end %>

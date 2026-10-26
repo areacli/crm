@@ -1,0 +1,13 @@
+<% if @adjustment %>
+  <%= formulario_de_painel(titulo: "Desfazer a correção", descricao: "#{IndexRate.label(@adjustment.series)} de #{months_label(@adjustment.month)}, #{@adjustment.tenant.name}.", url: settings_index_adjustment_path(@adjustment), metodo: :delete,
+                           enviar: "Desfazer correção", variante: :modal, escopo: :adjustment, erro: @error, voltar: settings_indexes_path) do |form| %>
+    <div class="campo"><%= form.label :reason, "Motivo" %><%= form.text_field :reason, value: params.dig(:adjustment, :reason), required: true, maxlength: 300 %></div>
+  <% end %>
+<% else %>
+  <%= formulario_de_painel(titulo: "Corrigir índice", descricao: @tenant.name, url: settings_index_adjustments_path(tenant_id: @tenant.id), enviar: "Corrigir índice", escopo: :adjustment, erro: @error, voltar: settings_indexes_path) do |form| %>
+    <div class="campo"><%= form.label :series, "Série" %><%= form.select :series, IndexRate::SERIES.map { |series| [ IndexRate.label(series), series ] }, { selected: params.dig(:adjustment, :series) } %></div>
+    <div class="campo"><%= form.label :month, "Mês (mm/aaaa)" %><%= form.text_field :month, value: params.dig(:adjustment, :month), required: true, placeholder: "09/2026", maxlength: 7 %></div>
+    <div class="campo"><%= form.label :value, "Valor (%)" %><%= form.text_field :value, value: params.dig(:adjustment, :value), required: true, inputmode: "decimal", placeholder: "1,52" %></div>
+    <div class="campo"><%= form.label :reason, "Motivo da correção" %><%= form.text_field :reason, value: params.dig(:adjustment, :reason), required: true, maxlength: 300 %></div>
+  <% end %>
+<% end %>

@@ -1,11 +1,16 @@
 <% content_for :title, "Entrar" %>
-<section class="cartao" aria-labelledby="entrar">
-  <header><h2 id="entrar">Entrar</h2></header>
-  <div>
+<section class="entrada-acesso" aria-labelledby="entrar">
+  <div class="entrada-formulario">
+    <%# Celular: o painel de apresentação some e a marca vem para o topo, sobre o marinho. %>
+    <header>
+      <%= image_tag "logotipo-negativo.svg", alt: "AreaCli" %>
+    </header>
+    <h1 id="entrar">Entrar no CRM</h1>
     <% if alert %>
       <%= aviso(tom: :danger) { tag.p alert } %>
     <% end %>
-    <%= form_with url: session_path do |form| %>
+    <%# A entrada recarrega a página inteira (sem hx-boost): o cabeçalho e o menu da aplicação só existem no outro layout. %>
+    <%= form_with url: session_path, html: { "hx-boost": "false" } do |form| %>
       <div class="campo">
         <%= form.label :email_address, "E-mail" %>
         <%= form.email_field :email_address, required: true, autofocus: true, autocomplete: "username", value: params[:email_address] %>
@@ -16,20 +21,32 @@
       </div>
       <div class="acoes"><button type="submit">Entrar</button></div>
     <% end %>
+    <% if Demo.enabled? %>
+      <section class="cartao" aria-labelledby="usuarios-demonstracao">
+        <header><h2 id="usuarios-demonstracao">Usuários da demonstração</h2></header>
+        <div>
+          <p>Os dados são fictícios. Entre com um dos usuários abaixo.</p>
+          <dl>
+            <% Demo::WHO.each do |who| %>
+              <dt><%= who.capitalize %></dt>
+              <dd>E-mail <code><%= Demo.email(who) %></code>, senha <code><%= Demo.password(who) %></code></dd>
+            <% end %>
+          </dl>
+          <p><small>O gestor tem perfil de gestor na Escola Alfa e de operador na Clínica Beta; o operador só vê a Escola Alfa.</small></p>
+        </div>
+      </section>
+    <% end %>
   </div>
 </section>
-<% if Demo.enabled? %>
-  <section class="cartao" aria-labelledby="usuarios-demonstracao">
-    <header><h2 id="usuarios-demonstracao">Usuários da demonstração</h2></header>
-    <div>
-      <p>Os dados são fictícios. Entre com um dos usuários abaixo.</p>
-      <dl>
-        <% Demo::WHO.each do |who| %>
-          <dt><%= who.capitalize %></dt>
-          <dd>E-mail <code><%= Demo.email(who) %></code>, senha <code><%= Demo.password(who) %></code></dd>
-        <% end %>
-      </dl>
-      <p><small>O gestor tem perfil de gestor na Escola Alfa e de operador na Clínica Beta; o operador só vê a Escola Alfa.</small></p>
-    </div>
-  </section>
-<% end %>
+<aside class="entrada-apresentacao" aria-labelledby="apresentacao">
+  <%= image_tag "logotipo-negativo.svg", alt: "AreaCli" %>
+  <div>
+    <h2 id="apresentacao"><%= t("sessions.presentation.title") %></h2>
+    <p><%= t("sessions.presentation.subtitle") %></p>
+  </div>
+  <ul>
+    <% t("sessions.presentation.benefits").each do |benefit| %>
+      <li><strong><%= benefit[:title] %></strong><span><%= benefit[:text] %></span></li>
+    <% end %>
+  </ul>
+</aside>

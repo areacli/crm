@@ -23,10 +23,10 @@ class AccessScreensSystemTest < ApplicationSystemTestCase
     click_link "Carlos Lima"
     assert_selector "h1", text: "Carlos Lima"
     assert_acessivel
-    click_button "Desativar o acesso"
-    assert_selector "dialog[open]", text: "Desativar o acesso?"
+    click_link "Desativar o acesso"
+    assert_selector "dialog#painel[open]", text: "Desativar o acesso?"
     assert_acessivel
-    within("dialog[open]") { click_button "Cancelar" }
+    within("dialog#painel[open]") { click_button "Cancelar" }
 
     visit new_membership_path
     assert_selector "h1", text: "Novo usuário"

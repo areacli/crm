@@ -1,0 +1,28 @@
+<%# Aba Contatos (06, R124): todos os contatos, com situação, origem, motivo e data. Para quem tem a permissão 12 no credor, criar abre no painel e cada linha
+    tem o menu ⋯ de edição; corrigir telefone e e-mail é na própria linha. %>
+<section class="cartao" id="contatos" aria-labelledby="contatos-aba-titulo">
+  <header>
+    <h2 id="contatos-aba-titulo">Contatos</h2>
+    <% if @can_edit_registry %><%= abrir_painel "Criar contato", new_customer_contact_path(@customer), variante: "secondary", tamanho: "small" %><% end %>
+  </header>
+  <% if @listed_contacts.empty? %>
+    <p class="vazio">Nenhum contato cadastrado.</p>
+  <% else %>
+    <div class="tabela" tabindex="0">
+      <table>
+        <caption class="apenas-leitor-de-tela">Todos os contatos do cliente</caption>
+        <thead>
+          <tr>
+            <th scope="col">Tipo</th><th scope="col">Contato</th><th scope="col">Situação</th><th scope="col">Origem</th>
+            <th scope="col">Última mudança</th><th scope="col">Motivo</th><th scope="col"><span class="apenas-leitor-de-tela">Ações</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @listed_contacts.each do |contact| %>
+            <%= render "customers/contacts/row", customer: @customer, contact: contact, can_edit: @can_edit_registry %>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
+</section>

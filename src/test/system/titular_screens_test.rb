@@ -20,22 +20,28 @@ class TitularScreensSystemTest < ApplicationSystemTestCase
 
   def sem_rolagem_horizontal = assert_not(page.evaluate_script("document.documentElement.scrollWidth > document.documentElement.clientWidth"))
 
-  test "a ficha com as janelas de exportar e de anonimizar abertas passa no axe" do
+  # As ações do titular ficam no menu "Mais ações" da barra de página e abrem num modal pequeno.
+  def abrir_acao(nome)
+    find("button.menu-de-linha[aria-label='Mais ações do cliente']").click
+    click_link nome
+    assert_selector "dialog#painel[open][data-variant=modal]"
+  end
+
+  test "a ficha com os modais de exportar e de anonimizar abertos passa no axe" do
     visit customer_path(@maria)
-    click_button "Exportar dados"
-    assert_selector "dialog#exportar-dados[open]"
+    abrir_acao "Exportar dados"
     assert_acessivel
-    click_button "Cancelar"
-    click_button "Anonimizar"
-    assert_selector "dialog#anonimizar-cliente[open]"
+    within("#painel") { click_button "Cancelar" }
+    assert_no_selector "dialog[open]"
+    abrir_acao "Anonimizar"
     assert_acessivel
     sem_rolagem_horizontal
   end
 
   test "exportar abre a página para imprimir, que passa no axe" do
     visit customer_path(@maria)
-    click_button "Exportar dados"
-    within("dialog#exportar-dados") do
+    abrir_acao "Exportar dados"
+    within("#painel") do
       fill_in "Motivo", with: "pedido do titular, protocolo 123"
       click_button "Exportar dados"
     end
@@ -47,8 +53,8 @@ class TitularScreensSystemTest < ApplicationSystemTestCase
 
   test "anonimizar pela janela, digitando o documento, e a ficha passa a mostrar o aviso" do
     visit customer_path(@maria)
-    click_button "Anonimizar"
-    within("dialog#anonimizar-cliente") do
+    abrir_acao "Anonimizar"
+    within("#painel") do
       fill_in "Motivo", with: "pedido do titular, protocolo 123"
       fill_in "Documento do cliente", with: "529.982.247-25"
       click_button "Anonimizar cliente"
@@ -63,8 +69,10 @@ class TitularScreensSystemTest < ApplicationSystemTestCase
     assert_selector "h2", text: "Anonimização prevista nos próximos 30 dias"
     assert_selector "section[aria-labelledby=previstos] th", text: "Maria Souza"
     assert_selector "section[aria-labelledby=retidos] th", text: "João Retido"
-    find("section[aria-labelledby=previstos] summary", text: "Reter").click
+    click_link "Reter", match: :first
+    assert_selector "dialog#painel[open][data-variant=modal]"
     assert_acessivel
+    find("dialog#painel button", text: "Cancelar").click
     sem_rolagem_horizontal
 
     # O evento do WebSocket refaz o trecho sem recarregar a página.

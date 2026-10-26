@@ -38,7 +38,7 @@ module NavigationHelper
                                      [ "Importar carteira", new_import_path, "upload_imports", %r{\A/importacoes/nova(?!\?kind=(payments|reversals))} ],
                                      [ "Importar pagamentos", new_import_path(kind: "payments"), "upload_payments", %r{\A/importacoes/nova\?kind=payments} ],
                                      [ "Importar estornos", new_import_path(kind: "reversals"), "upload_payments", %r{\A/importacoes/nova\?kind=reversals} ],
-                                     [ discrepancies_label, value_discrepancies_path, "confirm_payments", %r{\A/divergencias-de-valor} ],
+                                     [ "Divergências de valor", value_discrepancies_path, "confirm_payments", %r{\A/divergencias-de-valor}, discrepancies_count ],
                                      [ "Importações", imports_path, ImportPolicy::UPLOAD.values.uniq + ImportPolicy::CONFIRM.values.uniq, %r{\A/importacoes(?!/nova)} ] ] },
       { titulo: "Cobrança", itens: [ [ "Acordos", agreements_path, "negotiate_agreements", %r{\A/acordos(?!/pendentes)} ],
                                      *pending_promises_items,
@@ -49,33 +49,32 @@ module NavigationHelper
                                           [ "Configuração", settings_entry_path, SETTINGS_TABS.flat_map(&:last), %r{\A/configuracao} ] ] }
     ]
     sections.filter_map do |section|
-      items = section[:itens].filter_map do |label, path, permissions, pattern|
+      items = section[:itens].filter_map do |label, path, permissions, pattern, count|
         next unless Array(permissions).any? { |permission| user.permitted_anywhere?(permission) }
 
-        { rotulo: label, caminho: path, atual: request.fullpath.match?(pattern) }
+        { rotulo: label, caminho: path, atual: request.fullpath.match?(pattern), contador: (count if count.to_i.positive?) }
       end
       section.merge(itens: items) if items.any?
     end
   end
 
-  # "Divergências de valor" com o número das abertas que a pessoa pode tratar (05, DV3, MT-4): só os credores em que ela confirma pagamentos.
+  # Contador de "Divergências de valor" (selo do menu): as abertas que a pessoa pode tratar (05, DV3, MT-4), só dos credores em que ela confirma pagamentos.
   # Consulta: `value_discrepancies (tenant_id, status, id)`.
-  def discrepancies_label
+  def discrepancies_count
     ids = Current.user.tenant_ids_with("confirm_payments")
-    open = ids.any? ? ValueDiscrepancy.where(tenant_id: ids, status: "open").count : 0
-    open.positive? ? "Divergências de valor (#{number_br(open)})" : "Divergências de valor"
+    ids.any? ? ValueDiscrepancy.where(tenant_id: ids, status: "open").count : 0
   end
 
-  # "Promessas pendentes" com o número das que a pessoa pode aprovar (10, R204): só as dos credores em que ela tem a permissão e a alçada.
+  # "Promessas pendentes" com o selo das que a pessoa pode aprovar (10, R204): só as dos credores em que ela tem a permissão e a alçada.
   def pending_promises_items
     open = Promises::Pending.for(Current.user).count
-    open.positive? ? [ [ "Promessas pendentes (#{number_br(open)})", pending_promises_path, "record_contact_attempts", %r{\A/promessas/pendentes} ] ] : []
+    open.positive? ? [ [ "Promessas pendentes", pending_promises_path, "record_contact_attempts", %r{\A/promessas/pendentes}, open ] ] : []
   end
 
-  # "Acordos pendentes" com o número das propostas que a pessoa pode aprovar (11, R216, R243): só as dos credores em que ela tem a permissão e os limites.
+  # "Acordos pendentes" com o selo das propostas que a pessoa pode aprovar (11, R216, R243): só as dos credores em que ela tem a permissão e os limites.
   def pending_agreements_items
     open = Agreements::Pending.for(Current.user).count
-    open.positive? ? [ [ "Acordos pendentes (#{number_br(open)})", pending_agreements_path, "negotiate_agreements", %r{\A/acordos/pendentes} ] ] : []
+    open.positive? ? [ [ "Acordos pendentes", pending_agreements_path, "negotiate_agreements", %r{\A/acordos/pendentes}, open ] ] : []
   end
 
   # Canais do WebSocket que a página assina (um por credor em que o usuário acompanha importações), lidos por `cable.js`.

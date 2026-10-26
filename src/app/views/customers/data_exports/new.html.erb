@@ -1,0 +1,4 @@
+<%= formulario_de_painel(titulo: "Exportar dados", descricao: "Tudo o que este credor guarda sobre o cliente, em página para imprimir e em JSON. A exportação fica registrada, sem o conteúdo.", url: customer_data_export_path(@customer),
+                         enviar: "Exportar dados", variante: :modal, escopo: :export, erro: @error, voltar: customer_path(@customer)) do |form| %>
+  <div class="campo"><%= form.label :reason, "Motivo" %><%= form.text_field :reason, value: params.dig(:export, :reason), required: true, maxlength: 300 %><small>Por exemplo, o pedido do titular e o protocolo. Não escreva dados pessoais.</small></div>
+<% end %>

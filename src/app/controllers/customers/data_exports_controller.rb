@@ -4,8 +4,13 @@ module Customers
   class DataExportsController < ApplicationController
     TOKEN_LIFETIME = 10.minutes
 
-    layout "impressao", only: :show
+    layout :layout_da_exportacao
     before_action :set_customer
+
+    # Pede o motivo, num modal pequeno.
+    def new
+      authorize @customer, :handle_rights?
+    end
 
     def create
       authorize @customer, :handle_rights?
@@ -13,7 +18,16 @@ module Customers
       raise Titular::Refused, t(".reason_required") if reason.empty?
 
       Change.record!(tenant_id: @customer.tenant_id, user: Current.user, subject_type: "customer", subject_id: @customer.id, event: "data_exported", note: reason[0, 300], origin: "screen")
-      redirect_to customer_data_export_path(@customer, token: verifier.generate([ @customer.id, Current.user.id ], expires_in: TOKEN_LIFETIME, purpose: :data_export)), status: :see_other
+      destination = customer_data_export_path(@customer, token: verifier.generate([ @customer.id, Current.user.id ], expires_in: TOKEN_LIFETIME, purpose: :data_export))
+      # Pelo painel, o htmx leva o navegador à página para imprimir (a exportação é uma página, não um trecho).
+      return head(:no_content, "HX-Redirect": destination) if panel_request?
+
+      redirect_to destination, status: :see_other
+    rescue Titular::Refused => error
+      raise unless panel_request?
+
+      @error = error.message
+      render :new, status: :unprocessable_content
     end
 
     def show
@@ -29,6 +43,9 @@ module Customers
     end
 
     private
+      # A página para imprimir tem layout próprio; o pedido do motivo (modal) usa o layout do painel.
+      def layout_da_exportacao = action_name == "show" ? "impressao" : layout_da_resposta
+
       def set_customer = @customer = Customer.includes(:tenant).find(params[:customer_id])
 
       def verifier = Rails.application.message_verifier(:data_export)

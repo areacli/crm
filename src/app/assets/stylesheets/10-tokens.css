@@ -1,6 +1,6 @@
 /*
- * Tokens do design system (o documento do design system do projeto, seções 3 e 14). Único lugar com cor, tamanho, espaço, raio e sombra:
- * o resto do CSS só usa estas variáveis.
+ * Tokens do design system (o documento do design system do projeto, revisão 4). Único lugar com cor, tamanho, espaço, raio e sombra:
+ * o resto do CSS só usa estas variáveis. A revisão 4 (26/10/2026) trocou a escala inflada da revisão 2 por uma escala densa e corporativa.
  */
 @layer tokens {
   @font-face { font-family: "Source Sans 3"; font-weight: 400; font-display: swap; src: url("source-sans-3-latin-400.woff2") format("woff2"); }
@@ -36,15 +36,21 @@
     --cor-neutro-fundo: #eef1f4;
     --cor-neutro-texto: #5b6670;
 
-    /* Tipografia: a raiz é a do navegador (16 px); piso de 14 px */
+    /* Tons do painel de apresentação da entrada: derivados do marinho, sempre sobre ele */
+    --cor-marinho-claro: #2b4d70;
+    --cor-marinho-texto: #d7e3ef;
+
+    /* Tipografia (revisão 4): 15 px na interface, tabelas de 14, rótulos de 13; a raiz é a do navegador (16 px) */
     --fonte: "Source Sans 3", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
     --fonte-codigo: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Menlo, Consolas, monospace;
-    --texto-legenda: 0.875rem;
-    --texto-corpo: 1rem;
-    --texto-subtitulo: 1.25rem;
-    --texto-titulo: 1.5rem;
-    --texto-pagina: 2rem;
-    --texto-marca: 2rem;
+    --texto-legenda: 0.8125rem;
+    --texto-tabela: 0.875rem;
+    --texto-corpo: 0.9375rem;
+    --texto-subtitulo: 0.9375rem;
+    --texto-titulo: 1.25rem;
+    --texto-pagina: 1.375rem;
+    --texto-valor: 1.375rem;
+    --texto-marca: 1.75rem;
 
     /* Espaço (grade de 4 px), forma e elevação */
     --espaco-1: 0.25rem;
@@ -53,21 +59,48 @@
     --espaco-4: 1rem;
     --espaco-6: 1.5rem;
     --espaco-8: 2rem;
-    --raio-controle: 6px;
-    --raio-cartao: 8px;
-    --raio-janela: 12px;
+    --raio-controle: 4px;
+    --raio-cartao: 6px;
+    --raio-janela: 8px;
     --sombra-menu: 0 4px 12px rgb(28 58 87 / 0.14);
     --sombra-janela: 0 20px 40px rgb(28 58 87 / 0.28);
 
-    /* Medidas */
-    --altura-controle: 2.75rem;
-    --altura-controle-pequeno: 2.25rem;
+    /* Medidas dos controles e das linhas: em ponteiro grosseiro (toque) voltam a 44 px (ver mais abaixo) */
+    --altura-controle: 2.125rem;
+    --altura-controle-pequeno: 1.75rem;
+    --altura-linha: 2.25rem;
+    --altura-item-menu: 2rem;
+    --alvo-minimo: 1.5rem;
+
+    /* Medidas da estrutura */
     --altura-cabecalho: 3.5rem;
-    --altura-logotipo: 2.25rem;
+    --altura-barra: 3rem;
+    --altura-logotipo: 2.5rem;
     --largura-menu: 13rem;
+    --largura-lateral: 20rem;
+    --largura-secoes: 12.5rem;
+    --largura-painel: 30rem;
+    --largura-modal: 25rem;
+    --largura-busca: 28rem;
+    --largura-entrada: 23.75rem;
     --largura-conteudo: 110rem;
     --largura-formulario: 36rem;
+    --largura-rotulo: 11.25rem;
+    --largura-campo-numero: 6rem;
+    --largura-campo-data: 8.75rem;
+    --largura-campo-texto: 22.5rem;
+    --largura-tabela-editavel: 20rem;
     --cor-fundo-da-janela: rgb(28 58 87 / 0.5);
     --foco: 3px solid var(--cor-laranja);
+  }
+
+  /* Ponteiro grosseiro (dedo): controles e linhas voltam a 44 px; o alvo mínimo de 24 px (WCAG 2.5.8) vale sempre. */
+  @media (pointer: coarse) {
+    :root {
+      --altura-controle: 2.75rem;
+      --altura-controle-pequeno: 2.75rem;
+      --altura-linha: 2.75rem;
+      --altura-item-menu: 2.75rem;
+    }
   }
 }

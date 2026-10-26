@@ -1,9 +1,9 @@
-/* Componentes do catálogo (design system, seção 6): elementos nativos com o papel no nome da classe e a variante em data-*. */
+/* Componentes do catálogo (design system, seção 6): elementos nativos com o papel no nome da classe e a variante em data-*. Revisão 4: densos. */
 @layer componentes {
   /* Botão e link com cara de botão. Variantes: data-variant="primary" (padrão), "secondary", "danger", "danger-outline", "link". */
   button, .botao {
     display: inline-flex; align-items: center; justify-content: center; gap: var(--espaco-2);
-    min-height: var(--altura-controle); padding: 0 var(--espaco-4);
+    min-height: var(--altura-controle); padding: 0 var(--espaco-3);
     font: inherit; font-weight: 600; white-space: nowrap; cursor: pointer; text-decoration: none;
     border: 1px solid transparent; border-radius: var(--raio-controle);
     background: var(--cor-azul); color: var(--cor-branco);
@@ -16,100 +16,226 @@
   :is(button, .botao)[data-variant="danger"]:hover { background: var(--cor-perigo-texto); }
   :is(button, .botao)[data-variant="danger-outline"] { background: var(--cor-branco); color: var(--cor-perigo); border-color: var(--cor-perigo); }
   :is(button, .botao)[data-variant="danger-outline"]:hover { background: var(--cor-perigo-fundo); color: var(--cor-perigo); }
-  :is(button, .botao)[data-variant="link"] { background: transparent; color: var(--cor-azul); text-decoration: underline; padding-inline: var(--espaco-1); border: 0; }
+  :is(button, .botao)[data-variant="link"] { background: transparent; color: var(--cor-azul); text-decoration: underline; padding-inline: var(--espaco-1); border: 0; min-height: var(--alvo-minimo); }
   :is(button, .botao)[data-variant="link"]:hover { background: transparent; color: var(--cor-azul-escuro); }
-  :is(button, .botao)[data-size="small"] { min-height: var(--altura-controle-pequeno); padding-inline: var(--espaco-3); }
+  :is(button, .botao)[data-size="small"] { min-height: var(--altura-controle-pequeno); padding-inline: var(--espaco-2); font-size: var(--texto-tabela); }
 
   /* Campo de formulário: rótulo, controle, ajuda e erro juntos. */
-  .campo { display: grid; gap: var(--espaco-1); max-width: var(--largura-formulario); }
-  .campo label { font-weight: 600; }
+  .campo { display: grid; gap: var(--espaco-1); max-width: var(--largura-formulario); align-content: start; }
+  .campo label { font-weight: 600; font-size: var(--texto-legenda); }
   .campo .obrigatorio { color: var(--cor-perigo); }
   .campo small { color: var(--cor-texto-suave); }
   .campo .erro { display: flex; gap: var(--espaco-1); align-items: flex-start; color: var(--cor-perigo); font-weight: 600; }
   input, select, textarea {
-    width: 100%; min-height: var(--altura-controle); padding: var(--espaco-2) var(--espaco-3);
+    width: 100%; min-height: var(--altura-controle); padding: 0 var(--espaco-2);
     font: inherit; color: var(--cor-texto); background: var(--cor-branco);
     border: 1px solid var(--cor-linha-forte); border-radius: var(--raio-controle);
   }
-  textarea { min-height: 6rem; resize: vertical; }
+  textarea { min-height: 5rem; padding: var(--espaco-2); resize: vertical; }
   /* Código para copiar (Pix copia e cola, linha digitável): só leitura, em fonte de código, quebrando em qualquer ponto. */
   .campo :is(input, textarea)[readonly] { font-family: var(--fonte-codigo); background: var(--cor-superficie); overflow-wrap: anywhere; }
   .campo > button { justify-self: start; }
+  /* Busca global (cabeçalho): no desktop ocupa a coluna do meio; no celular some (o menu leva à lista de clientes). Fica nesta camada para vencer o `form` em grade. */
+  .busca { grid-column: 2; position: relative; display: flex; }
+  @media (max-width: 48rem) { .busca { display: none; } }
+  /* Botão da busca global (cabeçalho): ícone sobre o campo branco. */
+  .busca button { position: absolute; right: 0; top: 0; width: var(--altura-controle); min-height: var(--altura-controle); padding: 0; background: transparent; color: var(--cor-azul); border: 0; }
+  .busca button:hover { background: transparent; color: var(--cor-azul-escuro); }
+  /* Busca global dentro do menu aberto (tela estreita): o campo ocupa a largura do menu; fora da tela estreita não existe. */
+  .busca-no-menu { display: none; }
+  @media (max-width: 48rem) {
+    .busca-no-menu { display: flex; position: relative; margin: var(--espaco-2) var(--espaco-3); }
+    .busca-no-menu button { position: absolute; right: 0; top: 0; width: var(--altura-controle); min-height: var(--altura-controle); padding: 0; background: transparent; color: var(--cor-azul); border: 0; }
+  }
+  .coluna { display: grid; gap: var(--espaco-4); align-content: start; min-width: 0; }
   form [role="alert"]:not([hidden]) { margin: 0; color: var(--cor-perigo-texto); font-weight: 600; }
-  input[type="checkbox"], input[type="radio"] { width: 1.25rem; min-height: 1.25rem; accent-color: var(--cor-azul); }
-  fieldset { border: 1px solid var(--cor-linha); border-radius: var(--raio-cartao); padding: var(--espaco-4); }
-  legend { font-weight: 600; padding-inline: var(--espaco-2); }
-  form { display: grid; gap: var(--espaco-4); }
-  /* Filtros de lista: uma linha de campos (a regra de `layout` perdia para o `form` em grade, por vir antes na ordem das camadas). */
-  form.filtros { display: flex; flex-wrap: wrap; align-items: end; gap: var(--espaco-3); }
+  input[type="checkbox"], input[type="radio"] { width: 1.125rem; min-height: 1.125rem; accent-color: var(--cor-azul); }
+  fieldset { border: 1px solid var(--cor-linha); border-radius: var(--raio-cartao); padding: var(--espaco-3); margin: 0; min-width: 0; }
+  legend { font-weight: 600; padding-inline: var(--espaco-1); font-size: var(--texto-tabela); }
+  form { display: grid; gap: var(--espaco-3); }
+  /* Filtros de lista: uma linha de campos de 34 px (a regra de `layout` perdia para o `form` em grade, por vir antes na ordem das camadas). */
+  form.filtros { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espaco-2);  padding: var(--espaco-3); background: var(--cor-branco); border: 1px solid var(--cor-linha); border-radius: var(--raio-cartao); }
+  form.filtros .campo { width: auto; display: flex; align-items: center; gap: var(--espaco-2); max-width: none; }
+  form.filtros .campo label { white-space: nowrap; color: var(--cor-texto-suave); }
+  form.filtros .campo:has(input[type="search"]) { flex: 1 1 12rem; max-width: 16rem; }
+  form.filtros .campo input { flex: 1; min-width: 8rem; }
+  form.filtros select { width: auto; min-width: 5rem; max-width: 9rem; }
   form > div:empty, .grupo-de-campos > div:empty { display: none; }
   /* Campos curtos lado a lado, quebrando linha quando falta largura. */
-  .grupo-de-campos { display: flex; flex-wrap: wrap; align-items: start; gap: var(--espaco-4); }
-  .grupo-de-campos > div { flex: 1 1 14rem; min-width: 0; }
+  .grupo-de-campos { display: flex; flex-wrap: wrap; align-items: start; gap: var(--espaco-3); }
+  .grupo-de-campos > div { flex: 1 1 12rem; min-width: 0; }
 
-  /* Cartão: seção com título e ações. */
-  .cartao { background: var(--cor-branco); border: 1px solid var(--cor-linha); border-radius: var(--raio-cartao); }
-  .cartao > header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--espaco-3); padding: var(--espaco-3) var(--espaco-4); border-bottom: 1px solid var(--cor-linha); }
-  .cartao > header p { margin: 0; color: var(--cor-texto-suave); }
-  .cartao > div, .cartao > :not(header) { padding: var(--espaco-4); }
+  /* Campo em linha (configuração): rótulo à esquerda (180 px) e o campo na largura do dado (número 96 px, data 140 px, texto até 360 px). */
+  .campo[data-disposicao="linha"], body > main:has(> nav.secoes) :is(form, fieldset) > .campo { grid-template-columns: var(--largura-rotulo) minmax(0, 1fr); align-items: center; column-gap: var(--espaco-3); max-width: none; }
+  .campo[data-disposicao="linha"] > :is(small, .erro), body > main:has(> nav.secoes) :is(form, fieldset) > .campo > :is(small, .erro) { grid-column: 2; }
+  .campo[data-disposicao="linha"] label, body > main:has(> nav.secoes) :is(form, fieldset) > .campo label { font-size: var(--texto-tabela); }
+  .campo[data-disposicao="linha"] :is(input, select, textarea), body > main:has(> nav.secoes) :is(form, fieldset) > .campo :is(input, select, textarea) { max-width: var(--largura-campo-texto); }
+  .campo[data-tamanho="numero"] :is(input, select), body > main:has(> nav.secoes) :is(form, fieldset) > .campo input[type="number"] { width: var(--largura-campo-numero); }
+  .campo[data-tamanho="data"] input, body > main:has(> nav.secoes) :is(form, fieldset) > .campo input[type="date"] { width: var(--largura-campo-data); }
+  body > main:has(> nav.secoes) :is(form, fieldset) > .campo select { width: auto; min-width: var(--largura-campo-data); }
+  /* Grupos de campos na configuração: em colunas de 26 rem, cada campo com o rótulo ao lado. */
+  body > main:has(> nav.secoes) .grupo-de-campos { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr)); gap: var(--espaco-2) var(--espaco-6); }
+  body > main:has(> nav.secoes) .grupo-de-campos > :is(.campo, div) { flex: none; }
+  body > main:has(> nav.secoes) .grupo-de-campos > .campo { grid-template-columns: var(--largura-rotulo) minmax(0, 1fr); align-items: center; column-gap: var(--espaco-3); max-width: none; }
+  body > main:has(> nav.secoes) .grupo-de-campos > .campo > :is(small, .erro) { grid-column: 2; }
+  body > main:has(> nav.secoes) .grupo-de-campos > .campo label { font-size: var(--texto-tabela); }
+  body > main:has(> nav.secoes) .grupo-de-campos > .campo :is(input, select, textarea) { max-width: var(--largura-campo-texto); }
+  /* O rótulo ao lado do campo também vale para os grupos de opções (radio) e para o botão de salvar, sempre no rodapé do cartão. */
+  body > main:has(> nav.secoes) .cartao form > .acoes, .cartao form > .acoes[data-rodape] { justify-content: flex-end; padding-top: var(--espaco-3); border-top: 1px solid var(--cor-linha); }
+  body > main:has(> nav.secoes) fieldset { border: 0; padding: 0; display: grid; gap: var(--espaco-2); }
+  body > main:has(> nav.secoes) legend { padding: 0 0 var(--espaco-1); font-size: var(--texto-subtitulo); font-weight: 700; }
+  body > main:has(> nav.secoes) fieldset > label { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: var(--espaco-2); align-items: start; }
+  body > main:has(> nav.secoes) fieldset > label > :is(strong, small, span) { grid-column: 2; }
+  @media (max-width: 40rem) {
+    body > main:has(> nav.secoes) .grupo-de-campos > .campo { grid-template-columns: minmax(0, 1fr); }
+    body > main:has(> nav.secoes) .grupo-de-campos > .campo > :is(small, .erro) { grid-column: 1; }
+    .campo[data-disposicao="linha"], body > main:has(> nav.secoes) :is(form, fieldset) > .campo { grid-template-columns: minmax(0, 1fr); }
+    .campo[data-disposicao="linha"] > :is(small, .erro), body > main:has(> nav.secoes) :is(form, fieldset) > .campo > :is(small, .erro) { grid-column: 1; }
+  }
 
-  /* Tabela de dados: números à direita, cabeçalho em superfície, linha com destaque ao apontar. */
+  /* Números e datas dentro dos grupos de campos da configuração: na largura do dado, não na do campo de texto. */
+  body > main:has(> nav.secoes) .grupo-de-campos > .campo input[type="number"] { width: var(--largura-campo-numero); }
+  body > main:has(> nav.secoes) .grupo-de-campos > .campo input[type="date"] { width: var(--largura-campo-data); }
+  /* Selo dentro de um bloco de valores pode quebrar linha (a situação da importação é longa); valores numéricos nunca quebram. */
+  .valores dd .situacao { white-space: normal; line-height: 1.25; padding-block: var(--espaco-1); }
+  td[data-numerico]:not(:has(small)), th[data-numerico] { white-space: nowrap; }
+  /* Cartões empilhados num trecho refeito pelo htmx (casos do gestor, estornos): o espaço entre eles e a tabela que vem depois. */
+  #resultado > .cartao { margin-bottom: var(--espaco-3); }
+  /* Política (configuração): título à esquerda (180 px) e as opções à direita, uma linha por política; no celular, empilhadas. */
+  .politica { display: grid; grid-template-columns: var(--largura-rotulo) minmax(0, 1fr); column-gap: var(--espaco-3); align-items: start; padding-block: var(--espaco-2); border-bottom: 1px solid var(--cor-linha); }
+  .politica:last-of-type { border-bottom: 0; }
+  .politica .titulo { font-size: var(--texto-tabela); font-weight: 600; display: flex; align-items: center; gap: var(--espaco-1); flex-wrap: wrap; }
+  .politica .opcoes { display: grid; gap: var(--espaco-1); min-width: 0; }
+  .politica .opcoes label { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: var(--espaco-2); align-items: start; font-size: var(--texto-tabela); }
+  .politica .opcoes label > :is(strong, small, span) { grid-column: 2; }
+  .politica .opcoes small { color: var(--cor-texto-suave); font-size: var(--texto-legenda); }
+  .politica .opcoes .grupo-de-campos { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); }
+  @media (max-width: 40rem) { .politica { grid-template-columns: minmax(0, 1fr); row-gap: var(--espaco-1); } }
+
+  /* Cartão: seção com título (15 px, negrito, escuro) e ações; borda de 1 px, sem sombra. */
+  .cartao { background: var(--cor-branco); border: 1px solid var(--cor-linha); border-radius: var(--raio-cartao); min-width: 0; }
+  .cartao > header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--espaco-2); min-height: 2.5rem; padding: var(--espaco-2) var(--espaco-3); border-bottom: 1px solid var(--cor-linha); }
+  .cartao > header p { margin: 0; color: var(--cor-texto-suave); font-size: var(--texto-legenda); }
+  .cartao > div, .cartao > :not(header) { padding: var(--espaco-3); }
+  /* Ações na célula de uma linha ou no aviso: botões lado a lado, sem estourar a largura. */
+  td[data-acoes] .acoes { justify-content: flex-end; flex-wrap: nowrap; }
+  .aviso .acoes { margin-top: var(--espaco-2); }
+  .cartao > .tabela { padding: 0; border: 0; border-radius: 0 0 var(--raio-cartao) var(--raio-cartao); }
+  .cartao > form { padding: var(--espaco-3); }
+
+  /* Tabela de dados: 14 px, linhas de 36 px, cabeçalho fixo, números à direita, linha com destaque ao apontar. */
   .tabela { overflow-x: auto; background: var(--cor-branco); border: 1px solid var(--cor-linha); border-radius: var(--raio-cartao); }
-  table { width: 100%; border-collapse: collapse; }
-  caption { text-align: left; padding: var(--espaco-3) var(--espaco-4); font-weight: 600; }
-  th { text-align: left; font-weight: 600; color: var(--cor-texto-suave); background: var(--cor-superficie); white-space: nowrap; }
-  table[data-compacta] :is(th, td) { padding-inline: var(--espaco-3); }
-  th, td { padding: var(--espaco-3) var(--espaco-4); border-bottom: 1px solid var(--cor-linha); vertical-align: top; }
-  tbody tr:last-child td { border-bottom: 0; }
+  /* Lista longa: rola dentro do contêiner e o cabeçalho das colunas fica fixo. */
+  .tabela[data-fixa] { overflow: auto; max-height: calc(100dvh - 17rem); }
+  table { width: 100%; border-collapse: collapse; font-size: var(--texto-tabela); }
+  caption { text-align: left; padding: var(--espaco-2) var(--espaco-3); font-weight: 600; }
+  th { text-align: left; font-weight: 600; font-size: var(--texto-legenda); color: var(--cor-texto-suave); background: var(--cor-superficie); white-space: nowrap; }
+  thead th { position: sticky; top: 0; z-index: 1; box-shadow: inset 0 -1px 0 var(--cor-linha); }
+  th, td { padding: var(--espaco-1) var(--espaco-3); height: var(--altura-linha); border-bottom: 1px solid var(--cor-linha); vertical-align: middle; }
+  tbody th[scope="row"] { font-size: var(--texto-tabela); color: var(--cor-texto); background: transparent; white-space: normal; }
+  tbody tr:last-child :is(td, th) { border-bottom: 0; }
   tbody tr:hover { background: var(--cor-superficie); }
   [data-numerico] { text-align: right; }
   th a { color: inherit; text-decoration: none; display: inline-flex; align-items: center; gap: var(--espaco-1); }
   tfoot td { color: var(--cor-texto-suave); font-size: var(--texto-legenda); }
-  td small, th small { display: block; font-weight: 400; color: var(--cor-texto-suave); }
+  td small, th small { display: block; font-weight: 400; color: var(--cor-texto-suave); font-size: var(--texto-legenda); }
+  table td:has(> [data-acao-de-linha]), td[data-acoes] { width: 1%; text-align: right; white-space: nowrap; }
   /* Texto digitado pelo operador (04, R72): texto puro, com as quebras de linha como foram escritas. */
   .texto-do-operador { margin: 0; max-width: 40rem; white-space: pre-line; overflow-wrap: anywhere; }
 
-  /* Situação: selo de texto e tom (data-tone: success, warning, danger, info, neutral); a cor nunca fala sozinha. */
-  .situacao { display: inline-flex; align-items: center; padding: 0 var(--espaco-3); border-radius: 999px; font-size: var(--texto-legenda); font-weight: 600; background: var(--cor-neutro-fundo); color: var(--cor-neutro-texto); }
+  /* Situação e indicador: selo de texto e tom (data-tone: success, warning, danger, info, neutral); a cor nunca fala sozinha. */
+  .situacao { display: inline-flex; align-items: center; padding: 0 var(--espaco-2); border-radius: 999px; font-size: var(--texto-legenda); font-weight: 600; background: var(--cor-neutro-fundo); color: var(--cor-neutro-texto); white-space: nowrap; line-height: 1.5rem; }
   .situacao[data-tone="success"] { background: var(--cor-sucesso-fundo); color: var(--cor-sucesso-texto); }
   .situacao[data-tone="warning"] { background: var(--cor-atencao-fundo); color: var(--cor-atencao-texto); }
   .situacao[data-tone="danger"] { background: var(--cor-perigo-fundo); color: var(--cor-perigo-texto); }
   .situacao[data-tone="info"] { background: var(--cor-info-fundo); color: var(--cor-info-texto); }
 
   /* Aviso em bloco: ícone e texto; o tom vem em data-tone. */
-  .aviso { display: flex; gap: var(--espaco-3); align-items: flex-start; padding: var(--espaco-3) var(--espaco-4); border: 1px solid var(--cor-azul); border-radius: var(--raio-cartao); background: var(--cor-info-fundo); color: var(--cor-info-texto); }
+  .aviso { display: flex; gap: var(--espaco-2); align-items: flex-start; padding: var(--espaco-2) var(--espaco-3); border: 1px solid var(--cor-azul); border-radius: var(--raio-cartao); background: var(--cor-info-fundo); color: var(--cor-info-texto); font-size: var(--texto-tabela); }
   .aviso[data-tone="danger"] { border-color: var(--cor-perigo); background: var(--cor-perigo-fundo); color: var(--cor-perigo-texto); }
   .aviso[data-tone="warning"] { border-color: var(--cor-atencao); background: var(--cor-atencao-fundo); color: var(--cor-atencao-texto); }
   .aviso[data-tone="success"] { border-color: var(--cor-sucesso); background: var(--cor-sucesso-fundo); color: var(--cor-sucesso-texto); }
   .aviso p { margin: 0; }
+  .aviso > div { min-width: 0; overflow-wrap: anywhere; }
 
-  /* Usuários da demonstração (CRM_DEMO=1) na tela de entrada: o e-mail longo quebra em vez de alargar a página no celular. */
+  /* Usuários da demonstração (CRM_DEMO=1) na tela de entrada: cartão discreto; o e-mail longo quebra em vez de alargar a página no celular. */
+  section[aria-labelledby="usuarios-demonstracao"] { font-size: var(--texto-tabela); }
   section[aria-labelledby="usuarios-demonstracao"] dt { font-weight: 600; margin-top: var(--espaco-2); }
   section[aria-labelledby="usuarios-demonstracao"] dd { margin: 0; overflow-wrap: anywhere; }
+  section[aria-labelledby="usuarios-demonstracao"] p { margin-bottom: 0; }
 
-  /* Valores: pares rótulo e valor (dl), em colunas que se ajustam à largura. */
-  .valores { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: var(--espaco-4); margin: 0; }
-  .valores dt { color: var(--cor-texto-suave); }
-  .valores dd { margin: 0; font-weight: 700; font-size: var(--texto-titulo); line-height: 1.2; overflow-wrap: anywhere; }
+  /* Valores: blocos de rótulo (13 px) e valor (15 px, negrito) em colunas que se ajustam à largura; cada par é um bloco de borda fina (denso, como os indicadores). */
+  .valores { display: grid; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); gap: var(--espaco-2); margin: 0; }
+  .valores > div { min-width: 0; padding: var(--espaco-2) var(--espaco-3); background: var(--cor-branco); border: 1px solid var(--cor-linha); border-radius: var(--raio-controle); display: grid; gap: var(--espaco-1); align-content: start; }
+  .valores dt { color: var(--cor-texto-suave); font-size: var(--texto-legenda); }
+  .valores dd { margin: 0; font-weight: 700; font-size: var(--texto-corpo); line-height: 1.3; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
   .valores dd small { display: block; font-weight: 400; color: var(--cor-texto-suave); font-size: var(--texto-legenda); }
+  /* Dados em lista (lateral da ficha): rótulo e valor na mesma linha. */
+  .dados { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--espaco-1) var(--espaco-3); margin: 0; font-size: var(--texto-tabela); }
+  .dados dt { color: var(--cor-texto-suave); }
+  .dados dd { margin: 0; text-align: right; font-weight: 600; overflow-wrap: anywhere; }
 
-  .vazio { padding: var(--espaco-8); text-align: center; color: var(--cor-texto-suave); background: var(--cor-branco); border: 1px dashed var(--cor-linha-forte); border-radius: var(--raio-cartao); }
+  /* Indicadores (KPI): rótulo de 13 px, valor de 22 px; a definição vai num popover do HTML aberto pelo (i). */
+  .kpis { display: grid; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); gap: var(--espaco-3); margin: 0; }
+  .kpi { background: var(--cor-branco); border: 1px solid var(--cor-linha); border-radius: var(--raio-cartao); padding: var(--espaco-2) var(--espaco-3); min-width: 0; display: grid; gap: var(--espaco-1); align-content: start; }
+  .kpi dt { display: flex; align-items: center; justify-content: space-between; gap: var(--espaco-1); color: var(--cor-texto-suave); font-size: var(--texto-legenda); font-weight: 600; }
+  .kpi dd { margin: 0; font-size: var(--texto-valor); font-weight: 700; line-height: 1.2; color: var(--cor-texto); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+  .kpi dd small { display: block; font-size: var(--texto-legenda); font-weight: 400; color: var(--cor-texto-suave); }
+  /* Botão (i): alvo de 24 px; o popover da definição fica ancorado nele. */
+  button.informacao { min-height: var(--alvo-minimo); width: var(--alvo-minimo); padding: 0; border-radius: 50%; background: transparent; color: var(--cor-texto-suave); border: 1px solid var(--cor-linha-forte); font-size: var(--texto-legenda); font-weight: 700; font-style: italic; flex-shrink: 0; }
+  button.informacao:hover { background: var(--cor-superficie); color: var(--cor-texto); }
+  [popover]:is(.definicao, .menu) { margin: 0; padding: var(--espaco-3); border: 1px solid var(--cor-linha-forte); border-radius: var(--raio-cartao); background: var(--cor-branco); color: var(--cor-texto); box-shadow: var(--sombra-menu); max-width: min(20rem, calc(100vw - 2rem)); font-size: var(--texto-tabela); font-weight: 400; }
+  [popover].definicao { position: fixed; inset: auto; position-area: block-end span-inline-end; position-try-fallbacks: flip-inline; }
+  [popover].definicao p { margin: 0; }
 
-  /* Abas por assunto: cada aba é uma página; a atual leva aria-current="page". */
-  .abas { display: flex; flex-wrap: wrap; gap: var(--espaco-1); border-bottom: 1px solid var(--cor-linha); }
-  .abas a { padding: var(--espaco-2) var(--espaco-4); text-decoration: none; font-weight: 600; color: var(--cor-texto-suave); border-bottom: 4px solid transparent; margin-bottom: -1px; }
-  .abas a:hover { color: var(--cor-azul-escuro); }
-  .abas a[aria-current="page"] { color: var(--cor-texto); border-bottom-color: var(--cor-azul); background: var(--cor-branco); border-radius: var(--raio-controle) var(--raio-controle) 0 0; }
+  /* Barras compactas (resumo): <meter> e <progress> com o tom da marca. */
+  meter { width: 100%; min-width: 4rem; height: var(--espaco-2); vertical-align: middle; accent-color: var(--cor-azul); }
+  .barra-em-linha { display: grid; grid-template-columns: minmax(0, 1fr) minmax(4rem, 8rem); gap: var(--espaco-2); align-items: center; }
 
-  /* Janela e confirmação: <dialog> nativo; o cabeçalho e o rodapé ficam à vista e só o corpo rola. */
-  dialog { padding: 0; border: 0; border-radius: var(--raio-janela); box-shadow: var(--sombra-janela); width: min(40rem, calc(100vw - 2rem)); max-height: min(92vh, 48rem); color: var(--cor-texto); }
+  .vazio { padding: var(--espaco-6); text-align: center; color: var(--cor-texto-suave); background: var(--cor-branco); border: 1px dashed var(--cor-linha-forte); border-radius: var(--raio-cartao); margin: 0; }
+  .cartao .vazio { border: 0; border-radius: 0; background: transparent; }
+  .cartao > #promessas, .cartao > #acordos { padding: 0; }
+  .cartao[data-formulario] { max-width: var(--largura-formulario); }
+  .cartao > form.painel { padding: 0; }
+  .tabela:has(+ .paginacao) { border-radius: var(--raio-cartao) var(--raio-cartao) 0 0; }
+  /* Edição na própria linha (telefone e e-mail): campo e botões na mesma linha, sem formulário aberto na tabela. */
+  form.em-linha { display: flex; flex-wrap: wrap; align-items: start; gap: var(--espaco-2); }
+  form.em-linha .campo { flex: 1 1 14rem; }
+
+  /* Abas da ficha: cada aba tem endereço próprio; a atual leva aria-current="page". */
+  .abas { display: flex; flex-wrap: wrap; gap: 0; border-bottom: 1px solid var(--cor-linha-forte); }
+  .abas a { display: inline-flex; align-items: center; gap: var(--espaco-2); min-height: var(--altura-controle); padding: 0 var(--espaco-3); text-decoration: none; font-weight: 600; color: var(--cor-texto-suave); border-bottom: 3px solid transparent; margin-bottom: -1px; }
+  .abas a:hover { color: var(--cor-texto); background: var(--cor-superficie); }
+  .abas a[aria-current="page"] { color: var(--cor-texto); border-bottom-color: var(--cor-azul); }
+  /* Seções da configuração: menu vertical de 200 px (modelo Configuração). */
+  nav.secoes { display: grid; gap: var(--espaco-1); padding: var(--espaco-2); background: var(--cor-branco); border: 1px solid var(--cor-linha); border-radius: var(--raio-cartao); }
+  nav.secoes a { display: flex; align-items: center; min-height: var(--altura-item-menu); padding: 0 var(--espaco-3); border-radius: var(--raio-controle); color: var(--cor-texto); text-decoration: none; font-weight: 600; font-size: var(--texto-tabela); }
+  nav.secoes a:hover { background: var(--cor-superficie); }
+  nav.secoes a[aria-current="page"] { background: var(--cor-marinho); color: var(--cor-branco); }
+
+  /* Selo de contagem (menu e abas): pílula amarela com texto marinho, o amarelo só como fundo. */
+  .selo { display: inline-block; min-width: 1.25rem; padding: 0 var(--espaco-1); border-radius: 999px; background: var(--cor-neutro-fundo); color: var(--cor-neutro-texto); font-size: var(--texto-legenda); font-weight: 700; line-height: 1.25rem; text-align: center; }
+  .selo[data-destaque] { background: var(--cor-amarelo); color: var(--cor-marinho); }
+
+  /* Janela e painel: um <dialog> compartilhado no layout, em duas apresentações (data-variant="modal" ou "drawer"); o cabeçalho e o rodapé ficam à vista e só o corpo rola. */
+  dialog { padding: 0; border: 0; border-radius: var(--raio-janela); box-shadow: var(--sombra-janela); width: min(36rem, calc(100vw - 2rem)); max-height: min(92vh, 48rem); color: var(--cor-texto); }
   dialog[open] { display: flex; flex-direction: column; }
   dialog::backdrop { background: var(--cor-fundo-da-janela); }
-  dialog > header, dialog > form > header { padding: var(--espaco-4); border-bottom: 1px solid var(--cor-linha); display: flex; justify-content: space-between; gap: var(--espaco-4); align-items: flex-start; }
-  dialog > header p, dialog > form > header p { margin: var(--espaco-1) 0 0; color: var(--cor-texto-suave); }
-  dialog > div, dialog > form > div { padding: var(--espaco-4); overflow-y: auto; }
-  dialog > footer, dialog > form > footer { padding: var(--espaco-3) var(--espaco-4); border-top: 1px solid var(--cor-linha); display: flex; justify-content: flex-end; gap: var(--espaco-2); flex-wrap: wrap; }
-  dialog > form { display: flex; flex-direction: column; min-height: 0; gap: 0; }
+  dialog > header, dialog > form > header, form.painel > header { padding: var(--espaco-3) var(--espaco-4); border-bottom: 1px solid var(--cor-linha); display: flex; justify-content: space-between; gap: var(--espaco-4); align-items: flex-start; }
+  dialog > header p, dialog > form > header p, form.painel > header p { margin: var(--espaco-1) 0 0; color: var(--cor-texto-suave); font-size: var(--texto-tabela); }
+  dialog > div, dialog > form > div, form.painel > div { padding: var(--espaco-3) var(--espaco-4); overflow-y: auto; display: grid; gap: var(--espaco-3); align-content: start; }
+  dialog > footer, dialog > form > footer, form.painel > footer { padding: var(--espaco-2) var(--espaco-4); border-top: 1px solid var(--cor-linha); display: flex; justify-content: flex-end; gap: var(--espaco-2); flex-wrap: wrap; }
+  dialog > form, form.painel { display: flex; flex-direction: column; min-height: 0; gap: 0; }
+  dialog h2 { font-size: var(--texto-titulo); }
+
+  dialog#painel { max-width: 100vw; overflow: hidden; }
+  dialog#painel > div { padding: 0; display: flex; flex-direction: column; min-height: 0; flex: 1; overflow: hidden; }
+  dialog#painel [data-painel] { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+  dialog#painel[data-variant="modal"] { width: min(var(--largura-modal), calc(100vw - 2rem)); }
+  dialog#painel[data-variant="modal"][data-size="medio"] { width: min(var(--largura-formulario), calc(100vw - 2rem)); }
+  dialog#painel[data-variant="drawer"] { margin: 0 0 0 auto; width: min(var(--largura-painel), 100vw); height: 100dvh; max-height: none; border-radius: 0; }
+  dialog#painel[data-variant="drawer"][open] { animation: entrar-da-direita 160ms ease-out; }
+  @keyframes entrar-da-direita { from { transform: translateX(2rem); } to { transform: none; } }
 
   .icone { width: 1.25rem; height: 1.25rem; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
   .icone[data-size="small"] { width: 1rem; height: 1rem; }
@@ -117,24 +243,47 @@
   /* Contador do sino: o único texto abaixo do corpo no cabeçalho. */
   .contador { position: absolute; top: 0; right: 0; min-width: 1.25rem; padding: 0 var(--espaco-1); border-radius: 999px; background: var(--cor-amarelo); color: var(--cor-marinho); font-size: var(--texto-legenda); font-weight: 700; line-height: 1.25rem; text-align: center; }
 
-  /* Bloco recolhido que abre no lugar (P13): o rótulo é o verbo da ação. */
-  main details > summary { cursor: pointer; font-weight: 600; color: var(--cor-azul); }
-  main details[open] > summary { margin-bottom: var(--espaco-3); }
-  main details > form + form, main details > form + p { margin-top: var(--espaco-4); }
+  /* Menu de linha (⋯): popover com as ações da linha; cada ação é um botão ou link, nunca um formulário aberto. */
+  button.menu-de-linha { min-height: var(--altura-controle-pequeno); min-width: var(--altura-controle-pequeno); padding: 0 var(--espaco-1); background: transparent; color: var(--cor-texto-suave); border: 1px solid transparent; font-size: var(--texto-titulo); line-height: 1; letter-spacing: 0.1em; }
+  button.menu-de-linha:hover { background: var(--cor-neutro-fundo); color: var(--cor-texto); }
+  [popover].menu { position: fixed; inset: auto; position-area: block-end span-inline-start; position-try-fallbacks: flip-block; padding: var(--espaco-1); min-width: 11rem; display: none; }
+  [popover].menu:popover-open { display: grid; gap: 0; }
+  [popover].menu :is(a, button) { display: flex; justify-content: flex-start; width: 100%; min-height: var(--altura-item-menu); padding: 0 var(--espaco-3); border: 0; border-radius: var(--raio-controle); background: transparent; color: var(--cor-texto); text-decoration: none; font-weight: 400; font-size: var(--texto-tabela); text-align: left; }
+  [popover].menu :is(a, button):hover { background: var(--cor-superficie); color: var(--cor-texto); }
+  [popover].menu [data-variant="danger-outline"] { color: var(--cor-perigo); }
+  [popover].menu form { display: block; }
+
+  /* Tabela editável compacta (faixas de atraso): De, Até e remover; linhas de 36 px em cerca de 320 px. */
+  .tabela-editavel { max-width: var(--largura-tabela-editavel); }
+  .tabela-editavel table { table-layout: fixed; }
+  .tabela-editavel td, .tabela-editavel th { padding: var(--espaco-1) var(--espaco-2); }
+  .tabela-editavel input[type="number"] { min-height: var(--altura-controle-pequeno); width: 100%; }
+  .tabela-editavel td:last-child, .tabela-editavel th:last-child { width: 4.5rem; text-align: center; }
+  .tabela-editavel input[type="checkbox"] { margin: 0; }
+  .faixas-edicao { display: grid; grid-template-columns: minmax(0, auto) minmax(0, 1fr); gap: var(--espaco-6); align-items: start; }
+  @media (max-width: 48rem) { .faixas-edicao { grid-template-columns: minmax(0, 1fr); } }
+  /* Pré-visualização das faixas: uma barra de segmentos, um por faixa, com o intervalo em dias. */
+  ol.previa { list-style: none; margin: 0; padding: 0; display: flex; border-radius: var(--raio-controle); overflow: hidden; border: 1px solid var(--cor-linha); }
+  ol.previa li { flex: 1 1 0; min-width: 0; display: grid; gap: 0; padding: var(--espaco-1) var(--espaco-2); text-align: center; font-size: var(--texto-legenda); font-weight: 600; background: var(--cor-info-fundo); color: var(--cor-info-texto); }
+  ol.previa li:nth-child(even) { background: var(--cor-neutro-fundo); color: var(--cor-texto); }
+  ol.previa li small { font-weight: 400; color: inherit; }
+
+  /* Bloco recolhido (só leitura): a memória de cálculo e o histórico abrem no lugar; nenhum <details> guarda formulário. */
+  main details > summary { cursor: pointer; font-weight: 600; color: var(--cor-azul); min-height: var(--alvo-minimo); }
+  main details[open] > summary { margin-bottom: var(--espaco-2); }
   /* Lista de contatos: um por linha, sem marcador, com o detalhe em texto menor. */
-  ul.contatos { display: grid; gap: var(--espaco-2); margin: 0; padding: 0; list-style: none; }
+  ul.contatos { display: grid; gap: var(--espaco-1); margin: 0; padding: 0; list-style: none; font-size: var(--texto-tabela); }
   ul.contatos small { color: var(--cor-texto-suave); }
 
-  /* Promessas vigentes no cabeçalho da ficha (10, P17): uma linha por promessa, sem cartão; as ações ficam no fim da linha. */
-  .promessas { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--espaco-2); }
-  .promessas > li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espaco-3); padding: var(--espaco-3) var(--espaco-4); background: var(--cor-branco); border: 1px solid var(--cor-linha); border-radius: var(--raio-cartao); }
+  /* Promessas e acordos da ficha (10, P17): uma linha por promessa; as ações ficam no fim da linha. */
+  .promessas { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+  .promessas > li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espaco-2) var(--espaco-3); padding: var(--espaco-2) var(--espaco-3); border-bottom: 1px solid var(--cor-linha); font-size: var(--texto-tabela); }
+  .promessas > li:last-child { border-bottom: 0; }
   .promessas .detalhe { flex: 1 1 20rem; min-width: 0; overflow-wrap: anywhere; }
   .promessas .acoes { margin-left: auto; }
-  .promessas details { flex-basis: 100%; }
-  .promessas details form { max-width: var(--largura-formulario); }
 
   /* Lista de caixas de seleção: uma por linha (títulos da promessa, 10, R183). */
-  ul.caixas { display: grid; gap: var(--espaco-2); margin: 0; padding: 0; list-style: none; }
+  ul.caixas { display: grid; gap: var(--espaco-1); margin: 0; padding: 0; list-style: none; }
   ul.caixas label { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espaco-2); }
   ul.caixas small { color: var(--cor-texto-suave); }
 }

@@ -7,7 +7,7 @@
   <%= hidden_field_tag :tenant_id, tenant.id %>
   <fieldset>
     <legend>Parâmetros dos acordos do credor</legend>
-    <p><small>Valem para os segmentos que não definem o próprio valor. Os acordos congelam o que valia no dia da proposta, então mudar estes campos não muda título nem acordo nenhum e não passa pela conferência do impacto.</small></p>
+    <p><small>Valem para os segmentos que não definem o próprio valor. Os acordos congelam o que valia na proposta: não muda título nem acordo e não passa pela conferência.</small></p>
     <div class="grupo-de-campos">
       <div class="campo"><%= label_tag "agr-rate-#{tenant.id}", "Juros do parcelamento (% ao mês)" %><%= text_field_tag "credor[installment_rate_pct]", charge_field_value(setting, nil, :installment_rate_pct), id: "agr-rate-#{tenant.id}", inputmode: "decimal", autocomplete: "off" %></div>
       <div class="campo"><%= label_tag "agr-method-#{tenant.id}", "Método do parcelamento" %><%= select_tag "credor[installment_method]", options_for_select(methods, setting.installment_method), id: "agr-method-#{tenant.id}" %></div>
@@ -15,8 +15,8 @@
       <div class="campo"><%= label_tag "agr-base-#{tenant.id}", "Base da multa do título de acordo" %><%= select_tag "credor[agreement_fine_base]", options_for_select(fine_bases, setting.agreement_fine_base), id: "agr-base-#{tenant.id}" %></div>
     </div>
   </fieldset>
-  <details>
-    <summary>Valores próprios dos segmentos</summary>
+  <fieldset>
+    <legend>Valores próprios dos segmentos</legend>
     <div class="tabela" tabindex="0">
       <table>
         <caption class="apenas-leitor-de-tela">Parâmetros dos acordos de cada segmento de <%= tenant.name %></caption>
@@ -34,6 +34,6 @@
         </tbody>
       </table>
     </div>
-  </details>
-  <div class="acoes"><button type="submit" data-variant="secondary">Salvar parâmetros dos acordos</button></div>
+  </fieldset>
+  <div class="acoes" data-rodape><button type="submit" data-variant="secondary">Salvar parâmetros dos acordos</button></div>
 <% end %>

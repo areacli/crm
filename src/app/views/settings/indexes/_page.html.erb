@@ -47,7 +47,10 @@
   <% @tenants.each do |tenant| %>
     <% can_correct = @can_correct.include?(tenant.id) %>
     <section class="cartao" aria-labelledby="indices-<%= tenant.id %>">
-      <header><h2 id="indices-<%= tenant.id %>"><%= tenant.name %></h2></header>
+      <header>
+        <h2 id="indices-<%= tenant.id %>"><%= tenant.name %></h2>
+        <% if can_correct %><div class="acoes"><%= abrir_painel "Corrigir índice", new_settings_index_adjustment_path(tenant_id: tenant.id), variante: "secondary", tamanho: "small" %></div><% end %>
+      </header>
       <div>
         <% unless @grid.empty? %>
           <div class="tabela" tabindex="0">
@@ -66,13 +69,7 @@
                           <span>corrigido: <%= index_percent(cell.adjustment.value) %><%= shown %></span><br>
                           <small>Corrigido em <%= datetime_br(cell.adjustment.adjusted_at) %><%= " por #{cell.adjustment.user.name}" if cell.adjustment.user %>: <%= cell.adjustment.reason %></small>
                           <% if can_correct %>
-                            <details>
-                              <summary aria-label="Desfazer a correção de <%= IndexRate.label(series) %> em <%= months_label(month) %>">Desfazer</summary>
-                              <%= form_with scope: :adjustment, url: settings_index_adjustment_path(cell.adjustment), method: :delete, html: { "hx-boost": "false" } do |form| %>
-                                <div class="campo"><%= form.label :reason, "Motivo", for: "desfazer-#{tenant.id}-#{series}-#{month}" %><%= form.text_field :reason, id: "desfazer-#{tenant.id}-#{series}-#{month}", required: true, maxlength: 300 %></div>
-                                <div class="acoes"><button type="submit" data-variant="secondary" data-size="small">Desfazer correção</button></div>
-                              <% end %>
-                            </details>
+                            <%= abrir_painel "Desfazer", new_settings_index_adjustment_path(desfazer: cell.adjustment.id), variante: "link", tamanho: "small", "aria-label": "Desfazer a correção de #{IndexRate.label(series)} em #{months_label(month)}" %>
                           <% end %>
                         <% elsif cell.bank %>
                           <%= index_percent(cell.bank) %><%= " (parcial)" if cell.partial %><br><small>Banco Central, <%= date_br(cell.fetched_at.to_date) %></small>
@@ -93,19 +90,6 @@
               <% if @grid.page < @grid.pages %><%= link_to "Meses anteriores", settings_indexes_path(page: @grid.page + 1) %><% end %>
             </nav>
           <% end %>
-        <% end %>
-        <% if can_correct %>
-          <details>
-            <summary>Corrigir índice</summary>
-            <%= form_with scope: :adjustment, url: settings_index_adjustments_path, html: { "hx-boost": "false" } do |form| %>
-              <%= hidden_field_tag :tenant_id, tenant.id %>
-              <div class="campo"><%= form.label :series, "Série", for: "serie-#{tenant.id}" %><%= form.select :series, IndexRate::SERIES.map { |series| [ IndexRate.label(series), series ] }, {}, id: "serie-#{tenant.id}" %></div>
-              <div class="campo"><%= form.label :month, "Mês (mm/aaaa)", for: "mes-#{tenant.id}" %><%= form.text_field :month, id: "mes-#{tenant.id}", required: true, placeholder: "09/2026", maxlength: 7 %></div>
-              <div class="campo"><%= form.label :value, "Valor (%)", for: "valor-#{tenant.id}" %><%= form.text_field :value, id: "valor-#{tenant.id}", required: true, inputmode: "decimal", placeholder: "1,52" %></div>
-              <div class="campo"><%= form.label :reason, "Motivo da correção", for: "motivo-#{tenant.id}" %><%= form.text_field :reason, id: "motivo-#{tenant.id}", required: true, maxlength: 300 %></div>
-              <div class="acoes"><button type="submit">Corrigir índice</button></div>
-            <% end %>
-          </details>
         <% end %>
       </div>
     </section>

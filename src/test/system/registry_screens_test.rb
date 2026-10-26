@@ -22,26 +22,38 @@ class RegistryScreensSystemTest < ApplicationSystemTestCase
 
   def sem_rolagem_horizontal = assert_not(page.evaluate_script("document.documentElement.scrollWidth > document.documentElement.clientWidth"))
 
-  def abrir_tudo = page.execute_script("document.querySelectorAll('main details').forEach((d) => d.open = true)")
+  # Abre o menu ⋯ da linha do contato e escolhe a ação.
+  def acao_do_contato(contato, acao)
+    within("#contato-#{contato.id}") do
+      find("button.menu-de-linha").click
+      click_link acao
+    end
+  end
 
-  test "a ficha com os contatos, as ações de edição abertas e o histórico passa no axe" do
+  test "a ficha com os contatos, o menu de linha e o histórico passa no axe" do
     visit customer_path(@maria)
     assert_selector "h2", text: "Contatos"
-    assert_selector "#contatos ul.contatos li", count: 2
-    abrir_tudo
-    assert_selector "#todos-os-contatos tbody tr[id^=contato-]", count: 4
-    assert_selector "#historico-do-cadastro li"
+    assert_selector "#contatos-resumo ul.contatos li", count: 2
+    assert_acessivel
+    visit customer_path(@maria, aba: "contatos")
+    assert_selector "#contatos tbody tr[id^=contato-]", count: 4
+    find("#contato-#{@maria.contacts.find_by!(key: '11987654321').id} button.menu-de-linha").click
     assert_acessivel
     sem_rolagem_horizontal
+    visit customer_path(@maria, aba: "historico")
+    assert_selector "#historico-do-cadastro li"
+    assert_acessivel
   end
 
   test "corrigir um contato pela ficha: o antigo fica inválido, o novo nasce válido e a tela mostra o aviso" do
-    visit customer_path(@maria)
-    find("#todos-os-contatos > summary").click
-    within("#editar-contato-#{@maria.contacts.find_by!(key: '11987654321').id}") do
-      find("summary", text: "Editar").click
+    contato = @maria.contacts.find_by!(key: "11987654321")
+    visit customer_path(@maria, aba: "contatos")
+    acao_do_contato(contato, "Corrigir")
+    # Edição na própria linha: o campo substitui a linha, sem painel nem formulário aberto na tabela.
+    assert_no_selector "dialog[open]"
+    within("#contato-#{contato.id}") do
       fill_in "Telefone", with: "(11) 98765-4312"
-      click_button "Corrigir contato"
+      click_button "Salvar"
     end
 
     assert_text "Contato corrigido"
@@ -50,10 +62,10 @@ class RegistryScreensSystemTest < ApplicationSystemTestCase
 
   test "marcar não perturbe e voltar a válido pela ficha" do
     contact = @maria.contacts.find_by!(key: "11987654321")
-    visit customer_path(@maria)
-    find("#todos-os-contatos > summary").click
-    within("#editar-contato-#{contact.id}") do
-      find("summary", text: "Editar").click
+    visit customer_path(@maria, aba: "contatos")
+    acao_do_contato(contact, "Marcar não perturbe")
+    within("#painel") do
+      assert_selector "h2", text: "Marcar não perturbe"
       click_button "Marcar não perturbe"
     end
     assert_text "Situação do contato alterada"
@@ -94,10 +106,13 @@ class RegistryScreensSystemTest < ApplicationSystemTestCase
 
   test "o formulário de acionamento oferece os contatos do canal e o campo de salvar contato passa no axe" do
     visit customer_path(@maria)
-    select "WhatsApp", from: "Canal"
-    assert_selector "datalist#contatos-do-cliente option[value='(11) 98765-4321']", visible: :all
-    assert_no_selector "datalist#contatos-do-cliente option[value='maria@exemplo.com.br']", visible: :all
-    assert_field "Salvar este contato no cadastro", type: :checkbox
+    click_link "Registrar acionamento"
+    within("#painel") do
+      select "WhatsApp", from: "Canal"
+      assert_selector "datalist#contatos-do-cliente option[value='(11) 98765-4321']", visible: :all
+      assert_no_selector "datalist#contatos-do-cliente option[value='maria@exemplo.com.br']", visible: :all
+      assert_field "Salvar este contato no cadastro", type: :checkbox
+    end
     assert_acessivel
   end
 end

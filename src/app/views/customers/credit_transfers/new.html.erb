@@ -1,0 +1,7 @@
+<%= formulario_de_painel(titulo: "Transferir crédito", descricao: "Entre contratos do mesmo credor. Fica registrado nos dois contratos. Só o crédito lançado se transfere; o excedente de valor reduzido é calculado e não entra.",
+                         url: customer_credit_transfers_path(@customer), enviar: "Transferir", escopo: :credit_transfer, erro: @error, voltar: customer_path(@customer, aba: "pagamentos")) do |form| %>
+  <div class="campo"><%= form.label :from_contract_id, "Contrato de origem" %><%= form.select :from_contract_id, @sources, { include_blank: false, selected: params.dig(:credit_transfer, :from_contract_id) } %></div>
+  <div class="campo"><%= form.label :to_code, "Código do contrato de destino" %><%= form.text_field :to_code, value: params.dig(:credit_transfer, :to_code), required: true, maxlength: 100 %></div>
+  <div class="campo"><%= form.label :amount, "Valor" %><%= form.text_field :amount, value: params.dig(:credit_transfer, :amount), required: true, inputmode: "decimal", autocomplete: "off" %><small>Em reais, com vírgula nos centavos, até o crédito do contrato de origem.</small></div>
+  <div class="campo"><%= form.label :reason, "Motivo" %><%= form.text_field :reason, value: params.dig(:credit_transfer, :reason), required: true, maxlength: 300 %></div>
+<% end %>

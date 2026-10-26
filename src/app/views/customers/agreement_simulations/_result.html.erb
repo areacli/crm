@@ -18,7 +18,7 @@
     <% end %>
 
     <section class="cartao" aria-labelledby="base-do-acordo">
-      <header><div><h2 id="base-do-acordo">Base e descontos</h2><p>Valor atualizado de cada título hoje, por componente, e o que o desconto tira. Desconto: <%= discounts_text(quote.discounts) %>.</p></div></header>
+      <header><h2 id="base-do-acordo">Base e descontos</h2><%= informacao "base e descontos", "Valor atualizado de cada título hoje, por componente, e o que o desconto tira. Desconto: #{discounts_text(quote.discounts)}.", "definicao-base-e-descontos" %></header>
       <div class="tabela" tabindex="0">
         <table>
           <caption class="apenas-leitor-de-tela">Base, desconto e valor de cada título no acordo</caption>
@@ -52,7 +52,7 @@
     </section>
 
     <section class="cartao" aria-labelledby="entrada-e-parcelas">
-      <header><div><h2 id="entrada-e-parcelas">Entrada e parcelas</h2></div></header>
+      <header><h2 id="entrada-e-parcelas">Entrada e parcelas</h2></header>
       <div>
         <dl class="valores">
           <div><dt>Valor do acordo</dt><dd><%= money(quote.value_cents) %></dd></div>

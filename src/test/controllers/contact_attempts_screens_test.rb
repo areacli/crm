@@ -29,19 +29,25 @@ class ContactAttemptsScreensTest < ActionDispatch::IntegrationTest
   test "R76: o operador vê o formulário e o histórico na ficha; quem só consulta vê o histórico sem o formulário" do
     insert_attempt(@maria, user: users(:carlos), text: "Recebe dia 20")
     entrar(users(:carlos))
-    get customer_path(@maria)
+    get customer_path(@maria, aba: "acionamentos")
     assert_response :success
-    assert_select "form#registrar-acionamento-form, form[aria-labelledby=registrar-acionamento]", 1
-    assert_select "select[name='contact_attempt[result_id]'] option", text: "Não atendeu"
+    assert_select "a[hx-get='#{form_customer_contact_attempts_path(@maria)}'][hx-target='#painel-conteudo']", text: "Registrar acionamento"
+    assert_select "form", text: /Registrar acionamento/, count: 0 # nenhum formulário aberto na ficha
     assert_select "td p.texto-do-operador", text: "Recebe dia 20"
+    get form_customer_contact_attempts_path(@maria), headers: painel
+    assert_response :success
+    assert_select "[data-painel][data-variant=drawer] form.painel[hx-post]"
+    assert_select "select[name='contact_attempt[result_id]'] option", text: "Não atendeu"
 
     delete session_path
     viewer = make_user(@alfa, [])
     entrar(viewer)
-    get customer_path(@maria)
+    get customer_path(@maria, aba: "acionamentos")
     assert_response :success
-    assert_select "form[aria-labelledby=registrar-acionamento]", 0
+    assert_select "a[hx-get*=registrar]", 0
     assert_select "#historico-acionamentos table"
+    get form_customer_contact_attempts_path(@maria), headers: painel
+    assert_response :not_found
   end
 
   test "o endereço de registro de quem não tem a permissão 7 responde 404 e a recusa fica registrada (R33)" do
@@ -57,7 +63,7 @@ class ContactAttemptsScreensTest < ActionDispatch::IntegrationTest
     entrar(marta_in_two_tenants)
     get customer_path(@beta_customer)
     assert_response :success
-    assert_select "form[aria-labelledby=registrar-acionamento]", 0
+    assert_select "a[hx-get*=registrar]", 0
 
     assert_no_difference "ContactAttempt.count" do
       register(@beta_customer, result_of(@beta, :no_answer))
@@ -87,10 +93,13 @@ class ContactAttemptsScreensTest < ActionDispatch::IntegrationTest
 
   test "critério de aceite: o acionamento registrado pelo htmx aparece no topo do histórico, com o formulário limpo" do
     entrar(users(:joana))
-    register(@maria, result_of(@alfa, :no_answer), { contact_used: "(11) 98765-4321" }, headers: htmx)
-    assert_response :success
-    assert_select "#form-acionamento [role=status]", text: /Acionamento registrado/
-    assert_select "#historico-acionamentos[hx-swap-oob=true] tbody tr:first-child" do
+    register(@maria, result_of(@alfa, :no_answer), { contact_used: "(11) 98765-4321" }, headers: painel)
+    assert_response :no_content
+    trigger = JSON.parse(response.headers["HX-Trigger"])
+    assert_match(/Acionamento registrado/, trigger.dig("painel:concluido", "aviso"))
+    assert trigger.key?("cable:contact-attempts-changed")
+    get customer_path(@maria, aba: "acionamentos")
+    assert_select "#historico-acionamentos tbody tr:first-child" do
       assert_select "td", text: /Telefone/
       assert_select "td small", text: "(11) 98765-4321"
       assert_select "td", text: /Não atendeu/
@@ -102,19 +111,19 @@ class ContactAttemptsScreensTest < ActionDispatch::IntegrationTest
   test "sem JavaScript o registro volta para a ficha com a mensagem" do
     entrar(users(:joana))
     register(@maria, result_of(@alfa, :no_answer))
-    assert_redirected_to customer_path(@maria, anchor: "acionamentos")
+    assert_redirected_to customer_path(@maria, aba: "acionamentos")
     follow_redirect!
     assert_select "[role=status]", text: /Acionamento registrado/
 
     register(@maria, result_of(@alfa, :call_back))
-    assert_redirected_to customer_path(@maria, anchor: "acionamentos")
+    assert_redirected_to customer_path(@maria, aba: "acionamentos")
     follow_redirect!
     assert_select "[role=alert]", text: /exige data de retorno/
   end
 
   test "R73: resultado que exige retorno sem a data é recusado com a mensagem e o que foi digitado fica no formulário" do
     entrar(users(:joana))
-    register(@maria, result_of(@alfa, :call_back), { text: "Recebe o salário dia 20", contact_used: "(11) 3333-4444" }, headers: htmx)
+    register(@maria, result_of(@alfa, :call_back), { text: "Recebe o salário dia 20", contact_used: "(11) 3333-4444" }, headers: painel)
     assert_response :unprocessable_content
     assert_select "[role=alert]", text: /este resultado exige data de retorno/i
     assert_select "textarea", text: /Recebe o salário dia 20/
@@ -124,8 +133,9 @@ class ContactAttemptsScreensTest < ActionDispatch::IntegrationTest
     assert_equal 0, ContactAttempt.count
 
     future = 2.days.from_now.strftime("%Y-%m-%dT%H:%M")
-    register(@maria, result_of(@alfa, :call_back), { return_at: future }, headers: htmx)
-    assert_response :success
+    register(@maria, result_of(@alfa, :call_back), { return_at: future }, headers: painel)
+    assert_response :no_content
+    get customer_path(@maria, aba: "acionamentos")
     assert_select "tbody td", text: /Pediu para retornar depois/
   end
 
@@ -146,13 +156,13 @@ class ContactAttemptsScreensTest < ActionDispatch::IntegrationTest
     assert_select "#campo-retorno input[required]", 0
 
     get new_customer_contact_attempt_path(@maria)
-    assert_redirected_to customer_path(@maria, anchor: "acionamentos")
+    assert_redirected_to form_customer_contact_attempts_path(@maria)
   end
 
   test "R72: o texto aparece exatamente como digitado, em duas linhas, e nenhum código é executado" do
     entrar(users(:joana))
     register(@maria, result_of(@alfa, :no_answer), { text: "<script>alert(1)</script>\nsegunda linha" })
-    get customer_path(@maria)
+    get customer_path(@maria, aba: "acionamentos")
     assert_includes response.body, "&lt;script&gt;alert(1)&lt;/script&gt;\nsegunda linha"
     assert_not_includes response.body, "<script>alert(1)</script>"
   end
@@ -160,7 +170,7 @@ class ContactAttemptsScreensTest < ActionDispatch::IntegrationTest
   test "R74: a ficha mostra os 20 mais recentes pela data do contato e leva aos 5 restantes" do
     25.times { |index| insert_attempt(@maria, contacted_at: (index + 1).hours.ago, text: "contato #{index + 1}") }
     entrar(users(:joana))
-    get customer_path(@maria)
+    get customer_path(@maria, aba: "acionamentos")
     assert_select "#historico-acionamentos tbody tr", 20
     assert_select "#historico-acionamentos tbody tr:first-child", text: /contato 1\b/
     assert_select "#historico-acionamentos", text: /Mostrando 1 a 20 de 25/
@@ -186,10 +196,10 @@ class ContactAttemptsScreensTest < ActionDispatch::IntegrationTest
     assert_select "#aviso-contrato .aviso", 0
 
     register(pedro, result_of(@alfa, :no_answer), { contract_id: contract.id })
-    assert_redirected_to customer_path(pedro, anchor: "acionamentos")
-    get customer_path(pedro)
+    assert_redirected_to customer_path(pedro, aba: "acionamentos")
+    get customer_path(pedro, aba: "acionamentos")
     assert_select "#historico-acionamentos th small", text: "Contrato CT-1"
-    get customer_path(ana)
+    get customer_path(ana, aba: "acionamentos")
     assert_select "#historico-acionamentos tbody tr", 0
   end
 
@@ -211,9 +221,9 @@ class ContactAttemptsScreensTest < ActionDispatch::IntegrationTest
     pedro = make_customer(@alfa, document: PaymentsHelper::JOAO, name: "Pedro Souza", contract_code: "CT-1")
     entrar(users(:joana))
 
-    get customer_path(pedro)
+    get form_customer_contact_attempts_path(pedro), headers: painel
     assert_select "datalist#contatos-do-cliente option", 0
-    get customer_path(@maria)
+    get form_customer_contact_attempts_path(@maria), headers: painel
     assert_select "datalist#contatos-do-cliente option[value='(11) 98765-4321']"
     assert_select "datalist#contatos-do-cliente option[value='maria@exemplo.com.br']"
   end
@@ -223,10 +233,11 @@ class ContactAttemptsScreensTest < ActionDispatch::IntegrationTest
     result_of(@alfa, :voicemail).update!(active: false)
     entrar(users(:ana))
 
-    get customer_path(@maria)
+    get form_customer_contact_attempts_path(@maria), headers: painel
     assert_select "select[name='contact_attempt[result_id]'] option", text: "Caixa postal", count: 0
+    get customer_path(@maria, aba: "acionamentos")
     assert_select "#historico-acionamentos td", text: /Caixa postal/
-    get customer_path(@beta_customer)
+    get form_customer_contact_attempts_path(@beta_customer), headers: painel
     assert_select "select[name='contact_attempt[result_id]'] option", text: "Caixa postal"
     assert attempt.reload.result.name == "Caixa postal"
   end
@@ -235,7 +246,7 @@ class ContactAttemptsScreensTest < ActionDispatch::IntegrationTest
     entrar(users(:joana))
     result = result_of(@alfa, :voicemail)
     result.update!(active: false)
-    register(@maria, result, { text: "meu texto" }, headers: htmx)
+    register(@maria, result, { text: "meu texto" }, headers: painel)
     assert_response :unprocessable_content
     assert_select "[role=alert]", text: /Resultado desativado; escolha outro/
     assert_select "textarea", text: /meu texto/
@@ -248,7 +259,7 @@ class ContactAttemptsScreensTest < ActionDispatch::IntegrationTest
     entrar(users(:joana))
     get customer_path(@maria)
     assert_select "button", text: /Anular/, count: 0
-    assert_select "dialog:not(#exportar-dados):not(#anonimizar-cliente):not(#transferir-credito)", 0
+    assert_select "dialog:not(#painel)", 0
     post "/acionamentos/#{attempt.id}/anulacao", params: { void: { reason: "x" } }
     assert_response :not_found
     patch "/clientes/#{@maria.id}/acionamentos/#{attempt.id}", params: { contact_attempt: { text: "x" } }
@@ -404,7 +415,7 @@ class ContactAttemptsScreensTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "h2", text: "Clínica Beta"
     assert_select "h2", text: "Escola Alfa", count: 0
-    assert_select "nav.abas a[aria-current=page]", text: "Resultados de acionamento"
+    assert_select "nav.secoes a[aria-current=page]", text: "Resultados de acionamento"
   end
 
   test "critério de aceite: o gestor cria 'Pediu boleto por e-mail', ele aparece na escolha do registro e a criação fica no histórico" do
@@ -414,7 +425,7 @@ class ContactAttemptsScreensTest < ActionDispatch::IntegrationTest
     result = ContactResult.find_by!(name: "Pediu boleto por e-mail")
     assert_equal @alfa.id, result.tenant_id
     assert_not ContactResult.exists?(tenant: @beta, name: "Pediu boleto por e-mail")
-    get customer_path(@maria)
+    get form_customer_contact_attempts_path(@maria), headers: painel
     assert_select "select[name='contact_attempt[result_id]'] option", text: "Pediu boleto por e-mail"
     assert_equal "created", Change.where(subject_type: "contact_result", subject_id: result.id).sole.event
   end
@@ -439,7 +450,7 @@ class ContactAttemptsScreensTest < ActionDispatch::IntegrationTest
     result = result_of(@alfa, :voicemail)
     get settings_contact_results_path
     assert_select "tr#resultado-#{result.id} .situacao", text: "Ativo"
-    assert_select "tr#resultado-#{result.id} form[action$='/ativacao'] button", text: "Desativar"
+    assert_select "tr#resultado-#{result.id} a", text: "Desativar"
     assert_select "button", text: /Apagar|Excluir/, count: 0
 
     delete settings_contact_result_activation_path(result)
@@ -488,6 +499,6 @@ class ContactAttemptsScreensTest < ActionDispatch::IntegrationTest
     delete session_path
     entrar(users(:joana))
     get settings_portfolio_path
-    assert_select "nav.abas a", text: "Resultados de acionamento"
+    assert_select "nav.secoes a", text: "Resultados de acionamento"
   end
 end

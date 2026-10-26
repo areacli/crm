@@ -1,8 +1,9 @@
-<%# Paginação (P22): anterior, página atual de N e próxima. Locais: pagination, path (lambda da página para a URL) e, opcional, fragment (id do
-    trecho que o htmx troca no lugar da página inteira). %>
+<%# Paginação (P22), rodapé da tabela: a contagem à esquerda (local `unit`, opcional), anterior, página atual de N e próxima. Locais: pagination, path (lambda da página para a URL),
+    unit (opcional: "Mostrando a a b de N <unidade>") e fragment (opcional: id do trecho que o htmx troca no lugar da página inteira). %>
 <% fragment = local_assigns[:fragment] %>
 <% link = ->(label, page, rel) { link_to label, path.call(page), rel: rel, **(fragment ? { data: { hx_get: path.call(page), hx_target: fragment, hx_swap: "outerHTML" } } : {}) } %>
 <nav class="paginacao" aria-label="Paginação">
+  <% if local_assigns[:unit] %><span>Mostrando <%= number_br(pagination.first_item) %> a <%= number_br(pagination.last_item) %> de <%= number_br(pagination.total) %> <%= unit %>.</span><% end %>
   <% if pagination.previous_page %><%= link.call("Anterior", pagination.previous_page, "prev") %><% else %><span aria-disabled="true">Anterior</span><% end %>
   <span>Página <%= pagination.page %> de <%= number_br(pagination.pages) %></span>
   <% if pagination.next_page %><%= link.call("Próxima", pagination.next_page, "next") %><% else %><span aria-disabled="true">Próxima</span><% end %>

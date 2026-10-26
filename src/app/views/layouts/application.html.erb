@@ -32,6 +32,14 @@
           <strong>CRM</strong>
         </a>
       </div>
+      <%# Busca global de cliente por nome ou documento: leva à lista de clientes (mesma consulta do filtro da lista). %>
+      <% if authenticated? && !Current.user.temporary_password? && Current.user.permitted_anywhere?("view_portfolio") %>
+        <form class="busca" role="search" action="<%= customers_path %>" method="get">
+          <label class="apenas-leitor-de-tela" for="busca-global">Buscar cliente por nome ou documento</label>
+          <input type="search" id="busca-global" name="q" placeholder="Buscar cliente por nome ou documento" autocomplete="off" maxlength="100">
+          <button type="submit" aria-label="Buscar"><%= icone "magnifying-glass" %></button>
+        </form>
+      <% end %>
       <% if authenticated? %>
         <div class="conta">
           <%= render "notices/bell" unless Current.user.temporary_password? %>
@@ -49,9 +57,12 @@
     </header>
     <%= render "layouts/navegacao" if menu_sections.present? %>
     <main id="conteudo" tabindex="-1">
-      <% if notice %><%= aviso(tom: :success) { tag.p notice } %><% end %>
-      <% if alert && !current_page?(new_session_path) %><%= aviso(tom: :danger) { tag.p alert } %><% end %>
       <%= yield %>
+      <div id="avisos-da-pagina">
+        <% if notice %><%= aviso(tom: :success) { tag.p notice } %><% end %>
+        <% if alert && !current_page?(new_session_path) %><%= aviso(tom: :danger) { tag.p alert } %><% end %>
+      </div>
     </main>
+    <%= render "layouts/painel" %>
   </body>
 </html>

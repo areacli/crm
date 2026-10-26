@@ -6,7 +6,7 @@ module Settings
         channel = PaymentChannel.find(params[:channel_id])
         authorize channel, :update?
         flash[:webhook_secret] = Payments::ChannelManager.new(Current.user).regenerate_secret(channel)
-        redirect_to edit_settings_channel_path(channel), status: :see_other
+        panel_finish(edit_settings_channel_path(channel), notice: "Segredo gerado. Copie-o agora: ele não aparece de novo.", navegar: true)
       end
     end
   end

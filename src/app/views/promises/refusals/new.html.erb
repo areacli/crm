@@ -1,0 +1,4 @@
+<%= formulario_de_painel(titulo: "Recusar promessa", descricao: "#{@promise.label}. Os títulos ficam livres, sujeitos à carência.", url: promise_refusal_path(@promise), enviar: "Recusar promessa", perigoso: true, variante: :modal,
+                         escopo: :promise, erro: @error, voltar: customer_path(@promise.customer, aba: "promessas")) do |form| %>
+  <div class="campo"><%= form.label :reason, "Motivo da recusa" %><%= form.text_field :reason, value: params.dig(:promise, :reason), required: true, maxlength: 300 %></div>
+<% end %>

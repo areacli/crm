@@ -6,14 +6,14 @@ module Settings
 
       def create
         Payments::AccountManager.new(Current.user).activate(@account)
-        redirect_to edit_settings_payment_account_path(@account), notice: t(".done", nickname: @account.nickname), status: :see_other
+        panel_finish(edit_settings_payment_account_path(@account), notice: t(".done", nickname: @account.nickname), atualizar: true)
       rescue ActiveRecord::RecordInvalid => error
-        redirect_to edit_settings_payment_account_path(@account), alert: error.record.errors.full_messages.to_sentence, status: :see_other
+        panel_refuse(edit_settings_payment_account_path(@account), error.record.errors.full_messages.to_sentence)
       end
 
       def destroy
         Payments::AccountManager.new(Current.user).deactivate(@account)
-        redirect_to edit_settings_payment_account_path(@account), notice: t(".done", nickname: @account.nickname), status: :see_other
+        panel_finish(edit_settings_payment_account_path(@account), notice: t(".done", nickname: @account.nickname), atualizar: true)
       end
 
       private

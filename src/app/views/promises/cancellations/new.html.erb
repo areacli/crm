@@ -1,0 +1,4 @@
+<%= formulario_de_painel(titulo: "Cancelar promessa", descricao: "#{@promise.label}. Os títulos ficam livres; o que já foi pago pela promessa continua pago.", url: promise_cancellation_path(@promise), enviar: "Cancelar promessa", perigoso: true, variante: :modal,
+                         escopo: :promise, erro: @error, voltar: customer_path(@promise.customer, aba: "promessas")) do |form| %>
+  <div class="campo"><%= form.label :reason, "Motivo do cancelamento" %><%= form.text_field :reason, value: params.dig(:promise, :reason), required: true, maxlength: 300 %></div>
+<% end %>

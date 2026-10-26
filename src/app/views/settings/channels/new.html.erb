@@ -1,25 +1,12 @@
-<% content_for :title, "Configuração · Novo canal" %>
-<header class="cabecalho-da-pagina"><div><h1>Novo canal de recebimento</h1><p><%= link_to "Voltar para os canais", settings_channels_path %></p></div></header>
-<%= render "settings/abas" %>
-<section class="cartao" aria-labelledby="dados">
-  <header><h2 id="dados">Dados do canal</h2></header>
-  <div>
-    <% if @channel.errors.any? %><%= aviso(tom: :danger) { tag.p @channel.errors.full_messages.to_sentence } %><% end %>
-    <%= form_with model: @channel, scope: :payment_channel, url: settings_channels_path, html: { "hx-boost": "false" } do |form| %>
-      <% if @tenants.size > 1 %>
-        <div class="campo">
-          <%= form.label :tenant_id, "Credor" %>
-          <%= form.select :tenant_id, @tenants.map { |tenant| [ tenant.name, tenant.id ] }, { selected: @channel.tenant_id }, required: true %>
-        </div>
-      <% else %>
-        <%= form.hidden_field :tenant_id, value: @tenants.first&.id %>
-        <p>Credor: <strong><%= @tenants.first&.name %></strong></p>
-      <% end %>
-      <%= render "settings/channels/fields", form: form, channel: @channel, code_locked: false %>
-      <div class="acoes">
-        <button type="submit">Salvar</button>
-        <%= link_to "Cancelar", settings_channels_path, class: "botao", data: { variant: "secondary" } %>
-      </div>
-    <% end %>
-  </div>
-</section>
+<%= formulario_de_painel(titulo: "Novo canal de recebimento", url: settings_channels_path, enviar: "Salvar", escopo: :payment_channel, erro: @channel.errors.full_messages.to_sentence.presence, voltar: settings_channels_path) do |form| %>
+  <% if @tenants.size > 1 %>
+    <div class="campo">
+      <%= form.label :tenant_id, "Credor" %>
+      <%= form.select :tenant_id, @tenants.map { |tenant| [ tenant.name, tenant.id ] }, { selected: @channel.tenant_id }, required: true %>
+    </div>
+  <% else %>
+    <%= form.hidden_field :tenant_id, value: @tenants.first&.id %>
+    <p>Credor: <strong><%= @tenants.first&.name %></strong></p>
+  <% end %>
+  <%= render "settings/channels/fields", form: form, channel: @channel, code_locked: false %>
+<% end %>

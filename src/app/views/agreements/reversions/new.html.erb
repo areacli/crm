@@ -1,0 +1,3 @@
+<%= formulario_de_painel(titulo: "Reverter o acordo", descricao: "Acordo #{@agreement.number}. Estorna as liquidações e marca o acordo; depois você conclui ou desiste.", url: agreement_reversion_path(@agreement), enviar: "Abrir a reversão", perigoso: true, variante: :modal, escopo: :reversion, erro: @error, voltar: agreement_path(@agreement)) do |form| %>
+  <div class="campo"><%= form.label :reason, "Motivo da reversão" %><%= form.text_field :reason, value: params.dig(:reversion, :reason), required: true, maxlength: 300 %></div>
+<% end %>

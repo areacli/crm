@@ -1,0 +1,11 @@
+<%= formulario_de_painel(titulo: "Exportar o arquivo de acordos", descricao: "As novidades levam o que aconteceu desde a última exportação manual; o completo leva todos os acordos aceitos.", url: agreement_exports_path, enviar: "Exportar",
+                         variante: :modal, escopo: :agreement_export, voltar: agreement_exports_path) do |form| %>
+  <div class="campo">
+    <%= form.label :tenant_id, "Credor" %>
+    <%= form.select :tenant_id, @tenants.map { |tenant| [ tenant.name, tenant.id ] }, { include_blank: false } %>
+  </div>
+  <div class="campo">
+    <%= form.label :form, "Forma" %>
+    <%= form.select :form, [ [ "Novidades desde a última exportação", "news" ], [ "Completo", "full" ] ], { include_blank: false } %>
+  </div>
+<% end %>

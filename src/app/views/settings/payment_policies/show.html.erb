@@ -1,7 +1,5 @@
 <% content_for :title, "Configuração · Políticas de pagamento" %>
-<header class="cabecalho-da-pagina">
-  <div><h1>Políticas de pagamento</h1><p>Como o pagamento baixa o título, o que fazer com o título retirado e em que mês o estorno desconta do valor recuperado. Cada credor tem as suas.</p></div>
-</header>
+<%= pagina "Políticas de pagamento", subtitulo: "Como o pagamento baixa o título, o título retirado e o mês do estorno. Cada credor tem as suas." %>
 <%= render "settings/abas" %>
 
 <% groups = { "partial_payment_policy" => "Pagamento menor que o saldo", "withdrawn_payment_policy" => "Pagamento de título retirado",
@@ -16,28 +14,27 @@
       <%= form_with url: settings_payment_policy_path, method: :patch, html: { "hx-boost": "false" } do |form| %>
         <%= hidden_field_tag :tenant_id, tenant.id %>
         <% groups.each do |field, legend| %>
-          <fieldset>
-            <legend><%= legend %></legend>
+          <%= politica(legend, "#{field}-#{tenant.id}") do %>
             <% TenantSetting.defined_enums.fetch(field).each_key do |value| %>
               <label>
                 <%= radio_button_tag "tenant_setting[#{field}]", value, setting.public_send(field) == value, id: "#{field}-#{tenant.id}-#{value}" %>
                 <%= t("payments.policies.#{field}.#{value}") %>
               </label>
             <% end %>
-          </fieldset>
+          <% end %>
         <% end %>
-        <div class="acoes"><button type="submit">Salvar políticas</button></div>
+        <div class="acoes" data-rodape><button type="submit">Salvar políticas</button></div>
       <% end %>
     </div>
   </section>
   <section class="cartao" aria-labelledby="credito-acordo-<%= tenant.id %>">
-    <header><div><h2 id="credito-acordo-<%= tenant.id %>">Crédito, pagamento e tolerância nos acordos — <%= tenant.name %></h2><p>O uso do crédito do contrato, o pagamento a mais, o pagamento a título renegociado e a tolerância de valor do pagamento direto de título (11, R228a). Valem como estão no dia, sem congelar na proposta.</p></div></header>
+    <header><h2 id="credito-acordo-<%= tenant.id %>">Crédito, pagamento e tolerância nos acordos — <%= tenant.name %></h2><%= informacao "crédito nos acordos", "O uso do crédito do contrato, o pagamento a mais, o pagamento a título renegociado e a tolerância de valor do pagamento direto de título. Valem como estão no dia, sem congelar na proposta.", "definicao-credito-acordo-#{tenant.id}" %></header>
     <div>
       <%= form_with url: settings_agreement_policies_path, method: :patch, html: { "hx-boost": "false" } do |form| %>
         <%= hidden_field_tag :tenant_id, tenant.id %>
         <%= hidden_field_tag :tab, "payments" %>
         <%= render "settings/promises/agreement_policy_fields", tenant: tenant, policies: Agreements::Policies.for(setting), history: @agreement_history.fetch(tenant.id, []), keys: Agreements::Policies.keys(:payments) %>
-        <div class="acoes"><button type="submit">Salvar políticas de crédito e tolerância</button></div>
+        <div class="acoes" data-rodape><button type="submit">Salvar políticas de crédito e tolerância</button></div>
       <% end %>
     </div>
   </section>

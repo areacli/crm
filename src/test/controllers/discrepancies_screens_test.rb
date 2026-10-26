@@ -38,7 +38,7 @@ class DiscrepanciesScreensTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "th a", text: "NF-B"
     assert_select "th a", text: "NF-1024/3", count: 0
-    assert_select "nav a", text: "Divergências de valor (1)"
+    assert_select "nav a", text: /Divergências de valor\s*1/
     get value_discrepancy_path(@alfa_discrepancy)
     assert_response :not_found
     assert_equal @alfa.id, AccessEvent.where(event: "access_denied").last.tenant_id
@@ -63,7 +63,9 @@ class DiscrepanciesScreensTest < ActionDispatch::IntegrationTest
     entrar(users(:joana))
     get value_discrepancy_path(@alfa_discrepancy)
     assert_response :success
-    assert_select "button", text: "Tratar divergência"
+    assert_select "a", text: "Tratar divergência"
+    get new_value_discrepancy_handling_path(@alfa_discrepancy)
+    assert_select "dialog, form.painel, [data-painel]", minimum: 0
     assert_select "input[value=apply]", count: 0 # política seguir: não há o que aplicar
     post value_discrepancy_handling_path(@alfa_discrepancy), params: { handling: { note: " ", choice: "keep" } }
     assert_redirected_to value_discrepancy_path(@alfa_discrepancy)
@@ -86,9 +88,9 @@ class DiscrepanciesScreensTest < ActionDispatch::IntegrationTest
     other = paid_bill(number: "NF-K", document: JOAO, contract_code: "CT-K", name: "João K")
     run_portfolio_import([ bill_line("NF-K", "300,00", "documento" => JOAO, "nome" => "João K", "contrato" => "CT-K") ], confirm: true)
     entrar(users(:joana))
-    get value_discrepancy_path(ValueDiscrepancy.find_by!(bill: other))
+    get new_value_discrepancy_handling_path(ValueDiscrepancy.find_by!(bill: other))
     assert_select "input[value=apply]"
-    get value_discrepancy_path(@alfa_discrepancy) # nasceu na política seguir
+    get new_value_discrepancy_handling_path(@alfa_discrepancy) # nasceu na política seguir
     assert_select "input[value=apply]", count: 0
   end
 
@@ -98,6 +100,7 @@ class DiscrepanciesScreensTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "th", text: "Pago"
     assert_select "small", text: /Divergência de valor aberta/
+    get customer_path(@bill.customer, aba: "pagamentos")
     assert_select "h3", text: /CT-1: R\$ 100,00/ # crédito do contrato: excedente de R$ 100,00
     assert_select "td", text: /Valor do título reduzido/
     get bill_path(@bill)
@@ -151,6 +154,6 @@ class DiscrepanciesScreensTest < ActionDispatch::IntegrationTest
   test "o menu mostra o número das divergências abertas do gestor" do
     entrar(users(:joana))
     get root_path
-    assert_select "nav a", text: "Divergências de valor (1)"
+    assert_select "nav a", text: /Divergências de valor\s*1/
   end
 end

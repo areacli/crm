@@ -7,29 +7,35 @@ Rails.application.routes.draw do
 
   root "summaries#show"
 
+  # Confirmação curta de ações sem dados, no modal do painel (decisão 0022): o token assinado leva o título, a mensagem e o destino.
+  get "confirmacao/:token", to: "confirmations#show", as: :confirmation, constraints: { token: %r{[^/]+} }, format: false
+
   # Nomes das rotas em inglês, caminhos em português (decisão 0013).
   resources :customers, path: "clientes", only: %i[index show] do
     # Cadastro do cliente (06): nome corrigido na tela e contatos com a situação de cada um.
-    resource :name, path: "nome", only: :update, module: :customers
-    resources :contacts, path: "contatos", controller: "customer_contacts", only: %i[create update] do
-      resource :status, path: "situacao", only: :update, controller: "customer_contacts/statuses"
+    resource :name, path: "nome", only: %i[edit update], module: :customers
+    resources :contacts, path: "contatos", controller: "customer_contacts", only: %i[new create edit update] do
+      resource :status, path: "situacao", only: %i[edit update], controller: "customer_contacts/statuses"
     end
     # Transferência de crédito entre contratos do mesmo credor (R55a).
-    resources :credit_transfers, path: "transferencias-de-credito", only: :create, module: :customers
+    resources :credit_transfers, path: "transferencias-de-credito", only: %i[new create], module: :customers
     # Crédito do contrato (11, R232b, R239): usar num título de acordo ou de estorno, e alocar o aguardando alocação.
-    resources :credit_uses, path: "uso-de-credito", only: :create, module: :customers
-    resources :credit_allocations, path: "alocacao-de-credito", only: :create, module: :customers
+    resources :credit_uses, path: "uso-de-credito", only: %i[new create], module: :customers
+    resources :credit_allocations, path: "alocacao-de-credito", only: %i[new create], module: :customers
     # Direitos do titular (07): exportar (registra e abre a página com endereço assinado), anonimizar e reter.
-    resource :data_export, path: "exportacao", only: %i[show create], module: :customers
-    resource :anonymization, path: "anonimizacao", only: :create, module: :customers
-    resource :retention, path: "retencao", only: %i[create destroy], module: :customers
+    resource :data_export, path: "exportacao", only: %i[new show create], module: :customers
+    resource :anonymization, path: "anonimizacao", only: %i[new create], module: :customers
+    resource :retention, path: "retencao", only: %i[new create destroy], module: :customers
     # Promessas abertas e pendentes na ficha (10, R203): o trecho do cabeçalho, refeito a cada evento.
     resources :promises, path: "promessas", only: :index, module: :customers
     # Acordos (11): o trecho da ficha, a simulação e a gravação da proposta.
     resources :agreement_simulations, path: "simulacao-de-acordo", only: %i[new create], module: :customers
     resources :agreements, path: "acordos", only: %i[index create], module: :customers
     # Acionamentos do cliente: histórico, campos que dependem da escolha e registro (04).
-    resources :contact_attempts, path: "acionamentos", path_names: { new: "campos" }, only: %i[index new create], module: :customers
+    resources :contact_attempts, path: "acionamentos", path_names: { new: "campos" }, only: %i[index new create], module: :customers do
+      # Formulário de registro no painel (o `new` é o trecho dos campos que dependem da escolha).
+      get "registrar", on: :collection, action: :form, as: :form
+    end
   end
 
   # Guarda de dados (07, R138): previsão dos próximos 30 dias, retidos e últimas execuções.
@@ -41,35 +47,35 @@ Rails.application.routes.draw do
     resource :calculation_memory, path: "memoria-de-calculo", only: :show, module: :bills
   end
   resources :value_discrepancies, path: "divergencias-de-valor", only: %i[index show] do
-    resource :handling, path: "tratamento", only: :create, module: :value_discrepancies
+    resource :handling, path: "tratamento", only: %i[new create], module: :value_discrepancies
   end
 
   # Promessas de pagamento (10): aprovar, recusar e cancelar (R192, R200) e a lista das pendentes (R204).
   resources :promises, path: "promessas", only: [] do
     get "pendentes", on: :collection, to: "promises/pendings#index", as: :pending
     resource :approval, path: "aprovacao", only: :create, module: :promises
-    resource :refusal, path: "recusa", only: :create, module: :promises
-    resource :cancellation, path: "cancelamento", only: :create, module: :promises
+    resource :refusal, path: "recusa", only: %i[new create], module: :promises
+    resource :cancellation, path: "cancelamento", only: %i[new create], module: :promises
   end
 
   # Acordos (11): a lista, a página do acordo e, nela, aprovar, recusar, cancelar a proposta, o termo e o aceite (R216, R218 a R220).
   resources :agreements, path: "acordos", only: %i[index show] do
     get "pendentes", on: :collection, to: "agreements/pendings#index", as: :pending
     resource :approval, path: "aprovacao", only: :create, module: :agreements
-    resource :refusal, path: "recusa", only: :create, module: :agreements
-    resource :cancellation, path: "cancelamento", only: :create, module: :agreements
-    resource :acceptance, path: "aceite", only: :create, module: :agreements
+    resource :refusal, path: "recusa", only: %i[new create], module: :agreements
+    resource :cancellation, path: "cancelamento", only: %i[new create], module: :agreements
+    resource :acceptance, path: "aceite", only: %i[new create], module: :agreements
     resource :term, path: "termo", only: :show, module: :agreements
     # Depois do aceite: calcular a quitação antecipada (R230) e a quebra manual (R238).
-    resource :settlement, path: "quitacao", only: :create, module: :agreements
-    resource :break, path: "quebra", only: :create, module: :agreements
+    resource :settlement, path: "quitacao", only: %i[new create], module: :agreements
+    resource :break, path: "quebra", only: %i[new create], module: :agreements
     # Reverter o acordo em dois passos (R239): abrir (create), concluir (update) e desistir (destroy).
-    resource :reversion, path: "reversao", only: %i[create update destroy], module: :agreements
+    resource :reversion, path: "reversao", only: %i[new create update destroy], module: :agreements
   end
   # Estornos à espera do gestor (R233, AH2): a lista e a decisão.
-  resources :reversal_waits, path: "estornos-a-espera", only: %i[index update]
+  resources :reversal_waits, path: "estornos-a-espera", path_names: { edit: "decidir" }, only: %i[index edit update]
   # Arquivo de acordos (11, R244): exportar para o credor emitir os títulos; as exportações ficam registradas e os arquivos duram 30 dias.
-  resources :agreement_exports, path: "arquivo-de-acordos", only: %i[index create show]
+  resources :agreement_exports, path: "arquivo-de-acordos", path_names: { new: "exportar" }, only: %i[index new create show]
 
   # Instrumentos de pagamento emitidos (12, R275): só leitura (dados em JSON, PDF do boleto e QR Code do Pix guardados aqui). Não há rota de emissão (R270).
   resources :payment_instruments, path: "instrumentos", only: :show do
@@ -100,8 +106,8 @@ Rails.application.routes.draw do
   end
 
   # Usuários (vínculos por credor), perfis e avisos do usuário.
-  resources :memberships, path: "usuarios", path_names: { new: "novo" }, only: %i[index new create show update] do
-    resource :profile, path: "perfil", only: :update, module: :memberships
+  resources :memberships, path: "usuarios", path_names: { new: "novo", edit: "nome" }, only: %i[index new create show edit update] do
+    resource :profile, path: "perfil", only: %i[edit update], module: :memberships
     resource :activation, path: "ativacao", only: %i[create destroy], module: :memberships
     resource :password_reset, path: "redefinicao-de-senha", only: :create, module: :memberships
   end
@@ -145,7 +151,7 @@ Rails.application.routes.draw do
     resource :segment_confirmation, path: "confirmacao-dos-segmentos", only: :create
     # Índices do Banco Central (08): valores globais, correções do credor e "Buscar índices agora".
     resource :indexes, path: "indices", only: :show
-    resources :index_adjustments, path: "correcoes-de-indices", only: %i[create destroy]
+    resources :index_adjustments, path: "correcoes-de-indices", path_names: { new: "nova" }, only: %i[new create destroy]
     resource :index_search, path: "busca-de-indices", only: :create
     resources :contact_results, path: "resultados-de-acionamento", path_names: { new: "novo", edit: "editar" }, except: %i[show destroy] do
       resource :activation, path: "ativacao", only: %i[create destroy], module: :contact_results

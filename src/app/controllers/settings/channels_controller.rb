@@ -31,7 +31,7 @@ module Settings
       tenant = @tenants.find_by(id: attributes[:tenant_id]) or return head(:not_found)
       authorize PaymentChannel.new(tenant: tenant)
       @channel = manager.create(tenant: tenant, kind: attributes[:kind], code: attributes[:code], description: attributes[:description])
-      redirect_to settings_channels_path, notice: t(".done", code: @channel.code), status: :see_other
+      panel_finish(settings_channels_path, notice: t(".done", code: @channel.code), atualizar: true)
     rescue ActiveRecord::RecordInvalid => error
       @channel = error.record
       render :new, status: :unprocessable_content
@@ -54,7 +54,7 @@ module Settings
     def destroy
       code = @channel.code
       manager.destroy(@channel)
-      redirect_to settings_channels_path, notice: t(".done", code: code), status: :see_other
+      panel_finish(settings_channels_path, notice: t(".done", code: code), navegar: true)
     end
 
     private

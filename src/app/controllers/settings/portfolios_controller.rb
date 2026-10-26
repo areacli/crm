@@ -13,7 +13,8 @@ module Settings
       service = Portfolio::SettingsService.new
       case params[:section]
       when "brackets"
-        rows = params.fetch(:brackets, []).map { |row| row.permit(:from, :to).to_h }.reject { |row| row["from"].blank? && row["to"].blank? }
+        # Linha em branco ou marcada "Remover" não conta.
+        rows = params.fetch(:brackets, []).map { |row| row.permit(:from, :to, :remove).to_h }.reject { |row| row["remove"] == "1" || (row["from"].blank? && row["to"].blank?) }.map { |row| row.slice("from", "to") }
         service.update_brackets(tenant, rows, Current.user)
       when "upcoming"
         service.update_upcoming_display(tenant, params[:upcoming_display], Current.user)

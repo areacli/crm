@@ -1,69 +1,44 @@
 <% content_for :title, "Divergência do título #{@discrepancy.bill.number}" %>
 <% item = @discrepancy %>
-<header class="cabecalho-da-pagina">
-  <div>
-    <h1>Divergência do título <%= item.bill.number %></h1>
-    <p><%= item.tenant.name %> · <%= link_to "Voltar para as divergências", value_discrepancies_path %></p>
-  </div>
-</header>
+<%= pagina "Divergência do título #{item.bill.number}", subtitulo: safe_join([ item.tenant.name, " · ", link_to("Voltar para as divergências", value_discrepancies_path) ]),
+           indicadores: [ (item.open? ? situacao("Aberta", tom: :warning) : situacao("Tratada", tom: :success)) ] do %>
+  <% if item.open? && policy(item).create? %><%= abrir_painel "Tratar divergência", new_value_discrepancy_handling_path(item) %><% end %>
+  <% if @can_view_customer %><%= link_to "Ver o histórico do título", bill_path(item.bill), class: "botao", data: { variant: "secondary" } %><% end %>
+<% end %>
 
-<section class="cartao" aria-labelledby="dados">
-  <header><h2 id="dados">O que mudou</h2></header>
-  <div>
-    <dl class="valores">
-      <div>
-        <dt>Cliente</dt>
-        <dd><% if @can_view_customer %><%= link_to item.bill.customer.name, customer_path(item.bill.customer) %><% else %><%= item.bill.customer.name %><% end %></dd>
-      </div>
-      <div><dt>Título</dt><dd><%= item.bill.number %></dd></div>
-      <div><dt>Valor anterior</dt><dd><%= money(item.previous_cents) %></dd></div>
-      <div><dt>Valor informado pelo credor</dt><dd><%= money(item.reported_cents) %></dd></div>
-      <div><dt>Pago até então</dt><dd><%= money(item.allocated_cents) %></dd></div>
-      <div><dt>Saldo antes</dt><dd><%= money(item.balance_before_cents) %></dd></div>
-      <div><dt>Saldo depois</dt><dd><%= money(item.balance_after_cents) %></dd></div>
-      <% if item.excess_cents.positive? %><div><dt>Excedente</dt><dd><%= money(item.excess_cents) %></dd></div><% end %>
-      <div><dt>Efeito aplicado</dt><dd><%= t("discrepancies.effects.#{item.effect}") %> <small>(política: <%= t("discrepancies.policies.#{item.policy}").downcase %>)</small></dd></div>
-      <div><dt>Registrada em</dt><dd><%= datetime_br(item.created_at) %></dd></div>
-      <div><dt>Situação</dt><dd><%= item.open? ? situacao("Aberta", tom: :warning) : situacao("Tratada", tom: :success) %></dd></div>
-    </dl>
-    <% if item.effect_record_only? %><p><small>Título pago: a carga nunca o altera. A divergência existe só para registro.</small></p><% end %>
-    <% if @can_view_customer %><p><%= link_to "Ver o histórico do título", bill_path(item.bill) %></p><% end %>
-  </div>
-</section>
+<div class="duas-colunas">
+  <section class="cartao" aria-labelledby="dados">
+    <header><h2 id="dados">O que mudou</h2><%= informacao "efeito", "O efeito aplicado depende da política de divergência do credor e do que já foi pago no título.", "definicao-efeito" %></header>
+    <div>
+      <dl class="dados">
+        <dt>Cliente</dt><dd><% if @can_view_customer %><%= link_to item.bill.customer.name, customer_path(item.bill.customer) %><% else %><%= item.bill.customer.name %><% end %></dd>
+        <dt>Título</dt><dd><%= item.bill.number %></dd>
+        <dt>Valor anterior</dt><dd><%= money(item.previous_cents) %></dd>
+        <dt>Valor informado</dt><dd><%= money(item.reported_cents) %></dd>
+        <dt>Pago até então</dt><dd><%= money(item.allocated_cents) %></dd>
+        <dt>Saldo antes</dt><dd><%= money(item.balance_before_cents) %></dd>
+        <dt>Saldo depois</dt><dd><%= money(item.balance_after_cents) %></dd>
+        <% if item.excess_cents.positive? %><dt>Excedente</dt><dd><%= money(item.excess_cents) %></dd><% end %>
+        <dt>Efeito aplicado</dt><dd><%= t("discrepancies.effects.#{item.effect}") %> <small>(política: <%= t("discrepancies.policies.#{item.policy}").downcase %>)</small></dd>
+        <dt>Registrada em</dt><dd><%= datetime_br(item.created_at) %></dd>
+      </dl>
+      <% if item.effect_record_only? %><p><small>Título pago: a carga nunca o altera. A divergência existe só para registro.</small></p><% end %>
+    </div>
+  </section>
 
-<% if item.handled? %>
   <section class="cartao" aria-labelledby="tratamento">
     <header><h2 id="tratamento">Tratamento</h2></header>
     <div>
-      <dl class="valores">
-        <div><dt>Tratada por</dt><dd><%= item.handled_by&.name || "—" %></dd></div>
-        <div><dt>Em</dt><dd><%= datetime_br(item.handled_at) %></dd></div>
-        <div><dt>Escolha</dt><dd><%= t("discrepancies.choices.#{item.choice}") %></dd></div>
-        <div><dt>Nota</dt><dd><%= item.note %></dd></div>
-      </dl>
-    </div>
-  </section>
-<% else %>
-  <section class="cartao" aria-labelledby="tratar">
-    <header><h2 id="tratar">Tratar a divergência</h2><p>A nota fica registrada com o seu nome e a data.</p></header>
-    <div>
-      <%= form_with scope: :handling, url: value_discrepancy_handling_path(item), html: { "hx-boost": "false" } do |form| %>
-        <div class="campo">
-          <%= form.label :note, "Nota" %>
-          <%= form.text_area :note, required: true, maxlength: 500, rows: 3 %>
-          <small>Obrigatória. Diga o que foi conferido com o credor.</small>
-        </div>
-        <fieldset>
-          <legend>O que fazer</legend>
-          <label><%= form.radio_button :choice, "keep", checked: true %> <%= t("discrepancies.choice_help.keep") %></label>
-          <% if item.applicable? && !item.stale? %>
-            <label><%= form.radio_button :choice, "apply" %> <%= t("discrepancies.choice_help.apply", amount: money(item.reported_cents)) %></label>
-          <% elsif item.applicable? %>
-            <p><small><%= t("discrepancies.value_changed") %></small></p>
-          <% end %>
-        </fieldset>
-        <div class="acoes"><button type="submit">Tratar divergência</button></div>
+      <% if item.handled? %>
+        <dl class="dados">
+          <dt>Tratada por</dt><dd><%= item.handled_by&.name || "—" %></dd>
+          <dt>Em</dt><dd><%= datetime_br(item.handled_at) %></dd>
+          <dt>Escolha</dt><dd><%= t("discrepancies.choices.#{item.choice}") %></dd>
+          <dt>Nota</dt><dd><%= item.note %></dd>
+        </dl>
+      <% else %>
+        <p class="vazio">Ainda não tratada. Use "Tratar divergência" na barra da página.</p>
       <% end %>
     </div>
   </section>
-<% end %>
+</div>

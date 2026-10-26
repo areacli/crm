@@ -1,8 +1,7 @@
 <% content_for :title, "Estornos à espera" %>
 <% content_for :cable_channels, @cable %>
-<header class="cabecalho-da-pagina">
-  <div><h1>Estornos à espera do gestor</h1><p>O estorno que o CRM não resolve sozinho fica aqui, sem efeito: o título continua pago, o acordo não pode quitar e o crédito que o pagamento gerou fica bloqueado. Escolha, com motivo, o que fazer.</p></div>
-  <div class="acoes"><%= link_to "Voltar para os acordos", agreements_path, class: "botao", data: { variant: "secondary" } %></div>
-</header>
+<%= pagina "Estornos à espera do gestor", subtitulo: "Sem efeito até você decidir: o título continua pago e o acordo não quita." do %>
+  <%= link_to "Voltar para os acordos", agreements_path, class: "botao", data: { variant: "secondary" } %>
+<% end %>
 
 <%= render "reversal_waits/result" %>

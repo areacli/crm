@@ -25,7 +25,7 @@ module Settings
       authorize ContactResult.new(tenant: tenant)
       @result = manager.create(tenant: tenant, name: attributes[:name], kind: attributes[:kind], return_rule: attributes[:return_rule],
                               invalidates_contact: attributes[:invalidates_contact] == "1", allows_promise: attributes[:allows_promise] == "1")
-      redirect_to settings_contact_results_path, notice: t(".done", name: @result.name), status: :see_other
+      panel_finish(settings_contact_results_path, notice: t(".done", name: @result.name), atualizar: true)
     rescue ActiveRecord::RecordInvalid => error
       @result = error.record
       render :new, status: :unprocessable_content
@@ -38,7 +38,7 @@ module Settings
       attributes = params.expect(contact_result: %i[name return_rule invalidates_contact allows_promise])
       manager.update(@result, name: attributes[:name], return_rule: attributes[:return_rule], invalidates_contact: attributes[:invalidates_contact] == "1",
                      allows_promise: attributes[:allows_promise] == "1")
-      redirect_to settings_contact_results_path, notice: t(".done", name: @result.name), status: :see_other
+      panel_finish(settings_contact_results_path, notice: t(".done", name: @result.name), atualizar: true)
     rescue ActiveRecord::RecordInvalid => error
       @result = error.record
       render :edit, status: :unprocessable_content

@@ -42,12 +42,14 @@ class AgreementsScreensSystemTest < ApplicationSystemTestCase
 
     click_button "Criar proposta"
     assert_selector "h1", text: /Acordo ACD-000001/
-    assert_selector "h2", text: "Registrar o aceite"
+    assert_selector "a", text: "Registrar aceite"
     assert_acessivel
     sem_rolagem_horizontal
 
-    visit customer_path(@customer)
+    visit customer_path(@customer, aba: "promessas")
     assert_selector "ul.promessas li", text: /1 proposta aguardando aceite/
+    assert_acessivel
+    visit customer_path(@customer)
     assert_selector "th small", text: /Em proposta ACD-000001/
     assert_acessivel
     sem_rolagem_horizontal
@@ -74,15 +76,17 @@ class AgreementsScreensSystemTest < ApplicationSystemTestCase
     agreement = create_proposal(@customer, [ @nf1, @nf2 ], user: users(:joana), down: nil, down_on: nil)
     backdate!(agreement)
     visit agreement_path(agreement)
+    click_link "Registrar aceite"
+    assert_selector "dialog#painel[open][data-variant=drawer]"
     # Campo de data e hora do navegador: grava o valor direto, como quem escolhe no calendário.
     page.execute_script("document.getElementById('acceptance_presented_at').value = '#{1.hour.ago.strftime('%Y-%m-%dT%H:%M')}'")
     page.execute_script("document.getElementById('acceptance_accepted_at').value = '#{30.minutes.ago.strftime('%Y-%m-%dT%H:%M')}'")
     fill_in "Comprovante (opcional)", with: "88213"
-    click_button "Registrar aceite"
+    within("dialog#painel[open]") { click_button "Registrar aceite" }
 
     assert_selector "aside[role=status]", text: /Aceite do acordo ACD-000001 registrado/
     assert_selector "h2", text: "Aceite registrado"
-    assert_selector "h1 .situacao", text: "Aguardando efetivação"
+    assert_selector ".cabecalho-da-pagina .situacao", text: "Aguardando efetivação"
     assert_acessivel
     sem_rolagem_horizontal
   end
@@ -95,12 +99,12 @@ class AgreementsScreensSystemTest < ApplicationSystemTestCase
     assert_acessivel
     sem_rolagem_horizontal
 
-    click_link "Acordos pendentes (1)"
+    click_link "Acordos pendentes 1"
     assert_selector "h1", text: "Acordos pendentes"
     assert_selector "tbody tr", count: 1
     assert_acessivel
     sem_rolagem_horizontal
-    click_button "Aprovar proposta"
+    click_button "Aprovar", match: :first
     assert_selector "aside[role=status]", text: /Proposta #{pending.number} aprovada/
   end
 

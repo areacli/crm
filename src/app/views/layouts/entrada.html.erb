@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <title><%= [ content_for(:title), "CRM AreaCli" ].compact_blank.join(" · ") %></title>
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+    <meta name="cable-channels" content="[]">
+    <link rel="icon" href="<%= image_path("simbolo.svg") %>" type="image/svg+xml">
+    <%= stylesheet_link_tag :app %>
+    <%= javascript_importmap_tags %>
+  </head>
+
+  <%# Modelo Entrada (revisão 4): sem cabeçalho nem menu; o formulário à esquerda e o painel de apresentação à direita (só o formulário no celular). %>
+  <body>
+    <% if Demo.enabled? %>
+      <aside class="demonstracao" aria-label="Aviso da demonstração">
+        <p>Demonstração: os dados são fictícios e recriados todo dia às <%= Demo.reset_at %>, horário de Brasília. Os arquivos que você enviar são descartados sem ser lidos.</p>
+      </aside>
+    <% end %>
+    <main id="conteudo" class="entrada" tabindex="-1">
+      <%= yield %>
+    </main>
+  </body>
+</html>

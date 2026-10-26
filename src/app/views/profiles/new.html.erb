@@ -1,6 +1,1 @@
-<% content_for :title, "Novo perfil" %>
-<header class="cabecalho-da-pagina"><div><h1>Novo perfil</h1><p><%= link_to "Voltar para os perfis", profiles_path %></p></div></header>
-<section class="cartao" aria-labelledby="dados">
-  <header><h2 id="dados">Dados do perfil</h2></header>
-  <div><%= render "profiles/form", profile: @profile, tenants: @tenants, url: profiles_path, method: :post %></div>
-</section>
+<%= render "profiles/form", profile: @profile, tenants: @tenants, url: profiles_path, method: :post, titulo: "Novo perfil" %>

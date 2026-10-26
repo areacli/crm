@@ -1,7 +1,22 @@
 <% content_for :title, "Configuração · Conta #{@account.nickname_was || @account.nickname}" %>
-<header class="cabecalho-da-pagina"><div><h1>Conta <%= @account.nickname_was || @account.nickname %></h1><p><%= @account.tenant.name %> · <%= t("payments.accounts.modalities.#{@account.modality}") %> em <%= provider_name(@account.provider) %> · <%= t("payments.accounts.environments.#{@account.environment}") %> · <%= link_to "Voltar para as contas", settings_payment_accounts_path %></p></div></header>
+<%= pagina "Conta #{@account.nickname_was || @account.nickname}", subtitulo: safe_join([ @account.tenant.name, " · ", t("payments.accounts.modalities.#{@account.modality}"), " em ", provider_name(@account.provider), " · ", t("payments.accounts.environments.#{@account.environment}"), " · ", link_to("Voltar para as contas", settings_payment_accounts_path) ]),
+           indicadores: [ (@account.active? ? situacao("Ativa", tom: :success) : situacao("Desativada", tom: :neutral)) ] do %>
+  <% if @account.provider_available? %><%= button_to "Testar conexão", settings_payment_account_connection_test_path(@account), method: :post, data: { variant: "secondary" } %><% end %>
+  <% if @account.active? %>
+    <%= confirmar_no_painel "Desativar", titulo: "Desativar a conta?", mensagem: "A conta deixa de ser usada para emitir. O que já foi emitido não muda.", acao: "Desativar conta", url: settings_payment_account_activation_path(@account), metodo: :delete %>
+  <% else %>
+    <%= button_to "Ativar conta", settings_payment_account_activation_path(@account), method: :post %>
+  <% end %>
+  <% if @account.provider_available? && @account.manifest.field("webhook_secret") %>
+    <%= confirmar_no_painel (@account.secret_set?("webhook_secret") ? "Trocar o segredo do webhook" : "Gerar o segredo do webhook"), titulo: "Gerar um novo segredo?", mensagem: "O segredo atual, se houver, continua valendo por 24 horas; depois só o novo vale.", acao: "Gerar segredo", url: settings_payment_account_webhook_secret_path(@account), perigoso: false, variante: "secondary" %>
+  <% end %>
+  <% unless @account.used? %>
+    <%= confirmar_no_painel "Apagar", titulo: "Apagar a conta?", mensagem: "A conta #{@account.nickname} deixa de existir, com os segredos e o certificado. Isto fica registrado.", acao: "Apagar conta", url: settings_payment_account_path(@account), metodo: :delete %>
+  <% end %>
+<% end %>
 <%= render "settings/abas" %>
 
+<div class="ficha">
 <section class="cartao" aria-labelledby="dados">
   <header><h2 id="dados">Dados da conta</h2></header>
   <div>
@@ -17,54 +32,31 @@
         <%= select_tag "payment_account[channel_id]", options_for_select(PaymentChannel.where(tenant_id: @account.tenant_id).order(:code).map { |channel| [ "#{channel.code} · #{channel.description}", channel.id ] }, @account.channel_id), id: "campo-channel", required: true %>
       </div>
       <% if @account.provider_available? %><%= render "settings/payment_accounts/fields", form: form, account: @account %><% end %>
-      <div class="acoes">
-        <button type="submit">Salvar</button>
+      <div class="acoes" data-rodape>
         <%= link_to "Cancelar", settings_payment_accounts_path, class: "botao", data: { variant: "secondary" } %>
+        <button type="submit">Salvar</button>
       </div>
     <% end %>
   </div>
 </section>
 
+<aside class="ficha-lateral">
 <section class="cartao" aria-labelledby="situacao-conta">
-  <header><h2 id="situacao-conta">Situação e conexão</h2></header>
+  <header><h2 id="situacao-conta">Conexão</h2></header>
   <div>
-    <dl class="valores">
-      <div><dt>Situação</dt><dd><%= @account.active? ? situacao("Ativa", tom: :success) : situacao("Desativada", tom: :neutral) %></dd></div>
-      <div><dt>Último teste</dt><dd><%= @account.last_test_status ? "#{@account.last_test_status == 'ok' ? 'Boa' : 'Falhou'}, #{datetime_br(@account.last_tested_at)}. #{@account.last_test_message}" : "Nunca testada" %></dd></div>
+    <dl class="dados">
+      <dt>Último teste</dt><dd><%= @account.last_test_status ? "#{@account.last_test_status == 'ok' ? 'Boa' : 'Falhou'}, #{datetime_br(@account.last_tested_at)}. #{@account.last_test_message}" : "Nunca testada" %></dd>
+      <% if @account.provider_available? && @account.manifest.field("webhook_secret") %><dt>Segredo do webhook</dt><dd><%= @account.secret_set?("webhook_secret") ? "Definido (não é mostrado de novo)" : "Ainda não gerado" %></dd><% end %>
     </dl>
-    <div class="acoes">
-      <% if @account.provider_available? %>
-        <%= button_to "Testar conexão", settings_payment_account_connection_test_path(@account), method: :post, data: { variant: "secondary" } %>
+    <% if @secret %>
+      <%= aviso(tom: :warning) do %>
+        <p><strong>Copie o segredo agora:</strong> ele só aparece desta vez. <code><%= @secret %></code></p>
       <% end %>
-      <% if @account.active? %>
-        <%= render("shared/confirmacao", id: "desativar-conta", titulo: "Desativar a conta?", mensagem: "A conta deixa de ser usada para emitir. O que já foi emitido não muda.",
-                   acao: "Desativar conta", url: settings_payment_account_activation_path(@account), metodo: :delete) { "Desativar" } %>
-      <% else %>
-        <%= button_to "Ativar conta", settings_payment_account_activation_path(@account), method: :post %>
-      <% end %>
-    </div>
+    <% end %>
   </div>
 </section>
-
-<% if @account.provider_available? && @account.manifest.field("webhook_secret") %>
-  <section class="cartao" aria-labelledby="webhook">
-    <header><h2 id="webhook">Segredo do webhook</h2></header>
-    <div>
-      <p>O fornecedor assina cada aviso de pagamento com este segredo. Ao trocá-lo, o anterior continua valendo por 24 horas, para não perder avisos enquanto o fornecedor é atualizado.</p>
-      <dl class="valores"><div><dt>Segredo</dt><dd><%= @account.secret_set?("webhook_secret") ? "Definido (não é mostrado de novo)" : "Ainda não gerado" %></dd></div></dl>
-      <% if @secret %>
-        <%= aviso(tom: :warning) do %>
-          <p><strong>Copie o segredo agora:</strong> ele só aparece desta vez. <code><%= @secret %></code></p>
-        <% end %>
-      <% end %>
-      <div class="acoes">
-        <%= render("shared/confirmacao", id: "gerar-segredo-conta", titulo: "Gerar um novo segredo?", gatilho: "secondary",
-                   mensagem: "O segredo atual, se houver, continua valendo por 24 horas; depois só o novo vale.",
-                   acao: "Gerar segredo", url: settings_payment_account_webhook_secret_path(@account), variante: "primary") { @account.secret_set?("webhook_secret") ? "Trocar o segredo" : "Gerar o segredo" } %>
-      </div>
-    </div>
-  </section>
-<% end %>
+</aside>
+</div>
 
 <section class="cartao" aria-labelledby="historico">
   <header><h2 id="historico">Histórico</h2></header>
@@ -93,14 +85,3 @@
     <% end %>
   </div>
 </section>
-
-<% unless @account.used? %>
-  <section class="cartao" aria-labelledby="apagar">
-    <header><h2 id="apagar">Apagar a conta</h2></header>
-    <div class="acoes">
-      <p>A conta não emitiu instrumentos e pode ser apagada.</p>
-      <%= render("shared/confirmacao", id: "apagar-conta", titulo: "Apagar a conta?", mensagem: "A conta #{@account.nickname} deixa de existir, com os segredos e o certificado. Isto fica registrado.",
-                 acao: "Apagar conta", url: settings_payment_account_path(@account), metodo: :delete) { "Apagar" } %>
-    </div>
-  </section>
-<% end %>

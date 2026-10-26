@@ -8,6 +8,12 @@ class AgreementExportsController < ApplicationController
     @unseen = Agreements::UnseenEntries.for(@tenants)
   end
 
+  # Credor e forma se pedem num modal pequeno.
+  def new
+    @tenants = Tenant.where(id: Current.user.tenant_ids_with("administer_agreements")).order(:name)
+    authorize AgreementExport.new(tenant: @tenants.first || Tenant.new), :create?
+  end
+
   def create
     tenant = Tenant.find(params.expect(agreement_export: %i[tenant_id form])[:tenant_id])
     form = params.expect(agreement_export: %i[tenant_id form])[:form]
@@ -15,7 +21,7 @@ class AgreementExportsController < ApplicationController
     raise ActionController::BadRequest unless %w[news full].include?(form)
 
     export = Agreements::Archive.new(tenant).export!(form, user: Current.user)
-    redirect_to agreement_exports_path, notice: t(".done", lines: export.lines), status: :see_other
+    panel_finish(agreement_exports_path, notice: t(".done", lines: export.lines), atualizar: true)
   end
 
   def show

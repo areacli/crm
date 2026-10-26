@@ -3,8 +3,7 @@
   <% if @discrepancies.empty? %>
     <p class="vazio"><%= @status == "open" ? "Nenhuma divergência aberta. Quando uma carga mudar o valor de um título com pagamento, ela aparece aqui." : "Nenhuma divergência encontrada." %></p>
   <% else %>
-    <p><small>Mostrando <%= number_br(@pagination.first_item) %> a <%= number_br(@pagination.last_item) %> de <%= number_br(@pagination.total) %> divergências.</small></p>
-    <div class="tabela" tabindex="0">
+    <div class="tabela" tabindex="0" data-fixa>
       <table>
         <caption class="apenas-leitor-de-tela">Divergências de valor</caption>
         <thead>
@@ -12,7 +11,7 @@
             <th scope="col">Título</th><th scope="col">Cliente</th>
             <% if @several_tenants %><th scope="col">Credor</th><% end %>
             <th scope="col">Data</th><th scope="col" data-numerico>Valor anterior</th><th scope="col" data-numerico>Informado</th><th scope="col" data-numerico>Pago</th>
-            <th scope="col" data-numerico>Saldo antes</th><th scope="col" data-numerico>Saldo depois</th><th scope="col">Efeito</th><th scope="col">Situação</th>
+            <th scope="col" data-numerico>Saldo antes</th><th scope="col" data-numerico>Saldo depois</th><th scope="col">Efeito</th><th scope="col">Situação</th><th scope="col"><span class="apenas-leitor-de-tela">Ações</span></th>
           </tr>
         </thead>
         <tbody>
@@ -31,11 +30,18 @@
               <td data-numerico><%= money(item.balance_after_cents) %></td>
               <td><%= t("discrepancies.effects.#{item.effect}") %></td>
               <td><%= item.open? ? situacao("Aberta", tom: :warning) : situacao("Tratada", tom: :success) %></td>
+              <td data-acoes>
+                <%= menu_de_linha("divergencia-#{item.id}", "Ações da divergência do título #{item.bill.number}") do %>
+                  <%= link_to "Abrir divergência", value_discrepancy_path(item), class: "botao" %>
+                  <% if item.open? && policy(item).create? %><%= abrir_painel "Tratar divergência", new_value_discrepancy_handling_path(item) %><% end %>
+                  <% if @view_customer_tenants.include?(item.tenant_id) %><%= link_to "Histórico do título", bill_path(item.bill), class: "botao" %><% end %>
+                <% end %>
+              </td>
             </tr>
           <% end %>
         </tbody>
       </table>
     </div>
-    <%= render "shared/paginacao", pagination: @pagination, path: ->(page) { value_discrepancies_path(request.query_parameters.merge("page" => page)) } %>
+    <%= render "shared/paginacao", pagination: @pagination, unit: "divergências", path: ->(page) { value_discrepancies_path(request.query_parameters.merge("page" => page)) } %>
   <% end %>
 </div>

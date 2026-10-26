@@ -1,10 +1,9 @@
 <%# Trecho que o htmx refaz a cada filtro, página ou aviso do WebSocket: contagem, tabela e paginação. %>
-<div id="resultado" aria-live="polite" hx-get="<%= contact_attempts_path(request.query_parameters) %>" hx-trigger="cable:contact-attempts-changed from:body, cable:connected from:body" hx-swap="outerHTML" hx-push-url="false">
+<div id="resultado" aria-live="polite" hx-get="<%= contact_attempts_path(request.query_parameters) %>" hx-trigger="cable:contact-attempts-changed from:body, cable:connected from:body" hx-include="form.filtros" hx-sync="form.filtros:replace" hx-swap="outerHTML" hx-push-url="false">
   <% if @attempts.empty? %>
     <p class="vazio">Nenhum acionamento no período.</p>
   <% else %>
-    <p><small>Mostrando <%= number_br(@pagination.first_item) %> a <%= number_br(@pagination.last_item) %> de <%= number_br(@pagination.total) %> acionamentos, de <%= date_br(@from) %> a <%= date_br(@to) %>.</small></p>
-    <div class="tabela" tabindex="0">
+    <div class="tabela" tabindex="0" data-fixa>
       <table>
         <caption class="apenas-leitor-de-tela">Acionamentos</caption>
         <thead>
@@ -30,6 +29,6 @@
         </tbody>
       </table>
     </div>
-    <%= render "shared/paginacao", pagination: @pagination, path: ->(page) { contact_attempts_path(request.query_parameters.merge("page" => page)) } %>
+    <%= render "shared/paginacao", pagination: @pagination, unit: "acionamentos", path: ->(page) { contact_attempts_path(request.query_parameters.merge("page" => page)) } %>
   <% end %>
 </div>

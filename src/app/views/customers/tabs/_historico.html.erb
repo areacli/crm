@@ -1,0 +1,19 @@
+<%# Aba Histórico: o histórico do cadastro (nome e contatos) e o de segmento dos contratos. %>
+<section class="cartao" id="historico-do-cadastro" aria-labelledby="historico-do-cadastro-titulo">
+  <header><h2 id="historico-do-cadastro-titulo">Histórico do cadastro</h2></header>
+  <% if @registry_history.empty? %>
+    <p class="vazio">Nenhuma mudança no cadastro.</p>
+  <% else %>
+    <div>
+      <ul class="contatos">
+        <% @registry_history.each do |change| %>
+          <li>
+            <%= registry_change_text(change, @contacts.index_by(&:id)) %>
+            <small><%= datetime_br(change.occurred_at) %> · <%= change.user&.name || "sistema" %> · <%= change.origin.present? ? contact_origin(change.origin) : "carga" %></small>
+          </li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+</section>
+<%= render "customers/segment_history", contracts: @contracts, history: @segment_history %>

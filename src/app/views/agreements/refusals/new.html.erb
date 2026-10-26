@@ -1,0 +1,3 @@
+<%= formulario_de_painel(titulo: "Recusar proposta", descricao: "Acordo #{@agreement.number}. Os títulos ficam livres.", url: agreement_refusal_path(@agreement), enviar: "Recusar proposta", perigoso: true, variante: :modal, escopo: :agreement, erro: @error, voltar: agreement_path(@agreement)) do |form| %>
+  <div class="campo"><%= form.label :reason, "Motivo da recusa" %><%= form.text_field :reason, value: params.dig(:agreement, :reason), required: true, maxlength: 300 %></div>
+<% end %>

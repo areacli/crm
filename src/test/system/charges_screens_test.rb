@@ -57,6 +57,7 @@ class ChargesSystemScreensTest < ApplicationSystemTestCase
       assert_acessivel
       sem_rolagem_horizontal
 
+      find("button.menu-de-linha[aria-label='Ações de Demais']").click
       click_link "Editar encargos"
       assert_selector "legend", text: "Encargos"
       assert_acessivel

@@ -1,0 +1,29 @@
+<%# Linha do contato na aba Contatos. As ações ficam no menu ⋯ da linha: corrigir (na própria linha, ou no painel para endereço) e mudar a situação (modal pequeno).
+    Locais: customer, contact, can_edit. %>
+<tr id="contato-<%= contact.id %>">
+  <td><%= contact_kind(contact.kind) %></td>
+  <th scope="row"><%= contact.value %><% if contact.no_area_code? %><small>sem DDD</small><% end %></th>
+  <td><%= contact_status(contact) %><% if contact.kept_by_tenant? %><small>mantido pelo credor</small><% end %></td>
+  <td><%= contact_origin(contact.origin) %><% if contact.seen_in_import_at %><small>veio na carga de <%= date_br(contact.seen_in_import_at.to_date) %></small><% end %></td>
+  <td><%= date_br(contact.updated_at.to_date) %><small><%= contact.updated_by&.name || "carga" %></small></td>
+  <td><%= contact.reason.presence || "—" %><% if contact.do_not_disturb_on %><small>pedido em <%= date_br(contact.do_not_disturb_on) %></small><% end %></td>
+  <td data-acoes>
+    <% if can_edit %>
+      <%= menu_de_linha("contato-menu-#{contact.id}", "Ações do contato #{contact.value}") do %>
+        <% unless contact.status_invalid? %>
+          <% if contact.address? %>
+            <%= abrir_painel "Corrigir", edit_customer_contact_path(customer, contact) %>
+          <% else %>
+            <a href="<%= edit_customer_contact_path(customer, contact) %>" class="botao" hx-get="<%= edit_customer_contact_path(customer, contact) %>" hx-target="#contato-<%= contact.id %>" hx-swap="outerHTML" hx-push-url="false">Corrigir</a>
+          <% end %>
+          <%= abrir_painel "Marcar como inválido", edit_customer_contact_status_path(customer, contact, status: "invalid"), variante: "danger-outline" %>
+        <% end %>
+        <% if contact.status_valid? %>
+          <%= abrir_painel "Marcar não perturbe", edit_customer_contact_status_path(customer, contact, status: "do_not_disturb") %>
+        <% else %>
+          <%= abrir_painel "Voltar a válido", edit_customer_contact_status_path(customer, contact, status: "valid") %>
+        <% end %>
+      <% end %>
+    <% end %>
+  </td>
+</tr>

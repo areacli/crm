@@ -124,7 +124,7 @@ class PaymentsScreensTest < ActionDispatch::IntegrationTest
     assert_select "nav[aria-label=Menu] a[href='#{settings_payment_policy_path}']", text: "Configuração"
     get settings_payment_policy_path
     # Com a 14 também aparecem as abas Contas de pagamento (12), Segmentos, Promessas (10, R206) e Índices (08, R158).
-    assert_select "nav.abas a", count: 5
+    assert_select "nav.secoes a", count: 5
   end
 
   test "importar pagamentos exige a permissão 5; confirmar, a 6, também por link direto (R47)" do
@@ -162,7 +162,7 @@ class PaymentsScreensTest < ActionDispatch::IntegrationTest
 
     entrar(make_user(@alfa, %w[confirm_payments]))
     get import_path(import)
-    assert_select "button", text: "Confirmar"
+    assert_select "a", text: "Confirmar"
     assert_enqueued_with(job: ConfirmImportJob) { post import_confirmation_path(import) }
   end
 
@@ -192,11 +192,11 @@ class PaymentsScreensTest < ActionDispatch::IntegrationTest
     confirm_import(run_payments_import([ payment_line("valor" => "650,00") ]))
     customer = bill.customer
     entrar(users(:carlos))
-    get customer_path(customer)
+    get customer_path(customer, aba: "pagamentos")
     assert_response :success
     assert_select "h2", "Pagos"
     assert_select "h3", text: /CT-1: R\$ 150,00/
-    assert_select "button", text: "Transferir crédito", count: 0
+    assert_select "a[hx-get*=transferencias-de-credito]", count: 0
     assert_no_match(/saldo de crédito/i, response.body)
   end
 
@@ -215,16 +215,18 @@ class PaymentsScreensTest < ActionDispatch::IntegrationTest
     assert_equal 1, AccessEvent.where(event: "access_denied").count
 
     entrar(users(:joana))
-    get customer_path(customer)
-    assert_select "button", text: "Transferir crédito"
+    get customer_path(customer, aba: "pagamentos")
+    assert_select "a[hx-get*=transferencias-de-credito]", text: "Transferir crédito"
+    get new_customer_credit_transfer_path(customer), headers: painel
+    assert_select "[data-painel] form.painel select[name='credit_transfer[from_contract_id]']"
     post customer_credit_transfers_path(customer), params: params
-    assert_redirected_to customer_path(customer, anchor: "credito")
+    assert_redirected_to customer_path(customer, aba: "pagamentos")
     assert_equal [ 5_000, 15_000 ], [ from.credit_cents, to.credit_cents ]
     follow_redirect!
     assert_select "h3", text: /CT-1: R\$ 50,00/
 
     post customer_credit_transfers_path(customer), params: params.deep_merge(credit_transfer: { reason: "" })
-    assert_redirected_to customer_path(customer, anchor: "credito")
+    assert_redirected_to customer_path(customer, aba: "pagamentos")
     assert_equal 2, Credit.where(reason: :transfer).count
   end
 
@@ -249,11 +251,11 @@ class PaymentsScreensTest < ActionDispatch::IntegrationTest
     Membership.create!(user: users(:joana), tenant: @beta, profile: profiles(:beta_operator))
     entrar(users(:joana))
     get root_path
-    assert_select "h2", "Recuperado"
+    assert_select "dt", text: /Recuperado em/
     assert_select "h2", text: /Escola Alfa|Clínica Beta|Todos os credores/, count: 0
     assert_includes response.body, "R$ 1.000,00"
-    assert_includes response.body, "Pix R$ 1.000,00"
-    assert_select "dt", text: "Pagamentos pendentes"
+    assert_select "th", text: "Pix"
+    assert_select "dt", text: /Pagamentos pendentes/
   end
 
   test "resumo de quem só consulta a Alfa não mostra nada da Beta (V10)" do

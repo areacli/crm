@@ -3,8 +3,7 @@
   <% if @memberships.empty? %>
     <p class="vazio">Nenhum usuário encontrado.</p>
   <% else %>
-    <p><small>Mostrando <%= number_br(@pagination.first_item) %> a <%= number_br(@pagination.last_item) %> de <%= number_br(@pagination.total) %> usuários.</small></p>
-    <div class="tabela" tabindex="0">
+    <div class="tabela" tabindex="0" data-fixa>
       <table>
         <caption class="apenas-leitor-de-tela">Usuários dos credores</caption>
         <thead>
@@ -14,6 +13,7 @@
             <% if @several_tenants %><th scope="col">Credor</th><% end %>
             <th scope="col">Perfil</th>
             <th scope="col">Situação</th>
+            <th scope="col"><span class="apenas-leitor-de-tela">Ações</span></th>
           </tr>
         </thead>
         <tbody>
@@ -24,11 +24,26 @@
               <% if @several_tenants %><td><%= membership.tenant.name %></td><% end %>
               <td><%= membership.profile.name %></td>
               <td><%= membership_status(membership) %></td>
+              <td data-acoes>
+                <%= menu_de_linha("vinculo-#{membership.id}", "Ações de #{membership.user.name}") do %>
+                  <%= link_to "Abrir usuário", membership_path(membership), class: "botao" %>
+                  <% unless membership.user_id == Current.user.id %>
+                    <%= abrir_painel "Mudar o perfil", edit_membership_profile_path(membership) %>
+                    <% if membership.active? %>
+                      <%= confirmar_no_painel "Desativar o acesso", titulo: "Desativar o acesso?", acao: "Desativar o acesso", url: membership_activation_path(membership), metodo: :delete,
+                                              mensagem: "#{membership.user.name} deixa de operar #{membership.tenant.name} na próxima ação. Os acessos em outros credores não mudam." %>
+                    <% else %>
+                      <%= confirmar_no_painel "Reativar o acesso", titulo: "Reativar o acesso?", acao: "Reativar o acesso", url: membership_activation_path(membership), perigoso: false,
+                                              mensagem: "#{membership.user.name} volta a operar #{membership.tenant.name}." %>
+                    <% end %>
+                  <% end %>
+                <% end %>
+              </td>
             </tr>
           <% end %>
         </tbody>
       </table>
     </div>
-    <%= render "shared/paginacao", pagination: @pagination, path: ->(page) { memberships_path(request.query_parameters.merge("page" => page)) } %>
+    <%= render "shared/paginacao", pagination: @pagination, unit: "usuários", path: ->(page) { memberships_path(request.query_parameters.merge("page" => page)) } %>
   <% end %>
 </div>

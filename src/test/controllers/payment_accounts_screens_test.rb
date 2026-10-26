@@ -31,12 +31,12 @@ class PaymentAccountsScreensTest < ActionDispatch::IntegrationTest
     entrar(users(:joana))
     get settings_payment_accounts_path
     assert_response :success
-    assert_select "nav.abas a", text: "Contas de pagamento"
+    assert_select "nav.secoes a", text: "Contas de pagamento"
     only_settings = make_user(@alfa, %w[view_portfolio change_settings])
     delete session_path
     entrar(only_settings)
     get settings_channels_path
-    assert_select "nav.abas a", text: "Contas de pagamento", count: 0
+    assert_select "nav.secoes a", text: "Contas de pagamento", count: 0
     get settings_payment_accounts_path
     assert_response :not_found
   end
