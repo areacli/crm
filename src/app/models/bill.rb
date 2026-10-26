@@ -31,8 +31,11 @@ class Bill < ApplicationRecord
 
   def days_overdue(today = Date.current) = [ (today - due_date).to_i, 0 ].max
 
-  # Todo título nasce com a versão 1 do valor (R88). A carga em lote grava a versão no próprio SQL, sem passar por aqui.
-  after_create { value_versions.create!(tenant_id: tenant_id, amount_cents: amount_cents, import_id: last_import_id) }
+  # Quem decidiu a carga que criou o título, para a versão 1 do valor (R88); vazio fora da importação.
+  attr_accessor :version_user
+
+  # Todo título nasce com a versão 1 do valor (R88), em qualquer caminho: tela, serviço ou lote da importação.
+  after_create { value_versions.create!(tenant: tenant, bill: self, amount_cents: amount_cents, import_id: last_import_id, user: version_user) }
 
   # Saldo do título: valor vigente menos o alocado, nunca negativo (R89); o que passa do valor é excedente.
   def balance_cents = [ amount_cents - paid_cents, 0 ].max

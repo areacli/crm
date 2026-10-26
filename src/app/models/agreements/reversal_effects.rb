@@ -123,7 +123,7 @@ module Agreements
         end
         agreement = Agreement.find_by(id: agreement_id)
         AgreementEvent.log!(agreement, "reversal_waiting", data: { "payment" => payment.identifier, "amount_cents" => amount, "reason" => reason }) if agreement
-        Change.create!(tenant_id: @tenant.id, user_id: @import.user_id, subject_type: "payment", subject_id: payment.id, event: "reversal_waiting", after: amount.to_s, note: reason)
+        Change.record!(payment, "reversal_waiting", actor: @import.user, after: amount.to_s, note: reason)
       end
 
       # --- Título de estorno de pagamento anterior à montagem (AF3, AG9) ---
@@ -178,7 +178,7 @@ module Agreements
           # Transferido: o estorno sai do contrato de quem recebeu, com aviso aos dois lados (R55a, R62).
           CreditBook.take!(entry.related_contract_id, cents, kind: "reversal", reason: "reversed", user: @import.user, note: "estorno de crédito transferido")
           [ entry.contract_id, entry.related_contract_id ].each do |contract_id|
-            Change.create!(tenant_id: @tenant.id, user_id: @import.user_id, subject_type: "contract", subject_id: contract_id, event: "transferred_credit_reversed", after: cents.to_s)
+            Change.record!(Contract.find(contract_id), "transferred_credit_reversed", actor: @import.user, after: cents.to_s)
           end
         elsif entry.bill_id
           CreditOnBill.undo!(entry, cents, row["reversed_on"]) { |bill| note_reopened(bill.id, bill.agreement_id, Date.iso8601(row["reversed_on"].to_s)) }
@@ -194,13 +194,14 @@ module Agreements
       # conjunto, em lotes: com 20 mil estornos de parcela um UPDATE por título custaria minutos.
       def mark_reopened!
         @reopened.to_a.each_slice(1_000) do |slice|
-          values = slice.map { |bill_id, on| "(#{bill_id.to_i}::bigint, #{Portfolio::Sql.connection.quote(ReversalTitles.reopened_on(on, Date.current).iso8601)}::text)" }.join(",")
-          Portfolio::Sql.execute(<<~SQL)
-            update bills b set composition = coalesce(b.composition, '{}'::jsonb) || jsonb_build_object('reopened_on', v.d)
-            from (values #{values}) as v(id, d)
-            where b.id = v.id and b.status = 'active' and b.agreement_id is not null
-              and coalesce((select a.terms->'policies'->>'bank_reversal' from agreements a where a.id = b.agreement_id), 'new_term') = 'new_term'
-          SQL
+          dates = slice.to_h { |bill_id, on| [ bill_id, ReversalTitles.reopened_on(on, Date.current).iso8601 ] }
+          ApplicationRecord.transaction do
+            Bill.where(id: dates.keys, status: "active").where.not(agreement_id: nil).preload(:agreement).each do |bill|
+              next unless (bill.agreement.terms.dig("policies", "bank_reversal") || "new_term") == "new_term"
+
+              bill.update!(composition: (bill.composition || {}).merge("reopened_on" => dates.fetch(bill.id)))
+            end
+          end
         end
       end
 

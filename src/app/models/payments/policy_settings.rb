@@ -8,7 +8,7 @@ module Payments
       setting.assign_attributes(values.slice(*TenantSetting::PAYMENT_POLICIES))
       ApplicationRecord.transaction do
         setting.changes.each do |field, (before, after)|
-          Change.create!(tenant: tenant, user: @actor, subject_type: "settings", subject_id: tenant.id, event: "#{field}_changed", field: field, before: before, after: after)
+          Change.record!(tenant: tenant, user: @actor, subject_type: "settings", subject_id: tenant.id, event: "#{field}_changed", field: field, before: before, after: after)
         end
         setting.save!
       end

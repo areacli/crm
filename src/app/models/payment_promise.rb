@@ -49,7 +49,7 @@ class PaymentPromise < ApplicationRecord
     ApplicationRecord.transaction do
       update!(state: new_state, closed_at: Time.current, reason: reason, paid_percent: paid_percent_value)
       promise_bills.update_all(held: false)
-      Change.create!(tenant_id: tenant_id, user: actor, subject_type: "payment_promise", subject_id: id, event: "state_changed", field: "state", before: before, after: new_state, note: reason)
+      Change.record!(tenant_id: tenant_id, user: actor, subject_type: "payment_promise", subject_id: id, event: "state_changed", field: "state", before: before, after: new_state, note: reason)
     end
     self
   end
@@ -58,5 +58,5 @@ class PaymentPromise < ApplicationRecord
   after_commit :announce_change, on: %i[create update]
 
   private
-    def announce_change = Promises::Broadcast.changed(tenant, contract.customer_ids)
+    def announce_change = Promises::Broadcast.quiet? || Promises::Broadcast.changed(tenant, contract.customer_ids)
 end

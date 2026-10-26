@@ -1,72 +1,52 @@
 module Portfolio
-  # Grava as linhas da conferência na tabela de preparação, em lote, pelo COPY do PostgreSQL.
+  # Monta as linhas da conferência (e os contatos) em lotes e as grava na tabela de preparação pelo `ImportRow` e `ImportContact`
+  # (`insert_all!` do Active Record). A preparação guarda o ARQUIVO LIDO, não é entidade de domínio: não passa pela auditoria (decisão 0021).
   class Staging
-    COLUMNS = %w[import_id line document number name name_key contract due_date amount_cents description ok keep_document roles product penalty_cents interest_cents correction_cents other_cents].freeze
+    # Linhas de preparação por lote; o lote é também a unidade de commit e de retomada da leitura.
+    class_attribute :batch_size, instance_writer: false, default: 1000
 
-    def initialize(import_id, batch_size: 5000)
+    def initialize(import_id)
       @import_id = import_id
-      @batch_size = batch_size
-      @buffer = []
-      @contact_buffer = []
+      @rows = []
+      @contacts = []
     end
+
+    def size = @rows.size
+
+    def full? = size >= self.class.batch_size
 
     def add(row, name_key)
-      push [ @import_id, row.line, row.document, row.number, row.name, name_key, row.contract, row.due_date, row.amount_cents,
-             row.description, "t", "f", row.roles, row.product, row.penalty_cents, row.interest_cents, row.correction_cents, row.other_cents ]
+      @rows << { import_id: @import_id, line: row.line, document: row.document, number: row.number, name: row.name, name_key: name_key, contract: row.contract,
+                 due_date: row.due_date, amount_cents: row.amount_cents, description: row.description, ok: true, keep_document: false, roles: row.roles,
+                 product: row.product, penalty_cents: row.penalty_cents, interest_cents: row.interest_cents, correction_cents: row.correction_cents,
+                 other_cents: row.other_cents }
     end
 
-    CONTACT_COLUMNS = %w[import_id line document kind key value street number complement district city state zip tenant_contact].freeze
-
-    # Contatos da linha (06, R109), no mesmo ciclo do COPY. `tenant_keys`: telefone e e-mail do credor, normalizados, para marcar o contato que
-    # é igual ao do credor (R126). Devolve os avisos novos da linha.
+    # Contatos da linha (06, R109). `tenant_keys`: telefone e e-mail do credor, normalizados, para marcar o contato que é igual ao do credor
+    # (R126). Devolve os avisos novos da linha.
     def add_contacts(row, tenant_keys)
-      warnings = row.contacts.filter_map do |contact|
+      row.contacts.filter_map do |contact|
         tenant_contact = tenant_keys[contact.kind] == contact.key
-        @contact_buffer << contact_values(row, contact, tenant_contact)
+        @contacts << { import_id: @import_id, line: row.line, document: row.document, kind: contact.kind, key: contact.key, value: contact.value,
+                       street: contact.street, number: contact.number, complement: contact.complement, district: contact.district, city: contact.city,
+                       state: contact.state, zip: contact.zip, tenant_contact: tenant_contact }
         "#{contact.kind == 'phone' ? 'telefone' : 'e-mail'} igual ao do credor (entra inválido)" if tenant_contact
       end
-      flush if @contact_buffer.size >= @batch_size * 2
-      warnings
     end
 
     # Linha recusada, mas com documento e título legíveis: guarda a chave para o título não ser retirado (R15).
     def add_key_only(line, document, number)
-      push [ @import_id, line, document, number, nil, nil, nil, nil, nil, nil, "f", "f", nil, nil, nil, nil, nil, nil ]
+      @rows << { import_id: @import_id, line: line, document: document, number: number, name: nil, name_key: nil, contract: nil, due_date: nil, amount_cents: nil,
+                 description: nil, ok: false, keep_document: false, roles: nil, product: nil, penalty_cents: nil, interest_cents: nil, correction_cents: nil,
+                 other_cents: nil }
     end
 
+    # Grava o que está no buffer. Quem chama decide a transação (o lote inteiro, com recusas e avisos, vai junto).
     def flush
-      connection = ActiveRecord::Base.connection.raw_connection
-      unless @buffer.empty?
-        connection.copy_data("COPY import_rows (#{COLUMNS.join(',')}) FROM STDIN") { @buffer.each { |line| connection.put_copy_data(line) } }
-        @buffer.clear
-      end
-      return if @contact_buffer.empty?
-
-      connection.copy_data("COPY import_contacts (#{CONTACT_COLUMNS.join(',')}) FROM STDIN") { @contact_buffer.each { |line| connection.put_copy_data(line) } }
-      @contact_buffer.clear
+      ImportRow.insert_all!(@rows, returning: false) unless @rows.empty?
+      ImportContact.insert_all!(@contacts, returning: false) unless @contacts.empty?
+      @rows.clear
+      @contacts.clear
     end
-
-    private
-      def push(values)
-        @buffer << line_of(values)
-        flush if @buffer.size >= @batch_size
-      end
-
-      def line_of(values) = "#{values.map { |value| value.nil? ? '\N' : escape(value.to_s) }.join("\t")}\n"
-
-      NULLS = ("\\N\t" * 7).freeze
-
-      # Telefone e e-mail não têm campos de endereço: a linha sai por interpolação direta, sem percorrer 14 valores.
-      def contact_values(row, contact, tenant_contact)
-        unless contact.kind == "address"
-          return "#{@import_id}\t#{row.line}\t#{row.document}\t#{contact.kind}\t#{escape(contact.key)}\t#{escape(contact.value)}\t#{NULLS}#{tenant_contact ? 't' : 'f'}\n"
-        end
-
-        line_of([ @import_id, row.line, row.document, contact.kind, contact.key, contact.value, contact.street, contact.number, contact.complement, contact.district,
-                  contact.city, contact.state, contact.zip, tenant_contact ? "t" : "f" ])
-      end
-
-      # Escapa os caracteres especiais do formato texto do COPY.
-      def escape(value) = value.match?(/[\\\t\n\r]/) ? value.gsub(/[\\\t\n\r]/, "\\" => "\\\\", "\t" => "\\t", "\n" => "\\n", "\r" => "\\r") : value
   end
 end

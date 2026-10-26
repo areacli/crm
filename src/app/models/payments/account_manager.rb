@@ -70,7 +70,7 @@ module Payments
       end
 
       def log(account, event, field, before, after, note: nil)
-        Change.create!(tenant_id: account.tenant_id, user: @actor, subject_type: "payment_account", subject_id: account.id, event: event, field: field,
+        Change.record!(tenant_id: account.tenant_id, user: @actor, subject_type: "payment_account", subject_id: account.id, event: event, field: field,
                        before: before.to_s.presence, after: after.to_s.presence, note: note.to_s.first(300).presence)
       end
   end

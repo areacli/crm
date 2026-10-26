@@ -289,7 +289,7 @@ await passo('link público de pagamento: boleto, Pix e cartão, sem login', asyn
     await publico.context().close();
 });
 
-await passo('o operador só enxerga a Escola Alfa e não abre a configuração do credor', async () => {
+await passo('o operador só enxerga a Escola Alfa (nunca a Clínica Beta) e não abre a configuração do credor', async () => {
     const outro = await (await navegador.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1440, height: 900 } })).newPage();
     outro.setDefaultTimeout(60000);
     await outro.goto(BASE + '/session/new');
@@ -297,19 +297,23 @@ await passo('o operador só enxerga a Escola Alfa e não abre a configuração d
     await outro.fill('#password', 'demonstracao-operador');
     await outro.click('button[type=submit]');
     await outro.waitForURL(BASE + '/');
-    await outro.locator('main').getByText('Escola Alfa').first().waitFor();
+    // O resumo tem só totais, sem o nome do credor (decisão de 25/10/2026); quem tem mais de um credor vê o nome na lista de clientes.
+    await outro.getByRole('heading', { level: 1, name: 'Resumo da carteira' }).first().waitFor();
     if ((await outro.getByText('Clínica Beta').count()) > 0) throw new Error('o operador vê a Clínica Beta');
     const r = await outro.goto(BASE + '/configuracao/canais-de-recebimento');
     if (r.status() !== 404) throw new Error(`configuração respondeu ${r.status()}`);
     await outro.goto(BASE + '/clientes');
+    await outro.locator('main tbody tr').first().waitFor(); // com um credor só, a lista não mostra o nome dele
     if ((await outro.getByText('Clínica Beta').count()) > 0) throw new Error('o operador vê a Clínica Beta na lista');
     await outro.context().close();
 });
 
-await passo('o gestor vê os dois credores no resumo', async () => {
+await passo('o gestor vê os dois credores (o resumo é um conjunto de totais; os credores aparecem na lista de clientes)', async () => {
     await abrir('/', 'Resumo da carteira');
-    await pagina.getByRole('heading', { name: 'Escola Alfa' }).first().waitFor();
-    await pagina.getByRole('heading', { name: 'Clínica Beta' }).first().waitFor();
+    if ((await pagina.getByRole('heading', { name: 'Escola Alfa' }).count()) > 0) throw new Error('o resumo voltou a quebrar por credor');
+    await abrir('/clientes', 'Clientes');
+    await pagina.locator('#tenant option', { hasText: 'Escola Alfa' }).first().waitFor({ state: 'attached' });
+    await pagina.locator('#tenant option', { hasText: 'Clínica Beta' }).first().waitFor({ state: 'attached' });
 });
 
 await navegador.close();

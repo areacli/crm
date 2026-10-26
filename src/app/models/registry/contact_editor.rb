@@ -171,7 +171,7 @@ module Registry
       end
 
       def log(tenant_id, subject_type, subject_id, event, field, before, after, note: nil, origin: "screen")
-        Change.create!(tenant_id: tenant_id, user: @actor, subject_type: subject_type, subject_id: subject_id, event: event, field: field, before: before, after: after,
+        Change.record!(tenant_id: tenant_id, user: @actor, subject_type: subject_type, subject_id: subject_id, event: event, field: field, before: before, after: after,
                        note: note, origin: origin)
       end
   end

@@ -25,7 +25,7 @@ module Agreements
         agreement.update!(state: state, reason: reason, closed_at: Time.current)
         agreement.agreement_bills.update_all(held: false)
         AgreementEvent.log!(agreement, kind, user: @actor, data: { "reason" => reason })
-        Change.create!(tenant_id: agreement.tenant_id, user: @actor, subject_type: "agreement", subject_id: agreement.id, event: "state_changed", field: "state", before: "proposal", after: state, note: reason)
+        Change.record!(tenant_id: agreement.tenant_id, user: @actor, subject_type: "agreement", subject_id: agreement.id, event: "state_changed", field: "state", before: "proposal", after: state, note: reason)
       end
   end
 end

@@ -110,14 +110,14 @@ module Promises
         handle.dirty = false
         handle.lines.each { |line| line.dirty = false }
       end
-      connection = Sql.connection
+      # Active Record (decisão 0021): o que cada linha e cada promessa já recebeu, com as associações lidas em lote. O aviso das telas sai no fim do lote.
       lines.each_slice(2000) do |slice|
-        values = slice.map { |id, paid| "(#{id.to_i}::bigint, #{connection.quote(paid.to_json)}::jsonb)" }.join(",")
-        Sql.run("update payment_promise_bills set paid = v.paid from (values #{values}) as v(id, paid) where payment_promise_bills.id = v.id")
+        records = PaymentPromiseBill.where(id: slice.map(&:first)).preload(:promise, :bill).index_by(&:id)
+        slice.each { |id, paid| records.fetch(id).update!(paid: paid) }
       end
       promises.each_slice(2000) do |slice|
-        values = slice.map { |id, paid| "(#{id.to_i}::bigint, #{paid.to_i}::bigint)" }.join(",")
-        Sql.run("update payment_promises set paid_cents = v.paid, updated_at = now() from (values #{values}) as v(id, paid) where payment_promises.id = v.id")
+        records = PaymentPromise.where(id: slice.map(&:first)).preload(:customer, :contract, :contact_attempt).index_by(&:id)
+        Broadcast.quiet { slice.each { |id, paid| records.fetch(id).update!(paid_cents: paid) } }
       end
     end
 

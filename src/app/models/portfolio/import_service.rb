@@ -49,9 +49,7 @@ module Portfolio
     def discard(import)
       raise ImportRefused, "só uma importação conferida pode ser descartada" unless import.checked?
 
-      Sql.run("delete from import_rows where import_id = ?", import.id)
-      Sql.run("delete from import_contacts where import_id = ?", import.id)
-      Sql.run("delete from payment_rows where import_id = ?", import.id)
+      [ ImportRow, ImportContact, PaymentRow ].each { |model| model.where(import_id: import.id).delete_all }
       FileUtils.rm_f(import.file_path)
       import.update!(status: :discarded, finished_at: Time.current)
       import

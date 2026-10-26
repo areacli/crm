@@ -45,7 +45,7 @@ module Payments
 
     private
       def log(channel, event, field, before, after)
-        Change.create!(tenant_id: channel.tenant_id, user: @actor, subject_type: "channel", subject_id: channel.id, event: event, field: field,
+        Change.record!(tenant_id: channel.tenant_id, user: @actor, subject_type: "channel", subject_id: channel.id, event: event, field: field,
                        before: before.to_s.presence, after: after.to_s.presence)
       end
   end

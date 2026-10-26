@@ -31,7 +31,7 @@ module Agreements
 
         payment.update!(applied_cents: outcome.applied)
         CreditBook.take!(contract.id, outcome.applied, kind: "used", reason: "used_on_title", user: actor, bill_id: bill.id, note: bill.number)
-        Change.create!(tenant_id: bill.tenant_id, user: actor, subject_type: "bill", subject_id: bill.id, event: "credit_used", after: outcome.applied.to_s)
+        Change.record!(tenant_id: bill.tenant_id, user: actor, subject_type: "bill", subject_id: bill.id, event: "credit_used", after: outcome.applied.to_s)
         Standing.refresh!(bill.agreement, today: today) if bill.agreement
         Broadcast.changed(bill.tenant, [ bill.customer_id ])
         outcome

@@ -1,7 +1,8 @@
 module Promises
   # Tarefa diária das promessas de um credor (10, R193, R197; O8): quebra a promessa aberta cujo prazo passou sem cumprir, com o percentual pago, e termina
   # como não aprovada a pendente cujo prazo passou. Os títulos ficam livres (sujeitos à carência) e voltam à regra normal. O prazo é o congelado na promessa
-  # (data prometida mais a tolerância de dias, DP12). Em SQL de conjunto: 50 mil promessas abertas por credor cabem nos 2 minutos.
+  # (data prometida mais a tolerância de dias, DP12). Processamento em lote (decisão 0021): a consulta é de conjunto, a gravação é Active Record em fatias de 1.000
+  # promessas (uma transação cada), com a auditoria única (`Change.record_many!`) e um aviso só ao fim.
   class Daily
     NAME = "promises_daily"
     Sql = Portfolio::Sql
@@ -22,9 +23,12 @@ module Promises
     # Devolve quantas promessas mudaram de estado.
     def apply(today: Date.current)
       changed = []
-      ApplicationRecord.transaction do
-        changed += move("open", "broken", today)
-        changed += move("pending", "not_approved", today)
+      # O aviso das telas sai uma vez, no fim: o `after_commit` de cada promessa só dispara depois do commit, então o modo silencioso envolve a transação.
+      Broadcast.quiet do
+        ApplicationRecord.transaction do
+          changed += move("open", "broken", today)
+          changed += move("pending", "not_approved", today)
+        end
       end
       Broadcast.changed(@tenant, customers_of(changed.first(200))) if changed.any?
       changed.size
@@ -32,14 +36,19 @@ module Promises
 
     private
       def move(from, to, today)
-        rows = Sql.rows(<<~SQL, to, @tenant.id, from, today)
-          update payment_promises set state = ?, closed_at = now(), updated_at = now(), paid_percent = coalesce(round(paid_cents * 100.0 / nullif(total_cents, 0)), 0)
-          where tenant_id = ? and state = ? and promised_on + coalesce((policies->>'tolerance_days')::int, 3) < ?::date
-          returning id
-        SQL
-        ids = rows.map { |row| row["id"].to_i }
-        ids.each_slice(2000) { |slice| Sql.run("update payment_promise_bills set held = false where promise_id in (?) and held", slice) }
-        Sql.copy_in("changes", %w[tenant_id subject_type subject_id event field before after occurred_at], ids.map { |id| [ @tenant.id, "payment_promise", id, "state_changed", "state", from, to, Time.current ] })
+        due = PaymentPromise.where(tenant_id: @tenant.id, state: from).where("promised_on + coalesce((policies->>'tolerance_days')::int, 3) < ?::date", today)
+        ids = []
+        due.in_batches(of: 1000) do |batch|
+          promises = batch.preload(:customer, :contract, :contact_attempt).to_a
+          Broadcast.quiet do
+            ApplicationRecord.transaction do
+              promises.each { |promise| promise.update!(state: to, closed_at: Time.current, paid_percent: promise.paid_percent_value) }
+              PaymentPromiseBill.where(promise_id: promises.map(&:id), held: true).update_all(held: false)
+              Change.record_many!(promises.map { |promise| [ promise, "state_changed", { field: "state", before: from, after: to } ] }, tenant_id: @tenant.id)
+            end
+          end
+          ids.concat(promises.map(&:id))
+        end
         ids
       end
 

@@ -37,23 +37,26 @@ module Charges
       valuation = Valuation.new(tables: RuleSet.tables(@tenant, today), rules: RuleSet.rules(@tenant), demais_id: RuleSet.demais_id(@tenant), versions: RuleHistory.lookup(@tenant))
       count = 0
       ApplicationRecord.transaction do
-        Sql.execute("select pg_advisory_xact_lock(2, ?)", @tenant.id) # a mesma trava dos segmentos
-        Sql.run("delete from bill_valuations where tenant_id = ?", @tenant.id)
+        Sql.one("select pg_advisory_xact_lock(2, ?)::text as locked", @tenant.id) # a mesma trava dos segmentos
+        BillValuation.where(tenant_id: @tenant.id).delete_all
         Reader.new(@tenant, today: today).each_batch do |batch|
           rows = batch.map do |input|
             result = valuation.call(input)
             [ input.bill_id, @tenant.id, result.principal, result.corrected_principal, result.fine, result.interest, result.fees, result.total, today ]
           end
-          Sql.copy_in("bill_valuations", COLUMNS, rows)
+          save(rows)
           count += rows.size
         end
         # Os títulos de acordo em cobrança têm o saldo devedor com os encargos de atraso dos parâmetros congelados (11, R225, R228).
         rows = Agreements::Valuations.rows(@tenant, today)
-        Sql.copy_in("bill_valuations", COLUMNS, rows)
+        save(rows)
         count += rows.size
       end
       count
     end
+
+    # A tabela de valores atualizados é derivada (recalculada por inteiro a cada vez, sem auditoria por linha): entra por `insert_all!` do modelo.
+    def save(rows) = rows.each_slice(5_000) { |slice| BillValuation.insert_all!(slice.map { |row| COLUMNS.zip(row).to_h }, returning: false) }
 
     # Último recálculo terminado sem falha (a data mostrada em lista, ficha e painel, R173a) e se há um em andamento.
     def self.status(tenant)

@@ -18,7 +18,7 @@ module Agreements
       before = previous.state
       previous.update!(state: "renegotiated", closed_at: Time.current)
       AgreementEvent.log!(previous, "renegotiated", data: { "from" => before, "by" => successor.number })
-      Change.create!(tenant_id: previous.tenant_id, subject_type: "agreement", subject_id: previous.id, event: "state_changed", field: "state", before: before, after: "renegotiated", note: successor.number)
+      Change.record!(tenant_id: previous.tenant_id, subject_type: "agreement", subject_id: previous.id, event: "state_changed", field: "state", before: before, after: "renegotiated", note: successor.number)
     end
 
     # P1: o acordo novo aguardando efetivação sobre títulos do `previous` é cancelado quando o anterior recebe pagamento ou quebra.

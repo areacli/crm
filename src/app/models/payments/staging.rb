@@ -1,34 +1,31 @@
 module Payments
-  # Grava as linhas da conferência de pagamentos ou estornos na tabela de preparação, em lote, pelo COPY do PostgreSQL.
+  # Monta as linhas da conferência de pagamentos ou estornos em lotes e as grava na tabela de preparação pelo `PaymentRow` (`insert_all!` do Active
+  # Record). A preparação guarda o ARQUIVO LIDO, não é entidade de domínio: não passa pela auditoria (decisão 0021).
   class Staging
-    COLUMNS = %w[import_id line channel_code identifier document bill_number paid_on amount_cents payment_method payment_identifier reason final_state ok].freeze
+    COLUMNS = %i[channel_code identifier document bill_number paid_on amount_cents payment_method payment_identifier reason final_state].freeze
 
-    def initialize(import_id, batch_size: 5000)
+    # Linhas de preparação por lote; o lote é também a unidade de commit e de retomada da leitura.
+    class_attribute :batch_size, instance_writer: false, default: 1000
+
+    def initialize(import_id)
       @import_id = import_id
-      @batch_size = batch_size
-      @buffer = []
+      @rows = []
     end
+
+    def size = @rows.size
+
+    def full? = size >= self.class.batch_size
 
     # `row` é uma linha normalizada de um dos dois validadores; o que ela não tem fica nulo.
     def add(row)
       values = row.to_h
-      push [ @import_id, row.line, *COLUMNS[2..-2].map { |column| values[column.to_sym] }, "t" ]
+      @rows << { import_id: @import_id, line: row.line, **COLUMNS.index_with { |column| values[column] }, ok: true }
     end
 
+    # Grava o que está no buffer. Quem chama decide a transação (o lote inteiro, com as recusas, vai junto).
     def flush
-      return if @buffer.empty?
-
-      connection = ActiveRecord::Base.connection.raw_connection
-      connection.copy_data("COPY payment_rows (#{COLUMNS.join(',')}) FROM STDIN") { @buffer.each { |line| connection.put_copy_data(line) } }
-      @buffer.clear
+      PaymentRow.insert_all!(@rows, returning: false) unless @rows.empty?
+      @rows.clear
     end
-
-    private
-      def push(values)
-        @buffer << "#{values.map { |value| value.nil? ? '\N' : escape(value.to_s) }.join("\t")}\n"
-        flush if @buffer.size >= @batch_size
-      end
-
-      def escape(value) = value.gsub(/[\\\t\n\r]/, "\\" => "\\\\", "\t" => "\\t", "\n" => "\\n", "\r" => "\\r")
   end
 end

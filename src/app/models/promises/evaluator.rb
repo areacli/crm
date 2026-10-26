@@ -1,6 +1,7 @@
 module Promises
-  # Avaliação das promessas depois de pagamentos, estornos e cargas (10, R193, R196, R198, R199): decide em lote, em SQL de conjunto, quais ficam cumpridas,
-  # cumpridas com atraso ou canceladas, e reabre ou quebra a cumprida cujo pagamento foi estornado. A tarefa diária (`Daily`) quebra as vencidas.
+  # Avaliação das promessas depois de pagamentos, estornos e cargas (10, R193, R196, R198, R199): decide em lote quais ficam cumpridas, cumpridas com atraso
+  # ou canceladas, e reabre ou quebra a cumprida cujo pagamento foi estornado. A tarefa diária (`Daily`) quebra as vencidas. As consultas são SQL de conjunto
+  # (só leem); a gravação é Active Record (decisão 0021), com a auditoria única (`Change.record_many!`) e um aviso só ao fim do lote.
   class Evaluator
     Sql = Portfolio::Sql
     SLICE = 2000
@@ -93,20 +94,29 @@ module Promises
       end
 
       def close(ids, state, reason)
-        before = Sql.rows("select id, state from payment_promises where id in (?)", ids).to_h { |row| [ row["id"].to_i, row["state"] ] }
-        Sql.run(<<~SQL, state, reason, ids)
-          update payment_promises set state = ?, reason = ?, closed_at = now(), updated_at = now(), paid_percent = coalesce(round(paid_cents * 100.0 / nullif(total_cents, 0)), 0)
-          where id in (?)
-        SQL
-        Sql.run("update payment_promise_bills set held = false where promise_id in (?) and held", ids)
-        log(before, state, reason)
+        move_to(ids, state, reason: reason)
+        PaymentPromiseBill.where(promise_id: ids, held: true).update_all(held: false)
       end
 
       # Quebrada ou aberta de novo por estorno: o estado volta sem data de encerramento quando reabre.
       def back_to(ids, state)
-        before = Sql.rows("select id, state from payment_promises where id in (?)", ids).to_h { |row| [ row["id"].to_i, row["state"] ] }
-        Sql.run("update payment_promises set state = ?, closed_at = now(), updated_at = now(), paid_percent = coalesce(round(paid_cents * 100.0 / nullif(total_cents, 0)), 0) where id in (?)", state, ids)
-        log(before, state, nil)
+        move_to(ids, state)
+      end
+
+      # Muda o estado das promessas (com a regra do percentual pago) e registra cada mudança no histórico. Uma transação por fatia.
+      def move_to(ids, state, **extra)
+        promises = PaymentPromise.where(id: ids).preload(:customer, :contract, :contact_attempt).to_a
+        entries = []
+        Broadcast.quiet do
+          ApplicationRecord.transaction do
+            promises.each do |promise|
+              before = promise.state
+              promise.update!(state: state, closed_at: Time.current, paid_percent: promise.paid_percent_value, **extra)
+              entries << [ promise, "state_changed", { field: "state", before: before, after: state, note: extra[:reason] } ]
+            end
+            Change.record_many!(entries, tenant_id: @tenant_id, actor: @actor)
+          end
+        end
       end
 
       # R199 e PR-7: reabre prendendo os títulos de novo; se algum já está numa promessa pendente ou aberta, a anterior fica quebrada (nunca duas).
@@ -122,17 +132,21 @@ module Promises
           free = slice - conflicted
           next if free.empty?
 
-          before = Sql.rows("select id, state from payment_promises where id in (?)", free).to_h { |row| [ row["id"].to_i, row["state"] ] }
-          Sql.run("update payment_promises set state = 'open', closed_at = null, paid_percent = null, reason = null, updated_at = now() where id in (?)", free)
-          Sql.run("update payment_promise_bills set held = true where promise_id in (?) and removed_at is null", free)
-          log(before, "open", nil)
+          promises = PaymentPromise.where(id: free).preload(:customer, :contract, :contact_attempt).to_a
+          entries = []
+          Broadcast.quiet do
+            ApplicationRecord.transaction do
+              promises.each do |promise|
+                before = promise.state
+                promise.update!(state: "open", closed_at: nil, paid_percent: nil, reason: nil)
+                entries << [ promise, "state_changed", { field: "state", before: before, after: "open" } ]
+              end
+              PaymentPromiseBill.where(promise_id: free, removed_at: nil).update_all(held: true)
+              Change.record_many!(entries, tenant_id: @tenant_id, actor: @actor)
+            end
+          end
         end
         refused
-      end
-
-      def log(before, state, reason)
-        Sql.copy_in("changes", %w[tenant_id user_id subject_type subject_id event field before after note occurred_at],
-                    before.map { |id, old| [ @tenant_id, @actor&.id, "payment_promise", id, "state_changed", "state", old, state, reason, Time.current ] })
       end
 
       def customers_of(ids)

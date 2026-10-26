@@ -1,8 +1,9 @@
 require "test_helper"
+require "active_job/continuation/test_helper"
 
-# Critérios de aceite e regras R1 a R16 da especificação 01: conferência (nada é gravado) e confirmação (grava só o válido, numa transação).
+# Critérios de aceite e regras R1 a R16 da especificação 01: conferência (nada é gravado) e confirmação (grava só o válido, em lotes: decisão 0021).
 class Portfolio::ImportFlowTest < ActiveSupport::TestCase
-  include ActiveJob::TestHelper
+  include ActiveJob::Continuation::TestHelper
   include ActionCable::TestHelper
 
   MARIA = "529.982.247-25".freeze
@@ -21,9 +22,10 @@ class Portfolio::ImportFlowTest < ActiveSupport::TestCase
     import.reload
   end
 
+  # Uma execução do job; a segunda só roda quando a primeira avançou e falhou (a retomada do Continuable) ou foi interrompida.
   def confirm(import)
     @service.confirm(import)
-    perform_enqueued_jobs(only: ConfirmImportJob)
+    2.times { perform_enqueued_jobs(only: ConfirmImportJob) }
     import.reload
   end
 
@@ -58,7 +60,7 @@ class Portfolio::ImportFlowTest < ActiveSupport::TestCase
     assert_equal 1, omission.count
     assert_nil omission.first.code
     assert_equal Customer.find_by!(document: Document.normalize(ANA)), omission.first.customers.first
-    assert_equal 0, Portfolio::Sql.rows("select 1 from import_rows where import_id = #{import.id}").size
+    assert_equal 0, ImportRow.where(import_id: import.id).count
     assert_not File.exist?(import.file_path)
   end
 
@@ -187,16 +189,16 @@ class Portfolio::ImportFlowTest < ActiveSupport::TestCase
     assert_raises(Portfolio::ImportRefused) { @service.discard(import) }
   end
 
-  test "falha na confirmação desfaz tudo e marca a importação como falha" do
+  test "falha no lote desfaz o lote e marca a importação como falha" do
     import = send_file(standard_lines)
-    Portfolio::Sql.connection.execute("alter table bills add constraint teste_falha check (number <> 'NF-5')")
+    ActiveRecord::Base.connection.execute("alter table bills add constraint teste_falha check (number <> 'NF-5')")
     confirm(import)
 
     assert import.failed?
     assert_equal 0, Customer.count
     assert_equal 0, Bill.count
   ensure
-    Portfolio::Sql.connection.execute("alter table bills drop constraint if exists teste_falha")
+    ActiveRecord::Base.connection.execute("alter table bills drop constraint if exists teste_falha")
   end
 
   test "cada mudança de situação vai ao canal do credor, e o andamento só a cada cinco pontos" do
@@ -211,5 +213,95 @@ class Portfolio::ImportFlowTest < ActiveSupport::TestCase
       import.update!(progress_percent: 15)
     end
     assert_broadcasts(stream, 1) { import.update!(status: :checking) }
+  end
+
+  def with_batches(customers: 1, lines: 2)
+    confirmer = Portfolio::ImportConfirmer.customers_per_batch
+    staging = Portfolio::Staging.batch_size
+    Portfolio::ImportConfirmer.customers_per_batch = customers
+    Portfolio::Staging.batch_size = lines
+    yield
+  ensure
+    Portfolio::ImportConfirmer.customers_per_batch = confirmer
+    Portfolio::Staging.batch_size = staging
+  end
+
+  def inserts_into(table, &block)
+    count = 0
+    subscriber = ActiveSupport::Notifications.subscribe("sql.active_record") { |*, payload| count += 1 if payload[:sql].match?(/\AINSERT INTO "#{table}"/) }
+    block.call
+    count
+  ensure
+    ActiveSupport::Notifications.unsubscribe(subscriber)
+  end
+
+  test "a confirmação interrompida no meio retoma do cursor: o lote concluído não é refeito e o resultado é o mesmo (decisão 0021)" do
+    import = send_file(standard_lines)
+    @service.confirm(import)
+
+    with_batches do
+      ana = Document.normalize(ANA)
+      interrupt_job_during_step(ConfirmImportJob, :portfolio, cursor: ana) { perform_enqueued_jobs(only: ConfirmImportJob) }
+      assert import.reload.confirming?
+      assert_equal [ ana ], Customer.where(tenant: @tenant).pluck(:document), "só o primeiro lote foi gravado, com o cliente inteiro"
+      assert_equal 1, Bill.where(tenant: @tenant).count
+
+      assert_equal 2, inserts_into("customers") { perform_enqueued_jobs(only: ConfirmImportJob) }, "a retomada grava só os clientes que faltam"
+    end
+    assert import.reload.confirmed?
+    assert_equal 3, Customer.where(tenant: @tenant).count
+    assert_equal 5, Bill.where(tenant: @tenant).count
+    assert_equal 5, BillValueVersion.where(tenant: @tenant).count
+    assert_equal 150_000, Bill.where(tenant: @tenant).sum(:amount_cents)
+    assert_equal 0, ImportRow.where(import_id: import.id).count
+  end
+
+  test "a conferência interrompida na leitura retoma da última linha gravada, sem duplicar linhas, recusas nem avisos" do
+    lines = standard_lines + [ csv_line("documento" => "111.111.111-11", "titulo" => "NF-9"), csv_line("documento" => ANA, "nome" => "Ana Souza", "titulo" => "NF-6", "valor" => "10,00") ]
+    import = @service.start(tenant: @tenant, user: @user, file: write_csv(lines), mode: :incremental)
+
+    with_batches(lines: 2) do
+      interrupt_job_during_step(CheckImportJob, :read, cursor: 3) { perform_enqueued_jobs(only: CheckImportJob) }
+      assert import.reload.checking?
+      assert_equal 2, ImportRow.where(import_id: import.id).count
+      perform_enqueued_jobs(only: CheckImportJob)
+    end
+    import.reload
+    assert import.checked?
+    assert_equal [ 6, 1 ], [ import.summary_data[:valid], import.summary_data[:rejected] ]
+    assert_equal 6, ImportRow.where(import_id: import.id).accepted.count
+    assert_equal 1, ImportRejection.where(import_id: import.id).count
+  end
+
+  test "a auditoria da carga é a das telas: cada mudança vira um registro com a importação e o usuário que enviou (decisão 0021)" do
+    confirm(send_file([ csv_line("nome" => "Maria da Silva", "titulo" => "NF-1", "valor" => "100,00") ]))
+    import = confirm(send_file([ csv_line("nome" => "Maria da Silva Souza", "titulo" => "NF-1", "valor" => "150,00", "descricao" => "Mensalidade reajustada") ]))
+
+    changes = Change.where(import_id: import.id)
+    assert_equal [ "amount_cents", "description", "name" ], changes.pluck(:field).sort
+    assert_equal [ @user.id ], changes.pluck(:user_id).uniq
+    assert changes.all? { |change| change.tenant_id == @tenant.id }
+    amount = changes.find_by!(field: "amount_cents")
+    assert_equal [ "bill", Bill.find_by!(number: "NF-1").id, "10000", "15000" ], [ amount.subject_type, amount.subject_id, amount.before, amount.after ]
+    assert_equal 2, BillValueVersion.where(bill: Bill.find_by!(number: "NF-1")).count, "o valor novo gera a versão 2 (R88)"
+  end
+
+  test "a falha no meio da carga deixa os clientes dos lotes concluídos inteiros, e enviar o arquivo de novo conclui sem duplicar" do
+    import = send_file(standard_lines)
+    ActiveRecord::Base.connection.execute("alter table bills add constraint teste_falha check (number <> 'NF-3')")
+    with_batches { confirm(import) }
+    ActiveRecord::Base.connection.execute("alter table bills drop constraint teste_falha")
+
+    assert import.failed?
+    assert_equal [ Document.normalize(ANA) ], Customer.where(tenant: @tenant).pluck(:document), "o lote de João falhou inteiro: cliente, contrato e títulos"
+    assert_equal 0, ImportRow.where(import_id: import.id).count
+
+    again = confirm(send_file(standard_lines))
+    assert again.confirmed?
+    assert_equal 3, Customer.where(tenant: @tenant).count
+    assert_equal 5, Bill.where(tenant: @tenant).count
+    assert_equal 5, BillValueVersion.where(tenant: @tenant).count
+  ensure
+    ActiveRecord::Base.connection.execute("alter table bills drop constraint if exists teste_falha")
   end
 end

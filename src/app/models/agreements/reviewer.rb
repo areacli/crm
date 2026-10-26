@@ -14,7 +14,7 @@ module Agreements
         refuse!(:validity_passed) if agreement.expired_on?(today)
         agreement.update!(state: "approved", decided_by: @actor, decided_at: Time.current)
         AgreementEvent.log!(agreement, "approved", user: @actor)
-        Change.create!(tenant_id: agreement.tenant_id, user: @actor, subject_type: "agreement", subject_id: agreement.id, event: "approved", before: "pending", after: "approved")
+        Change.record!(tenant_id: agreement.tenant_id, user: @actor, subject_type: "agreement", subject_id: agreement.id, event: "approved", before: "pending", after: "approved")
       end
       agreement
     end
@@ -29,7 +29,7 @@ module Agreements
         agreement.update!(state: "refused", reason: reason, decided_by: @actor, decided_at: Time.current, closed_at: Time.current)
         agreement.agreement_bills.update_all(held: false)
         AgreementEvent.log!(agreement, "refused", user: @actor, data: { "reason" => reason })
-        Change.create!(tenant_id: agreement.tenant_id, user: @actor, subject_type: "agreement", subject_id: agreement.id, event: "state_changed", field: "state", before: "pending", after: "refused", note: reason)
+        Change.record!(tenant_id: agreement.tenant_id, user: @actor, subject_type: "agreement", subject_id: agreement.id, event: "state_changed", field: "state", before: "pending", after: "refused", note: reason)
       end
       agreement
     end

@@ -60,7 +60,7 @@ module Segments
       def tracked = %w[name position active] + Segment::CRITERIA.map(&:to_s) + Segment::CHARGE_FIELDS.map(&:to_s)
 
       def log(type, id, event, field, before, after, tenant)
-        Change.create!(tenant_id: tenant.id, user: @user, subject_type: type, subject_id: id, event: event, field: field, before: before, after: after, origin: "screen")
+        Change.record!(tenant_id: tenant.id, user: @user, subject_type: type, subject_id: id, event: event, field: field, before: before, after: after, origin: "screen")
       end
   end
 end

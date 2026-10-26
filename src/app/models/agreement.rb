@@ -123,5 +123,5 @@ class Agreement < ApplicationRecord
   after_commit :announce_change, on: %i[create update]
 
   private
-    def announce_change = Agreements::Broadcast.changed(tenant, [ customer_id ])
+    def announce_change = Agreements::Broadcast.quiet? || Agreements::Broadcast.changed(tenant, [ customer_id ])
 end

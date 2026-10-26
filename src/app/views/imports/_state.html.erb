@@ -1,6 +1,6 @@
-<%# Refeito pelo htmx a cada aviso do WebSocket. Locais: import, rejections. %>
+<%# Refeito pelo htmx a cada aviso do WebSocket. `delay:250ms` junta os avisos em rajada (andamento e "conferida" saem com milissegundos de diferença): o htmx descarta o aviso que chega com uma busca em andamento, e sem a espera a tela podia perder o último. Locais: import, rejections. %>
 <% data = import.summary_data %>
-<div id="importacao" hx-get="<%= import_path(import) %>" hx-trigger="cable:import-changed from:body, cable:connected from:body" hx-swap="outerHTML">
+<div id="importacao" hx-get="<%= import_path(import) %>" hx-trigger="cable:import-changed from:body delay:250ms, cable:connected from:body" hx-swap="outerHTML">
   <section class="cartao" aria-labelledby="situacao-da-importacao">
     <header><h2 id="situacao-da-importacao">Situação</h2></header>
     <div>

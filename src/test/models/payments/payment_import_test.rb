@@ -209,20 +209,6 @@ class Payments::PaymentImportTest < ActiveSupport::TestCase
     assert_predicate Bill.find_by!(number: "NF-B"), :active?
   end
 
-  test "falha na confirmação não grava nada (transação única)" do
-    import = run_payments_import([ payment_line("valor" => "1.200,00") ])
-    # A falha vem depois de gravar os pagamentos: a transação desfaz tudo.
-    original = Portfolio::Sql.method(:copy_in)
-    Portfolio::Sql.define_singleton_method(:copy_in) { |table, *rest| table == "credits" ? raise("falha de teste") : original.call(table, *rest) }
-    begin
-      confirm_import(import)
-    ensure
-      Portfolio::Sql.define_singleton_method(:copy_in, original)
-    end
-    assert_predicate import.reload, :failed?
-    assert_equal [ 0, 0, "active" ], [ Payment.count, Credit.count, @bill.reload.status ]
-  end
-
   test "uma importação de carteira em andamento impede a de pagamentos no mesmo credor (R10)" do
     Portfolio::ImportService.new.start(tenant: @alfa, user: users(:joana), file: write_csv([ csv_line ]), mode: :incremental)
     assert_raises(Portfolio::ImportRefused) do

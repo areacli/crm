@@ -38,7 +38,7 @@ module Agreements
           after = Policies.valid?(Policies.entry(key), stored[key]) ? stored[key] : Policies.entry(key).default
           next if before == after
 
-          Change.create!(tenant: tenant, user: @actor, subject_type: SUBJECT, subject_id: tenant.id, event: "#{key}_changed", field: key, before: describe(before), after: describe(after))
+          Change.record!(tenant: tenant, user: @actor, subject_type: SUBJECT, subject_id: tenant.id, event: "#{key}_changed", field: key, before: describe(before), after: describe(after))
         end
         setting.update!(agreement_policies: stored.slice(*Policies.keys))
       end
@@ -80,7 +80,7 @@ module Agreements
             check_within_segment!(limit, segment, profile)
             next if describe_limit(limit) == before && limit.persisted?
 
-            Change.create!(tenant: tenant, user: @actor, subject_type: "agreement_limit", subject_id: segment.id, event: "limit_changed", field: "profile:#{profile.id}", before: before, after: describe_limit(limit))
+            Change.record!(tenant: tenant, user: @actor, subject_type: "agreement_limit", subject_id: segment.id, event: "limit_changed", field: "profile:#{profile.id}", before: before, after: describe_limit(limit))
             limit.save!
           end
         end
@@ -117,10 +117,10 @@ module Agreements
 
       def log_changes(tenant, record, subject_type, subject_id, extra: {})
         record.changes.slice(*PARAM_FIELDS, *Segment::AGREEMENT_VARIABLE_FIELDS.map(&:to_s)).each do |field, (before, after)|
-          Change.create!(tenant: tenant, user: @actor, subject_type: subject_type, subject_id: subject_id, event: "#{field}_changed", field: field, before: before.to_s, after: after.to_s)
+          Change.record!(tenant: tenant, user: @actor, subject_type: subject_type, subject_id: subject_id, event: "#{field}_changed", field: field, before: before.to_s, after: after.to_s)
         end
         if extra.key?(:agreement_caps) && Caps.normalize(record.agreement_caps) != extra[:agreement_caps]
-          Change.create!(tenant: tenant, user: @actor, subject_type: subject_type, subject_id: subject_id, event: "agreement_caps_changed", field: "agreement_caps",
+          Change.record!(tenant: tenant, user: @actor, subject_type: subject_type, subject_id: subject_id, event: "agreement_caps_changed", field: "agreement_caps",
                          before: describe_caps(extra[:agreement_caps]), after: describe_caps(Caps.normalize(record.agreement_caps)))
         end
       end
@@ -140,7 +140,7 @@ module Agreements
 
           before = describe_limit(limit)
           limit.assign_attributes(caps: new_caps, max_installments: installments, min_down_payment_pct: down)
-          Change.create!(tenant_id: segment.tenant_id, user: @actor, subject_type: "agreement_limit", subject_id: segment.id, event: "limit_followed", field: "profile:#{limit.profile_id}", before: before, after: describe_limit(limit))
+          Change.record!(tenant_id: segment.tenant_id, user: @actor, subject_type: "agreement_limit", subject_id: segment.id, event: "limit_followed", field: "profile:#{limit.profile_id}", before: before, after: describe_limit(limit))
           limit.save!
         end
       end

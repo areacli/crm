@@ -38,7 +38,7 @@ module Titular
       end
 
       def log(customer, event, reason)
-        Change.create!(tenant_id: customer.tenant_id, user: @actor, subject_type: "customer", subject_id: customer.id, event: event, note: reason, origin: "screen")
+        Change.record!(tenant_id: customer.tenant_id, user: @actor, subject_type: "customer", subject_id: customer.id, event: event, note: reason, origin: "screen")
       end
   end
 end

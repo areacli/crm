@@ -47,3 +47,10 @@ payment_reconciliation:
   queue: default
   active_job: true
   description: "Pagamentos (12): reprocessa os avisos que falharam e confere no fornecedor os instrumentos ativos sem conferência há alguns dias"
+
+stale_imports:
+  cron: "*/5 * * * *"
+  class: "StaleImportsJob"
+  queue: default
+  active_job: true
+  description: "Importações (01): marca como falhou a importação sem avanço de progresso há mais de 30 minutos e avisa no sino"

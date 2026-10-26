@@ -50,12 +50,19 @@ module Agreements
         ids = group.map { |agreement, _| agreement.id }
         reason = I18n.t("agreements.break_reasons.#{cause}")
         now = Time.current
-        Portfolio::Sql.run("update agreements set state = 'broken', broken_at = ?, break_kind = 'after_effectuation', break_form = 'installments_follow', broken_after_effectuation = true, " \
-                           "reason = ?, updated_at = now() where id in (?)", now, reason, ids)
-        Portfolio::Sql.copy_in("agreement_events", %w[tenant_id agreement_id kind data occurred_at], group.map { |agreement, _| [ agreement.tenant_id, agreement.id, "broken", { form: "installments_follow", reason: reason }.to_json, now ] })
-        Portfolio::Sql.copy_in("changes", %w[tenant_id subject_type subject_id event field before after note occurred_at],
-                               group.map { |agreement, _| [ agreement.tenant_id, "agreement", agreement.id, "state_changed", "state", agreement.state, "broken", reason, now ] })
-        Portfolio::Sql.run("update contracts set broke_agreement = true where broke_agreement = false and id in (select contract_id from agreement_bills where agreement_id in (?))", ids)
+        # Active Record (decisão 0021): a mudança, o evento e o registro de cada acordo numa transação por grupo, com o aviso das telas só ao fim.
+        Broadcast.quiet do
+          ApplicationRecord.transaction do
+            changes = group.map do |agreement, _|
+              before = agreement.state
+              agreement.update!(state: "broken", broken_at: now, break_kind: "after_effectuation", break_form: "installments_follow", broken_after_effectuation: true, reason: reason)
+              AgreementEvent.log!(agreement, "broken", data: { form: "installments_follow", reason: reason })
+              [ agreement, "state_changed", { field: "state", before: before, after: "broken", note: reason } ]
+            end
+            Change.record_many!(changes, tenant_id: group.first.first.tenant_id)
+            Contract.where(broke_agreement: false, id: AgreementBill.where(agreement_id: ids).select(:contract_id)).find_each { |contract| contract.update!(broke_agreement: true) }
+          end
+        end
         # P1: só há acordo novo a cancelar se o credor tem algum aguardando efetivação (consulta pelo índice de estado); o caso comum não paga nada.
         group.each { |agreement, _| Renegotiation.cancel_successors(agreement.reload, on: today) } if Agreement.where(tenant_id: group.first.first.tenant_id, state: "awaiting_effectuation").exists?
         Broadcast.changed(group.first.first.tenant, group.first(200).map { |agreement, _| agreement.customer_id })
@@ -131,7 +138,7 @@ module Agreements
         agreement.update!(state: "broken", broken_at: Time.current, break_kind: manual ? "manual" : "after_effectuation", break_form: form, broken_after_effectuation: true,
                           reason: reason.presence || I18n.t("agreements.break_reasons.#{cause}"))
         AgreementEvent.log!(agreement, "broken", user: actor, data: { "form" => form, "reason" => agreement.reason })
-        Change.create!(tenant_id: agreement.tenant_id, user: actor, subject_type: "agreement", subject_id: agreement.id, event: "state_changed", field: "state", before: "active", after: "broken", note: agreement.reason)
+        Change.record!(tenant_id: agreement.tenant_id, user: actor, subject_type: "agreement", subject_id: agreement.id, event: "state_changed", field: "state", before: "active", after: "broken", note: agreement.reason)
       end
     end
 
