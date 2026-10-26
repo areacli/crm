@@ -25,15 +25,18 @@ module Agreements
     # Devolve quantas propostas mudaram de estado.
     def apply(today: Date.current)
       changed = []
-      ApplicationRecord.transaction do
-        changed += expire("approved", "expired", "expired", today)
-        changed += expire("pending", "not_approved", "not_approved", today)
-        # R232b, DA23, U2, N17: o crédito do contrato é usado ou suspende a quebra antes de avaliá-la.
-        cover = CreditCover.new(@tenant)
-        changed += cover.before_review(today)
-        # R234: a quebra (entrada, parcelas) e, nos que seguem ativos, a situação em dia ou em atraso (R229).
-        changed += review(today)
-        changed += cover.after_break(today)
+      # O aviso das telas sai uma vez, no fim: o `after_commit` de cada acordo só dispara depois do commit, então o modo silencioso envolve a transação.
+      Broadcast.quiet do
+        ApplicationRecord.transaction do
+          changed += expire("approved", "expired", "expired", today)
+          changed += expire("pending", "not_approved", "not_approved", today)
+          # R232b, DA23, U2, N17: o crédito do contrato é usado ou suspende a quebra antes de avaliá-la.
+          cover = CreditCover.new(@tenant)
+          changed += cover.before_review(today)
+          # R234: a quebra (entrada, parcelas) e, nos que seguem ativos, a situação em dia ou em atraso (R229).
+          changed += review(today)
+          changed += cover.after_break(today)
+        end
       end
       Broadcast.changed(@tenant, changed.map(&:customer_id).uniq.first(200)) if changed.any?
       changed.size
@@ -72,7 +75,7 @@ module Agreements
           agreement.update!(state: to, closed_at: Time.current)
           agreement.agreement_bills.update_all(held: false)
           AgreementEvent.log!(agreement, event)
-          Change.create!(tenant_id: @tenant.id, subject_type: "agreement", subject_id: agreement.id, event: "state_changed", field: "state", before: from, after: to)
+          Change.record!(tenant_id: @tenant.id, subject_type: "agreement", subject_id: agreement.id, event: "state_changed", field: "state", before: from, after: to)
         end
         agreements
       end

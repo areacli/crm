@@ -12,7 +12,7 @@ module Settings
       before = setting.retention_years
       setting.update!(retention_years: years.to_i)
       unless before == setting.retention_years
-        Change.create!(tenant: tenant, user: Current.user, subject_type: "settings", subject_id: tenant.id, event: "retention_years_changed", field: "retention_years",
+        Change.record!(tenant: tenant, user: Current.user, subject_type: "settings", subject_id: tenant.id, event: "retention_years_changed", field: "retention_years",
                        before: before.to_s, after: years, origin: "screen")
         Titular::Broadcast.changed(tenant)
       end

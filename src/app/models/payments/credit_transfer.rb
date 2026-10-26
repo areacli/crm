@@ -30,7 +30,7 @@ module Payments
         Credit.create!(tenant_id: to.tenant_id, contract: to, user: @actor, kind: :transfer_in, amount_cents: cents, reason: :transfer, note: note,
                        related_contract: from, occurred_at: now)
         [ [ from, -cents ], [ to, cents ] ].each do |contract, amount|
-          Change.create!(tenant_id: contract.tenant_id, user: @actor, subject_type: "contract", subject_id: contract.id, event: "credit_transferred",
+          Change.record!(tenant_id: contract.tenant_id, user: @actor, subject_type: "contract", subject_id: contract.id, event: "credit_transferred",
                          field: "credit", after: amount.to_s)
         end
       end

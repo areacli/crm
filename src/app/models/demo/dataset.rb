@@ -52,7 +52,13 @@ module Demo
     private
       def step(name)
         started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-        result = yield
+        # PERFIL=1 mostra, por passo, onde o tempo vai (amostragem, só para medir a recriação).
+        result = if ENV["PERFIL"]
+          require Rails.root.join("lib/measure_data")
+          MeasureData.profile(name) { yield }
+        else
+          yield
+        end
         log.call(format("%-40s %6.1f s", name, Process.clock_gettime(Process::CLOCK_MONOTONIC) - started))
         result
       end
@@ -175,7 +181,7 @@ module Demo
       def with_import_user(tenant) = tenant.memberships.joins(:profile).order(:id).first.user
 
       # Envia, confere e confirma uma carga como a tela faria (as filas ficam de fora).
-      def run_import(tenant, path, kind: "portfolio", mode: :incremental, name: nil, confirm: true)
+      def run_import(tenant, path, kind: "portfolio", mode: :incremental, name: nil, confirm: true, bulk: false)
         service = Portfolio::ImportService.new
         import = service.start(tenant: tenant, user: with_import_user(tenant), file: path, mode: mode, original_name: name || File.basename(path), kind: kind)
         import.checker.run(import)
@@ -183,7 +189,7 @@ module Demo
         raise "importação #{kind} recusada: #{import.summary.inspect[0, 300]}" if import.rejected? || import.failed?
         return import unless confirm
 
-        import.confirmer.run(import)
+        (bulk ? BulkConfirmer.new : import.confirmer).run(import)
         import.reload
         raise "confirmação #{kind} falhou: #{import.status}" unless import.confirmed?
 
@@ -192,7 +198,8 @@ module Demo
 
       def portfolio(tenant, range, name:)
         path = PortfolioSheet.write(@tmp.join("#{name}-#{tenant.id}").to_s, range, today: today)
-        run_import(tenant, path, name: name)
+        # A carga inicial entra em massa (credor vazio); o fluxo completo da confirmação fica nos cenários, nos pagamentos e na carga que o visitante envia.
+        run_import(tenant, path, name: name, bulk: true)
       end
 
       def recalc(tenant)
@@ -229,9 +236,9 @@ module Demo
         Charges::RuleHistory.record!(tenant, since: Date.new(2020, 1, 1))
       end
 
-      # Recebimentos: pagam cerca de um terço dos títulos vencidos há mais de 15 dias (quitam, pagam metade, pagam a mais, parcial de 30%), com uma
+      # Recebimentos: pagam cerca de um quinto dos títulos vencidos há mais de 15 dias (a baixa por componente passa pelo fluxo completo, e o volume foi reduzido de 38% para 22% na revisão do lote, decisão 0021, sem perder nenhum cenário) (quitam, pagam metade, pagam a mais, parcial de 30%), com uma
       # linha repetida e linhas de título que não existe (ficam pendentes). Depois, estornos de alguns pagamentos aplicados.
-      def payments(tenant, codes: CHANNELS.transform_values(&:first), share: 38)
+      def payments(tenant, codes: CHANNELS.transform_values(&:first), share: 22)
         # O pagamento baixa primeiro os encargos (baixa por componente, 09): quem quita paga o valor atualizado de hoje, que a tabela de valores guarda.
         bills = Bill.where(tenant_id: tenant.id).joins(:customer).joins("left join bill_valuations on bill_valuations.bill_id = bills.id").where("bills.due_date < ?", today - 15).order(:id)
                     .pluck("customers.document", :number, Arel.sql("coalesce(bill_valuations.total_cents, bills.amount_cents)"), :due_date, :id)

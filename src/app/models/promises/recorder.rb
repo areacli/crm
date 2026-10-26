@@ -31,7 +31,7 @@ module Promises
         total_cents: quote.total_cents, decided_at: (Time.current if state == "open"), policies: policies_of(setting, segment, Limits.days_for(@actor, attempt.tenant_id, segment))
       )
       quote.rows.each { |row| promise.promise_bills.create!(row_attributes(row)) }
-      Change.create!(tenant_id: promise.tenant_id, user: @actor, subject_type: "payment_promise", subject_id: promise.id, event: "created", after: state)
+      Change.record!(tenant_id: promise.tenant_id, user: @actor, subject_type: "payment_promise", subject_id: promise.id, event: "created", after: state)
       promise
     rescue ActiveRecord::RecordNotUnique
       # R185 no banco: dois registros ao mesmo tempo sobre o mesmo título; o segundo é recusado.

@@ -12,7 +12,7 @@ module Promises
         # R193: passado o prazo sem aprovação, a promessa termina como não aprovada.
         refuse!(:deadline_passed) if Date.current > promise.deadline
         promise.update!(state: "open", number: Numbering.next_for(promise.tenant_id), decided_by: @actor, decided_at: Time.current)
-        Change.create!(tenant_id: promise.tenant_id, user: @actor, subject_type: "payment_promise", subject_id: promise.id, event: "approved", before: "pending", after: "open")
+        Change.record!(tenant_id: promise.tenant_id, user: @actor, subject_type: "payment_promise", subject_id: promise.id, event: "approved", before: "pending", after: "open")
       end
       promise
     end

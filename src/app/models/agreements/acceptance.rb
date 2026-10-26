@@ -31,7 +31,7 @@ module Agreements
                           accepted_at: accepted_at, proof: input.proof.to_s.strip.presence, accepted_by_customer: customer, accepted_role: role, registered_by: @actor,
                           registered_at: now, term_snapshot: term.merge("accepted_by" => { "name" => customer.name, "role" => role }, "accepted_at" => accepted_at.iso8601, "presented_at" => presented_at.iso8601))
         AgreementEvent.log!(agreement, "accepted", user: @actor, data: { "channel" => input.accepted_channel, "customer_id" => customer.id, "role" => role })
-        Change.create!(tenant_id: agreement.tenant_id, user: @actor, subject_type: "agreement", subject_id: agreement.id, event: "accepted", before: "approved", after: "awaiting_effectuation")
+        Change.record!(tenant_id: agreement.tenant_id, user: @actor, subject_type: "agreement", subject_id: agreement.id, event: "accepted", before: "approved", after: "awaiting_effectuation")
         finish!(agreement, accepted_at)
       end
       agreement

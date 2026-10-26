@@ -1,5 +1,5 @@
 <%# Refeito pelo htmx sempre que o WebSocket avisa que uma importação mudou (cable:import-changed). %>
-<div id="importacoes" hx-get="<%= imports_path(request.query_parameters) %>" hx-trigger="cable:import-changed from:body, cable:connected from:body" hx-swap="outerHTML">
+<div id="importacoes" hx-get="<%= imports_path(request.query_parameters) %>" hx-trigger="cable:import-changed from:body delay:250ms, cable:connected from:body" hx-swap="outerHTML">
   <% if @imports.empty? %>
     <p class="vazio">Nenhuma importação ainda.</p>
   <% else %>

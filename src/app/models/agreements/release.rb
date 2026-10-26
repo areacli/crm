@@ -22,7 +22,7 @@ module Agreements
         attributes.merge!(broken_at: Time.current, break_kind: break_kind || "before_effectuation") if to == "broken"
         agreement.update!(attributes)
         AgreementEvent.log!(agreement, event, user: @actor, data: { "reason" => reason })
-        Change.create!(tenant_id: agreement.tenant_id, user: @actor, subject_type: "agreement", subject_id: agreement.id, event: "state_changed", field: "state", before: "awaiting_effectuation", after: to, note: reason)
+        Change.record!(tenant_id: agreement.tenant_id, user: @actor, subject_type: "agreement", subject_id: agreement.id, event: "state_changed", field: "state", before: "awaiting_effectuation", after: to, note: reason)
       end
       agreement
     end

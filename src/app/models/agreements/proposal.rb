@@ -13,7 +13,7 @@ module Agreements
       ApplicationRecord.transaction do
         tenant = @customer.tenant
         # Trava consultiva por cliente: duas propostas ao mesmo tempo sobre os mesmos títulos não passam as duas (o índice único parcial é a segunda guarda).
-        Portfolio::Sql.run("select pg_advisory_xact_lock(?, ?)", tenant.id, @customer.id)
+        Portfolio::Sql.one("select pg_advisory_xact_lock(?, ?)::text as locked", tenant.id, @customer.id)
         quote = Simulation.new(user: @actor, customer: @customer, input: input, today: today).call
         raise Refused, quote.error if quote.error
 

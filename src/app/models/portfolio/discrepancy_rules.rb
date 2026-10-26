@@ -1,9 +1,30 @@
 module Portfolio
-  # Regras da divergência de valor (05, R93 a R97) escritas como fragmentos de SQL, para a conferência e a confirmação calcularem o mesmo
-  # efeito, em lote, sobre as linhas da carga. Os fragmentos esperam o título como `b` e o valor informado por `reported`. Nada é
+  # Regras da divergência de valor (05, R93 a R97) em duas formas que dão o mesmo resultado (o teste confere): fragmentos de SQL de LEITURA, para a
+  # conferência contar e listar as divergências sobre todas as linhas da carga, e `evaluate`, em Ruby sobre o título, para a confirmação gravar. Os fragmentos esperam o título como `b` e o valor informado por `reported`. Nada é
   # interpolado a partir de entrada do usuário: só nomes de coluna e a política, que vem de um enum.
   module DiscrepancyRules
     module_function
+
+    Outcome = Data.define(:effect, :balance_before_cents, :balance_after_cents, :excess_cents)
+
+    # Título com pagamento aplicado ou pago (R93), em Ruby.
+    def with_allocation?(bill) = bill.paid_cents.positive? || bill.paid?
+
+    # O mesmo cálculo dos fragmentos de SQL abaixo, para um título e o valor informado na carga.
+    def evaluate(bill, reported_cents, policy)
+      keep = policy.to_s == "keep"
+      before = bill.paid? ? 0 : [ bill.amount_cents - bill.paid_cents, 0 ].max
+      effect =
+        if bill.paid? then "record_only"
+        elsif keep then "kept"
+        elsif reported_cents <= bill.paid_cents then (bill.withdrawn? ? "returns_paid" : "becomes_paid")
+        elsif reported_cents > bill.amount_cents then "balance_up"
+        else "balance_down"
+        end
+      after = keep ? before : (bill.paid? ? 0 : [ reported_cents - bill.paid_cents, 0 ].max)
+      excess = keep || bill.paid? ? [ bill.paid_cents - bill.amount_cents, 0 ].max : [ bill.paid_cents - reported_cents, 0 ].max
+      Outcome.new(effect: effect, balance_before_cents: before, balance_after_cents: after, excess_cents: excess)
+    end
 
     # Título com alocação (qualquer pagamento aplicado) ou pago (R93). Título sem alocação segue a R13, sem divergência.
     WITH_ALLOCATION = "(b.paid_cents > 0 or b.status = 'paid')".freeze

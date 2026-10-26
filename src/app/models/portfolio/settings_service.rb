@@ -35,7 +35,7 @@ module Portfolio
 
     private
       def log(tenant, user, event, field, before, after)
-        Change.create!(tenant: tenant, user: user, subject_type: "settings", subject_id: tenant.id, event: event, field: field, before: before, after: after)
+        Change.record!(tenant: tenant, user: user, subject_type: "settings", subject_id: tenant.id, event: event, field: field, before: before, after: after)
       end
   end
 end

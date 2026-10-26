@@ -37,7 +37,7 @@ module Agreements
         wait.update!(state: "decided", decision: decision, decided_by: @actor, decided_at: Time.current, note: note)
         agreement = wait.agreement
         AgreementEvent.log!(agreement, "reversal_decided", user: @actor, data: { "decision" => decision, "amount_cents" => wait.amount_cents, "note" => note }) if agreement
-        Change.create!(tenant_id: wait.tenant_id, user: @actor, subject_type: "payment", subject_id: wait.payment_id, event: "reversal_decided", after: decision, note: note)
+        Change.record!(tenant_id: wait.tenant_id, user: @actor, subject_type: "payment", subject_id: wait.payment_id, event: "reversal_decided", after: decision, note: note)
       end
       Broadcast.changed(wait.tenant, [ wait.agreement&.customer_id ].compact)
       wait

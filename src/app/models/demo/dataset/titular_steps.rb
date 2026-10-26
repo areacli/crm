@@ -20,7 +20,7 @@ module Demo
             next
           end
           exported = customers.find { |customer| customer.id != anonymized&.id }
-          Change.create!(tenant_id: tenant.id, user: @manager, subject_type: "customer", subject_id: exported.id, event: "data_exported", note: "Pedido do titular por e-mail.", origin: "screen") if exported
+          Change.record!(tenant_id: tenant.id, user: @manager, subject_type: "customer", subject_id: exported.id, event: "data_exported", note: "Pedido do titular por e-mail.", origin: "screen") if exported
           retained = customers.reverse.find { |customer| ![ anonymized&.id, exported&.id ].include?(customer.id) && !customer.reload.anonymized? }
           Titular::Retainer.new(@manager).retain(retained, "Em disputa judicial, não anonimizar.") if retained
         end

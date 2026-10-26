@@ -3,6 +3,17 @@ module Agreements
   module Broadcast
     module_function
 
+    # Lote (decisão 0021): dentro do bloco, a gravação de cada registro não avisa sozinha; quem processa o lote avisa uma vez no fim (`changed`).
+    def quiet
+      previous = ActiveSupport::IsolatedExecutionState[:agreements_broadcast_quiet]
+      ActiveSupport::IsolatedExecutionState[:agreements_broadcast_quiet] = true
+      yield
+    ensure
+      ActiveSupport::IsolatedExecutionState[:agreements_broadcast_quiet] = previous
+    end
+
+    def quiet? = ActiveSupport::IsolatedExecutionState[:agreements_broadcast_quiet] == true
+
     def changed(tenant, customer_ids = [])
       message = { event: "agreements-changed" }
       AgreementsChannel.broadcast_to(tenant, message)

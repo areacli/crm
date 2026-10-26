@@ -55,7 +55,7 @@ module Agreements
       before = agreement.state
       agreement.update!(state: to, closed_at: nil)
       AgreementEvent.log!(agreement, before == "renegotiated" ? "renegotiated_reopened" : "reopened", data: { "from" => before })
-      Change.create!(tenant_id: agreement.tenant_id, subject_type: "agreement", subject_id: agreement.id, event: "state_changed", field: "state", before: before, after: to, note: "estorno")
+      Change.record!(tenant_id: agreement.tenant_id, subject_type: "agreement", subject_id: agreement.id, event: "state_changed", field: "state", before: before, after: to, note: "estorno")
       BrokeFlag.sync!(agreement)
       Standing.refresh!(agreement.reload, today: on) if to == "active_on_time"
     end

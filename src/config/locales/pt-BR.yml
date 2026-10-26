@@ -323,6 +323,9 @@ pt-BR:
       linked_to_tenant:
         title: "%{actor_name} ligou você a %{tenant_name}"
         body: "Perfil: %{profile_name}."
+      import_stalled:
+        title: "A importação %{file_name} parou e foi marcada como falhou"
+        body: "Credor %{tenant_name}. Ficou mais de 30 minutos sem avançar. Envie o arquivo de novo: o que já foi gravado não se repete."
   access:
     refused:
       manager_must_remain: "Ao menos um usuário ativo precisa poder gerenciar usuários e perfis."

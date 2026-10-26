@@ -57,7 +57,7 @@ module Contacts
 
     private
       def log(result, event, before, after)
-        Change.create!(tenant_id: result.tenant_id, user: @actor, subject_type: "contact_result", subject_id: result.id, event: event, before: before, after: after)
+        Change.record!(tenant_id: result.tenant_id, user: @actor, subject_type: "contact_result", subject_id: result.id, event: event, before: before, after: after)
       end
   end
 end

@@ -8,7 +8,29 @@ import { createConsumer } from "@rails/actioncable"
 const consumer = createConsumer()
 const assinaturas = new Map()
 
-const avisar = (nome, detalhe = {}) => document.body.dispatchEvent(new CustomEvent(`cable:${nome}`, { detail: detalhe }))
+// O htmx descarta o evento que chega enquanto a busca do mesmo trecho está em andamento. Um aviso assim se perderia (a importação fica "conferida" milissegundos
+// depois do aviso de andamento, e a tela ficava no andamento): guarda-se o instante de cada aviso e, quando a busca de um trecho ao vivo termina, o aviso que chegou
+// durante ela é disparado de novo (uma vez; o reenvio não conta como aviso novo, então não gera laço).
+const instantes = {}
+const buscando = new Map()
+
+const avisar = (nome, detalhe = {}) => {
+  instantes[nome] = performance.now()
+  document.body.dispatchEvent(new CustomEvent(`cable:${nome}`, { detail: detalhe }))
+}
+
+const aoVivo = (elemento) => elemento?.getAttribute?.("hx-trigger")?.includes("cable:")
+
+document.addEventListener("htmx:beforeRequest", (evento) => {
+  if (aoVivo(evento.target) && evento.target.id) buscando.set(evento.target.id, performance.now())
+})
+document.addEventListener("htmx:afterSettle", (evento) => {
+  const inicio = buscando.get(evento.target?.id)
+  if (inicio === undefined) return
+
+  buscando.delete(evento.target.id)
+  Object.keys(instantes).filter((nome) => instantes[nome] > inicio).forEach((nome) => document.body.dispatchEvent(new CustomEvent(`cable:${nome}`)))
+})
 
 const canaisDa = (conteudo) => {
   try { return JSON.parse(conteudo || "[]") } catch { return [] }

@@ -12,7 +12,7 @@ module Customers
       reason = params.expect(export: [ :reason ])[:reason].to_s.strip
       raise Titular::Refused, t(".reason_required") if reason.empty?
 
-      Change.create!(tenant_id: @customer.tenant_id, user: Current.user, subject_type: "customer", subject_id: @customer.id, event: "data_exported", note: reason[0, 300], origin: "screen")
+      Change.record!(tenant_id: @customer.tenant_id, user: Current.user, subject_type: "customer", subject_id: @customer.id, event: "data_exported", note: reason[0, 300], origin: "screen")
       redirect_to customer_data_export_path(@customer, token: verifier.generate([ @customer.id, Current.user.id ], expires_in: TOKEN_LIFETIME, purpose: :data_export)), status: :see_other
     end
 

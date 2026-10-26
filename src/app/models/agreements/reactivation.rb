@@ -28,7 +28,7 @@ module Agreements
         CreditUse.consume!(agreement, actor, Time.current)
         agreement.update!(state: "awaiting_effectuation", broken_at: nil, break_kind: nil, closed_at: nil, reason: nil, reactivated_at: Time.current)
         AgreementEvent.log!(agreement, "reactivated", user: actor, data: { "from" => "before_effectuation" })
-        Change.create!(tenant_id: agreement.tenant_id, user: actor, subject_type: "agreement", subject_id: agreement.id, event: "state_changed", field: "state", before: "broken", after: "awaiting_effectuation", note: "reativado")
+        Change.record!(tenant_id: agreement.tenant_id, user: actor, subject_type: "agreement", subject_id: agreement.id, event: "state_changed", field: "state", before: "broken", after: "awaiting_effectuation", note: "reativado")
       end
     end
 
@@ -68,7 +68,7 @@ module Agreements
     def reopen!(agreement, actor, from)
       agreement.update!(state: "active_on_time", broken_at: nil, break_kind: nil, break_form: nil, broken_after_effectuation: false, reactivated_at: Time.current, reason: nil, closed_at: nil)
       AgreementEvent.log!(agreement, "reactivated", user: actor, data: { "from" => from })
-      Change.create!(tenant_id: agreement.tenant_id, user: actor, subject_type: "agreement", subject_id: agreement.id, event: "state_changed", field: "state", before: "broken", after: "active_on_time", note: "reativado")
+      Change.record!(tenant_id: agreement.tenant_id, user: actor, subject_type: "agreement", subject_id: agreement.id, event: "state_changed", field: "state", before: "broken", after: "active_on_time", note: "reativado")
       BrokeFlag.sync!(agreement)
     end
   end

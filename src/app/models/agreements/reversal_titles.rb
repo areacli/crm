@@ -22,7 +22,7 @@ module Agreements
                           amount_cents: items.sum { |item| item["cents"] }, status: "active", kind: "reversal", origin_agreement_id: agreement.id, product: product || contract.bills.first&.product,
                           description: "Título de estorno do acordo #{agreement.number}", composition: composition)
       AgreementEvent.log!(agreement, "reversal_title", data: { "number" => bill.number, "amount_cents" => bill.amount_cents })
-      Change.create!(tenant_id: agreement.tenant_id, subject_type: "bill", subject_id: bill.id, event: "reversal_title_created", after: bill.amount_cents.to_s)
+      Change.record!(tenant_id: agreement.tenant_id, subject_type: "bill", subject_id: bill.id, event: "reversal_title_created", after: bill.amount_cents.to_s)
       bill
     end
 

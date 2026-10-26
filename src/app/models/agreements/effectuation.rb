@@ -23,7 +23,7 @@ module Agreements
         Bill.where(id: agreement.agreement_bills.select(:bill_id), status: "active").update_all(status: "renegotiated", updated_at: Time.current)
         Bill.where(agreement_id: agreement.id, status: "scheduled").update_all(status: "active", updated_at: Time.current)
         AgreementEvent.log!(agreement, "effectuated", user: actor, data: { "by" => by })
-        Change.create!(tenant_id: agreement.tenant_id, user: actor, subject_type: "agreement", subject_id: agreement.id, event: "state_changed", field: "state",
+        Change.record!(tenant_id: agreement.tenant_id, user: actor, subject_type: "agreement", subject_id: agreement.id, event: "state_changed", field: "state",
                        before: "awaiting_effectuation", after: "active_on_time", note: by)
         # R250: o acordo anterior fica renegociado na efetivação do novo, se não sobra título próprio em aberto.
         previous_ids.each { |id| Renegotiation.after_effectuation(Agreement.find(id), agreement) }

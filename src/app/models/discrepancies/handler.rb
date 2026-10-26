@@ -18,7 +18,7 @@ module Discrepancies
 
         apply(discrepancy, bill) if choice.to_s == "apply"
         discrepancy.update!(status: :handled, choice: choice, note: note[0, 500], handled_by: @actor, handled_at: Time.current)
-        Change.create!(tenant_id: discrepancy.tenant_id, user: @actor, subject_type: "bill", subject_id: bill.id, event: "discrepancy_handled", field: "choice",
+        Change.record!(tenant_id: discrepancy.tenant_id, user: @actor, subject_type: "bill", subject_id: bill.id, event: "discrepancy_handled", field: "choice",
                        after: choice.to_s)
       end
       discrepancy
@@ -32,13 +32,13 @@ module Discrepancies
         reported = discrepancy.reported_cents
         before = bill.amount_cents
         bill.amount_cents = reported
-        Change.create!(tenant_id: bill.tenant_id, user: @actor, subject_type: "bill", subject_id: bill.id, event: "updated", field: "amount_cents",
+        Change.record!(tenant_id: bill.tenant_id, user: @actor, subject_type: "bill", subject_id: bill.id, event: "updated", field: "amount_cents",
                        before: before.to_s, after: reported.to_s)
         # Quita só o título em cobrança; o retirado muda de valor e segue retirado.
         if bill.active? && reported <= bill.paid_cents
           bill.status = :paid
           bill.paid_on = bill.payments.applied.maximum(:paid_on) || Date.current
-          Change.create!(tenant_id: bill.tenant_id, user: @actor, subject_type: "bill", subject_id: bill.id, event: "settled_by_value", field: "status",
+          Change.record!(tenant_id: bill.tenant_id, user: @actor, subject_type: "bill", subject_id: bill.id, event: "settled_by_value", field: "status",
                          before: "active", after: "paid")
         end
         bill.save!

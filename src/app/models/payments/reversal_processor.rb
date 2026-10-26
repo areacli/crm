@@ -1,49 +1,39 @@
 module Payments
   # Aplica (ou só simula) os estornos de uma importação (R60 a R63): o valor estornado sai primeiro do crédito que o pagamento gerou e,
   # depois, do título, que volta à cobrança sozinho se estava pago (R62, R62a).
+  #
+  # Processamento em lote (decisão 0021): cada lote de `lot_size` estornos é uma transação travada pelo bloqueio por credor; as linhas são lidas do banco
+  # naquele instante (`PaymentStream`), a gravação é Active Record e a auditoria é a única (`Change.record_many!`); o que depende do lote já gravado
+  # (títulos de estorno, crédito usado, reavaliação das promessas e dos acordos) roda no fim do próprio lote. O cursor e o resumo parcial ficam em
+  # `imports.batch_state`, na mesma transação, e a retomada continua do lote seguinte. Na conferência (`commit: false`) tudo fica na memória até o fim.
   class ReversalProcessor
-    CHUNK = 2000
+    # Estornos por lote; atributo de classe para os testes de retomada usarem lotes pequenos.
+    class_attribute :lot_size, instance_writer: false, default: 2000
 
     Sql = Portfolio::Sql
 
+    # O que atravessa as linhas de um lote (na conferência, o arquivo todo; na confirmação, só o lote, porque o banco é a verdade entre os lotes).
+    Memo = Struct.new(:payments, :bills, :parts, :promise_parts, :promise_undo, :touched_bill_ids, :touched_promises, :bill_meta, :effects, :abatements)
+
     # Chaves do resumo: reopened, credit_reduced, pending_reduced, from_bill_cents, from_credit_cents, reversed_cents.
-    def run(import, commit:)
+    def run(import, commit:, step: nil)
       tenant_id = import.tenant_id
       setting = TenantSetting.find_by!(tenant_id: tenant_id)
-      summary = Hash.new(0)
+      state = commit ? (import.reload.batch_state || {}) : {}
+      summary = Hash.new(0).merge((state["effect"] || {}).symbolize_keys)
+      cursor = state["cursor"]
+      done = state.fetch("done", 0)
+      total = PaymentRow.where(import_id: import.id, ok: true).count
+      memo = nil
+      lots = 0
+      progress_at = Time.current
 
-      Sql.connection.execute("drop table if exists reversal_stream")
-      Sql.run(<<~SQL, tenant_id, tenant_id, tenant_id, import.id)
-        create temporary table reversal_stream on commit drop as
-        select row_number() over (order by r.paid_on, r.line) as n, r.line, r.identifier, r.paid_on as reversed_on, r.amount_cents, r.reason,
-               p.id as payment_id, p.channel_id, p.status as payment_status, p.amount_cents as payment_amount, p.applied_cents, p.credit_cents + p.moved_to_credit_cents as credit_cents,
-               p.reversed_cents, p.credit_reversed_cents, p.bill_id, p.promise_id, p.agreement_id, b.kind as bill_kind, b.agreement_id as bill_agreement_id,
-               (a.reversing_since is not null and a.reverted_at is null) as ag_reversing, a.state as ag_state, hold.agreement_id as held_agreement_id, hold.state as held_state, p.promise_counted, coalesce(b.contract_id, pr.contract_id, (select min(contract_id) from agreement_bills where agreement_id = p.agreement_id)) as contract_id, b.amount_cents as bill_amount, b.paid_cents, b.paid_on as bill_paid_on, b.status as bill_status, b.withdrawn_at
-        from payment_rows r
-        join payment_channels ch on ch.tenant_id = ? and ch.code = r.channel_code
-        join payments p on p.tenant_id = ? and p.channel_id = ch.id and p.identifier = r.payment_identifier
-        left join bills b on b.id = p.bill_id
-        left join payment_promises pr on pr.id = p.promise_id
-        left join agreements a on a.id = coalesce(b.agreement_id, p.agreement_id)
-        left join (select ab.bill_id, ab.agreement_id, ha.state from agreement_bills ab join agreements ha on ha.id = ab.agreement_id where ab.held and ha.tenant_id = ?) hold on hold.bill_id = b.id
-        where r.import_id = ? and r.ok
-      SQL
-      Sql.connection.execute("create unique index on reversal_stream (n)")
-      Sql.connection.execute("analyze reversal_stream")
-      total = Sql.one("select count(*) as n from reversal_stream")["n"].to_i
+      lot = lambda do
+        rows = PaymentStream.reversals_lot(import, cursor, self.class.lot_size)
+        next false if rows.empty?
 
-      payments = {}
-      bills = {}
-      parts = {} # por pagamento: o que ele ainda tem alocado em cada componente (09, R226); sem alocação, tudo é principal
-      promise_parts = {} # por pagamento de promessa: o que ainda tem alocado em cada título e componente, na ordem da alocação (10, R199)
-      promise_undo = {} # por promessa: o que o estorno tirou do que contava para ela, por título e componente
-      touched_bill_ids = Set.new
-      touched_promises = Set.new
-      bill_meta = {}
-      effects = Agreements::ReversalEffects.new(import, setting, summary) # 11, R233: espera do gestor, título de estorno, crédito usado ou transferido
-      abatements = {} # por pagamento: os abatimentos que ainda valem, por título, tipo e componente (R226: o estorno os desfaz)
-      (1..total).step(CHUNK) do |from|
-        rows = Sql.rows("select * from reversal_stream where n between ? and ? order by n", from, from + CHUNK - 1)
+        memo = new_memo(import, setting, summary) if commit || memo.nil?
+        payments, bills, parts, promise_parts, promise_undo, touched_bill_ids, touched_promises, bill_meta, effects, abatements = memo.to_a
         reversals = []
         credits = []
         changes = []
@@ -178,15 +168,39 @@ module Payments
                          reversed_on: row["reversed_on"], amount_cents: amount, from_credit_cents: from_credit, from_bill_cents: from_bill, reason: row["reason"] }
         end
 
-        write(import, reversals, credits, changes, payments.slice(*touched_payments.keys), bills.slice(*touched_bills.keys), allocations, abatement_rows) if commit
+        cursor = [ rows.last["reversed_on"].to_s, rows.last["rank"].to_i, rows.last["line"].to_i ]
+        done += rows.size
+        unless commit
+          # Só a cada 20 s (ver `Payments::Processor#show_progress`).
+          if Time.current - progress_at >= 20
+            progress_at = Time.current
+            import.update!(progress_percent: [ 75 + (20 * done / [ total, 1 ].max), 95 ].min, progress_label: "Simulando o efeito na carteira: #{done} de #{total} linhas")
+          end
+          next true
+        end
+
+        write(import, reversals, credits, changes, payments.slice(*touched_payments.keys), bills.slice(*touched_bills.keys), allocations, abatement_rows)
+        # 11, R233: o que depende do lote já gravado (títulos de estorno, crédito usado, reavaliação dos acordos tocados).
+        effects.finish!
+        if touched_promises.any? || touched_bill_ids.any?
+          undo_promise_counts(promise_undo)
+          # R199: a promessa cumprida cujo pagamento foi estornado reabre no prazo, ou quebra.
+          Promises::Evaluator.new(tenant_id).reassess((touched_promises.to_a + Promises::Evaluator.promises_of_bills(touched_bill_ids.to_a, states: %w[fulfilled fulfilled_late])).uniq)
+        end
+        save_state(import, cursor, done, total, summary)
+        true
       end
-      # 11, R233: o que depende do lote já gravado (títulos de estorno, crédito usado, reavaliação dos acordos tocados).
-      effects.finish! if commit
-      if commit && (touched_promises.any? || touched_bill_ids.any?)
-        undo_promise_counts(promise_undo)
-        # R199: a promessa cumprida cujo pagamento foi estornado reabre no prazo, ou quebra.
-        evaluator = Promises::Evaluator.new(tenant_id)
-        evaluator.reassess((touched_promises.to_a + Promises::Evaluator.promises_of_bills(touched_bill_ids.to_a, states: %w[fulfilled fulfilled_late])).uniq)
+
+      loop do
+        more = if commit
+          Promises::Broadcast.quiet { Agreements::Broadcast.quiet { ApplicationRecord.transaction { TenantLock.acquire(tenant_id) && lot.call } } }
+        else
+          lot.call
+        end
+        break unless more
+
+        lots += 1
+        step&.set!(lots)
       end
       summary.to_h.symbolize_keys
     end
@@ -269,12 +283,13 @@ module Payments
       def undo_promise_counts(undo)
         undo.each do |promise_id, by_bill|
           by_bill.each do |bill_id, components|
-            paid = Sql.one("select id, paid from payment_promise_bills where promise_id = ? and bill_id = ?", promise_id, bill_id) or next
-            current = paid["paid"].is_a?(String) ? JSON.parse(paid["paid"]) : paid["paid"]
+            line = PaymentPromiseBill.find_by(promise_id: promise_id, bill_id: bill_id) or next
+            current = line.paid.is_a?(String) ? JSON.parse(line.paid) : (line.paid || {}).dup
             components.each { |component, cents| current[component] = [ current.fetch(component, 0) - cents, 0 ].max }
-            Sql.run("update payment_promise_bills set paid = ?::jsonb where id = ?", current.to_json, paid["id"].to_i)
+            line.update!(paid: current)
           end
-          Sql.run("update payment_promises set paid_cents = greatest(paid_cents - ?, 0), updated_at = now() where id = ?", by_bill.values.sum { |components| components.values.sum }, promise_id)
+          promise = PaymentPromise.find(promise_id)
+          promise.update!(paid_cents: [ promise.paid_cents - by_bill.values.sum { |components| components.values.sum }, 0 ].max)
         end
       end
 
@@ -296,30 +311,52 @@ module Payments
         taken
       end
 
-      REVERSAL_COLUMNS = %w[tenant_id channel_id payment_id import_id identifier reversed_on amount_cents from_credit_cents from_bill_cents reason created_at updated_at].freeze
-
-      # Grava pelo COPY (ver Payments::Processor#write).
-      def write(import, reversals, credits, changes, payments, bills, allocations, abatement_rows)
-        now = Time.current
-        Sql.copy_in("payment_reversals", REVERSAL_COLUMNS, reversals.map { |row| REVERSAL_COLUMNS.map { |column| row.fetch(column.to_sym) { now } } })
-        Sql.copy_in("credits", %w[tenant_id contract_id payment_id user_id kind amount_cents reason occurred_at],
-                    credits.map { |row| [ row[:tenant_id], row[:contract_id], row[:payment_id], row[:user_id], row[:kind], row[:amount_cents], row[:reason], row[:occurred_at] ] })
-        Sql.copy_in("changes", %w[tenant_id user_id import_id subject_type subject_id event after occurred_at],
-                    changes.map { |row| [ import.tenant_id, import.user_id, import.id, row[:subject_type], row[:subject_id], row[:event], row[:after], now ] })
-
-        Sql.copy_in("payment_allocations", %w[payment_id bill_id component amount_cents created_at], allocations.map { |row| [ row[:payment_id], row[:bill_id], row[:component], row[:cents], now ] })
-        Sql.copy_in("abatements", %w[tenant_id payment_id bill_id kind component amount_cents created_at], abatement_rows.map { |row| [ import.tenant_id, *row, now ] })
-
-        payments.each_slice(CHUNK) do |slice|
-          values = slice.map { |id, p| "(#{id.to_i}::bigint, #{p[:reversed].to_i}::bigint, #{p[:credit_reversed].to_i}::bigint, #{Sql.connection.quote(p[:status])}::varchar)" }.join(",")
-          Sql.run("update payments set reversed_cents = v.reversed, credit_reversed_cents = v.credit_reversed, status = v.status, updated_at = now() " \
-                  "from (values #{values}) as v(id, reversed, credit_reversed, status) where payments.id = v.id")
-        end
-        bills.each_slice(CHUNK) do |slice|
-          values = slice.map { |id, b| "(#{id.to_i}::bigint, #{b[:paid].to_i}::bigint, #{Sql.connection.quote(b[:status])}::varchar, #{Sql.connection.quote(b[:paid_on])}::date)" }.join(",")
-          Sql.run("update bills set paid_cents = v.paid, status = v.status, paid_on = v.paid_on, updated_at = now() " \
-                  "from (values #{values}) as v(id, paid, status, paid_on) where bills.id = v.id")
-        end
+      def new_memo(import, setting, summary)
+        Memo.new({}, {}, {}, {}, {}, Set.new, Set.new, {}, Agreements::ReversalEffects.new(import, setting, summary), {})
       end
+
+      # O cursor e o resumo do que já foi gravado, na transação do lote; o andamento sobe até 95% (o resto é do fim da confirmação).
+      def save_state(import, cursor, done, total, summary)
+        import.update_columns(batch_state: { "cursor" => cursor, "done" => done, "effect" => summary.to_h.stringify_keys })
+        return unless import.confirming?
+
+        percent = total.zero? ? 90 : [ 10 + (85 * done / total), 95 ].min
+        import.update!(progress_percent: percent, progress_label: "Gravando estornos: #{done} de #{total} linhas")
+      end
+
+      # Grava o lote pelos modelos (validações e callbacks), na ordem: estornos, créditos, alocações, abatimentos, histórico (`Change.record_many!`),
+      # pagamentos e títulos.
+      def write(import, reversals, credits, changes, payments, bills, allocations, abatement_rows)
+        tenant = import.tenant
+        payment_ids = reversals.map { |row| row[:payment_id] } + credits.map { |row| row[:payment_id] } + allocations.map { |row| row[:payment_id] } +
+                      abatement_rows.map(&:first) + payments.keys
+        payment_of = known(Payment.where(id: payment_ids.uniq).preload(:channel), tenant)
+        bill_of = known(Bill.where(id: (allocations.map { |row| row[:bill_id] } + abatement_rows.map { |row| row[1] } + bills.keys + changes.map { |row| row[:subject_id] }).uniq).preload(:contract, :customer), tenant)
+        channel_of = PaymentChannel.where(id: reversals.map { |row| row[:channel_id] }.uniq).index_by(&:id)
+        contract_of = Contract.where(id: credits.map { |row| row[:contract_id] }.uniq).index_by(&:id)
+
+        reversals.each do |row|
+          PaymentReversal.create!(tenant: tenant, channel: channel_of.fetch(row[:channel_id]), payment: payment_of.fetch(row[:payment_id]), import: import, identifier: row[:identifier],
+                                  reversed_on: row[:reversed_on], amount_cents: row[:amount_cents], from_credit_cents: row[:from_credit_cents], from_bill_cents: row[:from_bill_cents],
+                                  reason: row[:reason])
+        end
+        credits.each do |row|
+          Credit.create!(tenant: tenant, contract: contract_of.fetch(row[:contract_id]), payment: payment_of.fetch(row[:payment_id]), user_id: row[:user_id], kind: row[:kind],
+                         amount_cents: row[:amount_cents], reason: row[:reason], occurred_at: row[:occurred_at])
+        end
+        DetailLines.insert!(PaymentAllocation, allocations.map do |row|
+          PaymentAllocation.new(payment: payment_of.fetch(row[:payment_id]), bill: bill_of.fetch(row[:bill_id]), component: row[:component], amount_cents: row[:cents])
+        end)
+        DetailLines.insert!(Abatement, abatement_rows.map do |payment_id, bill_id, kind, component, cents|
+          Abatement.new(tenant: tenant, payment: payment_of.fetch(payment_id), bill: bill_of.fetch(bill_id), kind: kind, component: component, amount_cents: cents)
+        end)
+        Change.record_many!(changes.map { |row| [ bill_of.fetch(row[:subject_id]), row[:event], { after: row[:after] } ] }, tenant_id: import.tenant_id, actor: import.user, import: import)
+
+        payments.each { |id, row| payment_of.fetch(id).update!(reversed_cents: row[:reversed], credit_reversed_cents: row[:credit_reversed], status: row[:status]) }
+        bills.each { |id, row| bill_of.fetch(id).update!(paid_cents: row[:paid], status: row[:status], paid_on: row[:paid_on]) }
+      end
+
+      # Registros do lote lidos de uma vez, já com o credor ligado: a validação de cada `update!` não precisa buscar nada.
+      def known(relation, tenant) = relation.each { |record| record.association(:tenant).target = tenant }.index_by(&:id)
   end
 end

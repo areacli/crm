@@ -71,7 +71,7 @@ module Indexes
       end
 
       def log(event, adjustment, before, after, reason)
-        Change.create!(tenant_id: @tenant.id, user: @user, subject_type: "index_adjustment", subject_id: adjustment.id, event: event, field: adjustment.series,
+        Change.record!(tenant_id: @tenant.id, user: @user, subject_type: "index_adjustment", subject_id: adjustment.id, event: event, field: adjustment.series,
                        before: [ adjustment.month.strftime("%m/%Y"), before&.to_s("F") ].compact.join(": "), after: after&.to_s("F"), note: reason.truncate(300), origin: "screen")
       end
   end

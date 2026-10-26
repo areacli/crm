@@ -80,19 +80,24 @@ module Agreements
       before = agreement.state
       agreement.update!(state: state, closed_at: (Time.current if %w[settled renegotiated].include?(state)))
       AgreementEvent.log!(agreement, event, data: { "from" => before })
-      Change.create!(tenant_id: agreement.tenant_id, subject_type: "agreement", subject_id: agreement.id, event: "state_changed", field: "state", before: before, after: state)
+      Change.record!(agreement, "state_changed", field: "state", before: before, after: state)
       agreement
     end
 
-    # Em dia e em atraso em SQL de conjunto: a mudança, o evento e o registro (medido: 50 mil acordos na tarefa diária).
+    # Em dia e em atraso em lote: a mudança, o evento e o registro (decisão 0021: Active Record, uma transação por grupo, a auditoria única e o aviso só ao fim).
     def bulk_move(pairs)
       pairs.group_by { |_, verdict| [ verdict.state, verdict.event ] }.each do |(state, event), group|
-        ids = group.map { |agreement, _| agreement.id }
-        before = group.to_h { |agreement, _| [ agreement.id, agreement.state ] }
-        Portfolio::Sql.run("update agreements set state = ?, closed_at = null, updated_at = now() where id in (?)", state, ids)
-        now = Time.current
-        Portfolio::Sql.copy_in("agreement_events", %w[tenant_id agreement_id kind data occurred_at], group.map { |agreement, _| [ agreement.tenant_id, agreement.id, event, { from: before[agreement.id] }.to_json, now ] })
-        Portfolio::Sql.copy_in("changes", %w[tenant_id subject_type subject_id event field before after occurred_at], group.map { |agreement, _| [ agreement.tenant_id, "agreement", agreement.id, "state_changed", "state", before[agreement.id], state, now ] })
+        Broadcast.quiet do
+          ApplicationRecord.transaction do
+            changes = group.map do |agreement, _|
+              before = agreement.state
+              agreement.update!(state: state, closed_at: nil)
+              AgreementEvent.log!(agreement, event, data: { "from" => before })
+              [ agreement, "state_changed", { field: "state", before: before, after: state } ]
+            end
+            Change.record_many!(changes, tenant_id: group.first.first.tenant_id)
+          end
+        end
       end
     end
   end

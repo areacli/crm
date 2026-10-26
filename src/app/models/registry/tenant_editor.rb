@@ -15,7 +15,7 @@ module Registry
           after = tenant[field]
           next if value.to_s == after.to_s
 
-          Change.create!(tenant_id: tenant.id, user: @actor, subject_type: "tenant", subject_id: tenant.id, event: "registry_changed", field: field.to_s,
+          Change.record!(tenant_id: tenant.id, user: @actor, subject_type: "tenant", subject_id: tenant.id, event: "registry_changed", field: field.to_s,
                          before: value, after: after, origin: "screen")
         end
         { "phone" => tenant.phone_key, "email" => tenant.email_key }.each do |kind, key|
@@ -28,15 +28,17 @@ module Registry
     private
       # R126: contatos de clientes do credor iguais ao contato dele passam a inválidos, com o motivo e o registro no histórico.
       def invalidate_equal_contacts(tenant, kind, key)
-        Portfolio::Sql.run(<<~SQL, @actor.id, tenant.id, kind, key)
-          with changed as (
-            update customer_contacts set status = 'invalid', reason = 'é contato do credor', do_not_disturb_on = null, updated_at = now(), updated_by_id = ?
-            where tenant_id = ? and kind = ? and key = ? and status <> 'invalid'
-            returning id, old.status as before_status
-          )
-          insert into changes (tenant_id, user_id, subject_type, subject_id, event, field, before, after, note, origin, occurred_at)
-          select #{tenant.id.to_i}, #{@actor.id.to_i}, 'customer_contact', id, 'status_changed', 'status', before_status, 'invalid', 'é contato do credor', 'screen', now() from changed
-        SQL
+        contacts = CustomerContact.where(tenant_id: tenant.id, kind: kind, key: key).where.not(status: "invalid").to_a
+        return if contacts.empty?
+
+        ApplicationRecord.transaction do
+          entries = contacts.map do |contact|
+            before = contact.status
+            contact.update!(status: "invalid", reason: "é contato do credor", do_not_disturb_on: nil, updated_by_id: @actor.id)
+            [ contact, "status_changed", { field: "status", before: before, after: "invalid", note: "é contato do credor", origin: "screen" } ]
+          end
+          Change.record_many!(entries, tenant_id: tenant.id, actor: @actor)
+        end
       end
   end
 end

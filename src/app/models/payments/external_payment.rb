@@ -5,8 +5,6 @@ module Payments
   # (ACD-). O resultado fica numa importação já confirmada (origem `label`), que também avisa a tela pelo Action Cable. Idempotente: o pagamento
   # é único por canal e identificador.
   class ExternalPayment
-    Sql = Portfolio::Sql
-
     # `status`: applied, ignored (já registrado) ou rejected. `outcome`: o texto para quem acompanha.
     Result = Data.define(:status, :outcome)
 
@@ -19,7 +17,7 @@ module Payments
 
       result = nil
       ApplicationRecord.transaction do
-        Sql.execute("select pg_advisory_xact_lock(1, ?)", channel.tenant_id)
+        TenantLock.acquire(channel.tenant_id)
         result = if Payment.exists?(tenant_id: channel.tenant_id, channel_id: channel.id, identifier: row.identifier)
           Result.new(:ignored, "pagamento já registrado")
         else
@@ -41,11 +39,11 @@ module Payments
       row = ReversalRowValidator::ParsedRow.new(line: 1, channel_code: channel.code, payment_identifier: payment_identifier, identifier: identifier.to_s.first(200),
                                                 paid_on: reversed_on.to_date, amount_cents: amount_cents, reason: reason.to_s.first(300).presence)
       ApplicationRecord.transaction do
-        Sql.execute("select pg_advisory_xact_lock(1, ?)", channel.tenant_id)
+        TenantLock.acquire(channel.tenant_id)
         import = confirmed_import(channel, :reversals, label)
         stage(import, row)
         effect = ReversalProcessor.new.run(import, commit: true)
-        Sql.run("delete from payment_rows where import_id = ?", import.id)
+        PaymentRow.where(import_id: import.id).delete_all
         import.update!(summary: { lines: 1, valid: 1, rejected: 0, ignored: 0, amount_cents: amount_cents, amount_formatted: Money.format(amount_cents), confirmed_effect: effect })
       end
       ValuesRecalculationJob.enqueue_for(channel.tenant, reason: "estorno")
@@ -66,7 +64,7 @@ module Payments
         import = confirmed_import(channel, :payments, label)
         stage(import, row)
         effect = Processor.new.run(import, commit: true)
-        Sql.run("delete from payment_rows where import_id = ?", import.id)
+        PaymentRow.where(import_id: import.id).delete_all
         import.update!(summary: { lines: 1, valid: 1, rejected: 0, ignored: 0, amount_cents: row.amount_cents, amount_formatted: Money.format(row.amount_cents),
                                   confirmed_effect: effect })
         outcome_of(effect)
@@ -81,6 +79,7 @@ module Payments
         staging = Staging.new(import.id)
         staging.add(row)
         staging.flush
+        PaymentStream.prepare(import)
       end
 
       def outcome_of(effect)

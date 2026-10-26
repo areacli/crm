@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_25_130000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_25_150000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -431,7 +431,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_25_130000) do
     t.string "state", limit: 2
     t.string "zip", limit: 8
     t.boolean "tenant_contact", default: false, null: false
-    t.index ["import_id"], name: "index_import_contacts_on_import_id"
+    t.index ["import_id", "document"], name: "index_import_contacts_on_import_id_and_document"
   end
 
   create_table "import_rejections", force: :cascade do |t|
@@ -489,6 +489,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_25_130000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.bigint "confirmed_by_id"
+    t.jsonb "batch_state"
     t.index ["tenant_id", "status"], name: "index_imports_on_tenant_id_and_status"
     t.index ["tenant_id"], name: "index_imports_one_running_per_tenant", unique: true, where: "((status)::text = ANY ((ARRAY['received'::character varying, 'checking'::character varying, 'checked'::character varying, 'confirming'::character varying])::text[]))"
     t.index ["user_id"], name: "index_imports_on_user_id"
@@ -784,8 +785,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_25_130000) do
     t.boolean "ok", default: true, null: false
     t.boolean "registered", default: false, null: false
     t.string "final_state", limit: 10
+    t.integer "rank", limit: 2, default: 3, null: false
+    t.bigint "pending_payment_id"
     t.index ["import_id", "channel_code", "identifier"], name: "idx_on_import_id_channel_code_identifier_ab3d619076"
-    t.index ["import_id", "ok", "paid_on", "line"], name: "index_payment_rows_on_import_id_and_ok_and_paid_on_and_line"
+    t.index ["import_id", "line"], name: "index_payment_rows_on_import_id_and_line", unique: true
+    t.index ["import_id", "ok", "paid_on", "rank", "line"], name: "index_payment_rows_on_stream_order"
   end
 
   create_table "payments", force: :cascade do |t|

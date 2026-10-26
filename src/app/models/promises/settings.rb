@@ -11,7 +11,7 @@ module Promises
       setting.assign_attributes(values.transform_values { |value| value.is_a?(String) && value.strip.empty? ? nil : value })
       ApplicationRecord.transaction do
         setting.changes.each do |field, (before, after)|
-          Change.create!(tenant: tenant, user: @actor, subject_type: "promise_settings", subject_id: tenant.id, event: "#{field}_changed", field: field, before: before.to_s, after: after.to_s)
+          Change.record!(tenant: tenant, user: @actor, subject_type: "promise_settings", subject_id: tenant.id, event: "#{field}_changed", field: field, before: before.to_s, after: after.to_s)
         end
         setting.save!
       end
@@ -57,11 +57,11 @@ module Promises
       def log_days(segment, before, after)
         return if before == after
 
-        Change.create!(tenant_id: segment.tenant_id, user: @actor, subject_type: "promise_limit", subject_id: segment.id, event: "max_days_changed", field: "max_days", before: before.to_s, after: after.to_s)
+        Change.record!(tenant_id: segment.tenant_id, user: @actor, subject_type: "promise_limit", subject_id: segment.id, event: "max_days_changed", field: "max_days", before: before.to_s, after: after.to_s)
       end
 
       def log_limit(segment, profile_id, before, after, event:)
-        Change.create!(tenant_id: segment.tenant_id, user: @actor, subject_type: "promise_limit", subject_id: segment.id, event: "limit_#{event}", field: "profile:#{profile_id}", before: before.to_s, after: after.to_s)
+        Change.record!(tenant_id: segment.tenant_id, user: @actor, subject_type: "promise_limit", subject_id: segment.id, event: "limit_#{event}", field: "profile:#{profile_id}", before: before.to_s, after: after.to_s)
       end
   end
 end

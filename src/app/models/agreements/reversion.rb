@@ -32,7 +32,7 @@ module Agreements
         reversion = { "liquidations" => liquidations, "opened_on" => today.iso8601 }
         agreement.update!(reversing_since: Time.current, reversal_reason: reason, reversal_by: @actor, reverted_at: nil, terms: agreement.terms.merge("frozen" => spans, "reversion" => reversion))
         AgreementEvent.log!(agreement, "reversion_opened", user: @actor, data: { "reason" => reason, "liquidations" => liquidations.size })
-        Change.create!(tenant_id: agreement.tenant_id, user: @actor, subject_type: "agreement", subject_id: agreement.id, event: "reversion_opened", note: reason)
+        Change.record!(tenant_id: agreement.tenant_id, user: @actor, subject_type: "agreement", subject_id: agreement.id, event: "reversion_opened", note: reason)
       end
       Broadcast.changed(agreement.tenant, [ agreement.customer_id ])
       agreement
@@ -52,7 +52,7 @@ module Agreements
         spans = close_spans(agreement, today)
         agreement.update!(state: "canceled", reverted_at: Time.current, closed_at: Time.current, reason: agreement.reversal_reason, terms: agreement.terms.merge("frozen" => spans))
         AgreementEvent.log!(agreement, "canceled", user: @actor, data: { "reason" => agreement.reversal_reason, "reverted" => true, "credit_restored_cents" => released })
-        Change.create!(tenant_id: agreement.tenant_id, user: @actor, subject_type: "agreement", subject_id: agreement.id, event: "state_changed", field: "state", before: "reversing", after: "canceled", note: agreement.reversal_reason)
+        Change.record!(tenant_id: agreement.tenant_id, user: @actor, subject_type: "agreement", subject_id: agreement.id, event: "state_changed", field: "state", before: "reversing", after: "canceled", note: agreement.reversal_reason)
         BrokeFlag.sync!(agreement)
       end
       Broadcast.changed(agreement.tenant, [ agreement.customer_id ])
@@ -74,7 +74,7 @@ module Agreements
         terms = agreement.terms.merge("frozen" => spans).except("reversion")
         agreement.update!(reversing_since: nil, reversal_reason: nil, reversal_by: nil, terms: terms)
         AgreementEvent.log!(agreement, "reversion_desisted", user: @actor, data: { "policy" => all ? "reapply_all" : "reapply_settlements" })
-        Change.create!(tenant_id: agreement.tenant_id, user: @actor, subject_type: "agreement", subject_id: agreement.id, event: "reversion_desisted", note: all ? "reaplica tudo" : "reaplica as liquidações")
+        Change.record!(tenant_id: agreement.tenant_id, user: @actor, subject_type: "agreement", subject_id: agreement.id, event: "reversion_desisted", note: all ? "reaplica tudo" : "reaplica as liquidações")
       end
       Standing.refresh!(agreement.reload, today: today)
       Broadcast.changed(agreement.tenant, [ agreement.customer_id ])
@@ -105,7 +105,7 @@ module Agreements
 
         payment.update!(applied_cents: outcome.applied, credit_cents: outcome.excess)
         CreditBook.take!(contract.id, outcome.applied, kind: "used", reason: "allocated", bucket: "awaiting", user: @actor, bill_id: bill.id, agreement_id: agreement&.id, note: bill.number)
-        Change.create!(tenant_id: bill.tenant_id, user: @actor, subject_type: "bill", subject_id: bill.id, event: "credit_allocated", after: outcome.applied.to_s)
+        Change.record!(tenant_id: bill.tenant_id, user: @actor, subject_type: "bill", subject_id: bill.id, event: "credit_allocated", after: outcome.applied.to_s)
         Standing.refresh!(bill.agreement, today: today) if bill.agreement&.running? || bill.agreement&.state_settled?
         outcome
       end

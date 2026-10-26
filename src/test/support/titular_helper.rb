@@ -17,8 +17,8 @@ module TitularHelper
     add_contact(customer, "phone", PHONE)
     add_contact(customer, "email", EMAIL)
     attempt = record_attempt(customer, users(:joana), text: "Maria disse que paga dia 10. Telefone da irmã 11 97777-0000.", contact_used: PHONE)
-    Change.create!(tenant: tenant, user: users(:joana), subject_type: "customer", subject_id: customer.id, event: "updated", field: "name", before: "Maria S.", after: name, origin: "screen", note: "pedido da Maria")
-    Change.create!(tenant: tenant, user: users(:joana), subject_type: "bill", subject_id: bill.id, event: "updated", field: "description", before: "Antiga de Maria Souza", after: "Mensalidade de Maria Souza")
+    Change.record!(tenant: tenant, user: users(:joana), subject_type: "customer", subject_id: customer.id, event: "updated", field: "name", before: "Maria S.", after: name, origin: "screen", note: "pedido da Maria")
+    Change.record!(tenant: tenant, user: users(:joana), subject_type: "bill", subject_id: bill.id, event: "updated", field: "description", before: "Antiga de Maria Souza", after: "Mensalidade de Maria Souza")
     customer.define_singleton_method(:bill) { bill }
     customer.define_singleton_method(:payment) { payment }
     customer.define_singleton_method(:attempt) { attempt }
