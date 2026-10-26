@@ -40,7 +40,7 @@ class PortfolioScreensTest < ActionDispatch::IntegrationTest
     entrar(users(:ana))
     get root_path
     assert_select "h2", text: /Escola Alfa|Clínica Beta/, count: 0
-    assert_select "section h2", text: "Carteira", count: 1
+    assert_select "dl.kpis dt", text: /Clientes em cobrança/
     assert_select "h2", text: /Faixas de atraso — /, count: 2 # faixas iguais: duas tabelas, somadas
     tenants(:beta).setting.update!(aging_brackets: [ { from: 1, to: 60 }, { from: 61, to: nil } ])
     get root_path

@@ -5,9 +5,9 @@ module Imports
       import = Import.find(params[:import_id])
       authorize import, :confirm?
       Portfolio::ImportService.new.confirm(import, by: Current.user)
-      redirect_to import, notice: "Confirmação iniciada."
+      panel_finish(import_path(import), notice: "Confirmação iniciada.", atualizar: true)
     rescue Portfolio::ImportRefused => error
-      redirect_to import, alert: "#{error.message.capitalize}."
+      panel_refuse(import_path(import), "#{error.message.capitalize}.")
     end
   end
 end

@@ -1,7 +1,5 @@
 <% content_for :title, "Configuração · Promessas e acordos" %>
-<header class="cabecalho-da-pagina">
-  <div><h1>Promessas e acordos</h1><p>As políticas das promessas de pagamento, o prazo máximo de cada segmento e quanto cada perfil pode dar sozinho; e, nos acordos, as políticas, as variáveis de cada segmento e os limites de cada perfil. Cada credor tem as suas, e a mudança vale só para as promessas e propostas novas.</p></div>
-</header>
+<%= pagina "Promessas e acordos", subtitulo: "Políticas, prazos e alçadas; a mudança vale só para as promessas e propostas novas." %>
 <%= render "settings/abas" %>
 
 <% @tenants.each do |tenant| %>
@@ -9,7 +7,7 @@
   <% segments = @segments.fetch(tenant.id, []) %>
   <% profiles = @profiles.fetch(tenant.id, []) %>
   <section class="cartao" aria-labelledby="politicas-<%= tenant.id %>">
-    <header><div><h2 id="politicas-<%= tenant.id %>">Políticas — <%= tenant.name %></h2><p>Como a promessa é cumprida, quebrada e liberada.</p></div></header>
+    <header><h2 id="politicas-<%= tenant.id %>">Políticas — <%= tenant.name %></h2></header>
     <div>
       <%= form_with url: settings_promise_policy_path, method: :patch, html: { "hx-boost": "false" } do |form| %>
         <%= hidden_field_tag :tenant_id, tenant.id %>
@@ -17,44 +15,41 @@
           <div class="campo">
             <%= label_tag "dias-#{tenant.id}", "Tolerância de dias" %>
             <%= number_field_tag "tenant_setting[promise_tolerance_days]", setting.promise_tolerance_days, id: "dias-#{tenant.id}", min: 0, max: 60, required: true, "aria-describedby": "ajuda-dias-#{tenant.id}" %>
-            <small id="ajuda-dias-<%= tenant.id %>">Depois da data prometida, a promessa espera o arquivo de pagamentos por estes dias antes de quebrar. Só adia a quebra: o pagamento precisa ter data até a data prometida.</small>
+            <small id="ajuda-dias-<%= tenant.id %>">Dias que a promessa espera o arquivo de pagamentos antes de quebrar.</small>
           </div>
           <div class="campo">
-            <%= label_tag "carencia-#{tenant.id}", "Carência depois de quebra, cancelamento, recusa ou não aprovação (dias)" %>
+            <%= label_tag "carencia-#{tenant.id}", "Carência após quebra ou recusa (dias)" %>
             <%= number_field_tag "tenant_setting[promise_grace_days]", setting.promise_grace_days, id: "carencia-#{tenant.id}", min: 0, max: 365, required: true, "aria-describedby": "ajuda-carencia-#{tenant.id}" %>
-            <small id="ajuda-carencia-<%= tenant.id %>">O título só entra numa promessa nova depois deste prazo. Zero é sem carência.</small>
+            <small id="ajuda-carencia-<%= tenant.id %>">Após quebra, cancelamento, recusa ou não aprovação o título só entra em promessa nova depois deste prazo. Zero é sem carência.</small>
           </div>
           <div class="campo">
-            <%= label_tag "minimo-#{tenant.id}", "Pagamento abaixo do valor: cumprida a partir de (%)" %>
+            <%= label_tag "minimo-#{tenant.id}", "Cumprida a partir de (%)" %>
             <%= number_field_tag "tenant_setting[promise_min_paid_pct]", setting.promise_min_paid_pct, id: "minimo-#{tenant.id}", min: 1, max: 99, "aria-describedby": "ajuda-minimo-#{tenant.id}" %>
-            <small id="ajuda-minimo-<%= tenant.id %>">Vazio é sem tolerância: só cumpre com 100%. Com um percentual, a promessa cumpre ao chegar nele e o que faltou continua devido.</small>
+            <small id="ajuda-minimo-<%= tenant.id %>">Pagamento abaixo do valor. Vazio: só cumpre com 100%; o que faltou continua devido.</small>
           </div>
         </div>
-        <fieldset>
-          <legend>Pagamentos que contam</legend>
+        <%= politica("Pagamentos que contam", "pol-1-#{tenant.id}") do %>
           <% TenantSetting::PROMISE_COUNTING.each do |value| %>
             <label><%= radio_button_tag "tenant_setting[promise_counting]", value, setting.promise_counting == value, id: "contam-#{tenant.id}-#{value}" %> <%= t("promises.policies.counting.#{value}") %></label>
           <% end %>
-        </fieldset>
-        <fieldset>
-          <legend>Pagamento no prazo importado depois da quebra</legend>
+        <% end %>
+        <%= politica("Pagamento no prazo importado depois da quebra", "pol-2-#{tenant.id}") do %>
           <% TenantSetting::PROMISE_AFTER_BREAK.each do |value| %>
             <label><%= radio_button_tag "tenant_setting[promise_after_break]", value, setting.promise_after_break == value, id: "quebra-#{tenant.id}-#{value}" %> <%= t("promises.policies.after_break.#{value}") %></label>
           <% end %>
-        </fieldset>
-        <fieldset>
-          <legend>Pagamento parcial nos títulos da promessa</legend>
+        <% end %>
+        <%= politica("Pagamento parcial nos títulos da promessa", "pol-3-#{tenant.id}") do %>
           <% TenantSetting::PROMISE_PARTIAL.each do |value| %>
             <label><%= radio_button_tag "tenant_setting[promise_partial]", value, setting.promise_partial == value, id: "parcial-#{tenant.id}-#{value}" %> <%= t("promises.policies.partial.#{value}") %></label>
           <% end %>
-        </fieldset>
-        <div class="acoes"><button type="submit">Salvar políticas</button></div>
+        <% end %>
+        <div class="acoes" data-rodape><button type="submit">Salvar políticas</button></div>
       <% end %>
     </div>
   </section>
 
   <section class="cartao" aria-labelledby="alcada-<%= tenant.id %>">
-    <header><div><h2 id="alcada-<%= tenant.id %>">Prazo máximo e alçada — <%= tenant.name %></h2><p>Dias entre o contato e a data prometida. O prazo máximo é do segmento e nenhuma promessa passa dele; a alçada é o que cada perfil dá sozinho, e acima dela a promessa espera aprovação. Baixar o prazo do segmento baixa as alçadas que passavam dele.</p></div></header>
+    <header><h2 id="alcada-<%= tenant.id %>">Prazo máximo e alçada — <%= tenant.name %></h2><%= informacao "prazo e alçada", "Dias entre o contato e a data prometida. O prazo máximo é do segmento e nenhuma promessa passa dele; a alçada é o que cada perfil dá sozinho, e acima dela a promessa espera aprovação. Baixar o prazo do segmento baixa as alçadas que passavam dele.", "definicao-alcada-#{tenant.id}" %></header>
     <div>
       <%= form_with url: settings_promise_limits_path, method: :patch, html: { "hx-boost": "false" } do |form| %>
         <%= hidden_field_tag :tenant_id, tenant.id %>
@@ -80,7 +75,7 @@
             </tbody>
           </table>
         </div>
-        <div class="acoes"><button type="submit">Salvar prazos e alçadas</button></div>
+        <div class="acoes" data-rodape><button type="submit">Salvar prazos e alçadas</button></div>
       <% end %>
     </div>
   </section>
@@ -88,7 +83,7 @@
   <%= render "settings/promises/agreements", tenant: tenant, segments: segments, profiles: profiles, limits: @limits %>
 
   <section class="cartao" aria-labelledby="historico-<%= tenant.id %>">
-    <header><div><h2 id="historico-<%= tenant.id %>">Alterações recentes — <%= tenant.name %></h2></div></header>
+    <header><h2 id="historico-<%= tenant.id %>">Alterações recentes — <%= tenant.name %></h2></header>
     <% entries = @history.fetch(tenant.id, []).first(20) %>
     <% if entries.empty? %>
       <p class="vazio">Nenhuma alteração registrada.</p>

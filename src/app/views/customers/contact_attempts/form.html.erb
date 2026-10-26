@@ -1,0 +1,5 @@
+<%# Registrar acionamento no painel lateral (04): a ficha continua visível enquanto se escreve. Sem JavaScript, a mesma rota abre como página inteira. %>
+<%= formulario_de_painel(titulo: "Registrar acionamento", descricao: "Cada tentativa de contato com #{@customer.name}. O registro não é editado nem apagado: se algo saiu errado, registre um acionamento novo com a observação.",
+                         url: customer_contact_attempts_path(@customer), enviar: "Registrar acionamento", escopo: :contact_attempt, erro: @form.error, voltar: customer_path(@customer, aba: "acionamentos")) do |f| %>
+  <%= render "customers/contact_attempts/fields", f: f, form: @form, customer: @customer %>
+<% end %>

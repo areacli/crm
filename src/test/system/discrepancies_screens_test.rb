@@ -19,7 +19,7 @@ class DiscrepanciesScreensSystemTest < ApplicationSystemTestCase
   end
 
   test "lista, detalhe, histórico, ficha, conferência e política passam no axe e não rolam na horizontal" do
-    click_link "Divergências de valor (1)"
+    click_link "Divergências de valor 1"
     assert_selector "h1", text: "Divergências de valor"
     assert_selector "th a", text: "NF-1024/3"
     assert_acessivel
@@ -32,7 +32,7 @@ class DiscrepanciesScreensSystemTest < ApplicationSystemTestCase
     assert_selector "h2", text: "Linha do tempo"
     assert_acessivel
 
-    visit customer_path(@bill.customer)
+    visit customer_path(@bill.customer, aba: "pagamentos")
     assert_selector "h2", text: "Crédito por contrato"
     assert_acessivel
     assert_no_horizontal_scroll
@@ -48,10 +48,11 @@ class DiscrepanciesScreensSystemTest < ApplicationSystemTestCase
 
   test "trata a divergência pela tela, com nota" do
     visit value_discrepancy_path(@discrepancy)
-    click_button "Tratar divergência"
+    click_link "Tratar divergência"
+    assert_selector "dialog#painel[open][data-variant=modal]"
     fill_in "Nota", with: "credor confirmou o desconto"
-    click_button "Tratar divergência"
-    assert_text "Divergência tratada."
+    within("dialog#painel[open]") { click_button "Tratar divergência" }
+    assert_text "Divergência tratada.", wait: 10
     assert_acessivel
     assert_predicate @discrepancy.reload, :handled?
   end

@@ -3,8 +3,7 @@
   <% if @channels.empty? %>
     <p class="vazio">Nenhum canal cadastrado.</p>
   <% else %>
-    <p><small>Mostrando <%= number_br(@pagination.first_item) %> a <%= number_br(@pagination.last_item) %> de <%= number_br(@pagination.total) %> canais.</small></p>
-    <div class="tabela" tabindex="0">
+    <div class="tabela" tabindex="0" data-fixa>
       <table>
         <caption class="apenas-leitor-de-tela">Canais de recebimento</caption>
         <thead>
@@ -15,6 +14,7 @@
             <th scope="col">Tipo</th>
             <th scope="col">Webhook</th>
             <th scope="col">Situação</th>
+            <th scope="col"><span class="apenas-leitor-de-tela">Ações</span></th>
           </tr>
         </thead>
         <tbody>
@@ -26,11 +26,17 @@
               <td><%= t("payments.channels.kinds.#{channel.kind}") %></td>
               <td><%= channel.webhook_enabled? ? "Ativo" : "Sem segredo" %></td>
               <td><%= channel.active? ? situacao("Ativo", tom: :success) : situacao("Desativado", tom: :neutral) %></td>
+              <td data-acoes>
+                <%= menu_de_linha("canal-#{channel.id}", "Ações do canal #{channel.code}") do %>
+                  <%= link_to "Abrir canal", edit_settings_channel_path(channel), class: "botao" %>
+                  <%= confirmar_no_painel "Gerar novo segredo", titulo: "Gerar um novo segredo?", mensagem: "O segredo atual, se houver, deixa de valer na hora: o provedor precisa ser atualizado com o novo.", acao: "Gerar segredo", url: settings_channel_webhook_secret_path(channel), perigoso: false %>
+                <% end %>
+              </td>
             </tr>
           <% end %>
         </tbody>
       </table>
     </div>
-    <%= render "shared/paginacao", pagination: @pagination, path: ->(page) { settings_channels_path(request.query_parameters.merge("page" => page)) } %>
+    <%= render "shared/paginacao", pagination: @pagination, unit: "canais", path: ->(page) { settings_channels_path(request.query_parameters.merge("page" => page)) } %>
   <% end %>
 </div>

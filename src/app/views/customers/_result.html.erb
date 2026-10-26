@@ -11,8 +11,8 @@
   <% if @customers.empty? %>
     <p class="vazio">Nenhum cliente encontrado.</p>
   <% else %>
-    <p><small>Mostrando <%= number_br(@pagination.first_item) %> a <%= number_br(@pagination.last_item) %> de <%= number_br(@pagination.total) %> clientes.</small></p>
-    <div class="tabela" tabindex="0">
+    <% recordable = Current.user.tenant_ids_with("record_contact_attempts") %>
+    <div class="tabela" tabindex="0" data-fixa>
       <table>
         <caption class="apenas-leitor-de-tela">Clientes da carteira</caption>
         <thead>
@@ -26,6 +26,7 @@
             <th scope="col" data-numerico aria-sort="<%= sort_state.call("upcoming_cents") || "none" %>"><%= sort_link.call("upcoming_cents", "A vencer") %></th>
             <th scope="col" aria-sort="<%= sort_state.call("max_days_overdue") || "none" %>"><%= sort_link.call("max_days_overdue", "Faixa (dias)") %></th>
             <th scope="col">Segmento</th>
+            <th scope="col"><span class="apenas-leitor-de-tela">Ações</span></th>
           </tr>
         </thead>
         <tbody>
@@ -40,11 +41,17 @@
               <td data-numerico><%= customer.tenant_id && @settings.fetch(customer.tenant_id).upcoming_display == "detail_only" ? "—" : money(customer.upcoming_cents) %></td>
               <td><%= customer.bills_count.to_i.zero? ? "sem títulos em cobrança" : @query.bracket_label(customer.tenant_id, customer.max_days_overdue) %></td>
               <td><%= @segment_names[customer.id] || t("segments.none") %></td>
+              <td data-acoes>
+                <%= menu_de_linha("cliente-#{customer.id}", "Ações de #{customer.name}") do %>
+                  <%= link_to "Abrir ficha", customer_path(customer), class: "botao" %>
+                  <% if recordable.include?(customer.tenant_id) && !customer.anonymized? %><%= abrir_painel "Registrar acionamento", form_customer_contact_attempts_path(customer) %><% end %>
+                <% end %>
+              </td>
             </tr>
           <% end %>
         </tbody>
       </table>
     </div>
-    <%= render "shared/paginacao", pagination: @pagination, path: ->(page) { customers_path(request.query_parameters.merge("page" => page)) } %>
+    <%= render "shared/paginacao", pagination: @pagination, unit: "clientes", path: ->(page) { customers_path(request.query_parameters.merge("page" => page)) } %>
   <% end %>
 </div>

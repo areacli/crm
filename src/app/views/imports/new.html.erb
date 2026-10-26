@@ -8,42 +8,18 @@
 %>
 <% content_for :title, titles.fetch(@kind) %>
 <% content_for :cable_channels, import_cable_channels %>
-<header class="cabecalho-da-pagina">
-  <div>
-    <h1><%= titles.fetch(@kind) %></h1>
-    <p>Envie a planilha em CSV com ponto e vírgula, no formato abaixo; a planilha modelo<%= ", sem alteração, é aceita na conferência" if @kind == "portfolio" %>. O sistema confere o arquivo e só grava depois da confirmação.</p>
-  </div>
-  <div class="acoes"><%= link_to "Baixar planilha modelo", template_imports_path(kind: @kind), class: "botao", data: { variant: "secondary" }, "hx-boost": "false" %></div>
-</header>
+<%= pagina titles.fetch(@kind), subtitulo: "CSV com ponto e vírgula. O sistema confere o arquivo e só grava depois da confirmação." do %>
+  <%= link_to "Baixar planilha modelo", template_imports_path(kind: @kind), class: "botao", data: { variant: "secondary" }, "hx-boost": "false" %>
+<% end %>
 <% if Demo.enabled? %>
   <%= aviso(tom: :warning) { tag.p "Demonstração: o arquivo que você enviar é descartado sem ser lido e trocado por um arquivo fictício de exemplo." } %>
 <% end %>
 
-<section class="cartao" aria-labelledby="colunas">
-  <header><h2 id="colunas">Colunas da planilha</h2><p>Separador ponto e vírgula, UTF-8 ou Windows-1252. A ordem das colunas é livre; o cabeçalho é obrigatório.</p></header>
-  <div class="tabela" tabindex="0">
-    <table>
-      <caption class="apenas-leitor-de-tela">Colunas da planilha</caption>
-      <thead><tr><th scope="col">Coluna</th><th scope="col">Obrigatória</th><th scope="col">Formato</th><th scope="col">Exemplo</th></tr></thead>
-      <tbody>
-        <% columns.each do |name, required, format_text, example| %>
-          <tr>
-            <th scope="row"><code><%= name %></code></th>
-            <td><%= required ? "Sim" : "Não" %></td>
-            <td><%= format_text %></td>
-            <td><%= example %></td>
-          </tr>
-        <% end %>
-      </tbody>
-    </table>
-  </div>
-</section>
-
-<section class="cartao" aria-labelledby="envio">
-  <header><h2 id="envio">Arquivo</h2></header>
-  <div>
-    <% if @error %><%= aviso(tom: :danger) { tag.p @error } %><% end %>
+<div class="ficha" data-lateral="esquerda">
+  <section class="cartao" aria-labelledby="envio">
+    <header><h2 id="envio">Arquivo</h2></header>
     <%= form_with scope: :import, url: imports_path, multipart: true, html: { "hx-boost": "false" } do |form| %>
+      <% if @error %><%= aviso(tom: :danger) { tag.p @error } %><% end %>
       <%= form.hidden_field :kind, value: @kind %>
       <% if @tenants.size > 1 %>
         <div class="campo">
@@ -57,16 +33,36 @@
       <div class="campo">
         <%= form.label :file, "Arquivo CSV" %>
         <%= form.file_field :file, accept: ".csv,text/csv", required: true %>
-        <small>Até 50 MB e 200 mil linhas. Colunas obrigatórias: <%= columns.select { |_, required, _, _| required }.map(&:first).to_sentence(two_words_connector: " e ", last_word_connector: " e ") %>.</small>
+        <small>Até 50 MB e 200 mil linhas. Obrigatórias: <%= columns.select { |_, required, _, _| required }.map(&:first).to_sentence(two_words_connector: " e ", last_word_connector: " e ") %>.</small>
       </div>
       <% if @kind == "portfolio" %>
-      <fieldset>
-        <legend>Modo</legend>
-        <label><%= form.radio_button :mode, "incremental", checked: true %> Incremental: acrescenta e atualiza; o que não vier no arquivo fica como está</label>
-        <label><%= form.radio_button :mode, "full_sync", checked: false %> Carga completa: o que não vier no arquivo sai da cobrança</label>
-      </fieldset>
+        <fieldset>
+          <legend>Modo</legend>
+          <label><%= form.radio_button :mode, "incremental", checked: true %> Incremental: acrescenta e atualiza; o que não vier fica como está</label>
+          <label><%= form.radio_button :mode, "full_sync", checked: false %> Carga completa: o que não vier sai da cobrança</label>
+        </fieldset>
       <% end %>
-      <div class="acoes"><button type="submit">Enviar e conferir</button></div>
+      <div class="acoes" data-rodape><button type="submit">Enviar e conferir</button></div>
     <% end %>
-  </div>
-</section>
+  </section>
+
+  <section class="cartao" aria-labelledby="colunas">
+    <header><h2 id="colunas">Colunas da planilha</h2><%= informacao "colunas", "Separador ponto e vírgula, UTF-8 ou Windows-1252. A ordem das colunas é livre; o cabeçalho é obrigatório.#{" A planilha modelo, sem alteração, é aceita na conferência." if @kind == "portfolio"}", "definicao-colunas" %></header>
+    <div class="tabela" tabindex="0">
+      <table>
+        <caption class="apenas-leitor-de-tela">Colunas da planilha</caption>
+        <thead><tr><th scope="col">Coluna</th><th scope="col">Obrigatória</th><th scope="col">Formato</th><th scope="col">Exemplo</th></tr></thead>
+        <tbody>
+          <% columns.each do |name, required, format_text, example| %>
+            <tr>
+              <th scope="row"><code><%= name %></code></th>
+              <td><%= required ? "Sim" : "Não" %></td>
+              <td><%= format_text %></td>
+              <td><%= example %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>

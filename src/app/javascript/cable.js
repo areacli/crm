@@ -32,6 +32,26 @@ document.addEventListener("htmx:afterSettle", (evento) => {
   Object.keys(instantes).filter((nome) => instantes[nome] > inicio).forEach((nome) => document.body.dispatchEvent(new CustomEvent(`cable:${nome}`)))
 })
 
+// Um trecho ao vivo não se troca enquanto quem o usa está com um menu ou janela aberto dentro dele (a lista se refaz quando o WebSocket conecta e
+// fechava o menu "⋯" que a pessoa acabara de abrir): a troca é adiada e os avisos são disparados de novo quando o menu fecha.
+let adiado = false
+document.addEventListener("htmx:beforeSwap", (evento) => {
+  const alvo = evento.detail.target
+  if (!aoVivo(evento.detail.elt) || !alvo?.querySelector?.(":popover-open, dialog[open]")) return
+
+  evento.detail.shouldSwap = false
+  if (adiado) return
+
+  adiado = true
+  document.addEventListener("toggle", function aoFechar() {
+    if (alvo.querySelector(":popover-open, dialog[open]")) return
+
+    document.removeEventListener("toggle", aoFechar, true)
+    adiado = false
+    Object.keys(instantes).forEach((nome) => document.body.dispatchEvent(new CustomEvent(`cable:${nome}`)))
+  }, true)
+})
+
 const canaisDa = (conteudo) => {
   try { return JSON.parse(conteudo || "[]") } catch { return [] }
 }

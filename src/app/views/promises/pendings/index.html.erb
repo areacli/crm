@@ -1,11 +1,9 @@
 <% content_for :title, "Promessas pendentes" %>
 <% content_for :cable_channels, @cable %>
-<header class="cabecalho-da-pagina">
-  <div><h1>Promessas pendentes</h1><p>Promessas com prazo acima da alçada de quem as registrou. Você vê as dos credores em que pode aprová-las, com a sua alçada no segmento do contrato; a que você mesmo registrou espera outra pessoa.</p></div>
-</header>
+<%= pagina "Promessas pendentes", subtitulo: "Promessas com prazo acima da alçada de quem as registrou, que você pode aprovar. A que você registrou espera outra pessoa." %>
 
 <% if @several_tenants %>
-  <form class="filtros" role="search" action="<%= pending_promises_path %>" method="get" hx-get="<%= pending_promises_path %>" hx-trigger="change" hx-target="#resultado" hx-push-url="true" hx-swap="outerHTML">
+  <form class="filtros" role="search" action="<%= pending_promises_path %>" method="get" hx-sync="this:replace" hx-get="<%= pending_promises_path %>" hx-trigger="change" hx-target="#resultado" hx-push-url="true" hx-swap="outerHTML">
     <div class="campo">
       <label for="tenant">Credor</label>
       <select id="tenant" name="tenant"><option value="">Todos</option><%= options_for_select(@tenants, params[:tenant]) %></select>

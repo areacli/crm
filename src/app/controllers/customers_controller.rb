@@ -1,5 +1,8 @@
 # Lista de clientes (R21) e ficha (R22). A busca se refaz pelo htmx, sem recarregar a página.
 class CustomersController < ApplicationController
+  # Abas da ficha (modelo Ficha, revisão 4 do design system): cada uma tem endereço próprio (`?aba=`).
+  TABS = %w[titulos acionamentos promessas pagamentos contatos historico].freeze
+
   def index
     authorize Customer
     query = Portfolio::Query.new(Current.user)
@@ -28,6 +31,7 @@ class CustomersController < ApplicationController
     @version_counts = BillValueVersion.where(bill_id: @bills.map(&:id)).group(:bill_id).count
     @open_discrepancies = ValueDiscrepancy.where(bill_id: @bills.map(&:id), status: "open").distinct.pluck(:bill_id)
     @today = Date.current
+    @tab = params[:aba].presence_in(TABS) || "titulos"
     load_payments_and_credits
     load_valuations
     load_segments

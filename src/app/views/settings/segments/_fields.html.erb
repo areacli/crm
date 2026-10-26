@@ -19,6 +19,7 @@
   <fieldset>
     <legend><%= legend %></legend>
     <p><small><%= help %> Vazio aceita qualquer valor.</small></p>
+    <div class="grupo-de-campos">
     <div class="campo">
       <%= form.label :"min_#{name}", "Mínimo", for: "segment_min_#{name}" %>
       <%= form.text_field :"min_#{name}", value: segment_field_value(segment, raw, :"min_#{name}"), inputmode: "decimal", autocomplete: "off", "aria-describedby": ("erro-min_#{name}" if segment.errors[:"min_#{name}"].any?) %>
@@ -28,6 +29,7 @@
       <%= form.label :"max_#{name}", "Máximo", for: "segment_max_#{name}" %>
       <%= form.text_field :"max_#{name}", value: segment_field_value(segment, raw, :"max_#{name}"), inputmode: "decimal", autocomplete: "off", "aria-describedby": ("erro-max_#{name}" if segment.errors[:"max_#{name}"].any?) %>
       <% segment.errors[:"max_#{name}"].each do |message| %><small id="erro-max_<%= name %>" role="alert"><%= message %></small><% end %>
+    </div>
     </div>
   </fieldset>
 <% end %>

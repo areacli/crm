@@ -62,10 +62,11 @@ const navegador = await chromium.launch();
 const contexto = await navegador.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1440, height: 900 }, acceptDownloads: true });
 pagina = await contexto.newPage();
 pagina.setDefaultTimeout(60000);
-// As confirmações são <dialog role=alertdialog>: o botão de abrir está na página; o de confirmar, no rodapé do diálogo aberto.
+// As confirmações abrem no painel compartilhado (<dialog id="painel">): o link de abrir está na página; o botão de confirmar, no rodapé do painel aberto.
 const confirmar = async (abrir, acao) => {
-    await pagina.getByRole('button', { name: abrir, exact: true }).first().click();
-    await pagina.locator('dialog[open] footer').getByRole('button', { name: acao, exact: true }).click();
+    await pagina.getByRole('link', { name: abrir, exact: true }).first().click();
+    await pagina.locator('dialog#painel[open] footer').getByRole('button', { name: acao, exact: true }).click();
+    await pagina.locator('dialog#painel[open]').waitFor({ state: 'detached', timeout: 15000 }).catch(() => {});
 };
 const h1 = (titulo) => pagina.getByRole('heading', { level: 1, name: titulo }).first();
 const abrir = async (rota, titulo) => {
@@ -78,6 +79,7 @@ await passo('a tela de entrada mostra a faixa e os usuários da demonstração',
     await pagina.goto(BASE + '/session/new');
     await pagina.getByText('Demonstração: os dados são fictícios').first().waitFor();
     await pagina.getByText('demonstracao-gestor').first().waitFor();
+    await pagina.locator('.entrada-apresentacao li').first().waitFor();
 });
 
 await passo('entrar com e-mail e senha', async () => {
@@ -137,7 +139,7 @@ async function enviarArquivo(rota, arquivo, esperaDestino = /\/importacoes\/\d+/
     await pagina.setInputFiles('input[type=file]', arquivo);
     await pagina.getByRole('button', { name: 'Enviar e conferir' }).click();
     await pagina.waitForURL(esperaDestino, { timeout: 600000 });
-    await pagina.getByRole('button', { name: 'Confirmar', exact: true }).waitFor({ timeout: 300000 });
+    await pagina.getByRole('link', { name: 'Confirmar', exact: true }).waitFor({ timeout: 300000 });
 }
 
 const quase50 = '/tmp/v5-50mb.csv';
@@ -182,28 +184,36 @@ await passo('acionamento: registrar pela ficha (o texto digitado vira texto fict
     await pagina.locator('tbody tr').first().getByRole('link').first().click();
     await pagina.waitForURL(/\/clientes\/\d+/);
     fichaDoCliente = pagina.url();
+    // O registro abre no painel lateral (decisão 0022); ao concluir, o painel fecha e o histórico da aba Acionamentos mostra o texto fictício.
+    await pagina.getByRole('link', { name: 'Registrar acionamento', exact: true }).click();
+    await pagina.locator('dialog#painel[open] form.painel').waitFor();
     await pagina.locator('#contact_attempt_channel').selectOption({ label: 'Telefone' });
     await pagina.locator('#contact_attempt_result_id').selectOption({ label: 'Não atendeu' });
     await pagina.locator('#contact_attempt_text').fill('Texto real do visitante, que não pode ficar guardado.');
-    await pagina.getByRole('button', { name: 'Registrar acionamento', exact: true }).click();
+    await pagina.locator('dialog#painel').getByRole('button', { name: 'Registrar acionamento', exact: true }).click();
+    await pagina.locator('dialog#painel[open]').waitFor({ state: 'detached' }).catch(() => {});
+    await pagina.goto(fichaDoCliente + '?aba=acionamentos');
     await pagina.getByText('texto descartado na demonstração').first().waitFor();
 });
 
 await passo('cadastro: o contato digitado é trocado por um fictício', async () => {
     await pagina.goto(fichaDoCliente);
-    await pagina.locator('details#criar-contato > summary').click();
-    await pagina.locator('#novo_contact_kind').selectOption('phone');
-    await pagina.locator('#novo_contact_value').fill('(11) 98765-0000');
-    await pagina.getByRole('button', { name: 'Criar contato', exact: true }).click();
+    await pagina.getByRole('button', { name: 'Mais ações do cliente' }).click();
+    await pagina.getByRole('link', { name: 'Criar contato', exact: true }).click();
+    await pagina.locator('dialog#painel[open] form.painel').waitFor();
+    await pagina.locator('#contact_kind').selectOption('phone');
+    await pagina.locator('#contact_value').fill('(11) 98765-0000');
+    await pagina.locator('dialog#painel').getByRole('button', { name: 'Criar contato', exact: true }).click();
     await pagina.waitForLoadState('networkidle');
     if (await pagina.getByText('98765-0000').count()) throw new Error('o contato digitado ficou guardado');
 });
 
 await passo('direitos do titular: exportar os dados de um cliente', async () => {
     await pagina.goto(fichaDoCliente);
-    await pagina.getByRole('button', { name: 'Exportar dados', exact: true }).first().click();
-    await pagina.locator('dialog[open] input[type=text]').fill('Pedido do titular, protocolo 1234');
-    await pagina.locator('dialog[open]').getByRole('button', { name: 'Exportar dados', exact: true }).click();
+    await pagina.getByRole('button', { name: 'Mais ações do cliente' }).click();
+    await pagina.getByRole('link', { name: 'Exportar dados', exact: true }).click();
+    await pagina.locator('dialog#painel[open] input[type=text]').fill('Pedido do titular, protocolo 1234');
+    await pagina.locator('dialog#painel[open]').getByRole('button', { name: 'Exportar dados', exact: true }).click();
     await pagina.waitForURL(/exportacao/);
     await pagina.getByText('motivo descartado').count();
 });
@@ -215,11 +225,13 @@ await passo('promessas: aprovar uma pendente e recusar outra', async () => {
     await aprovar.click();
     await pagina.getByText(/aprovad/i).first().waitFor();
     await abrir('/promessas/pendentes');
-    const recusa = pagina.locator('details', { hasText: 'Recusar promessa' }).first();
-    if ((await recusa.count()) === 0) return 'só uma pendente';
-    await recusa.locator('summary').click();
-    await recusa.locator('input[type=text]').fill('motivo real do visitante');
-    await recusa.getByRole('button', { name: /Recusar promessa/ }).last().click();
+    const menu = pagina.locator('button.menu-de-linha').first();
+    if ((await menu.count()) === 0) return 'só uma pendente';
+    await menu.click();
+    await pagina.getByRole('link', { name: 'Recusar promessa', exact: true }).first().click();
+    const painel = pagina.locator('dialog#painel[open]');
+    await painel.locator('input[type=text]').fill('motivo real do visitante');
+    await painel.getByRole('button', { name: 'Recusar promessa', exact: true }).click();
     await pagina.getByText(/recusad/i).first().waitFor();
 });
 
@@ -240,13 +252,13 @@ await passo('acordos: aprovar uma proposta pendente e abrir o termo de uma aprov
 
 await passo('política de pagamento: mudar e desfazer', async () => {
     await abrir('/configuracao/politicas-de-pagamento', 'Políticas de pagamento');
-    const grupo = pagina.locator('fieldset', { hasText: 'Pagamento menor que o saldo' }).first();
+    const grupo = pagina.locator('.politica', { hasText: 'Pagamento menor que o saldo' }).first();
     const marcado = await grupo.locator('input[type=radio]:checked').getAttribute('value');
     const outro = marcado === 'partial' ? 'credit' : 'partial';
     await grupo.locator(`input[value=${outro}]`).check();
     await pagina.getByRole('button', { name: 'Salvar políticas' }).first().click();
     await pagina.getByText(/salvas|salvos|atualizad/i).first().waitFor();
-    await pagina.locator('fieldset', { hasText: 'Pagamento menor que o saldo' }).first().locator(`input[value=${marcado}]`).check();
+    await pagina.locator('.politica', { hasText: 'Pagamento menor que o saldo' }).first().locator(`input[value=${marcado}]`).check();
     await pagina.getByRole('button', { name: 'Salvar políticas' }).first().click();
     await pagina.getByText(/salvas|salvos|atualizad/i).first().waitFor();
 });

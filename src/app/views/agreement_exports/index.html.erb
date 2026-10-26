@@ -1,11 +1,8 @@
 <% content_for :title, "Arquivo de acordos" %>
 <%# Arquivo de acordos (11, R244): exportar para o credor emitir a entrada e as parcelas, e a lista das exportações. Só os credores em que o usuário administra acordos. %>
-<header class="cabecalho-da-pagina">
-  <div>
-    <h1>Arquivo de acordos</h1>
-    <p>O que o credor precisa para emitir a entrada e as parcelas e parar de cobrar os títulos originais. <%= link_to "Voltar para os acordos", agreements_path %></p>
-  </div>
-</header>
+<%= pagina "Arquivo de acordos", subtitulo: safe_join([ "O que o credor precisa para emitir a entrada e as parcelas. ", link_to("Voltar para os acordos", agreements_path) ]) do %>
+  <%= abrir_painel "Exportar", new_agreement_export_path %>
+<% end %>
 
 <% if @unseen.any? %>
   <%= aviso(tom: :warning) do %>
@@ -14,27 +11,8 @@
   <% end %>
 <% end %>
 
-<section class="cartao" aria-labelledby="exportar">
-  <header><div><h2 id="exportar">Exportar</h2><p>As novidades levam o que aconteceu desde a última exportação manual; o completo leva todos os acordos aceitos. O arquivo do dia é gerado todos os dias e não muda o marco das novidades.</p></div></header>
-  <div>
-    <%= form_with scope: :agreement_export, url: agreement_exports_path, html: { "hx-boost": "false" } do |form| %>
-      <div class="grupo-de-campos">
-        <div class="campo">
-          <%= form.label :tenant_id, "Credor" %>
-          <%= form.select :tenant_id, @tenants.map { |tenant| [ tenant.name, tenant.id ] }, { include_blank: false } %>
-        </div>
-        <div class="campo">
-          <%= form.label :form, "Forma" %>
-          <%= form.select :form, [ [ "Novidades desde a última exportação", "news" ], [ "Completo", "full" ] ], { include_blank: false } %>
-        </div>
-      </div>
-      <div class="acoes"><button type="submit">Exportar</button></div>
-    <% end %>
-  </div>
-</section>
-
 <section class="cartao" aria-labelledby="exportacoes">
-  <header><h2 id="exportacoes">Exportações</h2></header>
+  <header><h2 id="exportacoes">Exportações</h2><%= informacao "arquivo do dia", "O arquivo do dia é gerado todos os dias e não muda o marco das novidades. Os arquivos duram 30 dias.", "definicao-arquivo-do-dia" %></header>
   <% if @exports.empty? %>
     <p class="vazio">Nenhuma exportação ainda.</p>
   <% else %>

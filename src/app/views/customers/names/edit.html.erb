@@ -1,0 +1,4 @@
+<%= formulario_de_painel(titulo: "Corrigir nome", descricao: "O documento não se edita: documento errado é outro cliente.", url: customer_name_path(@customer), metodo: :patch, enviar: "Corrigir nome",
+                         escopo: :customer, erro: @error, voltar: customer_path(@customer)) do |form| %>
+  <div class="campo"><%= form.label :name, "Nome" %><%= form.text_field :name, value: (params.dig(:customer, :name) || @customer.name), required: true, maxlength: 300 %></div>
+<% end %>

@@ -1,0 +1,5 @@
+<%= formulario_de_painel(titulo: "Quebrar o acordo", descricao: "Só para acordo em atraso há mais que a tolerância, ou por fraude. Os efeitos são os da quebra automática.", url: agreement_break_path(@agreement), enviar: "Quebrar o acordo",
+                         perigoso: true, variante: :modal, escopo: :break, erro: @error, voltar: agreement_path(@agreement)) do |form| %>
+  <div class="campo"><%= form.label :reason, "Motivo da quebra" %><%= form.text_field :reason, value: params.dig(:break, :reason), required: true, maxlength: 300 %></div>
+  <div class="campo"><label><%= form.check_box :fraud, checked: params.dig(:break, :fraud) == "1" %> Quebra por fraude</label></div>
+<% end %>

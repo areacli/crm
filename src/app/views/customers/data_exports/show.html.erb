@@ -2,16 +2,12 @@
 <% content_for :title, "Dados do cliente" %>
 <% d = @data %>
 <% yes_no = ->(v) { v ? "Sim" : "Não" } %>
-<header class="cabecalho-da-pagina">
-  <div>
-    <h1>Dados de <%= d[:cliente][:nome] %> mantidos por <%= d[:credor] %>, em <%= date_br(Date.current) %></h1>
-    <p>Tudo o que este credor guarda sobre o cliente. Para imprimir ou salvar em PDF, use a impressão do navegador.</p>
-  </div>
+<%= pagina "Dados de #{d[:cliente][:nome]} mantidos por #{d[:credor]}", subtitulo: "Em #{date_br(Date.current)}. Para imprimir ou salvar em PDF, use a impressão do navegador." do %>
   <div class="acoes nao-imprimir">
     <%= link_to "Baixar em JSON", customer_data_export_path(@customer, format: :json, token: params[:token]), class: "botao", data: { variant: "secondary" } %>
     <%= link_to "Voltar para a ficha", customer_path(@customer), class: "botao", data: { variant: "link" } %>
   </div>
-</header>
+<% end %>
 
 <% if d[:anonimizado] %>
   <%= aviso(tom: :info) { tag.p "Cliente anonimizado em #{date_br(@customer.anonymized_at.to_date)}: só restou o que não identifica a pessoa." } %>

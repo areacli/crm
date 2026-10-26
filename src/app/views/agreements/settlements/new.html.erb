@@ -1,0 +1,4 @@
+<%= formulario_de_painel(titulo: "Calcular quitação", descricao: "Saldo para a data: amortização que falta, juros do parcelamento já corridos e mora. O pagamento com o número #{@agreement.number} até a data quita o acordo.",
+                         url: agreement_settlement_path(@agreement), enviar: "Calcular quitação", variante: :modal, escopo: :settlement, erro: @error, voltar: agreement_path(@agreement)) do |form| %>
+  <div class="campo"><%= form.label :on_date, "Data da quitação" %><%= form.date_field :on_date, required: true, min: Date.current.iso8601, value: params.dig(:settlement, :on_date) || Date.current.iso8601 %></div>
+<% end %>

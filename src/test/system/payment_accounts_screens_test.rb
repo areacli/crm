@@ -47,8 +47,8 @@ class PaymentAccountsScreensSystemTest < ApplicationSystemTestCase
     click_button "Testar conexão"
     assert_text "Conexão com o fornecedor conferida"
     assert_text "Testar conexão"
-    click_button "Gerar o segredo"
-    within("dialog[open]") { click_button "Gerar segredo" }
+    click_link "Gerar o segredo do webhook"
+    within("dialog#painel[open]") { click_button "Gerar segredo" }
     assert_text "Copie o segredo agora"
     assert_acessivel
     assert_selector "section[aria-labelledby=historico] td", text: "Segredo do webhook gerado"

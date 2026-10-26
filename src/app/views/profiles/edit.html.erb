@@ -1,6 +1,1 @@
-<% content_for :title, "Perfil #{@profile.name}" %>
-<header class="cabecalho-da-pagina"><div><h1>Perfil <%= @profile.name_was %></h1><p><%= link_to "Voltar para os perfis", profiles_path %></p></div></header>
-<section class="cartao" aria-labelledby="dados">
-  <header><h2 id="dados">Dados do perfil</h2></header>
-  <div><%= render "profiles/form", profile: @profile, url: profile_path(@profile), method: :patch %></div>
-</section>
+<%= render "profiles/form", profile: @profile, url: profile_path(@profile), method: :patch, titulo: "Perfil #{@profile.name_was}" %>

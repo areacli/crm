@@ -1,0 +1,20 @@
+<%= formulario_de_painel(titulo: "Criar contato", descricao: "Telefone e e-mail usam o campo de valor; para endereço, preencha os campos do endereço.", url: customer_contacts_path(@customer), enviar: "Criar contato",
+                         escopo: :contact, erro: @error, voltar: customer_path(@customer, aba: "contatos")) do |form| %>
+  <div class="campo">
+    <%= form.label :kind, "Tipo" %>
+    <%= form.select :kind, CustomerContact.kinds.keys.map { |kind| [ contact_kind(kind), kind ] }, { selected: params.dig(:contact, :kind) }, required: true %>
+  </div>
+  <div class="campo"><%= form.label :value, "Telefone ou e-mail" %><%= form.text_field :value, value: params.dig(:contact, :value), maxlength: 254, autocomplete: "off" %></div>
+  <fieldset>
+    <legend>Endereço</legend>
+    <div class="grupo-de-campos">
+      <div class="campo"><%= form.label :street, "Logradouro" %><%= form.text_field :street, value: params.dig(:contact, :street), maxlength: 200 %></div>
+      <div class="campo"><%= form.label :number, "Número" %><%= form.text_field :number, value: params.dig(:contact, :number), maxlength: 20 %></div>
+      <div class="campo"><%= form.label :complement, "Complemento" %><%= form.text_field :complement, value: params.dig(:contact, :complement), maxlength: 100 %></div>
+      <div class="campo"><%= form.label :district, "Bairro" %><%= form.text_field :district, value: params.dig(:contact, :district), maxlength: 100 %></div>
+      <div class="campo"><%= form.label :city, "Cidade" %><%= form.text_field :city, value: params.dig(:contact, :city), maxlength: 100 %></div>
+      <div class="campo"><%= form.label :state, "UF" %><%= form.select :state, Registry::Normalizer::UFS, { include_blank: true, selected: params.dig(:contact, :state) } %></div>
+      <div class="campo"><%= form.label :zip, "CEP" %><%= form.text_field :zip, value: params.dig(:contact, :zip), maxlength: 9, inputmode: "numeric" %></div>
+    </div>
+  </fieldset>
+<% end %>

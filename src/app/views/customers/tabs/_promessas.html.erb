@@ -1,0 +1,12 @@
+<%# Aba Promessas e acordos: as promessas abertas e pendentes, as propostas e os acordos em andamento e o histórico dos acordos. %>
+<section class="cartao" aria-labelledby="promessas-titulo">
+  <header><h2 id="promessas-titulo">Promessas</h2></header>
+  <%= render "customers/promises/lines", customer: @customer, promises: @promises %>
+</section>
+<% if @agreements %>
+  <section class="cartao" aria-labelledby="acordos-titulo">
+    <header><h2 id="acordos-titulo">Propostas e acordos em andamento</h2></header>
+    <%= render "customers/agreements/lines", customer: @customer, agreements: @agreements %>
+  </section>
+<% end %>
+<% if @agreement_events&.any? %><%= render "customers/agreements/history", customer: @customer, events: @agreement_events %><% end %>

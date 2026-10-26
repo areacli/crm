@@ -1,0 +1,5 @@
+<%# Corrigir endereço no painel (telefone e e-mail se corrigem na própria linha da tabela). %>
+<%= formulario_de_painel(titulo: "Corrigir contato", descricao: "O contato antigo fica inválido e nasce o novo.", url: customer_contact_path(@customer, @contact), metodo: :patch, enviar: "Corrigir contato",
+                         escopo: :contact, erro: @error, voltar: customer_path(@customer, aba: "contatos")) do |form| %>
+  <%= render "customers/contact_fields", form: form, kind: @contact.kind, contact: @contact %>
+<% end %>

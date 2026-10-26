@@ -21,13 +21,23 @@ class ContactAttemptsScreensSystemTest < ApplicationSystemTestCase
 
   def sem_rolagem_horizontal = assert_not(page.evaluate_script("document.documentElement.scrollWidth > document.documentElement.clientWidth"))
 
-  test "ficha com acionamentos, a lista, o resumo e os resultados passam no axe" do
-    visit customer_path(@maria)
+  def abrir_registro
+    click_link "Registrar acionamento"
+    assert_selector "dialog#painel[open] form.painel"
+  end
+
+  test "ficha com acionamentos, o painel de registro, a lista, o resumo e os resultados passam no axe" do
+    visit customer_path(@maria, aba: "acionamentos")
     assert_selector "h2", text: "Acionamentos"
-    assert_selector "h3", text: "Registrar acionamento"
+    assert_no_selector "form.painel" # nenhum formulário aberto na ficha
     assert_text "Quer parcelar em três vezes."
     assert_acessivel
     sem_rolagem_horizontal
+    abrir_registro
+    assert_acessivel
+    sem_rolagem_horizontal
+    page.send_keys(:escape)
+    assert_no_selector "dialog#painel[open]"
 
     visit contact_attempts_path
     assert_selector "h1", text: "Acionamentos"
@@ -43,32 +53,37 @@ class ContactAttemptsScreensSystemTest < ApplicationSystemTestCase
     assert_selector "h1", text: "Resultados de acionamento"
     assert_acessivel
     click_link "Novo resultado"
-    assert_selector "h1", text: "Novo resultado de acionamento"
+    assert_selector "dialog#painel[open][data-variant=drawer]", text: "Novo resultado de acionamento"
     assert_acessivel
     visit edit_settings_contact_result_path(result_of(@alfa, :voicemail))
+    assert_selector "dialog, h2, [data-painel], main", minimum: 1
     assert_acessivel
   end
 
   test "o campo de retorno aparece conforme o resultado e o registro entra no histórico sem recarregar a página" do
-    visit customer_path(@pedro)
-    select "Telefone", from: "Canal"
-    select "Pediu para retornar depois", from: "Resultado"
-    assert_field "Retorno combinado", type: "datetime-local"
-    assert find_field("Retorno combinado")[:required]
-
-    select "Número ou endereço inexistente", from: "Resultado"
-    assert_no_field "Retorno combinado"
-
-    select "Negociação em andamento", from: "Resultado"
-    assert_field "Retorno combinado (opcional)"
-
-    select "CT-1", from: "Contrato (opcional)"
-    assert_text "O responsável financeiro deste contrato é Maria Souza"
-    fill_in "Texto (opcional)", with: "Pediu o boleto\npor e-mail"
-    fill_in "Contato usado (opcional)", with: "(11) 3333-4444"
+    visit customer_path(@pedro, aba: "acionamentos")
     marcador = page.evaluate_script("window.__sem_recarregar = 1")
-    click_button "Registrar acionamento"
+    abrir_registro
+    within("#painel") do
+      select "Telefone", from: "Canal"
+      select "Pediu para retornar depois", from: "Resultado"
+      assert_field "Retorno combinado", type: "datetime-local"
+      assert find_field("Retorno combinado")[:required]
 
+      select "Número ou endereço inexistente", from: "Resultado"
+      assert_no_field "Retorno combinado"
+
+      select "Negociação em andamento", from: "Resultado"
+      assert_field "Retorno combinado (opcional)"
+
+      select "CT-1", from: "Contrato (opcional)"
+      assert_text "O responsável financeiro deste contrato é Maria Souza"
+      fill_in "Texto (opcional)", with: "Pediu o boleto\npor e-mail"
+      fill_in "Contato usado (opcional)", with: "(11) 3333-4444"
+      click_button "Registrar acionamento"
+    end
+
+    assert_no_selector "dialog#painel[open]"
     assert_text "Acionamento registrado."
     assert_equal 1, page.evaluate_script("window.__sem_recarregar")
     within("#historico-acionamentos") do
@@ -77,29 +92,34 @@ class ContactAttemptsScreensSystemTest < ApplicationSystemTestCase
       assert_text "Contrato CT-1"
       assert_text "Pediu o boleto"
     end
-    assert_equal "", find_field("Texto (opcional)").value
     assert_equal 1, @pedro.contact_attempts.count
     assert marcador
   end
 
   test "resultado que exige retorno sem a data: o navegador pede a data e o servidor também recusa" do
-    visit customer_path(@pedro)
-    select "Telefone", from: "Canal"
-    select "Pediu para retornar depois", from: "Resultado"
-    fill_in "Texto (opcional)", with: "texto que fica"
-    # O atributo `required` barra o envio no navegador; tira-se para provar que o servidor recusa e devolve o formulário preenchido.
-    assert_selector "#contact_attempt_return_at" # o campo chega por htmx depois de escolher o resultado
-    page.execute_script("document.querySelector('#contact_attempt_return_at').required = false")
-    click_button "Registrar acionamento"
+    visit customer_path(@pedro, aba: "acionamentos")
+    abrir_registro
+    within("#painel") do
+      select "Telefone", from: "Canal"
+      select "Pediu para retornar depois", from: "Resultado"
+      fill_in "Texto (opcional)", with: "texto que fica"
+      # O atributo `required` barra o envio no navegador; tira-se para provar que o servidor recusa e devolve o formulário preenchido.
+      assert_selector "#contact_attempt_return_at" # o campo chega por htmx depois de escolher o resultado
+      page.execute_script("document.querySelector('#contact_attempt_return_at').required = false")
+      click_button "Registrar acionamento"
 
-    assert_text "Este resultado exige data de retorno."
-    assert_equal "texto que fica", find_field("Texto (opcional)").value
+      assert_text "Este resultado exige data de retorno."
+      assert_equal "texto que fica", find_field("Texto (opcional)").value
+    end
+    assert_selector "dialog#painel[open]" # o 422 refaz o formulário dentro do painel
     assert_equal 0, @pedro.contact_attempts.count
     assert_acessivel
   end
 
   test "a lista pelo filtro por operador e canal" do
     visit contact_attempts_path
+    # A lista se refaz quando o WebSocket conecta; filtrar antes disso deixava a conexão desfazer o filtro (corrida que a página mais leve passou a expor).
+    assert_selector "html[data-cable='conectado']"
     select "Carlos Lima", from: "Operador"
     assert_selector "#resultado tbody tr", count: 1
     select "Todos", from: "Operador"

@@ -28,7 +28,7 @@ class ProfilesController < ApplicationController
     @profile = manager.create(tenant: tenant, name: attributes[:name], permissions: attributes[:permissions])
 
     if @profile.persisted?
-      redirect_to profiles_path, notice: t(".done", name: @profile.name), status: :see_other
+      panel_finish(profiles_path, notice: t(".done", name: @profile.name), atualizar: true)
     else
       render :new, status: :unprocessable_content
     end
@@ -46,7 +46,7 @@ class ProfilesController < ApplicationController
     manager.update(@profile, name: attributes[:name], permissions: attributes[:permissions])
 
     if @profile.errors.empty?
-      redirect_to profiles_path, notice: t(".done", name: @profile.name), status: :see_other
+      panel_finish(profiles_path, notice: t(".done", name: @profile.name), atualizar: true)
     else
       render :edit, status: :unprocessable_content
     end
@@ -57,9 +57,9 @@ class ProfilesController < ApplicationController
 
   def destroy
     manager.destroy(@profile)
-    redirect_to profiles_path, notice: t(".done", name: @profile.name), status: :see_other
+    panel_finish(profiles_path, notice: t(".done", name: @profile.name), atualizar: true)
   rescue Access::Refused => error
-    redirect_to profiles_path, alert: error.message, status: :see_other
+    panel_refuse(profiles_path, error.message)
   end
 
   private

@@ -1,0 +1,77 @@
+<%# Aba Títulos da ficha: os títulos do cliente e os contratos em que ele figura. Ações por linha no menu ⋯ (usar crédito abre o painel). %>
+<section class="cartao" aria-labelledby="titulos">
+  <header><h2 id="titulos">Títulos</h2></header>
+  <% if @bills.empty? %>
+    <p class="vazio">Este cliente não tem títulos.</p>
+  <% else %>
+    <div class="tabela" tabindex="0">
+      <table>
+        <caption class="apenas-leitor-de-tela">Títulos do cliente</caption>
+        <thead>
+          <tr>
+            <th scope="col">Número</th><th scope="col">Contrato</th><th scope="col">Vencimento</th>
+            <th scope="col" data-numerico>Valor</th><th scope="col" data-numerico>Pago</th><th scope="col" data-numerico>Saldo</th>
+            <th scope="col" data-numerico>Atraso (dias)</th><th scope="col" data-numerico>Atualizado</th><th scope="col">Situação</th><th scope="col"><span class="apenas-leitor-de-tela">Ações</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @bills.each do |bill| %>
+            <% valuation = bill.active? ? @valuations[bill.id] : nil %>
+            <% can_use = @can_use_credit && Agreements::CreditOnBill.usable?(bill) && @credit_totals.fetch(bill.contract_id, 0).positive? %>
+            <tr>
+              <th scope="row">
+                <%= link_to bill.number, bill_path(bill) %>
+                <% if bill.agreement_id %><small><%= bill.kind_break? ? "Título da quebra" : "Título de acordo" %> <%= link_to bill.agreement.number, agreement_path(bill.agreement) %>.</small><% end %>
+                <% if bill.kind_reversal? %><small>Título de estorno do acordo <%= link_to bill.origin_agreement.number, agreement_path(bill.origin_agreement) %>, fora do acordo.</small><% end %>
+                <% if bill.renegotiated? && (renegotiated = @renegotiated_by&.dig(bill.id)) %><small>Renegociado no acordo <%= link_to renegotiated.number, agreement_path(renegotiated) %>.</small><% end %>
+                <% if (held = @held_bills[bill.id]) %><small>Em promessa <%= held.promise.label %>.</small><% end %>
+                <% if (held_agreement = @held_by_agreement&.dig(bill.id)) && !bill.renegotiated? %><small><%= held_agreement.proposal? ? "Em proposta" : "Em acordo" %> <%= link_to held_agreement.number, agreement_path(held_agreement) %>.</small><% end %>
+                <% if @open_discrepancies.include?(bill.id) %><small>Divergência de valor aberta. <%= link_to "Ver histórico", bill_path(bill) %></small>
+                <% elsif @version_counts.fetch(bill.id, 1) > 1 %><small>O valor mudou <%= @version_counts[bill.id] - 1 %> vez(es). <%= link_to "Ver histórico", bill_path(bill) %></small><% end %>
+              </th>
+              <td><%= bill.contract.code.presence || "—" %></td>
+              <td><%= date_br(bill.due_date) %></td>
+              <td data-numerico><%= money(bill.amount_cents) %></td>
+              <td data-numerico><%= money(bill.paid_cents) %></td>
+              <td data-numerico><%= money(bill.balance_cents) %></td>
+              <td data-numerico><%= bill.active? && bill.due_date < @today ? number_br(bill.days_overdue(@today)) : "—" %></td>
+              <td data-numerico><%= valuation ? money(valuation.total_cents) : "—" %></td>
+              <td>
+                <% if bill.withdrawn? %><%= situacao "Retirado", tom: :neutral %>
+                <% elsif bill.renegotiated? %><%= situacao "Renegociado", tom: :neutral %>
+                <% elsif bill.scheduled? %><%= situacao "Aguardando efetivação", tom: :info %>
+                <% elsif bill.canceled? %><%= situacao "Cancelado", tom: :neutral %>
+                <% elsif bill.paid? %><%= situacao "Pago", tom: :success %>
+                <% elsif bill.due_date < @today %><%= situacao "Vencido", tom: :danger %>
+                <% else %><%= situacao "A vencer", tom: :info %><% end %>
+              </td>
+              <td data-acoes>
+                <% if can_use %>
+                  <%= menu_de_linha("titulo-#{bill.id}", "Ações do título #{bill.number}") do %>
+                    <%= abrir_painel "Usar crédito (disponível #{money(@credit_totals[bill.contract_id])})", new_customer_credit_use_path(@customer, bill_id: bill.id) %>
+                  <% end %>
+                <% end %>
+              </td>
+            </tr>
+            <% if valuation && (bill.agreement_id || bill.kind_reversal?) %>
+              <tr><td colspan="10"><small>Saldo devedor de <%= bill.number %> pelos parâmetros congelados no acordo<%= " (só principal e correção têm encargos, sem multa nova)" if bill.kind_reversal? %>: <%= money(valuation.total_cents) %> (mora: multa <%= money(valuation.fine_cents) %>, juros <%= money(valuation.interest_cents) %>, honorários e correção <%= money(valuation.fees_cents) %>).</small></td></tr>
+            <% elsif valuation %>
+              <tr>
+                <td colspan="10">
+                  <small>Atualizado de <%= bill.number %>: principal corrigido <%= money(valuation.corrected_principal_cents) %> · multa <%= money(valuation.fine_cents) %> · juros <%= money(valuation.interest_cents) %> · honorários <%= money(valuation.fees_cents) %></small>
+                  <details class="memoria-de-calculo" hx-get="<%= bill_calculation_memory_path(bill) %>" hx-trigger="toggle once" hx-target="find div" hx-swap="innerHTML" hx-push-url="false">
+                    <summary aria-label="Ver memória de cálculo do título <%= bill.number %>">Ver memória de cálculo</summary>
+                    <div><p><small>Carregando…</small></p></div>
+                  </details>
+                </td>
+              </tr>
+            <% end %>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
+</section>
+
+<%= render "customers/contracts", customer: @customer, contracts: @contracts, members: @contract_members, credit_totals: @credit_totals,
+   brackets: @brackets, overdue: @contract_overdue, segments: @contract_segments %>

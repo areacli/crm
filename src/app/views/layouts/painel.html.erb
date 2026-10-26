@@ -1,0 +1,2 @@
+<%# Resposta do painel compartilhado: só o conteúdo (cabeçalho, corpo e rodapé do formulário), com a apresentação pedida pela view (`content_for :painel_variante`). %>
+<%= tag.div(data: { painel: true, variant: content_for(:painel_variante).presence || "drawer", size: content_for(:painel_tamanho).presence }.compact) { yield } %>

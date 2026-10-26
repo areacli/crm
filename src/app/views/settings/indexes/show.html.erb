@@ -1,7 +1,5 @@
 <% content_for :title, "Configuração · Índices" %>
 <% content_for :cable_channels, [ { channel: "IndexesChannel" } ].to_json %>
-<header class="cabecalho-da-pagina">
-  <div><h1>Índices do Banco Central</h1><p>IPCA, INPC, IGP-M e Selic mês a mês. Os valores do Banco Central são iguais para todos os credores; a correção de cada credor vale só para o cálculo dele.</p></div>
-</header>
+<%= pagina "Índices do Banco Central", subtitulo: "IPCA, INPC, IGP-M e Selic mês a mês; a correção de cada credor vale só para o cálculo dele." %>
 <%= render "settings/abas" %>
 <%= render "settings/indexes/page" %>

@@ -1,8 +1,5 @@
-<%# Formulário de perfil: nome e as 16 permissões (R30). Locais: profile, tenants (só na criação), url, method. %>
-<% if @error || profile.errors.any? %>
-  <%= aviso(tom: :danger) { tag.p(@error || profile.errors.full_messages.to_sentence) } %>
-<% end %>
-<%= form_with scope: :profile, url: url, method: method, html: { "hx-boost": "false" } do |form| %>
+<%# Formulário de perfil (no painel): nome e as 16 permissões (R30). Locais: profile, tenants (só na criação), url, method, titulo. %>
+<%= formulario_de_painel(titulo: titulo, url: url, metodo: method, enviar: "Salvar o perfil", escopo: :profile, erro: @error || (profile.errors.full_messages.to_sentence.presence), voltar: profiles_path) do |form| %>
   <% if local_assigns[:tenants] && tenants.size > 1 %>
     <div class="campo">
       <%= form.label :tenant_id, "Credor" %>
@@ -27,8 +24,4 @@
       </label>
     <% end %>
   </fieldset>
-  <div class="acoes">
-    <button type="submit">Salvar o perfil</button>
-    <%= link_to "Cancelar", profiles_path, class: "botao", data: { variant: "secondary" } %>
-  </div>
 <% end %>

@@ -60,7 +60,7 @@ class SegmentsScreensTest < ActionDispatch::IntegrationTest
     assert_select "tr#segmento-#{a.id} button", text: "Mover para baixo"
     assert_select "tr#segmento-#{a.id} button", text: "Mover para cima", count: 0
     assert_select "tr#segmento-#{b.id} button", text: "Mover para baixo", count: 0
-    assert_select "tr#segmento-#{Segment.catch_all_of(@alfa).id} button", count: 0
+    assert_select "tr#segmento-#{Segment.catch_all_of(@alfa).id} button[aria-label^=Mover], tr#segmento-#{Segment.catch_all_of(@alfa).id} button[aria-label^=Desativar]", count: 0
 
     delete settings_segment_activation_path(a)
     assert_select "h1", "Conferir mudança nos segmentos"
@@ -152,6 +152,7 @@ class SegmentsScreensTest < ActionDispatch::IntegrationTest
     assert_select "td", text: "Varejo PF recente"
     assert_select "td", text: "Demais"
     assert_select "td", text: "Sem segmento"
+    get customer_path(maria, aba: "historico")
     assert_select "#historico-de-segmento tbody tr", minimum: 2
     assert_equal "Demais", segment_of(c102)
   end

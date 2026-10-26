@@ -23,15 +23,17 @@ class TitularScreensTest < ActionDispatch::IntegrationTest
   test "R141: quem tem a 13 vê Exportar dados e Anonimizar na ficha; quem não tem não vê, e o envio direto é recusado e registrado" do
     entrar(users(:joana))
     get customer_path(@maria)
-    assert_select "button", text: "Exportar dados"
-    assert_select "button", text: "Anonimizar"
+    assert_select "a[hx-get*=exportacao]", text: "Exportar dados"
+    assert_select "a[hx-get*=anonimizacao]", text: "Anonimizar"
 
     reader = make_user(@alfa, [])
     delete session_path
     entrar(reader)
     get customer_path(@maria)
-    assert_select "button", text: "Exportar dados", count: 0
-    assert_select "#anonimizar-cliente", 0
+    assert_select "a[hx-get*=exportacao]", count: 0
+    assert_select "a[hx-get*=anonimizacao]", count: 0
+    get new_customer_anonymization_path(@maria), headers: painel
+    assert_response :not_found
     assert_no_difference "Customer.identified.count" do
       post customer_anonymization_path(@maria), params: { anonymization: { reason: "x", document: @maria.document } }
       assert_response :not_found
@@ -40,7 +42,7 @@ class TitularScreensTest < ActionDispatch::IntegrationTest
       post customer_retention_path(@maria), params: { retention: { reason: "x" } }
       assert_response :not_found
     end
-    assert_equal 3, AccessEvent.where(event: "access_denied", tenant_id: @alfa.id, user_id: reader.id).count
+    assert_equal 4, AccessEvent.where(event: "access_denied", tenant_id: @alfa.id, user_id: reader.id).count
   end
 
   test "R127 a R129 (critério de aceite): exportar com motivo registra sem o conteúdo e abre a página e o JSON com tudo" do
@@ -123,9 +125,9 @@ class TitularScreensTest < ActionDispatch::IntegrationTest
   test "R130 e R131: a ficha mostra o que impede; o documento errado é recusado com a mensagem; certo, anonimiza e a ficha mostra o aviso" do
     Credit.create!(tenant: @alfa, contract: @maria.contracts.first, kind: :entry, reason: :excess, amount_cents: 5_000)
     entrar(users(:joana))
-    get customer_path(@maria)
-    assert_select "#anonimizar-cliente", text: /Não é possível anonimizar: crédito do contrato CT-7 de R\$ 50,00 em aberto/
-    assert_select "#anonimizar-cliente button[type=submit]", 0
+    get new_customer_anonymization_path(@maria), headers: painel
+    assert_select "[data-painel][data-variant=modal] .aviso", text: /Não é possível anonimizar: crédito do contrato CT-7 de R\$ 50,00 em aberto/
+    assert_select "button[type=submit]", 0
 
     post customer_anonymization_path(@maria), params: { anonymization: { reason: "x", document: "529.982.247-25" } }
     follow_redirect!
@@ -139,10 +141,10 @@ class TitularScreensTest < ActionDispatch::IntegrationTest
     follow_redirect!
     assert_select "h1", text: /Cliente anonimizado nº #{@maria.id}/
     assert_select "main", text: /Cliente anonimizado em #{Date.current.strftime('%d/%m/%Y')}/
-    assert_select "#exportar-dados"
-    assert_select "#anonimizar-cliente", 0
-    assert_select "#corrigir-nome", 0
-    assert_select "#contatos button", 0
+    assert_select "a[hx-get*=exportacao]"
+    assert_select "a[hx-get*=anonimizacao]", 0
+    assert_select "a[hx-get*='/nome/']", 0
+    assert_select "a[hx-get*='/contatos/']", 0
     assert_select "#acionamentos form", 0
   end
 

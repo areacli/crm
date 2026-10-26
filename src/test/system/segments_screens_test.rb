@@ -49,7 +49,7 @@ class SegmentsSystemScreensTest < ApplicationSystemTestCase
     visit customers_path(q: "Maria")
     assert_selector "td", text: "PF"
     assert_acessivel
-    visit customer_path(@contract.customers.first)
+    visit customer_path(@contract.customers.first, aba: "historico")
     assert_selector "h2", text: "Histórico de segmento"
     assert_acessivel
     sem_rolagem_horizontal
@@ -59,8 +59,10 @@ class SegmentsSystemScreensTest < ApplicationSystemTestCase
     visit settings_indexes_path
     assert_selector "h1", text: "Índices do Banco Central"
     assert_text "corrigido: 1,52%"
-    find("summary", text: "Corrigir índice").click
+    click_link "Corrigir índice", match: :first
+    assert_selector "dialog#painel[open][data-variant=drawer]"
     assert_acessivel
+    find("dialog#painel button", text: "Cancelar").click
     sem_rolagem_horizontal
 
     assert_selector "section[aria-labelledby=situacao] tbody tr", count: 1

@@ -1,5 +1,5 @@
 <% content_for :title, "Configuração · Novo segmento" %>
-<header class="cabecalho-da-pagina"><div><h1>Novo segmento</h1><p><%= @tenant.name %> · <%= link_to "Voltar para os segmentos", settings_segments_path %></p></div></header>
+<%= pagina "Novo segmento", subtitulo: safe_join([ @tenant.name, " · ", link_to("Voltar para os segmentos", settings_segments_path) ]) %>
 <%= render "settings/abas" %>
 <section class="cartao" aria-labelledby="dados">
   <header><h2 id="dados"><%= @segment.catch_all? ? "Encargos do segmento" : "Critérios e encargos do segmento" %></h2></header>
@@ -8,9 +8,9 @@
     <%= form_with model: @segment, scope: :segment, url: settings_segments_path(tenant_id: @tenant.id), method: :post, html: { "hx-boost": "false" } do |form| %>
       <%= hidden_field_tag :tenant_id, @tenant.id %>
       <%= render "settings/segments/fields", form: form, segment: @segment, raw: @raw, setting: @tenant.setting %>
-      <div class="acoes">
-        <button type="submit">Conferir mudança</button>
+      <div class="acoes" data-rodape>
         <%= link_to "Cancelar", settings_segments_path, class: "botao", data: { variant: "secondary" } %>
+        <button type="submit">Conferir mudança</button>
       </div>
     <% end %>
   </div>

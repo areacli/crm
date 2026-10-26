@@ -1,338 +1,96 @@
 <% content_for :title, @customer.name %>
 <% content_for :cable_channels, customer_contact_cable_channels(@customer) %>
-<header class="cabecalho-da-pagina">
-  <div>
-    <h1><%= @customer.name %></h1>
-    <p><%= @customer.tenant.name %> · <%= link_to "Voltar para os clientes", customers_path %></p>
-  </div>
-  <% if @can_negotiate %>
-    <div class="acoes"><%= link_to "Simular acordo", new_customer_agreement_simulation_path(@customer), class: "botao", data: { variant: "secondary" } %></div>
-  <% end %>
-</header>
-
-<%= render "customers/promises/lines", customer: @customer, promises: @promises %>
-<% if @agreements %><%= render "customers/agreements/lines", customer: @customer, agreements: @agreements %><% end %>
-<% if @city_unrecognized %><%= aviso(tom: :warning) { tag.p "Cidade não reconhecida: o endereço deste cliente não casa com a lista de municípios do IBGE, e os acordos dele usam só os feriados nacionais. Corrija o endereço no cadastro." } %><% end %>
-
 <%
   active = @bills.select(&:active?)
   overdue = active.select { |bill| bill.due_date < @today }
   upcoming = active - overdue
   worst = overdue.map { |bill| bill.days_overdue(@today) }.max
+  promises_count = @promises.size
+  agreements_count = @agreements&.size.to_i
+  indicators = []
+  indicators << situacao("Anonimizado", tom: :neutral) if @customer.anonymized?
+  indicators << (worst ? situacao("Atraso de #{@brackets.label(@brackets.index_for(worst))} dias", tom: :danger) : situacao("Sem atraso", tom: :success))
+  indicators << situacao(pluralize(promises_count, "promessa em aberto", "promessas em aberto"), tom: :info) if promises_count.positive?
+  indicators << situacao(pluralize(agreements_count, "proposta ou acordo", "propostas ou acordos"), tom: :info) if agreements_count.positive?
+  can_more = @can_edit_registry || @can_transfer || @can_handle_rights
+  tabs = [ [ "Títulos", @bills.size, "titulos" ], [ "Acionamentos", @contact_history.total, "acionamentos" ], [ "Promessas e acordos", promises_count + agreements_count, "promessas" ],
+           [ "Pagamentos", @payments.size, "pagamentos" ], [ "Contatos", @listed_contacts.size, "contatos" ], [ "Histórico", nil, "historico" ] ]
 %>
-<section class="cartao" aria-labelledby="dados">
-  <header>
-    <h2 id="dados">Dados do cliente</h2>
-    <% if @can_handle_rights %>
-      <div class="acoes">
-        <button type="button" command="show-modal" commandfor="exportar-dados" data-variant="secondary" data-size="small">Exportar dados</button>
-        <% unless @customer.anonymized? %><button type="button" command="show-modal" commandfor="anonimizar-cliente" data-variant="danger-outline" data-size="small">Anonimizar</button><% end %>
-      </div>
-    <% end %>
-  </header>
-  <div>
-    <% if @customer.anonymized? %><%= aviso(tom: :info) { tag.p "Cliente anonimizado em #{date_br(@customer.anonymized_at.to_date)}. Só restam os dados que não identificam a pessoa." } %><% end %>
-    <dl class="valores">
-      <div><dt>Documento</dt><dd><%= @customer.formatted_document %></dd></div>
-      <div><dt>Telefone</dt><dd><%= @contacts.find { |contact| contact.phone? && contact.status_valid? }&.value || "—" %></dd></div>
-      <div><dt>E-mail</dt><dd><%= @contacts.find { |contact| contact.email? && contact.status_valid? }&.value || "—" %></dd></div>
-      <div><dt>Faixa de atraso</dt><dd><%= worst ? "#{@brackets.label(@brackets.index_for(worst))} dias" : "Sem atraso" %></dd></div>
-    </dl>
-    <% if @customer.name_kept? %><p><small>O nome foi corrigido na tela (mantido pelo credor).</small></p><% end %>
-    <% if @can_edit_registry %>
-      <details id="corrigir-nome">
-        <summary>Corrigir nome</summary>
-        <%= form_with scope: :customer, url: customer_name_path(@customer), method: :patch, html: { "hx-boost": "false" } do |form| %>
-          <div class="campo"><%= form.label :name, "Nome" %><%= form.text_field :name, value: @customer.name, required: true, maxlength: 300 %><small>O documento não se edita: documento errado é outro cliente.</small></div>
-          <div class="acoes"><button type="submit">Corrigir nome</button></div>
-        <% end %>
-      </details>
-    <% end %>
-  </div>
-</section>
-
-<section class="cartao" aria-labelledby="totais">
-  <header><h2 id="totais">Em cobrança</h2></header>
-  <div>
-    <dl class="valores">
-      <div><dt>Vencido</dt><dd><%= money(overdue.sum(&:balance_cents)) %></dd></div>
-      <% unless @setting.upcoming_display == "detail_only" %>
-        <div><dt>A vencer</dt><dd><%= money(upcoming.sum(&:balance_cents)) %></dd></div>
+<%= pagina(@customer.name, subtitulo: safe_join([ @customer.tenant.name, " · ", link_to("Voltar para os clientes", customers_path) ]), indicadores: indicators, vivo: { url: request.fullpath, eventos: %w[cable:promises-changed cable:agreements-changed] }) do %>
+  <% if @contact_form %><%= abrir_painel "Registrar acionamento", form_customer_contact_attempts_path(@customer) %><% end %>
+  <% if @can_negotiate %><%= link_to "Simular acordo", new_customer_agreement_simulation_path(@customer), class: "botao", data: { variant: "secondary" } %><% end %>
+  <% if can_more %>
+    <%= menu_de_linha("mais-acoes", "Mais ações do cliente") do %>
+      <% if @can_edit_registry %>
+        <%= abrir_painel "Corrigir nome", edit_customer_name_path(@customer) %>
+        <%= abrir_painel "Criar contato", new_customer_contact_path(@customer) %>
       <% end %>
-      <div><dt>Títulos em cobrança</dt><dd><%= number_br(active.size) %></dd></div>
-      <% updated_total = overdue.sum { |bill| @valuations[bill.id]&.total_cents || bill.balance_cents } %>
-      <div><dt>Atualizado</dt><dd><%= money(updated_total) %></dd></div>
-    </dl>
-    <% if @value_status[:calculated_on] %>
-      <p><small>Valor atualizado até <%= date_br(@value_status[:calculated_on]) %> (principal corrigido, multa, juros e honorários pelas regras de <%= @customer.tenant.name %>).<%= " Os valores estão sendo recalculados." if @value_status[:running] %></small></p>
-    <% elsif overdue.any? %>
-      <p><small>O valor atualizado ainda não foi calculado para este credor.</small></p>
-    <% end %>
-  </div>
-</section>
-
-<% if @agreement_events&.any? %><%= render "customers/agreements/history", customer: @customer, events: @agreement_events %><% end %>
-
-<%= render "customers/registry", customer: @customer, top: @top_contacts, listed: @listed_contacts, can_edit: @can_edit_registry, history: @registry_history, contacts_by_id: @contacts.index_by(&:id) %>
-
-<%= render "customers/contact_attempts", customer: @customer, history: @contact_history, form: @contact_form %>
-
-<%= render "customers/contracts", customer: @customer, contracts: @contracts, members: @contract_members, credit_totals: @credit_totals,
-   brackets: @brackets, overdue: @contract_overdue, segments: @contract_segments, history: @segment_history %>
-
-<section class="cartao" aria-labelledby="titulos">
-  <header><h2 id="titulos">Títulos</h2></header>
-  <% if @bills.empty? %>
-    <p class="vazio">Este cliente não tem títulos.</p>
-  <% else %>
-    <div class="tabela" tabindex="0">
-      <table>
-        <caption class="apenas-leitor-de-tela">Títulos do cliente</caption>
-        <thead>
-          <tr>
-            <th scope="col">Número</th><th scope="col">Contrato</th><th scope="col">Vencimento</th>
-            <th scope="col" data-numerico>Valor</th><th scope="col" data-numerico>Pago</th><th scope="col" data-numerico>Saldo</th>
-            <th scope="col" data-numerico>Dias de atraso</th><th scope="col" data-numerico>Atualizado</th><th scope="col">Situação</th>
-          </tr>
-        </thead>
-        <tbody>
-          <% @bills.each do |bill| %>
-            <tr>
-              <th scope="row">
-                <%= link_to bill.number, bill_path(bill) %>
-                <% if bill.agreement_id %><small><%= bill.kind_break? ? "Título da quebra" : "Título de acordo" %> <%= link_to bill.agreement.number, agreement_path(bill.agreement) %>.</small><% end %>
-                <% if bill.kind_reversal? %><small>Título de estorno do acordo <%= link_to bill.origin_agreement.number, agreement_path(bill.origin_agreement) %>, fora do acordo.</small><% end %>
-                <% if bill.renegotiated? && (renegotiated = @renegotiated_by&.dig(bill.id)) %><small>Renegociado no acordo <%= link_to renegotiated.number, agreement_path(renegotiated) %>.</small><% end %>
-                <% if (held = @held_bills[bill.id]) %><small>Em promessa <%= held.promise.label %>.</small><% end %>
-                <% if (held_agreement = @held_by_agreement&.dig(bill.id)) && !bill.renegotiated? %><small><%= held_agreement.proposal? ? "Em proposta" : "Em acordo" %> <%= link_to held_agreement.number, agreement_path(held_agreement) %>.</small><% end %>
-                <% if @open_discrepancies.include?(bill.id) %><small>Divergência de valor aberta. <%= link_to "Ver histórico", bill_path(bill) %></small>
-                <% elsif @version_counts.fetch(bill.id, 1) > 1 %><small>O valor mudou <%= @version_counts[bill.id] - 1 %> vez(es). <%= link_to "Ver histórico", bill_path(bill) %></small><% end %>
-              </th>
-              <td><%= bill.contract.code.presence || "—" %></td>
-              <td><%= date_br(bill.due_date) %></td>
-              <td data-numerico><%= money(bill.amount_cents) %></td>
-              <td data-numerico><%= money(bill.paid_cents) %></td>
-              <td data-numerico><%= money(bill.balance_cents) %></td>
-              <td data-numerico><%= bill.active? && bill.due_date < @today ? number_br(bill.days_overdue(@today)) : "—" %></td>
-              <% valuation = bill.active? ? @valuations[bill.id] : nil %>
-              <td data-numerico><%= valuation ? money(valuation.total_cents) : "—" %></td>
-              <td>
-                <% if bill.withdrawn? %><%= situacao "Retirado", tom: :neutral %>
-                <% elsif bill.renegotiated? %><%= situacao "Renegociado", tom: :neutral %>
-                <% elsif bill.scheduled? %><%= situacao "Aguardando efetivação", tom: :info %>
-                <% elsif bill.canceled? %><%= situacao "Cancelado", tom: :neutral %>
-                <% elsif bill.paid? %><%= situacao "Pago", tom: :success %>
-                <% elsif bill.due_date < @today %><%= situacao "Vencido", tom: :danger %>
-                <% else %><%= situacao "A vencer", tom: :info %><% end %>
-              </td>
-            </tr>
-            <% if valuation && (bill.agreement_id || bill.kind_reversal?) %>
-              <tr><td colspan="9"><small>Saldo devedor de <%= bill.number %> pelos parâmetros congelados no acordo<%= " (só principal e correção têm encargos, sem multa nova)" if bill.kind_reversal? %>: <%= money(valuation.total_cents) %> (mora: multa <%= money(valuation.fine_cents) %>, juros <%= money(valuation.interest_cents) %>, honorários e correção <%= money(valuation.fees_cents) %>).</small></td></tr>
-            <% elsif valuation %>
-              <tr>
-                <td colspan="9">
-                  <small>Atualizado de <%= bill.number %>: principal corrigido <%= money(valuation.corrected_principal_cents) %> · multa <%= money(valuation.fine_cents) %> · juros <%= money(valuation.interest_cents) %> · honorários <%= money(valuation.fees_cents) %></small>
-                  <details class="memoria-de-calculo" hx-get="<%= bill_calculation_memory_path(bill) %>" hx-trigger="toggle once" hx-target="find div" hx-swap="innerHTML" hx-push-url="false">
-                    <summary aria-label="Ver memória de cálculo do título <%= bill.number %>">Ver memória de cálculo</summary>
-                    <div><p><small>Carregando…</small></p></div>
-                  </details>
-                </td>
-              </tr>
-            <% end %>
-            <% if @can_use_credit && Agreements::CreditOnBill.usable?(bill) && @credit_totals.fetch(bill.contract_id, 0).positive? %>
-              <tr>
-                <td colspan="9">
-                  <details>
-                    <summary>Usar crédito no título <%= bill.number %> (disponível no contrato: <%= money(@credit_totals[bill.contract_id]) %>)</summary>
-                    <%= form_with scope: :credit_use, url: customer_credit_uses_path(@customer), html: { "hx-boost": "false" } do |form| %>
-                      <%= form.hidden_field :bill_id, value: bill.id, id: "uso-titulo-#{bill.id}" %>
-                      <div class="campo"><%= form.label :amount, "Valor a usar", for: "uso-valor-#{bill.id}" %><%= form.text_field :amount, id: "uso-valor-#{bill.id}", required: true, inputmode: "decimal", autocomplete: "off" %></div>
-                      <div class="acoes"><button type="submit" data-variant="secondary" data-size="small" aria-label="Usar crédito no título <%= bill.number %>">Usar crédito</button></div>
-                    <% end %>
-                  </details>
-                </td>
-              </tr>
-            <% end %>
-          <% end %>
-        </tbody>
-      </table>
-    </div>
-  <% end %>
-</section>
-
-<% if @payments.any? %>
-  <section class="cartao" aria-labelledby="pagos">
-    <header><h2 id="pagos">Pagos</h2><p>Pagamentos aplicados aos títulos deste cliente.</p></header>
-    <div class="tabela" tabindex="0">
-      <table>
-        <caption class="apenas-leitor-de-tela">Pagamentos do cliente</caption>
-        <thead>
-          <tr>
-            <th scope="col">Título</th><th scope="col">Data</th><th scope="col" data-numerico>Valor pago</th><th scope="col" data-numerico>Aplicado ao título</th>
-            <th scope="col" data-numerico>Estornado</th><th scope="col">Meio</th><th scope="col">Canal</th>
-          </tr>
-        </thead>
-        <tbody>
-          <% @payments.each do |payment| %>
-            <tr>
-              <th scope="row"><%= payment.bill&.number || payment.bill_number %></th>
-              <td><%= date_br(payment.paid_on) %></td>
-              <td data-numerico><%= money(payment.amount_cents) %></td>
-              <td data-numerico><%= money(payment.applied_cents) %></td>
-              <td data-numerico><%= payment.reversed_cents.positive? ? money(payment.reversed_cents) : "—" %></td>
-              <td><%= t("payments.methods.#{payment.payment_method}") %></td>
-              <td><%= payment.channel.description %></td>
-            </tr>
-          <% end %>
-        </tbody>
-      </table>
-    </div>
-  </section>
-<% end %>
-
-<% if @credit_entries.any? || @excess_bills.any? %>
-  <section class="cartao" aria-labelledby="credito">
-    <header>
-      <div><h2 id="credito">Crédito por contrato</h2><p>O crédito é do contrato, e todos os clientes do contrato o veem.</p></div>
-      <% if @can_transfer %><button type="button" command="show-modal" commandfor="transferir-credito" data-variant="secondary" data-size="small">Transferir crédito</button><% end %>
-    </header>
-    <div>
-      <% @contracts.each do |contract| %>
-        <% entries = @credit_entries[contract.id].to_a %>
-        <% excess = @excess_bills[contract.id].to_a %>
-        <% next if entries.empty? && excess.empty? %>
-        <h3><%= contract.label %>: <%= money(@credit_totals.fetch(contract.id, 0) + @excess_totals.fetch(contract.id, 0)) %></h3>
-        <% if @credit_awaiting.fetch(contract.id, 0).nonzero? || @credit_blocked.fetch(contract.id, 0).nonzero? %>
-          <p><small>Disponível <%= money(@credit_totals.fetch(contract.id, 0)) %><% if @credit_awaiting.fetch(contract.id, 0).nonzero? %> · aguardando alocação <%= money(@credit_awaiting[contract.id]) %><% end %><% if @credit_blocked.fetch(contract.id, 0).nonzero? %> · bloqueado (estorno à espera do gestor) <%= money(@credit_blocked[contract.id]) %><% end %></small></p>
-        <% end %>
-        <% if @can_allocate && @credit_awaiting.fetch(contract.id, 0).positive? %>
-          <details>
-            <summary>Alocar crédito aguardando alocação do contrato <%= contract.label %></summary>
-            <%= form_with scope: :credit_allocation, url: customer_credit_allocations_path(@customer), html: { "hx-boost": "false" } do |form| %>
-              <%= form.hidden_field :contract_id, value: contract.id, id: "alocacao-contrato-#{contract.id}" %>
-              <div class="campo"><%= form.label :bill_id, "Título do mesmo contrato", for: "alocacao-titulo-#{contract.id}" %><%= form.select :bill_id, @allocatable_bills.to_h.fetch(contract.id, []).map { |bill| [ "#{bill.number} (vence em #{date_br(bill.due_date)})", bill.id ] }, {}, id: "alocacao-titulo-#{contract.id}" %></div>
-              <div class="campo"><%= form.label :amount, "Valor", for: "alocacao-valor-#{contract.id}" %><%= form.text_field :amount, id: "alocacao-valor-#{contract.id}", required: true, inputmode: "decimal", autocomplete: "off" %></div>
-              <div class="acoes"><button type="submit" data-variant="secondary" data-size="small" aria-label="Alocar o crédito do contrato <%= contract.label %>">Alocar</button></div>
-            <% end %>
-          </details>
-        <% end %>
-        <% if excess.any? %>
-          <div class="tabela" tabindex="0">
-            <table>
-              <caption class="apenas-leitor-de-tela">Excedente por valor reduzido do contrato <%= contract.label %></caption>
-              <thead><tr><th scope="col">Título</th><th scope="col">Motivo</th><th scope="col" data-numerico>Valor do título</th><th scope="col" data-numerico>Pago</th><th scope="col" data-numerico>Excedente</th></tr></thead>
-              <tbody>
-                <% excess.each do |bill| %>
-                  <tr>
-                    <th scope="row"><%= link_to bill.number, bill_path(bill) %></th>
-                    <td>Valor do título reduzido <small>(calculado: some se o valor voltar a subir ou um estorno reduzir o pago)</small></td>
-                    <td data-numerico><%= money(bill.amount_cents) %></td>
-                    <td data-numerico><%= money(bill.paid_cents) %></td>
-                    <td data-numerico><%= money(bill.excess_cents) %></td>
-                  </tr>
-                <% end %>
-              </tbody>
-            </table>
-          </div>
-        <% end %>
-        <% if entries.any? %>
-        <div class="tabela" tabindex="0">
-          <table>
-            <caption class="apenas-leitor-de-tela">Lançamentos de crédito do contrato <%= contract.label %></caption>
-            <thead><tr><th scope="col">Data</th><th scope="col">Origem</th><th scope="col">Motivo</th><th scope="col" data-numerico>Valor</th></tr></thead>
-            <tbody>
-              <% entries.each do |entry| %>
-                <tr>
-                  <td><%= datetime_br(entry.occurred_at) %></td>
-                  <td>
-                    <% if entry.payment %>Pagamento <%= entry.payment.identifier %> de <%= date_br(entry.payment.paid_on) %>
-                    <% elsif entry.related_contract %><%= entry.transfer_out? ? "Transferido para" : "Recebido de" %> <%= entry.related_contract.label %>
-                    <% else %>—<% end %>
-                  </td>
-                  <td><%= t("payments.credit_reasons.#{entry.reason}") %><%= " — #{entry.note}" if entry.note.present? %><%= " (#{t("payments.buckets.#{entry.bucket}").downcase})" unless entry.bucket_available? %></td>
-                  <td data-numerico><%= money(entry.amount_cents) %></td>
-                </tr>
-              <% end %>
-            </tbody>
-          </table>
-        </div>
-        <% end %>
+      <% if @can_transfer %><%= abrir_painel "Transferir crédito", new_customer_credit_transfer_path(@customer) %><% end %>
+      <% if @can_handle_rights %>
+        <%= abrir_painel "Exportar dados", new_customer_data_export_path(@customer) %>
+        <% unless @customer.anonymized? %><%= abrir_painel "Anonimizar", new_customer_anonymization_path(@customer), variante: "danger-outline" %><% end %>
       <% end %>
-    </div>
-  </section>
-<% end %>
-
-<% if @can_transfer %>
-  <dialog id="transferir-credito" aria-labelledby="transferir-credito-titulo">
-    <%= form_with scope: :credit_transfer, url: customer_credit_transfers_path(@customer), html: { "hx-boost": "false" } do |form| %>
-      <header>
-        <div><h2 id="transferir-credito-titulo">Transferir crédito</h2><p>Entre contratos do mesmo credor. Fica registrado nos dois contratos. Só o crédito lançado se transfere; o excedente de valor reduzido é calculado e não entra.</p></div>
-        <button type="button" command="close" commandfor="transferir-credito" data-variant="link" aria-label="Fechar a janela"><%= icone("x-mark") %></button>
-      </header>
-      <div>
-        <div class="campo">
-          <%= form.label :from_contract_id, "Contrato de origem" %>
-          <%= form.select :from_contract_id, @contracts.select { |contract| (@credit_totals.fetch(contract.id, 0) + @credit_awaiting.fetch(contract.id, 0)).positive? }.map { |contract| [ "#{contract.label} (#{money(@credit_totals.fetch(contract.id, 0) + @credit_awaiting.fetch(contract.id, 0))})", contract.id ] }, { include_blank: false } %>
-        </div>
-        <div class="campo">
-          <%= form.label :to_code, "Código do contrato de destino" %>
-          <%= form.text_field :to_code, required: true, maxlength: 100 %>
-        </div>
-        <div class="campo">
-          <%= form.label :amount, "Valor" %>
-          <%= form.text_field :amount, required: true, inputmode: "decimal", autocomplete: "off" %>
-          <small>Em reais, com vírgula nos centavos, até o crédito do contrato de origem.</small>
-        </div>
-        <div class="campo">
-          <%= form.label :reason, "Motivo" %>
-          <%= form.text_field :reason, required: true, maxlength: 300 %>
-        </div>
-      </div>
-      <footer>
-        <button type="button" command="close" commandfor="transferir-credito" data-variant="secondary">Cancelar</button>
-        <button type="submit">Transferir</button>
-      </footer>
     <% end %>
-  </dialog>
-<% end %>
-
-<% if @can_handle_rights %>
-  <dialog id="exportar-dados" aria-labelledby="exportar-dados-titulo">
-    <%= form_with scope: :export, url: customer_data_export_path(@customer), method: :post, html: { "hx-boost": "false" } do |form| %>
-      <header>
-        <div><h2 id="exportar-dados-titulo">Exportar dados</h2><p>Tudo o que este credor guarda sobre o cliente, em página para imprimir e em JSON. A exportação fica registrada, sem o conteúdo.</p></div>
-        <button type="button" command="close" commandfor="exportar-dados" data-variant="link" aria-label="Fechar a janela"><%= icone("x-mark") %></button>
-      </header>
-      <div>
-        <div class="campo"><%= form.label :reason, "Motivo" %><%= form.text_field :reason, required: true, maxlength: 300 %><small>Por exemplo, o pedido do titular e o protocolo. Não escreva dados pessoais.</small></div>
-      </div>
-      <footer>
-        <button type="button" command="close" commandfor="exportar-dados" data-variant="secondary">Cancelar</button>
-        <button type="submit">Exportar dados</button>
-      </footer>
-    <% end %>
-  </dialog>
-
-  <% unless @customer.anonymized? %>
-    <dialog id="anonimizar-cliente" aria-labelledby="anonimizar-cliente-titulo">
-      <%= form_with scope: :anonymization, url: customer_anonymization_path(@customer), method: :post, html: { "hx-boost": "false" } do |form| %>
-        <header>
-          <div><h2 id="anonimizar-cliente-titulo">Anonimizar cliente</h2><p>Troca, sem volta, o nome, o documento, os contatos e os textos por um identificador sem significado. Valores, datas e situações ficam.</p></div>
-          <button type="button" command="close" commandfor="anonimizar-cliente" data-variant="link" aria-label="Fechar a janela"><%= icone("x-mark") %></button>
-        </header>
-        <div>
-          <% if @open_relations&.any? %>
-            <%= aviso(tom: :danger) { tag.p "Não é possível anonimizar: #{@open_relations.message}." } %>
-          <% else %>
-            <div class="campo"><%= form.label :reason, "Motivo" %><%= form.text_field :reason, required: true, maxlength: 300 %><small>Por exemplo, o pedido do titular e o protocolo. Não escreva dados pessoais.</small></div>
-            <div class="campo"><%= form.label :document, "Documento do cliente" %><%= form.text_field :document, required: true, maxlength: 18, autocomplete: "off", inputmode: "text" %><small>Digite o documento para confirmar, com ou sem pontuação.</small></div>
-          <% end %>
-        </div>
-        <footer>
-          <button type="button" command="close" commandfor="anonimizar-cliente" data-variant="secondary">Cancelar</button>
-          <% unless @open_relations&.any? %><button type="submit" data-variant="danger">Anonimizar cliente</button><% end %>
-        </footer>
-      <% end %>
-    </dialog>
   <% end %>
 <% end %>
+
+<% if @city_unrecognized %><%= aviso(tom: :warning) { tag.p "Cidade não reconhecida: o endereço deste cliente não casa com a lista de municípios do IBGE, e os acordos dele usam só os feriados nacionais. Corrija o endereço no cadastro." } %><% end %>
+<% if @customer.anonymized? %><%= aviso(tom: :info) { tag.p "Cliente anonimizado em #{date_br(@customer.anonymized_at.to_date)}. Só restam os dados que não identificam a pessoa." } %><% end %>
+
+<div class="ficha">
+  <div class="ficha-principal">
+    <%= abas_da_pagina "Seções da ficha", tabs.map { |texto, contagem, chave| [ texto, customer_path(@customer, aba: chave), contagem, @tab == chave ] } %>
+    <%= render "customers/tabs/#{@tab}" %>
+  </div>
+
+  <aside class="ficha-lateral" aria-label="Resumo do cliente">
+    <section class="cartao" aria-labelledby="dados">
+      <header><h2 id="dados">Dados do cliente</h2></header>
+      <div>
+        <dl class="dados">
+          <dt>Documento</dt><dd><%= @customer.formatted_document %></dd>
+          <dt>Telefone</dt><dd><%= @contacts.find { |contact| contact.phone? && contact.status_valid? }&.value || "—" %></dd>
+          <dt>E-mail</dt><dd><%= @contacts.find { |contact| contact.email? && contact.status_valid? }&.value || "—" %></dd>
+          <dt>Faixa de atraso</dt><dd><%= worst ? "#{@brackets.label(@brackets.index_for(worst))} dias" : "Sem atraso" %></dd>
+        </dl>
+        <% if @customer.name_kept? %><p><small>O nome foi corrigido na tela (mantido pelo credor).</small></p><% end %>
+      </div>
+    </section>
+
+    <section class="cartao" aria-labelledby="totais">
+      <header><h2 id="totais">Em cobrança</h2></header>
+      <div>
+        <% updated_total = overdue.sum { |bill| @valuations[bill.id]&.total_cents || bill.balance_cents } %>
+        <dl class="dados">
+          <dt>Vencido</dt><dd><%= money(overdue.sum(&:balance_cents)) %></dd>
+          <% unless @setting.upcoming_display == "detail_only" %><dt>A vencer</dt><dd><%= money(upcoming.sum(&:balance_cents)) %></dd><% end %>
+          <dt>Títulos em cobrança</dt><dd><%= number_br(active.size) %></dd>
+          <dt>Atualizado</dt><dd><%= money(updated_total) %></dd>
+        </dl>
+        <% if @value_status[:calculated_on] %>
+          <p><small>Valor atualizado até <%= date_br(@value_status[:calculated_on]) %> (principal corrigido, multa, juros e honorários pelas regras de <%= @customer.tenant.name %>).<%= " Os valores estão sendo recalculados." if @value_status[:running] %></small></p>
+        <% elsif overdue.any? %>
+          <p><small>O valor atualizado ainda não foi calculado para este credor.</small></p>
+        <% end %>
+      </div>
+    </section>
+
+    <section class="cartao" id="contatos-resumo" aria-labelledby="contatos-titulo">
+      <header>
+        <h2 id="contatos-titulo">Contatos</h2>
+        <% if @listed_contacts.any? %><%= link_to "Ver todos#{' e editar' if @can_edit_registry} (#{number_br(@listed_contacts.size)})", customer_path(@customer, aba: "contatos") %><% end %>
+      </header>
+      <div>
+        <% if @top_contacts.empty? %>
+          <p class="vazio">Nenhum contato válido cadastrado.</p>
+        <% else %>
+          <ul class="contatos">
+            <% @top_contacts.each do |contact| %>
+              <li><strong><%= contact_kind(contact.kind) %>:</strong> <%= contact.value %><% if contact.no_area_code? %> <small>(sem DDD)</small><% end %></li>
+            <% end %>
+          </ul>
+        <% end %>
+      </div>
+    </section>
+  </aside>
+</div>

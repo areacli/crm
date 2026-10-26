@@ -2,18 +2,14 @@
 <%# Simulação do acordo (11, R211 a R216): títulos, forma, descontos, entrada e parcelas. O resultado se refaz pelo htmx a cada mudança; "Criar proposta" grava (R215). %>
 <% form = @form || {} %>
 <% segment_hint = "Os tetos de cada componente aparecem na simulação, com o limite do seu perfil." %>
-<header class="cabecalho-da-pagina">
-  <div>
-    <h1>Simular acordo</h1>
-    <p><%= @customer.name %> · <%= @customer.tenant.name %> · <%= link_to "Voltar para a ficha", customer_path(@customer, anchor: "acordos") %></p>
-  </div>
-</header>
+<%= pagina "Simular acordo", subtitulo: safe_join([ @customer.name, " · ", @customer.tenant.name, " · ", link_to("Voltar para a ficha", customer_path(@customer, aba: "promessas")) ]) %>
 <% if @create_problem %><%= aviso(tom: :danger) { tag.p @create_problem } %><% end %>
 
+<div class="ficha" data-lateral="formulario">
 <%= form_with scope: :agreement, url: customer_agreements_path(@customer), method: :post,
       html: { "hx-boost": "false", "hx-post": customer_agreement_simulations_path(@customer), "hx-trigger": "change", "hx-target": "#simulacao", "hx-swap": "outerHTML", "hx-push-url": "false" } do |f| %>
   <section class="cartao" aria-labelledby="titulos-do-acordo">
-    <header><div><h2 id="titulos-do-acordo">Títulos do acordo</h2><p>De 1 a 100 títulos do cliente em cobrança, vencidos ou a vencer. O acordo parte do valor atualizado de cada um, por componente.</p></div></header>
+    <header><h2 id="titulos-do-acordo">Títulos do acordo</h2><%= informacao "títulos do acordo", "De 1 a 100 títulos do cliente em cobrança, vencidos ou a vencer. O acordo parte do valor atualizado de cada um, por componente.", "definicao-titulos-do-acordo" %></header>
     <div>
       <% if @bills.empty? %>
         <p class="vazio">Este cliente não tem título em cobrança.</p>
@@ -59,7 +55,7 @@
   </section>
 
   <section class="cartao" aria-labelledby="termos-do-acordo">
-    <header><div><h2 id="termos-do-acordo">Descontos, entrada e parcelas</h2><p><%= segment_hint %></p></div></header>
+    <header><h2 id="termos-do-acordo">Descontos, entrada e parcelas</h2><%= informacao "termos do acordo", segment_hint, "definicao-termos-do-acordo" %></header>
     <div>
       <fieldset>
         <legend>Forma</legend>
@@ -80,13 +76,13 @@
         <div class="campo">
           <%= label_tag "entrada-valor", "Valor da entrada" %>
           <%= text_field_tag "agreement[down_payment]", form[:down_payment], id: "entrada-valor", inputmode: "decimal", autocomplete: "off", "aria-describedby": "ajuda-entrada" %>
-          <small id="ajuda-entrada">Em reais, com vírgula nos centavos. Vazio vale a entrada mínima. No à vista, é o valor líquido do acordo.</small>
+          <small id="ajuda-entrada">Em reais. Vazio vale a entrada mínima; no à vista, é o valor líquido.</small>
           <% if @field == "down_payment" %><small data-erro><%= @problem %></small><% end %>
         </div>
         <div class="campo">
           <%= label_tag "entrada-vencimento", "Vencimento da entrada" %>
           <%= date_field_tag "agreement[down_payment_on]", form[:down_payment_on], id: "entrada-vencimento" %>
-          <small>Do dia útil seguinte até o prazo do segmento. Dia não útil passa ao dia útil seguinte.</small>
+          <small>Do dia útil seguinte até o prazo do segmento.</small>
           <% if @field == "down_payment_on" %><small data-erro><%= @problem %></small><% end %>
         </div>
         <div class="campo">
@@ -96,7 +92,7 @@
         <div class="campo">
           <%= label_tag "dia", "Dia de vencimento das parcelas" %>
           <%= number_field_tag "agreement[day]", form[:day], id: "dia", min: 1, max: 28 %>
-          <small>De 1 a 28. A primeira parcela vence no mês seguinte ao da entrada.</small>
+          <small>De 1 a 28; a 1ª parcela vence no mês seguinte à entrada.</small>
         </div>
       </div>
       <% offers = Agreements::CreditUse.available_by_contract(@customer.tenant.setting, @bills) %>
@@ -114,7 +110,7 @@
         </div>
       <% end %>
       <% if @field == "mode" || @field == "bill_ids" %><%= aviso(tom: :danger) { tag.p @problem } %><% end %>
-      <div class="acoes">
+      <div class="acoes" data-rodape>
         <button type="submit" formaction="<%= customer_agreement_simulations_path(@customer) %>" data-variant="secondary">Simular</button>
         <button type="submit">Criar proposta</button>
       </div>
@@ -123,3 +119,4 @@
 <% end %>
 
 <%= render "customers/agreement_simulations/result" %>
+</div>

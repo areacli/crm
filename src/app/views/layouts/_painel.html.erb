@@ -1,0 +1,6 @@
+<%# O <dialog> compartilhado (modal ou painel lateral): fica vazio até o htmx trazer o formulário (hx-target="#painel-conteudo"); `painel.js` o abre, trava a rolagem
+    e devolve o foco. O modelo do aviso de sucesso é copiado para a página quando o painel termina. %>
+<dialog id="painel" data-variant="drawer">
+  <div id="painel-conteudo"></div>
+</dialog>
+<template id="modelo-de-aviso"><%= aviso(tom: :success) { tag.p } %></template>

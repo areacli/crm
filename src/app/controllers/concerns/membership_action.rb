@@ -15,5 +15,6 @@ module MembershipAction
 
     def manager = Access::UserManager.new(Current.user, request: request)
 
-    def back_to_membership(**flash) = redirect_to(membership_path(@membership), status: :see_other, **flash)
+    # Termina a ação do painel (modal): fecha, mostra o aviso e atualiza a ficha do vínculo; sem JavaScript, volta à ficha.
+    def back_to_membership(notice: nil) = panel_finish(membership_path(@membership), notice: notice, atualizar: true)
 end

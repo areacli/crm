@@ -26,4 +26,7 @@ module ContactsHelper
   end
 
   def htmx = { "HX-Request" => "true" }
+
+  # Pedido do painel compartilhado (design system, revisão 4): o htmx tem o #painel-conteudo como destino.
+  def painel = { "HX-Request" => "true", "HX-Target" => "painel-conteudo" }
 end

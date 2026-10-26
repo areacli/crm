@@ -1,0 +1,3 @@
+<%= formulario_de_painel(titulo: "Cancelar proposta", descricao: "Acordo #{@agreement.number}.", url: agreement_cancellation_path(@agreement), enviar: "Cancelar proposta", perigoso: true, variante: :modal, escopo: :agreement, erro: @error, voltar: agreement_path(@agreement)) do |form| %>
+  <div class="campo"><%= form.label :reason, "Motivo do cancelamento" %><%= form.text_field :reason, value: params.dig(:agreement, :reason), required: true, maxlength: 300 %></div>
+<% end %>

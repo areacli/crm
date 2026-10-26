@@ -16,8 +16,7 @@ module Settings
 
         def change(active)
           Contacts::ResultManager.new(Current.user).set_active(@result, active)
-          redirect_to settings_contact_results_path, notice: t(active ? "settings.contact_results.activations.create.done" : "settings.contact_results.activations.destroy.done", name: @result.name),
-                                                     status: :see_other
+          panel_finish(settings_contact_results_path, notice: t(active ? "settings.contact_results.activations.create.done" : "settings.contact_results.activations.destroy.done", name: @result.name), atualizar: true)
         end
     end
   end

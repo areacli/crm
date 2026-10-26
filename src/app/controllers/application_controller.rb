@@ -2,6 +2,7 @@ class ApplicationController < ActionController::Base
   include Authentication
   include Pundit::Authorization
   include DemoMode
+  include PanelResponses
 
   # Só navegadores modernos: imagens webp, notificações, selos, importmap, aninhamento de CSS e :has (decisão 0020).
   allow_browser versions: :modern
@@ -23,6 +24,8 @@ class ApplicationController < ActionController::Base
 
   # Alteração de acesso recusada por uma regra (R41, PD7...): volta para a tela de onde veio, com a mensagem.
   rescue_from Access::Refused do |error|
+    next panel_refuse(request.referer.presence || root_path, error.message) if panel_request?
+
     redirect_back_or_to root_path, alert: error.message, status: :see_other
   end
 

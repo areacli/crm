@@ -1,0 +1,7 @@
+<%= formulario_de_painel(titulo: "Mudar o perfil", descricao: "#{@membership.user.name} em #{@membership.tenant.name}.", url: membership_profile_path(@membership), metodo: :patch, enviar: "Mudar o perfil", variante: :modal,
+                         escopo: :membership, erro: @error, voltar: membership_path(@membership)) do |form| %>
+  <div class="campo">
+    <%= form.label :profile_id, "Perfil neste credor" %>
+    <%= form.select :profile_id, @profiles.map { |profile| [ profile.name, profile.id ] }, { selected: (params.dig(:membership, :profile_id) || @membership.profile_id).to_i }, required: true %>
+  </div>
+<% end %>

@@ -1,11 +1,11 @@
 <% content_for :title, "Clientes" %>
-<header class="cabecalho-da-pagina"><h1>Clientes</h1></header>
+<%= pagina "Clientes" %>
 
 <form class="filtros" role="search" action="<%= customers_path %>" method="get"
-      hx-get="<%= customers_path %>" hx-trigger="input changed delay:300ms from:#q, change" hx-target="#resultado" hx-push-url="true" hx-swap="outerHTML">
+      hx-sync="this:replace" hx-get="<%= customers_path %>" hx-trigger="input changed delay:300ms from:#q, change" hx-target="#resultado" hx-push-url="true" hx-swap="outerHTML">
   <div class="campo">
-    <label for="q">Buscar por nome, documento ou contrato</label>
-    <input type="search" id="q" name="q" value="<%= params[:q] %>" autocomplete="off">
+    <label for="q" class="apenas-leitor-de-tela">Buscar por nome, documento ou contrato</label>
+    <input type="search" id="q" name="q" value="<%= params[:q] %>" autocomplete="off" placeholder="Nome, documento ou contrato">
   </div>
   <% if @several_tenants %>
     <div class="campo">
@@ -47,7 +47,7 @@
     </div>
   <% end %>
   <div class="campo">
-    <label for="per_page">Por página</label>
+    <label for="per_page" class="apenas-leitor-de-tela">Por página</label>
     <select id="per_page" name="per_page"><%= options_for_select(Pagination::PER_PAGE_OPTIONS, @pagination.per_page) %></select>
   </div>
   <button type="submit" data-variant="secondary">Buscar</button>

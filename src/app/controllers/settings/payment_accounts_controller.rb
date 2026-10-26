@@ -52,7 +52,7 @@ module Settings
     def destroy
       nickname = @account.nickname
       manager.destroy(@account)
-      redirect_to settings_payment_accounts_path, notice: t(".done", nickname: nickname), status: :see_other
+      panel_finish(settings_payment_accounts_path, notice: t(".done", nickname: nickname), navegar: true)
     end
 
     private

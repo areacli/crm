@@ -1,88 +1,68 @@
 <% user = @membership.user %>
 <% self_membership = user.id == Current.user.id %>
 <% content_for :title, user.name %>
-<header class="cabecalho-da-pagina">
-  <div><h1><%= user.name %></h1><p><%= user.email_address %> · <%= @membership.tenant.name %> · <%= link_to "Voltar para os usuários", memberships_path %></p></div>
-  <div class="acoes"><%= membership_status(@membership) %></div>
-</header>
+<%= pagina user.name, subtitulo: safe_join([ user.email_address, " · ", @membership.tenant.name, " · ", link_to("Voltar para os usuários", memberships_path) ]), indicadores: [ membership_status(@membership) ] do %>
+  <% unless self_membership %>
+    <%= abrir_painel "Mudar o perfil", edit_membership_profile_path(@membership) %>
+    <% if @membership.active? %>
+      <%= confirmar_no_painel "Desativar o acesso", titulo: "Desativar o acesso?", acao: "Desativar o acesso", url: membership_activation_path(@membership), metodo: :delete,
+                              mensagem: "#{user.name} deixa de operar #{@membership.tenant.name} na próxima ação. Os acessos em outros credores não mudam." %>
+    <% else %>
+      <%= confirmar_no_painel "Reativar o acesso", titulo: "Reativar o acesso?", acao: "Reativar o acesso", url: membership_activation_path(@membership), perigoso: false,
+                              mensagem: "#{user.name} volta a operar #{@membership.tenant.name}.", variante: "secondary" %>
+    <% end %>
+    <% if @membership.personal_data_editable? %>
+      <%= menu_de_linha("mais-acoes", "Mais ações do usuário") do %>
+        <%= abrir_painel "Alterar o nome", edit_membership_path(@membership) %>
+        <%= confirmar_no_painel "Redefinir a senha", titulo: "Redefinir a senha?", acao: "Redefinir a senha", url: membership_password_reset_path(@membership), perigoso: false,
+                                mensagem: "Uma nova senha temporária será gerada e mostrada uma única vez. A senha atual e as sessões abertas de #{user.name} deixam de valer." %>
+      <% end %>
+    <% end %>
+  <% end %>
+<% end %>
 
 <% if flash[:temporary_password] %><%= render "memberships/temporary_password", data: flash[:temporary_password] %><% end %>
 
-<section class="cartao" aria-labelledby="acesso">
-  <header><h2 id="acesso">Acesso em <%= @membership.tenant.name %></h2></header>
-  <div>
-    <dl class="valores">
-      <div><dt>Perfil</dt><dd><%= @membership.profile.name %></dd></div>
-      <div><dt>Último acesso</dt><dd><%= user.last_login_at ? datetime_br(user.last_login_at) : "Nunca entrou" %></dd></div>
-      <% if user.temporary_password? %><div><dt>Senha temporária vale até</dt><dd><%= datetime_br(user.temporary_password_until) %></dd></div><% end %>
-    </dl>
-
-    <% if self_membership %>
-      <p>Esta é a sua conta. Outra pessoa com a permissão de gerenciar usuários muda o seu perfil ou o seu acesso; a senha você troca em <%= link_to "Trocar a senha", edit_password_path %>.</p>
+<div class="ficha">
+  <section class="cartao" aria-labelledby="historico">
+    <header><h2 id="historico">Histórico de acessos e alterações</h2><%= informacao "histórico", "Os últimos #{@events.size} registros deste credor e das entradas no sistema.", "definicao-historico" %></header>
+    <% if @events.empty? %>
+      <p class="vazio">Nenhum registro ainda.</p>
     <% else %>
-      <%= form_with scope: :membership, url: membership_profile_path(@membership), method: :patch do |form| %>
-        <div class="campo">
-          <%= form.label :profile_id, "Perfil neste credor" %>
-          <%= form.select :profile_id, @profiles.map { |profile| [ profile.name, profile.id ] }, { selected: @membership.profile_id }, required: true %>
-        </div>
-        <div class="acoes"><button type="submit">Mudar o perfil</button></div>
-      <% end %>
-
-      <div class="acoes">
-        <% if @membership.active? %>
-          <%= render("shared/confirmacao", id: "desativar", titulo: "Desativar o acesso?", acao: "Desativar o acesso", url: membership_activation_path(@membership), metodo: :delete,
-                     mensagem: "#{user.name} deixa de operar #{@membership.tenant.name} na próxima ação. Os acessos em outros credores não mudam.") { "Desativar o acesso" } %>
-        <% else %>
-          <%= button_to "Reativar o acesso", membership_activation_path(@membership), method: :post, data: { variant: "secondary" } %>
-        <% end %>
+      <div class="tabela" tabindex="0" data-fixa>
+        <table>
+          <caption class="apenas-leitor-de-tela">Histórico de <%= user.name %></caption>
+          <thead><tr><th scope="col">Quando</th><th scope="col">O que aconteceu</th><th scope="col">Por quem</th><th scope="col">Endereço</th></tr></thead>
+          <tbody>
+            <% @events.each do |event| %>
+              <tr>
+                <th scope="row"><%= datetime_br(event.occurred_at) %></th>
+                <td><%= event_description(event) %></td>
+                <td><%= event.actor&.name || "—" %></td>
+                <td><%= event.ip_address || "—" %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
       </div>
     <% end %>
-  </div>
-</section>
-
-<% unless self_membership %>
-  <section class="cartao" aria-labelledby="pessoa">
-    <header><h2 id="pessoa">Nome e senha</h2></header>
-    <div>
-      <% if @membership.personal_data_editable? %>
-        <%= form_with scope: :user, url: membership_path(@membership), method: :patch do |form| %>
-          <div class="campo">
-            <%= form.label :name, "Nome" %>
-            <%= form.text_field :name, value: user.name, required: true, maxlength: 150 %>
-          </div>
-          <div class="acoes"><button type="submit">Alterar o nome</button></div>
-        <% end %>
-        <div class="acoes">
-          <%= render("shared/confirmacao", id: "redefinir-senha", titulo: "Redefinir a senha?", acao: "Redefinir a senha", url: membership_password_reset_path(@membership), variante: "primary", gatilho: "secondary",
-                     mensagem: "Uma nova senha temporária será gerada e mostrada uma única vez. A senha atual e as sessões abertas de #{user.name} deixam de valer.") { "Redefinir a senha" } %>
-        </div>
-      <% else %>
-        <p>Nome e senha são da pessoa, não do credor. Como ela atua em mais de um credor, só ela mesma e o administrador do sistema os alteram.</p>
-      <% end %>
-    </div>
   </section>
-<% end %>
 
-<section class="cartao" aria-labelledby="historico">
-  <header><h2 id="historico">Histórico de acessos e alterações</h2><p>Os últimos <%= @events.size %> registros deste credor e das entradas no sistema.</p></header>
-  <% if @events.empty? %>
-    <p class="vazio">Nenhum registro ainda.</p>
-  <% else %>
-    <div class="tabela" tabindex="0">
-      <table>
-        <caption class="apenas-leitor-de-tela">Histórico de <%= user.name %></caption>
-        <thead><tr><th scope="col">Quando</th><th scope="col">O que aconteceu</th><th scope="col">Por quem</th><th scope="col">Endereço</th></tr></thead>
-        <tbody>
-          <% @events.each do |event| %>
-            <tr>
-              <th scope="row"><%= datetime_br(event.occurred_at) %></th>
-              <td><%= event_description(event) %></td>
-              <td><%= event.actor&.name || "—" %></td>
-              <td><%= event.ip_address || "—" %></td>
-            </tr>
-          <% end %>
-        </tbody>
-      </table>
-    </div>
-  <% end %>
-</section>
+  <aside class="ficha-lateral" aria-label="Acesso">
+    <section class="cartao" aria-labelledby="acesso">
+      <header><h2 id="acesso">Acesso em <%= @membership.tenant.name %></h2></header>
+      <div>
+        <dl class="dados">
+          <dt>Perfil</dt><dd><%= @membership.profile.name %></dd>
+          <dt>Último acesso</dt><dd><%= user.last_login_at ? datetime_br(user.last_login_at) : "Nunca entrou" %></dd>
+          <% if user.temporary_password? %><dt>Senha temporária até</dt><dd><%= datetime_br(user.temporary_password_until) %></dd><% end %>
+        </dl>
+        <% if self_membership %>
+          <p><small>Esta é a sua conta. Outra pessoa com a permissão de gerenciar usuários muda o seu perfil ou o seu acesso; a senha você troca em <%= link_to "Trocar a senha", edit_password_path %>.</small></p>
+        <% elsif !@membership.personal_data_editable? %>
+          <p><small>Nome e senha são da pessoa, não do credor. Como ela atua em mais de um credor, só ela mesma e o administrador do sistema os alteram.</small></p>
+        <% end %>
+      </div>
+    </section>
+  </aside>
+</div>

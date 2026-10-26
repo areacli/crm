@@ -8,20 +8,23 @@
     margin: 0;
     font-family: var(--fonte);
     font-size: var(--texto-corpo);
-    line-height: 1.5;
+    line-height: 1.4;
     color: var(--cor-texto);
     background: var(--cor-superficie);
     -webkit-font-smoothing: antialiased;
   }
+  /* Com a janela (modal ou painel) aberta, o corpo não rola. */
+  body:has(dialog[open]) { overflow: hidden; }
 
   h1, h2, h3 { line-height: 1.2; margin: 0; font-weight: 700; }
   h1 { font-size: var(--texto-pagina); }
-  h2 { font-size: var(--texto-subtitulo); color: var(--cor-azul); }
-  h3 { font-size: var(--texto-corpo); }
-  p { margin: 0 0 var(--espaco-3); }
+  /* Título de cartão: 15 px, negrito, cor escura; o azul fica só para link e ação principal (revisão 4). */
+  h2 { font-size: var(--texto-subtitulo); color: var(--cor-texto); }
+  h3 { font-size: var(--texto-tabela); }
+  p { margin: 0 0 var(--espaco-2); }
 
-  a { color: var(--cor-azul); text-decoration: underline; text-underline-offset: 0.15em; }
-  a:hover { color: var(--cor-azul-escuro); }
+  a { color: var(--cor-azul); text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 45%, transparent); text-underline-offset: 0.15em; }
+  a:hover { color: var(--cor-azul-escuro); text-decoration-color: currentColor; }
 
   small { font-size: var(--texto-legenda); }
   code, kbd, samp { font-family: var(--fonte-codigo); font-size: 0.9em; }

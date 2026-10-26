@@ -59,14 +59,14 @@ class AgreementTitlesScreensTest < ActionDispatch::IntegrationTest
   test "R238, R245: a quebra manual é de quem administra acordos; quem só negocia não vê a ação e recebe 'não encontrado'" do
     entrar(users(:carlos))
     get agreement_path(@agreement)
-    assert_select "summary", text: "Quebrar o acordo", count: 0
+    assert_select "a", text: "Quebrar o acordo", count: 0
     post agreement_break_path(@agreement), params: { break: { reason: "x", fraud: "1" } }
     assert_response :not_found
     delete session_path
 
     entrar(users(:joana))
     get agreement_path(@agreement)
-    assert_select "summary", text: "Quebrar o acordo"
+    assert_select "a", text: "Quebrar o acordo"
     post agreement_break_path(@agreement), params: { break: { reason: "documento falso", fraud: "1" } }
     assert_predicate @agreement.reload, :state_broken?
     follow_redirect!

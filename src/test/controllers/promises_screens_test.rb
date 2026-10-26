@@ -41,17 +41,19 @@ class PromisesScreensTest < ActionDispatch::IntegrationTest
     post customer_contact_attempts_path(@customer), params: { contact_attempt: { channel: "phone", result_id: result_of(@alfa, :promised).id, promise_contract_id: @nf1.contract_id,
                                                                                  promise_payment_method: "pix", promise_on: PromisesTestHelper::PROMISED.iso8601, promise_bill_ids: [ @nf1.id, @nf2.id ] } }
     assert_response :redirect
-    get customer_path(@customer)
+    get customer_path(@customer, aba: "promessas")
     assert_select "ul.promessas li", 1
     assert_select "ul.promessas li", text: /PRM-000001.*NF-1 e NF-2.*R\$ 1\.579,93 por Pix até 30\/10\/2026.*Pago R\$ 0,00/m
     assert_select "ul.promessas li", text: /Aberta/
+    get customer_path(@customer)
     assert_select "small", text: "Em promessa PRM-000001."
+    get customer_path(@customer, aba: "acionamentos")
     assert_select "td p, td small", text: /Promessa PRM-000001/
   end
 
   test "R184: a promessa enviada com resultado que não a admite é recusada e o formulário volta com a mensagem" do
     entrar(users(:joana))
-    post customer_contact_attempts_path(@customer), headers: htmx,
+    post customer_contact_attempts_path(@customer), headers: painel,
          params: { contact_attempt: { channel: "phone", result_id: result_of(@alfa, :refused).id, promise_contract_id: @nf1.contract_id, promise_payment_method: "pix",
                                       promise_on: PromisesTestHelper::PROMISED.iso8601, promise_bill_ids: [ @nf1.id ] } }
     assert_response :unprocessable_content
@@ -62,7 +64,7 @@ class PromisesScreensTest < ActionDispatch::IntegrationTest
   test "R192: o gestor aprova a pendente; o operador que a registrou não vê o botão nem aprova por link direto" do
     promise = pending_promise
     entrar(users(:carlos))
-    get customer_path(@customer)
+    get customer_path(@customer, aba: "promessas")
     assert_select "ul.promessas li", text: /Pendente de aprovação/
     assert_select "button", text: "Aprovar promessa", count: 0
     assert_difference -> { AccessEvent.where(event: "access_denied").count }, 1 do
@@ -72,7 +74,7 @@ class PromisesScreensTest < ActionDispatch::IntegrationTest
 
     delete session_path
     entrar(users(:joana))
-    get customer_path(@customer)
+    get customer_path(@customer, aba: "promessas")
     assert_select "button", text: "Aprovar promessa"
     post promise_approval_path(promise)
     assert_predicate promise.reload, :state_open?
@@ -96,15 +98,17 @@ class PromisesScreensTest < ActionDispatch::IntegrationTest
   test "R200: só quem tem a permissão 15 cancela, com motivo; o operador não vê a opção e o envio direto é recusado" do
     promise = register_promise(@customer, [ @nf1 ])
     entrar(users(:carlos))
-    get customer_path(@customer)
-    assert_select "summary", text: "Cancelar promessa", count: 0
+    get customer_path(@customer, aba: "promessas")
+    assert_select "a[hx-get*=cancelamento]", count: 0
     post promise_cancellation_path(promise), params: { promise: { reason: "x" } }
     assert_response :not_found
 
     delete session_path
     entrar(users(:joana))
-    get customer_path(@customer)
-    assert_select "summary", text: "Cancelar promessa"
+    get customer_path(@customer, aba: "promessas")
+    assert_select "a[hx-get*=cancelamento]", text: "Cancelar promessa"
+    get new_promise_cancellation_path(promise), headers: painel
+    assert_select "[data-painel][data-variant=modal] form.painel textarea, [data-painel][data-variant=modal] form.painel input[name='promise[reason]']"
     post promise_cancellation_path(promise), params: { promise: { reason: "" } }
     assert_equal "Informe o motivo do cancelamento.", flash[:alert]
     post promise_cancellation_path(promise), params: { promise: { reason: "Devedora pediu para negociar o contrato inteiro" } }
@@ -115,8 +119,9 @@ class PromisesScreensTest < ActionDispatch::IntegrationTest
     promise = register_promise(@customer, [ @nf1 ])
     Promises::Canceller.new(users(:joana)).cancel(promise, "Pediu para negociar")
     entrar(users(:joana))
-    get customer_path(@customer)
+    get customer_path(@customer, aba: "promessas")
     assert_select "ul.promessas", 0
+    get customer_path(@customer, aba: "acionamentos")
     assert_select "td small", text: /Promessa PRM-000001.*Cancelada — Pediu para negociar/m
   end
 
@@ -133,7 +138,7 @@ class PromisesScreensTest < ActionDispatch::IntegrationTest
     get pending_promises_path
     assert_select "tbody tr", 1
     assert_select "tbody tr", text: /Maria Souza.*NF-1 e NF-2.*R\$ 1\.597,92/m
-    assert_select "nav[aria-label=Menu] a", text: "Promessas pendentes (1)"
+    assert_select "nav[aria-label=Menu] a", text: /Promessas pendentes\s*1/
   end
 
   test "R204 e MT-3 a MT-6: a lista mistura os credores em que pode aprovar e a Beta fica de fora para quem só consulta nela" do
@@ -202,7 +207,7 @@ class PromisesScreensTest < ActionDispatch::IntegrationTest
     entrar(users(:joana))
     get settings_promises_path
     assert_response :success
-    assert_select "nav.abas a", text: "Promessas e acordos"
+    assert_select "nav.secoes a", text: "Promessas e acordos"
     segment = Segment.catch_all_of(@alfa)
     patch settings_promise_limits_path, params: { tenant_id: @alfa.id, segments: { segment.id => { max_days: 20, limits: { profiles(:alfa_manager).id => 20, profiles(:alfa_operator).id => 20 } } } }
     assert_equal 20, segment.reload.promise_max_days

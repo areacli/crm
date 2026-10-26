@@ -1,0 +1,8 @@
+<%# Aba Acionamentos: o histórico (o registro abre no painel lateral pelo botão da barra de página). %>
+<section class="cartao" id="acionamentos" aria-labelledby="acionamentos-titulo">
+  <header>
+    <h2 id="acionamentos-titulo">Acionamentos</h2>
+    <p>Cada tentativa de contato com este cliente. O registro não é editado nem apagado.</p>
+  </header>
+  <%= render "customers/contact_attempts/history", customer: @customer, history: @contact_history, oob: false %>
+</section>

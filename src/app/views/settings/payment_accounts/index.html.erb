@@ -1,16 +1,14 @@
 <% content_for :title, "Configuração · Contas de pagamento" %>
-<header class="cabecalho-da-pagina">
-  <div><h1>Contas de pagamento</h1><p>O fornecedor de boleto, Pix e cartão de cada credor, uma conta por modalidade e ambiente. Segredos e certificado ficam cifrados e nunca voltam para a tela.</p></div>
-  <div class="acoes"><%= link_to "Nova conta", new_settings_payment_account_path, class: "botao" %></div>
-</header>
+<%= pagina "Contas de pagamento", subtitulo: "Fornecedor de boleto, Pix e cartão de cada credor, uma conta por modalidade e ambiente." do %>
+  <%= link_to "Nova conta", new_settings_payment_account_path, class: "botao" %>
+<% end %>
 <%= render "settings/abas" %>
 
 <div id="resultado">
   <% if @accounts.empty? %>
     <p class="vazio">Nenhuma conta de pagamento cadastrada.</p>
   <% else %>
-    <p><small>Mostrando <%= number_br(@pagination.first_item) %> a <%= number_br(@pagination.last_item) %> de <%= number_br(@pagination.total) %> contas.</small></p>
-    <div class="tabela" tabindex="0">
+    <div class="tabela" tabindex="0" data-fixa>
       <table>
         <caption class="apenas-leitor-de-tela">Contas de pagamento</caption>
         <thead>
@@ -24,6 +22,7 @@
             <th scope="col">Certificado</th>
             <th scope="col">Último teste</th>
             <th scope="col">Situação</th>
+            <th scope="col"><span class="apenas-leitor-de-tela">Ações</span></th>
           </tr>
         </thead>
         <tbody>
@@ -38,11 +37,16 @@
               <td><%= account.certificate_expires_on ? "vence em #{date_br(account.certificate_expires_on)}" : "—" %></td>
               <td><%= account.last_test_status ? "#{account.last_test_status == 'ok' ? 'Boa' : 'Falhou'}, #{datetime_br(account.last_tested_at)}" : "Nunca testada" %></td>
               <td><%= account.active? ? situacao("Ativa", tom: :success) : situacao("Desativada", tom: :neutral) %></td>
+              <td data-acoes>
+                <%= menu_de_linha("conta-#{account.id}", "Ações da conta #{account.nickname}") do %>
+                  <%= link_to "Abrir conta", edit_settings_payment_account_path(account), class: "botao" %>
+                <% end %>
+              </td>
             </tr>
           <% end %>
         </tbody>
       </table>
     </div>
-    <%= render "shared/paginacao", pagination: @pagination, path: ->(page) { settings_payment_accounts_path(request.query_parameters.merge("page" => page)) } %>
+    <%= render "shared/paginacao", pagination: @pagination, unit: "contas", path: ->(page) { settings_payment_accounts_path(request.query_parameters.merge("page" => page)) } %>
   <% end %>
 </div>

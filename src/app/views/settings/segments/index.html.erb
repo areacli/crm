@@ -1,8 +1,6 @@
 <% content_for :title, "Configuração · Segmentos" %>
 <% content_for :cable_channels, @tenants.map { |tenant| { channel: "SegmentsChannel", tenant_id: tenant.id } }.to_json %>
-<header class="cabecalho-da-pagina">
-  <div><h1>Segmentos</h1><p>Grupos de contratos definidos por critérios, em ordem: vale o primeiro que casar, e "Demais" recebe o resto. Cada segmento tem a sua regra de encargos, e o que ele não define vem dos parâmetros do credor. Cada credor tem os seus.</p></div>
-</header>
+<%= pagina "Segmentos e encargos", subtitulo: "Grupos de contratos por critérios, em ordem: vale o primeiro que casar; \"Demais\" recebe o resto." %>
 <%= render "settings/abas" %>
 
 <div id="segmentos" class="pagina-em-secoes" hx-get="<%= settings_segments_path %>" hx-trigger="cable:segments-changed from:body" hx-swap="outerHTML" hx-push-url="false" hx-select="#segmentos" hx-disinherit="hx-select hx-swap hx-push-url">
@@ -35,7 +33,7 @@
         <div class="tabela" tabindex="0">
           <table>
             <caption class="apenas-leitor-de-tela">Segmentos de <%= tenant.name %>, em ordem</caption>
-            <thead><tr><th scope="col">Segmento</th><th scope="col">Critérios</th><th scope="col">Encargos</th><th scope="col" data-numerico>Contratos</th><th scope="col" data-numerico>Saldo</th><th scope="col">Situação</th><% if can_change %><th scope="col">Ações</th><% end %></tr></thead>
+            <thead><tr><th scope="col">Segmento</th><th scope="col">Critérios</th><th scope="col">Encargos</th><th scope="col" data-numerico>Contratos</th><th scope="col" data-numerico>Saldo</th><th scope="col">Situação</th><% if can_change %><th scope="col"><span class="apenas-leitor-de-tela">Ações</span></th><% end %></tr></thead>
             <tbody>
               <% segments.each_with_index do |segment, index| %>
                 <% count, cents = @totals.fetch(segment.id, [ 0, 0 ]) %>
@@ -47,20 +45,18 @@
                   <td data-numerico><%= money(cents) %></td>
                   <td><%= segment.active? ? situacao("Ativo", tom: :success) : situacao("Desativado", tom: :neutral) %></td>
                   <% if can_change %>
-                    <td>
-                      <% if segment.catch_all? %>
-                        <div class="acoes"><%= link_to "Editar encargos", edit_settings_segment_path(segment), class: "botao", data: { variant: "secondary", size: "small" }, "aria-label": "Editar encargos: #{segment.name}" %></div>
-                      <% else %>
-                        <div class="acoes">
-                          <% if index.positive? %><%= button_to "Mover para cima", settings_segment_movement_path(segment), params: { "movement[direction]": "up" }, form: { "hx-boost": "false" }, data: { variant: "secondary", size: "small" }, "aria-label": "Mover para cima: #{segment.name}" %><% end %>
-                          <% if index < segments.size - 2 %><%= button_to "Mover para baixo", settings_segment_movement_path(segment), params: { "movement[direction]": "down" }, form: { "hx-boost": "false" }, data: { variant: "secondary", size: "small" }, "aria-label": "Mover para baixo: #{segment.name}" %><% end %>
-                          <%= link_to "Editar segmento", edit_settings_segment_path(segment), class: "botao", data: { variant: "secondary", size: "small" }, "aria-label": "Editar segmento: #{segment.name}" %>
+                    <td data-acoes>
+                      <%= menu_de_linha("segmento-menu-#{segment.id}", "Ações de #{segment.name}") do %>
+                        <%= link_to (segment.catch_all? ? "Editar encargos" : "Editar segmento"), edit_settings_segment_path(segment), class: "botao", "aria-label": (segment.catch_all? ? "Editar encargos: #{segment.name}" : "Editar segmento: #{segment.name}") %>
+                        <% unless segment.catch_all? %>
+                          <% if index.positive? %><%= button_to "Mover para cima", settings_segment_movement_path(segment), params: { "movement[direction]": "up" }, form: { "hx-boost": "false" }, "aria-label": "Mover para cima: #{segment.name}" %><% end %>
+                          <% if index < segments.size - 2 %><%= button_to "Mover para baixo", settings_segment_movement_path(segment), params: { "movement[direction]": "down" }, form: { "hx-boost": "false" }, "aria-label": "Mover para baixo: #{segment.name}" %><% end %>
                           <% if segment.active? %>
-                            <%= button_to "Desativar", settings_segment_activation_path(segment), method: :delete, form: { "hx-boost": "false" }, data: { variant: "danger-outline", size: "small" }, "aria-label": "Desativar: #{segment.name}" %>
+                            <%= button_to "Desativar", settings_segment_activation_path(segment), method: :delete, form: { "hx-boost": "false" }, "aria-label": "Desativar: #{segment.name}" %>
                           <% else %>
-                            <%= button_to "Reativar", settings_segment_activation_path(segment), form: { "hx-boost": "false" }, data: { variant: "secondary", size: "small" }, "aria-label": "Reativar: #{segment.name}" %>
+                            <%= button_to "Reativar", settings_segment_activation_path(segment), form: { "hx-boost": "false" }, "aria-label": "Reativar: #{segment.name}" %>
                           <% end %>
-                        </div>
+                        <% end %>
                       <% end %>
                     </td>
                   <% end %>
@@ -74,7 +70,7 @@
           <%= hidden_field_tag :tenant_id, tenant.id %>
           <fieldset <%= "disabled" unless can_change %>>
             <legend>Produto do contrato no segmento</legend>
-            <p><small>Um contrato pode ter títulos de produtos diferentes. Mudar esta política muda o segmento de contratos, então passa pela conferência do impacto.</small></p>
+            <p><small>Um contrato pode ter títulos de produtos diferentes. Mudar esta política passa pela conferência do impacto.</small></p>
             <% TenantSetting.defined_enums.fetch("segment_product_policy").each_key do |value| %>
               <label>
                 <%= radio_button_tag "segment_policy[value]", value, setting.segment_product_policy == value, id: "produto-#{tenant.id}-#{value}" %>
@@ -82,21 +78,21 @@
               </label>
             <% end %>
           </fieldset>
-          <% if can_change %><div class="acoes"><button type="submit" data-variant="secondary">Conferir mudança</button></div><% end %>
+          <% if can_change %><div class="acoes" data-rodape><button type="submit" data-variant="secondary">Conferir mudança</button></div><% end %>
         <% end %>
 
         <%= form_with scope: :charges, url: settings_charges_path, method: :patch, html: { "hx-boost": "false" } do |form| %>
           <%= hidden_field_tag :tenant_id, tenant.id %>
           <fieldset <%= "disabled" unless can_change %>>
             <legend>Parâmetros de encargos do credor</legend>
-            <p><small>Valem para os segmentos que não definem o próprio valor. Mudar um parâmetro passa pela conferência do impacto em todos os segmentos que o herdam.</small></p>
+            <p><small>Valem para os segmentos que não definem o próprio valor; mudar passa pela conferência do impacto.</small></p>
             <div class="campo"><%= label_tag "charge_fine_pct-#{tenant.id}", "Multa (%)" %><%= text_field_tag "charges[charge_fine_pct]", charge_field_value(setting, nil, :charge_fine_pct), id: "charge_fine_pct-#{tenant.id}", inputmode: "decimal", autocomplete: "off" %></div>
             <div class="campo"><%= label_tag "charge_interest_pct-#{tenant.id}", "Juros de taxa fixa (% ao mês)" %><%= text_field_tag "charges[charge_interest_pct]", charge_field_value(setting, nil, :charge_interest_pct), id: "charge_interest_pct-#{tenant.id}", inputmode: "decimal", autocomplete: "off" %></div>
             <div class="campo"><%= label_tag "charge_index-#{tenant.id}", "Correção monetária" %><%= select_tag "charges[charge_index]", options_for_select(Segment::INDEX_CODES.map { |value| [ charge_label(:index, value), value ] }, setting.charge_index), id: "charge_index-#{tenant.id}" %></div>
             <div class="campo"><%= label_tag "charge_days_convention-#{tenant.id}", "Convenção de dias dos juros" %><%= select_tag "charges[charge_days_convention]", options_for_select(Segment::DAYS_CONVENTIONS.map { |value| [ charge_label(:days_convention, value), value ] }, setting.charge_days_convention), id: "charge_days_convention-#{tenant.id}" %></div>
             <div class="campo"><%= label_tag "charge_fine_base-#{tenant.id}", "Base da multa" %><%= select_tag "charges[charge_fine_base]", options_for_select(Segment::FINE_BASES.map { |value| [ charge_label(:fine_base, value), value ] }, setting.charge_fine_base), id: "charge_fine_base-#{tenant.id}" %></div>
           </fieldset>
-          <% if can_change %><div class="acoes"><button type="submit" data-variant="secondary">Conferir mudança</button></div><% end %>
+          <% if can_change %><div class="acoes" data-rodape><button type="submit" data-variant="secondary">Conferir mudança</button></div><% end %>
         <% end %>
 
         <% TenantSetting::CHARGE_POLICIES.each do |policy| %>
@@ -112,7 +108,7 @@
                 </label>
               <% end %>
             </fieldset>
-            <% if can_change %><div class="acoes"><button type="submit" data-variant="secondary">Conferir mudança</button></div><% end %>
+            <% if can_change %><div class="acoes" data-rodape><button type="submit" data-variant="secondary">Conferir mudança</button></div><% end %>
           <% end %>
         <% end %>
         <% if can_change %><%= render "settings/segments/agreement_parameters", tenant: tenant, setting: setting, segments: segments %><% end %>

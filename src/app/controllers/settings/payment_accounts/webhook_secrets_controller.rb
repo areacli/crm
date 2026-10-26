@@ -6,7 +6,7 @@ module Settings
         account = PaymentAccount.find(params[:payment_account_id])
         authorize account, :update?
         flash[:webhook_secret] = Payments::AccountManager.new(Current.user).regenerate_webhook_secret(account)
-        redirect_to edit_settings_payment_account_path(account), status: :see_other
+        panel_finish(edit_settings_payment_account_path(account), notice: "Segredo gerado. Copie-o agora: ele não aparece de novo.", navegar: true)
       end
     end
   end

@@ -1,11 +1,8 @@
 <% content_for :title, "Importações" %>
 <% content_for :cable_channels, import_cable_channels %>
-<header class="cabecalho-da-pagina">
-  <h1>Importações</h1>
-  <div class="acoes">
-    <% { "portfolio" => "Importar carteira", "payments" => "Importar pagamentos", "reversals" => "Importar estornos" }.each do |kind, label| %>
-      <% if policy(Import.new(kind: kind)).new? %><%= link_to label, new_import_path(kind: kind), class: "botao", data: { variant: (kind == "portfolio" ? nil : "secondary") } %><% end %>
-    <% end %>
-  </div>
-</header>
+<%= pagina "Importações", subtitulo: "Cargas de carteira, pagamentos e estornos" do %>
+  <% { "portfolio" => "Importar carteira", "payments" => "Importar pagamentos", "reversals" => "Importar estornos" }.each do |kind, label| %>
+    <% if policy(Import.new(kind: kind)).new? %><%= link_to label, new_import_path(kind: kind), class: "botao", data: { variant: (kind == "portfolio" ? nil : "secondary") } %><% end %>
+  <% end %>
+<% end %>
 <%= render "imports/list" %>

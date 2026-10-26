@@ -1,0 +1,6 @@
+<%= formulario_de_painel(titulo: "Alterar o nome", url: membership_path(@membership), metodo: :patch, enviar: "Alterar o nome", variante: :modal, escopo: :user, erro: @error, voltar: membership_path(@membership)) do |form| %>
+  <div class="campo">
+    <%= form.label :name, "Nome" %>
+    <%= form.text_field :name, value: params.dig(:user, :name) || @membership.user.name, required: true, maxlength: 150 %>
+  </div>
+<% end %>

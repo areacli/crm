@@ -5,9 +5,9 @@ module Imports
       import = Import.find(params[:import_id])
       authorize import, :discard?
       Portfolio::ImportService.new.discard(import)
-      redirect_to import, notice: "Importação descartada. Nada foi gravado na carteira."
+      panel_finish(import_path(import), notice: "Importação descartada. Nada foi gravado na carteira.", atualizar: true)
     rescue Portfolio::ImportRefused => error
-      redirect_to import, alert: "#{error.message.capitalize}."
+      panel_refuse(import_path(import), "#{error.message.capitalize}.")
     end
   end
 end

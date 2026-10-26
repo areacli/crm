@@ -79,11 +79,11 @@ class ChargesScreensTest < ActionDispatch::IntegrationTest
       get root_path
       assert_response :success
       assert_select "h2", text: /Escola Alfa|Clínica Beta/, count: 0
-      assert_select "dt", text: "Atualizado", count: 1
+      assert_select "dt", text: /\AAtualizado/, count: 1
       assert_select "h2", text: "Segmentos"
       assert_select "th", text: "Atualizado", minimum: 1
       assert_select "h2", text: /Faixas de atraso/ # Alfa e Beta têm as mesmas faixas: as tabelas somam os dois (25/10/2026)
-      assert_select "dd", text: "R$ 2.121,43" # soma dos dois credores
+      assert_select "dd", text: /R\$ 2.121,43/ # soma dos dois credores
     end
   end
 

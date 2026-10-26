@@ -1,8 +1,8 @@
 <% content_for :title, "Configuração · Conferir mudança nos segmentos" %>
-<header class="cabecalho-da-pagina"><div><h1>Conferir mudança nos segmentos</h1><p><%= @tenant.name %></p></div></header>
+<%= pagina "Conferir mudança nos segmentos", subtitulo: @tenant.name %>
 <%= render "settings/abas" %>
 <section class="cartao" aria-labelledby="impacto">
-  <header><h2 id="impacto">Impacto da mudança</h2><p>Nada muda até você confirmar. Confirmada, a mudança vale na hora para todos os contratos do credor.</p></header>
+  <header><h2 id="impacto">Impacto da mudança</h2><%= informacao "impacto", "Nada muda até você confirmar. Confirmada, a mudança vale na hora para todos os contratos do credor.", "definicao-impacto" %></header>
   <div>
     <% if @impact.total.zero? %>
       <p class="vazio">Nenhum contrato muda de segmento.</p>
@@ -62,9 +62,9 @@
     <%= form_with scope: :confirmation, url: settings_segment_confirmation_path, html: { "hx-boost": "false" } do |form| %>
       <%= hidden_field_tag :tenant_id, @tenant.id %>
       <%= form.hidden_field :token, value: @token %>
-      <div class="acoes">
-        <button type="submit">Confirmar mudança nos segmentos</button>
+      <div class="acoes" data-rodape>
         <%= link_to "Voltar sem mudar", settings_segments_path, class: "botao", data: { variant: "secondary" } %>
+        <button type="submit">Confirmar mudança nos segmentos</button>
       </div>
     <% end %>
   </div>

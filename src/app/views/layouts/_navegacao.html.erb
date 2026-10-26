@@ -1,10 +1,18 @@
-<%# Menu lateral: só texto, o item atual com aria-current="page". `menu_sections` vem do NavigationHelper. %>
+<%# Menu lateral de 208 px: só texto, o item atual com aria-current="page" e a contagem (quando há) como selo. `menu_sections` vem do NavigationHelper. %>
 <nav aria-label="Menu" id="menu-principal" popover>
+  <%# Tela estreita: a busca global do cabeçalho some e entra aqui, no topo do menu (mesma consulta da lista de clientes). %>
+  <% if Current.user&.permitted_anywhere?("view_portfolio") %>
+    <form class="busca-no-menu" role="search" action="<%= customers_path %>" method="get">
+      <label class="apenas-leitor-de-tela" for="busca-no-menu">Buscar cliente por nome ou documento</label>
+      <input type="search" id="busca-no-menu" name="q" placeholder="Buscar cliente" autocomplete="off" maxlength="100">
+      <button type="submit" aria-label="Buscar no menu"><%= icone "magnifying-glass" %></button>
+    </form>
+  <% end %>
   <% menu_sections.each do |secao| %>
     <% if secao[:titulo].present? %><h2><%= secao[:titulo] %></h2><% end %>
     <ul>
       <% secao[:itens].each do |item| %>
-        <li><%= link_to item[:rotulo], item[:caminho], aria: { current: (item[:atual] ? "page" : nil) } %></li>
+        <li><%= link_to safe_join([ item[:rotulo], (tag.span(number_br(item[:contador]), class: "selo", data: { destaque: true }) if item[:contador]) ].compact, " "), item[:caminho], aria: { current: (item[:atual] ? "page" : nil) } %></li>
       <% end %>
     </ul>
   <% end %>

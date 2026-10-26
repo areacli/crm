@@ -4,7 +4,6 @@
 <% wrapper = { id: "historico-acionamentos", "hx-get": customer_contact_attempts_path(customer, page: history.page), "hx-swap": "outerHTML",
                "hx-trigger": "cable:contact-attempts-changed from:body, cable:connected from:body" }.merge(local_assigns[:oob] ? { "hx-swap-oob": "true" } : {}) %>
 <%= tag.div(**wrapper) do %>
-  <h3>Histórico</h3>
   <% if attempts.empty? %>
     <p class="vazio">Nenhum acionamento registrado para este cliente.</p>
   <% else %>

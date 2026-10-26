@@ -3,10 +3,10 @@
   <section class="cartao" aria-labelledby="prazo">
     <header><h2 id="prazo">Prazo de guarda vigente</h2></header>
     <div>
-      <ul>
+      <ul class="contatos">
         <% @settings.each do |setting| %>
           <li>
-            <strong><%= setting.tenant.name %>:</strong> <%= setting.retention_years %> <%= setting.retention_years == 1 ? "ano" : "anos" %>, contados do fim da última relação em aberto.
+            <strong><%= setting.tenant.name %>:</strong> <%= setting.retention_years %> <%= setting.retention_years == 1 ? "ano" : "anos" %> do fim da última relação em aberto.
             <% if @can_change_period.include?(setting.tenant_id) %>
               <%= link_to "Alterar nos dados do credor", settings_tenant_registry_path(anchor: "credor-#{setting.tenant_id}") %>
             <% else %>
@@ -19,14 +19,14 @@
   </section>
 
   <section class="cartao" aria-labelledby="previstos">
-    <header><h2 id="previstos">Anonimização prevista nos próximos 30 dias</h2><p>Quem aparece aqui é anonimizado na data indicada, sem volta. Para conservar, retenha com o motivo.</p></header>
+    <header><h2 id="previstos">Anonimização prevista nos próximos 30 dias</h2><%= informacao "anonimização prevista", "Quem aparece aqui é anonimizado na data indicada, sem volta. Para conservar, retenha com o motivo.", "definicao-previstos" %></header>
     <% if @forecast.total.zero? %>
       <p class="vazio">Ninguém será anonimizado nos próximos 30 dias.</p>
     <% else %>
-      <div class="tabela" tabindex="0">
+      <div class="tabela" tabindex="0" data-fixa>
         <table>
           <caption class="apenas-leitor-de-tela">Clientes com anonimização prevista</caption>
-          <thead><tr><% if @several_tenants %><th scope="col">Credor</th><% end %><th scope="col">Cliente</th><th scope="col">Fim da última relação</th><th scope="col">Anonimização em</th><th scope="col">Reter</th></tr></thead>
+          <thead><tr><% if @several_tenants %><th scope="col">Credor</th><% end %><th scope="col">Cliente</th><th scope="col">Fim da última relação</th><th scope="col">Anonimização em</th><th scope="col"><span class="apenas-leitor-de-tela">Ações</span></th></tr></thead>
           <tbody>
             <% @forecast.records.each do |customer| %>
               <tr>
@@ -34,33 +34,25 @@
                 <th scope="row"><% if @can_view_customer.include?(customer.tenant_id) %><%= link_to customer.name, customer_path(customer.id) %><% else %><%= customer.name %><% end %></th>
                 <td><%= date_br(customer.attributes["ended_on"]) %></td>
                 <td><%= date_br(customer.attributes["due_on"]) %></td>
-                <td>
-                  <details>
-                    <summary>Reter</summary>
-                    <%= form_with scope: :retention, url: customer_retention_path(customer.id), method: :post, html: { "hx-boost": "false" } do |form| %>
-                      <div class="campo"><%= form.label :reason, "Motivo (por exemplo, ação judicial em curso)", for: "reter-#{customer.id}" %><%= form.text_field :reason, id: "reter-#{customer.id}", required: true, maxlength: 300 %></div>
-                      <div class="acoes"><button type="submit">Reter cliente</button></div>
-                    <% end %>
-                  </details>
-                </td>
+                <td data-acoes><%= abrir_painel "Reter", new_customer_retention_path(customer.id), variante: "secondary", tamanho: "small", "aria-label": "Reter #{customer.name}" %></td>
               </tr>
             <% end %>
           </tbody>
         </table>
       </div>
-      <%= render "shared/paginacao", pagination: @forecast, path: ->(page) { data_retention_path(request.query_parameters.merge(page: page)) } %>
+      <%= render "shared/paginacao", pagination: @forecast, unit: "clientes", path: ->(page) { data_retention_path(request.query_parameters.merge(page: page)) } %>
     <% end %>
   </section>
 
   <section class="cartao" aria-labelledby="retidos">
-    <header><h2 id="retidos">Retidos</h2><p>A tarefa diária não anonimiza quem está aqui, mesmo que tenha voltado a ter relação em aberto.</p></header>
+    <header><h2 id="retidos">Retidos</h2><%= informacao "retidos", "A tarefa diária não anonimiza quem está aqui, mesmo que tenha voltado a ter relação em aberto.", "definicao-retidos" %></header>
     <% if @retained.total.zero? %>
       <p class="vazio">Nenhum cliente retido.</p>
     <% else %>
-      <div class="tabela" tabindex="0">
+      <div class="tabela" tabindex="0" data-fixa>
         <table>
           <caption class="apenas-leitor-de-tela">Clientes retidos</caption>
-          <thead><tr><% if @several_tenants %><th scope="col">Credor</th><% end %><th scope="col">Cliente</th><th scope="col">Motivo</th><th scope="col">Retido por</th><th scope="col">Desfazer</th></tr></thead>
+          <thead><tr><% if @several_tenants %><th scope="col">Credor</th><% end %><th scope="col">Cliente</th><th scope="col">Motivo</th><th scope="col">Retido por</th><th scope="col"><span class="apenas-leitor-de-tela">Ações</span></th></tr></thead>
           <tbody>
             <% @retained.records.each do |customer| %>
               <tr>
@@ -68,21 +60,13 @@
                 <th scope="row"><% if @can_view_customer.include?(customer.tenant_id) %><%= link_to customer.name, customer_path(customer) %><% else %><%= customer.name %><% end %></th>
                 <td><%= customer.retained_reason %></td>
                 <td><%= customer.retained_by&.name || "—" %> em <%= date_br(customer.retained_at.to_date) %></td>
-                <td>
-                  <details>
-                    <summary>Desfazer</summary>
-                    <%= form_with scope: :retention, url: customer_retention_path(customer), method: :delete, html: { "hx-boost": "false" } do |form| %>
-                      <div class="campo"><%= form.label :reason, "Motivo", for: "desfazer-#{customer.id}" %><%= form.text_field :reason, id: "desfazer-#{customer.id}", required: true, maxlength: 300 %></div>
-                      <div class="acoes"><button type="submit">Desfazer retenção</button></div>
-                    <% end %>
-                  </details>
-                </td>
+                <td data-acoes><%= abrir_painel "Desfazer", new_customer_retention_path(customer, desfazer: 1), variante: "secondary", tamanho: "small", "aria-label": "Desfazer a retenção de #{customer.name}" %></td>
               </tr>
             <% end %>
           </tbody>
         </table>
       </div>
-      <%= render "shared/paginacao", pagination: @retained, path: ->(page) { data_retention_path(request.query_parameters.merge(retained_page: page)) } %>
+      <%= render "shared/paginacao", pagination: @retained, unit: "clientes", path: ->(page) { data_retention_path(request.query_parameters.merge(retained_page: page)) } %>
     <% end %>
   </section>
 
@@ -91,7 +75,7 @@
     <% if @runs.empty? %>
       <p class="vazio">A tarefa ainda não rodou.</p>
     <% else %>
-      <div class="tabela" tabindex="0">
+      <div class="tabela" tabindex="0" data-fixa>
         <table>
           <caption class="apenas-leitor-de-tela">Últimas execuções</caption>
           <thead><tr><th scope="col">Quando</th><% if @several_tenants %><th scope="col">Credor</th><% end %><th scope="col">Resultado</th><th scope="col" data-numerico>Anonimizados</th><th scope="col" data-numerico>Falhas</th></tr></thead>

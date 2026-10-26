@@ -4,24 +4,13 @@
   <%= javascript_importmap_tags("checkout") %>
 <% end %>
 
-<div class="cabecalho-da-pagina">
-  <div>
-    <h1><%= t("payments.checkout.page.title") %></h1>
-    <p><%= t("payments.checkout.page.greeting", name: checkout.payer_name.to_s.split.first.to_s) %></p>
-  </div>
-</div>
+<%= pagina t("payments.checkout.page.title"), subtitulo: t("payments.checkout.page.greeting", name: checkout.payer_name.to_s.split.first.to_s) %>
 
 <section aria-labelledby="resumo">
   <h2 id="resumo" class="apenas-leitor-de-tela"><%= t("payments.checkout.page.summary") %></h2>
-  <dl class="valores">
-    <div>
-      <dt><%= t("payments.checkout.page.amount") %></dt>
-      <dd><%= money(checkout.amount_cents) %><% if checkout.description.present? %><small><%= checkout.description %></small><% end %></dd>
-    </div>
-    <div>
-      <dt><%= t("payments.checkout.page.valid_until") %></dt>
-      <dd><%= date_br(checkout.expires_at.to_date) %></dd>
-    </div>
+  <dl class="kpis">
+    <%= kpi t("payments.checkout.page.amount"), money(checkout.amount_cents), detalhe: checkout.description.presence %>
+    <%= kpi t("payments.checkout.page.valid_until"), date_br(checkout.expires_at.to_date) %>
   </dl>
 </section>
 

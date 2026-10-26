@@ -271,9 +271,9 @@ class CapturasTest < ApplicationSystemTestCase
     "canais-de-recebimento" => -> { settings_channels_path },
     "canal-de-recebimento" => -> { edit_settings_channel_path(@channel) },
     "politicas-de-pagamento" => -> { settings_payment_policy_path },
-    "ficha-com-pagos-e-credito" => -> { customer_path(@paid_customer) },
+    "ficha-com-pagos-e-credito" => -> { customer_path(@paid_customer, aba: "pagamentos") },
     # Incremento 4: acionamentos.
-    "ficha-com-acionamentos" => -> { customer_path(@contacted_customer) },
+    "ficha-com-acionamentos" => -> { customer_path(@contacted_customer, aba: "acionamentos") },
     "acionamentos" => -> { contact_attempts_path },
     "resultados-de-acionamento" => -> { settings_contact_results_path },
     # Incremento 5: carteira revista.
@@ -281,7 +281,7 @@ class CapturasTest < ApplicationSystemTestCase
     "divergencia-de-valor" => -> { value_discrepancy_path(@discrepancy) },
     "historico-do-titulo" => -> { bill_path(@reduced_bill) },
     # Incremento 6: cadastros.
-    "ficha-com-contatos" => -> { customer_path(@contacted_customer) },
+    "ficha-com-contatos" => -> { customer_path(@contacted_customer, aba: "contatos") },
     "dados-do-credor" => -> { settings_tenant_registry_path },
     "politica-de-correcao" => -> { settings_portfolio_path },
     # Incremento 7: direitos do titular e guarda de dados.
@@ -299,7 +299,7 @@ class CapturasTest < ApplicationSystemTestCase
       click_button "Conferir mudança"
       :current
     },
-    "ficha-com-segmentos" => -> { customer_path(@contacted_customer) },
+    "ficha-com-segmentos" => -> { customer_path(@contacted_customer, aba: "historico") },
     # Incremento 9: encargos e valor atualizado.
     "ficha-com-valor-atualizado" => lambda {
       visit customer_path(@contacted_customer)
@@ -317,9 +317,11 @@ class CapturasTest < ApplicationSystemTestCase
       :current
     },
     # Incremento 10: promessas.
-    "ficha-com-promessas" => -> { customer_path(@promise_customer) },
+    "ficha-com-promessas" => -> { customer_path(@promise_customer, aba: "promessas") },
     "formulario-de-promessa" => lambda {
       visit customer_path(@contacted_customer)
+      click_link "Registrar acionamento"
+      assert_selector "dialog#painel[open] form.painel"
       select "Prometeu pagar", from: "Resultado"
       assert_no_selector ".htmx-request"
       select "Telefone", from: "Canal"
@@ -355,7 +357,7 @@ class CapturasTest < ApplicationSystemTestCase
     "termo-do-acordo" => -> { agreement_term_path(@accepted_agreement) },
     "lista-de-acordos" => -> { agreements_path },
     "acordos-pendentes" => -> { pending_agreements_path },
-    "ficha-com-acordos" => -> { customer_path(@agreement_customer) },
+    "ficha-com-acordos" => -> { customer_path(@agreement_customer, aba: "promessas") },
     "parametros-dos-acordos" => -> { settings_segments_path },
     "acordo-efetivado" => -> { agreement_path(@effectuated_agreement) },
     "acordo-quebrado" => -> { agreement_path(@broken_agreement) },
@@ -363,7 +365,7 @@ class CapturasTest < ApplicationSystemTestCase
     "arquivo-de-acordos" => -> { agreement_exports_path },
     # Incremento 11, etapas 5 e 6: reversão, crédito por estado, estornos à espera e acordo sobre acordo.
     "acordo-em-reversao" => -> { agreement_path(@reversing_agreement) },
-    "ficha-com-credito-por-estado" => -> { customer_path(@reversal_customer) },
+    "ficha-com-credito-por-estado" => -> { customer_path(@reversal_customer, aba: "pagamentos") },
     "estornos-a-espera" => -> { reversal_waits_path },
     "simulacao-de-acordo-sobre-acordo" => lambda {
       visit new_customer_agreement_simulation_path(@renegotiation_customer)
@@ -379,6 +381,50 @@ class CapturasTest < ApplicationSystemTestCase
     "conta-de-pagamento" => -> { edit_settings_payment_account_path(@pix_account) },
     # Incremento 12, parte C: a página pública de pagamento (sem login), com o token de exemplo da captura.
     "pagamento-do-cliente" => -> { checkout_path(@checkout) },
+    # Redesenho, fase 2: as ações restantes no painel compartilhado (modal, confirmação e painel lateral).
+    "novo-usuario-no-painel" => lambda {
+      visit memberships_path
+      click_link "Novo usuário"
+      assert_selector "dialog#painel[open] form.painel"
+      sleep 0.5
+      :current
+    },
+    "perfil-no-painel" => lambda {
+      visit profiles_path
+      click_link "Novo perfil"
+      assert_selector "dialog#painel[open] form.painel"
+      sleep 0.5
+      :current
+    },
+    "confirmar-descarte-da-importacao" => lambda {
+      visit import_path(@payments_import)
+      click_link "Descartar"
+      assert_selector "dialog#painel[open] form.painel"
+      sleep 0.5
+      :current
+    },
+    "registrar-aceite-no-painel" => lambda {
+      visit agreement_path(@approved_agreement)
+      click_link "Registrar aceite"
+      assert_selector "dialog#painel[open] form.painel"
+      sleep 0.5
+      :current
+    },
+    "quebrar-acordo-no-painel" => lambda {
+      visit agreement_path(@effectuated_agreement)
+      find("button.menu-de-linha[aria-label='Mais ações do acordo']").click
+      click_link "Quebrar o acordo"
+      assert_selector "dialog#painel[open] form.painel"
+      sleep 0.5
+      :current
+    },
+    "tratar-divergencia-no-painel" => lambda {
+      visit value_discrepancy_path(@discrepancy)
+      click_link "Tratar divergência"
+      assert_selector "dialog#painel[open] form.painel"
+      sleep 0.5
+      :current
+    },
     "exportacao-de-dados" => -> { customer_data_export_path(@forecast_customer, token: Rails.application.message_verifier(:data_export).generate([ @forecast_customer.id, users(:joana).id ], expires_in: 10.minutes, purpose: :data_export)) }
   }.freeze
 
@@ -399,5 +445,106 @@ class CapturasTest < ApplicationSystemTestCase
       page.execute_script("document.querySelectorAll('main details').forEach((d) => d.open = true)") if ABERTAS.include?(nome)
       page.save_screenshot(Rails.root.join("tmp/capturas/#{nome}.png").to_s)
     end
+  end
+
+  # Capturas do redesenho denso e corporativo (fase 2): todas as telas principais a 1440 x 900 e algumas a 390 px, para o Paulo. Só roda com CAPTURAS=1 CAPTURAS_REDESENHO2=1.
+  test "capturas do redesenho (fase 2)" do
+    skip "defina CAPTURAS_REDESENHO2=1" unless ENV["CAPTURAS_REDESENHO2"] == "1"
+    pasta = Rails.root.join("tmp/capturas-redesenho-fase-2")
+    FileUtils.mkdir_p(pasta)
+    # Só uma importação por credor pode esperar confirmação: a de pagamentos fica conferida e as outras saem de cena.
+    Import.where(tenant_id: @tenant.id).where.not(id: @payments_import.id).update_all(status: "discarded")
+    @payments_import.update!(status: :checked)
+    telas = [ [ "01-resumo", -> { root_path } ], [ "02-clientes", -> { customers_path } ], [ "03-ficha", -> { customer_path(@promise_customer) } ], [ "04-acionamentos", -> { contact_attempts_path } ],
+              [ "05-importacoes", -> { imports_path } ], [ "06-importar-carteira", -> { new_import_path } ], [ "07-conferencia-da-importacao", -> { import_path(@payments_import) } ],
+              [ "08-divergencias", -> { value_discrepancies_path } ], [ "09-divergencia", -> { value_discrepancy_path(@discrepancy) } ], [ "10-historico-do-titulo", -> { bill_path(@reduced_bill) } ],
+              [ "11-acordos", -> { agreements_path } ], [ "12-acordo", -> { agreement_path(@effectuated_agreement) } ], [ "13-acordos-pendentes", -> { pending_agreements_path } ],
+              [ "14-promessas-pendentes", -> { pending_promises_path } ], [ "15-estornos-a-espera", -> { reversal_waits_path } ], [ "16-arquivo-de-acordos", -> { agreement_exports_path } ],
+              [ "17-simulacao-de-acordo", -> { new_customer_agreement_simulation_path(@agreement_customer) } ], [ "18-usuarios", -> { memberships_path } ], [ "19-perfis", -> { profiles_path } ],
+              [ "20-guarda-de-dados", -> { data_retention_path } ], [ "21-config-dados-do-credor", -> { settings_tenant_registry_path } ], [ "22-config-carteira", -> { settings_portfolio_path } ],
+              [ "23-config-canais", -> { settings_channels_path } ], [ "24-config-politicas-de-pagamento", -> { settings_payment_policy_path } ], [ "25-config-contas", -> { settings_payment_accounts_path } ],
+              [ "26-config-segmentos", -> { settings_segments_path } ], [ "27-config-promessas-e-acordos", -> { settings_promises_path } ], [ "28-config-indices", -> { settings_indexes_path } ],
+              [ "29-config-resultados", -> { settings_contact_results_path } ], [ "30-nova-conta", -> { new_settings_payment_account_path(tenant_id: @tenant.id, modality: "pix", provider: "efi") } ],
+              [ "31-conferencia-de-segmentos-novo", -> { new_settings_segment_path(tenant_id: @tenant.id) } ] ]
+    telas.each do |nome, caminho|
+      page.driver.resize(1440, 900)
+      visit instance_exec(&caminho)
+      assert_selector "h1"
+      sleep 0.4
+      page.save_screenshot(pasta.join("#{nome}.png").to_s)
+    end
+    TELAS.slice("novo-usuario-no-painel", "perfil-no-painel", "confirmar-descarte-da-importacao", "registrar-aceite-no-painel", "quebrar-acordo-no-painel", "tratar-divergencia-no-painel").each do |nome, acao|
+      page.driver.resize(1440, 900)
+      instance_exec(&acao)
+      page.save_screenshot(pasta.join("32-#{nome}.png").to_s)
+    end
+    page.driver.resize(1440, 900)
+    visit new_session_path
+    [ [ "40-m-ficha", -> { customer_path(@promise_customer) } ], [ "41-m-acordo", -> { agreement_path(@effectuated_agreement) } ], [ "42-m-importacoes", -> { imports_path } ],
+      [ "43-m-config-promessas", -> { settings_promises_path } ], [ "44-m-simulacao", -> { new_customer_agreement_simulation_path(@agreement_customer) } ] ].each do |nome, caminho|
+      page.driver.resize(390, 900)
+      visit instance_exec(&caminho)
+      assert_selector "h1"
+      sleep 0.4
+      page.save_screenshot(pasta.join("#{nome}.png").to_s)
+    end
+    page.driver.resize(390, 900)
+    visit customers_path
+    find("button.botao-menu").click
+    sleep 0.4
+    page.save_screenshot(pasta.join("45-m-menu-com-busca.png").to_s)
+    page.driver.clear_cookies
+    page.driver.resize(390, 900)
+    visit checkout_path(@checkout)
+    assert_selector "h1"
+    page.save_screenshot(pasta.join("46-m-pagamento-do-cliente.png").to_s)
+    page.driver.resize(1440, 900)
+    page.save_screenshot(pasta.join("33-pagamento-do-cliente.png").to_s)
+  end
+
+  # Capturas do redesenho denso e corporativo (fase 1, decisão 0022): só roda com CAPTURAS=1 CAPTURAS_REDESENHO=1; grava em tmp/capturas-redesenho.
+  test "capturas do redesenho (fase 1)" do
+    skip "defina CAPTURAS_REDESENHO=1" unless ENV["CAPTURAS_REDESENHO"] == "1"
+    pasta = Rails.root.join("tmp/capturas-redesenho")
+    FileUtils.mkdir_p(pasta)
+    tirar = lambda do |nome, largura = 1440, altura = 900|
+      page.driver.resize(largura, altura)
+      page.save_screenshot(pasta.join("#{nome}.png").to_s)
+    end
+    page.driver.resize(1440, 900)
+    visit root_path
+    assert_selector "h1", text: "Resumo da carteira"
+    assert_selector ".kpi"
+    tirar.call("1-resumo")
+    visit customers_path
+    assert_selector "#resultado tbody tr"
+    tirar.call("2-lista-de-clientes")
+    visit customer_path(@promise_customer)
+    assert_selector "h1"
+    tirar.call("3-ficha-do-cliente")
+    visit customer_path(@promise_customer, aba: "promessas")
+    assert_selector "ul.promessas li"
+    tirar.call("3b-ficha-aba-promessas")
+    visit customer_path(@contacted_customer, aba: "acionamentos")
+    click_link "Registrar acionamento"
+    assert_selector "dialog#painel[open] form.painel"
+    sleep 0.5 # termina a animação do painel
+    tirar.call("4-ficha-com-painel-registrar-acionamento")
+    visit customer_path(@contacted_customer, aba: "contatos")
+    find("#contatos button.menu-de-linha", match: :first).click
+    sleep 0.3
+    tirar.call("4b-ficha-menu-de-linha")
+    visit settings_portfolio_path
+    assert_selector "ol.previa"
+    tirar.call("5-configuracao-da-carteira")
+    visit customer_path(@promise_customer)
+    tirar.call("6-ficha-390", 390, 900)
+    visit root_path
+    tirar.call("6b-resumo-390", 390, 900)
+    page.driver.clear_cookies
+    visit new_session_path
+    assert_selector "h1", text: "Entrar no CRM"
+    tirar.call("7-entrada")
+    tirar.call("8-entrada-390", 390, 900)
   end
 end

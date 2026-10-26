@@ -110,7 +110,7 @@
 </section>
 
 <section class="cartao" aria-labelledby="abas-exemplo">
-  <header><h2 id="abas-exemplo">Abas, ícones, janela e confirmação</h2></header>
+  <header><h2 id="abas-exemplo">Abas, ícones e confirmação no painel</h2></header>
   <nav class="abas" aria-label="Abas de exemplo">
     <a href="<%= design_system_path %>" aria-current="page">Carteira</a>
     <a href="<%= design_system_path %>">Canais</a>
@@ -118,21 +118,6 @@
   </nav>
   <p><%= icone("bell", rotulo: "Avisos") %> <%= icone("check-circle", tamanho: "small") %> <%= icone("x-mark") %> <%= icone("chevron-down", tamanho: "small") %></p>
   <div class="acoes">
-    <button type="button" command="show-modal" commandfor="janela-exemplo">Abrir janela</button>
-    <%= render "shared/confirmacao", id: "confirmar-exemplo", titulo: "Apagar o exemplo", mensagem: "O exemplo é apagado e não volta.", acao: "Apagar", url: design_system_path, metodo: :get do %>Apagar o exemplo<% end %>
+    <%= confirmar_no_painel "Apagar o exemplo", titulo: "Apagar o exemplo", mensagem: "O exemplo é apagado e não volta.", acao: "Apagar", url: design_system_path, metodo: :get %>
   </div>
-  <dialog id="janela-exemplo" aria-labelledby="janela-exemplo-titulo">
-    <header>
-      <div>
-        <h2 id="janela-exemplo-titulo">Janela de exemplo</h2>
-        <p>Cabe na altura da tela; cabeçalho e rodapé fixos.</p>
-      </div>
-      <button type="button" command="close" commandfor="janela-exemplo" data-variant="link" aria-label="Fechar a janela"><%= icone("x-mark") %></button>
-    </header>
-    <div><p>Conteúdo da janela.</p></div>
-    <footer>
-      <button type="button" command="close" commandfor="janela-exemplo" data-variant="secondary">Cancelar</button>
-      <button type="button" command="close" commandfor="janela-exemplo">Confirmar</button>
-    </footer>
-  </dialog>
 </section>

@@ -36,14 +36,15 @@ class PaymentsScreensSystemTest < ApplicationSystemTestCase
     assert_acessivel
     click_link "Canais de recebimento"
     click_link "Novo canal"
-    assert_selector "h1", text: "Novo canal de recebimento"
+    assert_selector "dialog#painel[open][data-variant=drawer]", text: "Novo canal de recebimento"
     assert_acessivel
+    within("dialog#painel[open]") { click_button "Cancelar" }
     visit edit_settings_channel_path(@channel)
     assert_acessivel
-    click_button "Trocar o segredo"
-    assert_selector "dialog[open]", text: "Gerar um novo segredo?"
+    click_link "Trocar o segredo"
+    assert_selector "dialog#painel[open]", text: "Gerar um novo segredo?"
     assert_acessivel
-    within("dialog[open]") { click_button "Cancelar" }
+    within("dialog#painel[open]") { click_button "Cancelar" }
 
     visit new_import_path(kind: "payments")
     assert_selector "h1", text: "Importar pagamentos"
@@ -60,19 +61,19 @@ class PaymentsScreensSystemTest < ApplicationSystemTestCase
     visit imports_path
     assert_acessivel
 
-    visit customer_path(@customer)
+    visit customer_path(@customer, aba: "pagamentos")
     assert_selector "h2", text: "Pagos"
     assert_selector "h2", text: "Crédito por contrato"
     assert_acessivel
-    click_button "Transferir crédito"
-    assert_selector "dialog[open]", text: "Transferir crédito"
+    click_link "Transferir crédito"
+    assert_selector "dialog#painel[open]", text: "Transferir crédito"
     assert_acessivel
   end
 
   test "transferir crédito pela janela da ficha" do
-    visit customer_path(@customer)
-    click_button "Transferir crédito"
-    within("dialog[open]") do
+    visit customer_path(@customer, aba: "pagamentos")
+    click_link "Transferir crédito"
+    within("dialog#painel[open]") do
       fill_in "Código do contrato de destino", with: "CT-2"
       fill_in "Valor", with: "20,00"
       fill_in "Motivo", with: "migração de contrato"

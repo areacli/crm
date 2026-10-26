@@ -22,28 +22,25 @@
     </div>
   </section>
 
-  <% if data.present? %>
-    <%= render "imports/results/#{import.kind}", import: import, data: data %>
+  <% if policy(import).confirm? %>
+    <%= aviso(tom: :warning) do %>
+      <p>Nada foi gravado até agora. Confirme para gravar ou descarte o arquivo.</p>
+      <div class="acoes">
+        <%= confirmar_no_painel "Confirmar", titulo: "Confirmar a importação?", mensagem: t("imports.confirm_message.#{import.kind}") + (import.portfolio? && import.full_sync? ? " Os que não vieram no arquivo saem da cobrança." : ""),
+                                acao: "Confirmar importação", url: import_confirmation_path(import), perigoso: false, variante: nil, tamanho: "small" %>
+        <%= confirmar_no_painel "Descartar", titulo: "Descartar a importação?", mensagem: t("imports.discard_message.#{import.kind}"), acao: "Descartar importação", url: import_discard_path(import), tamanho: "small" %>
+      </div>
+    <% end %>
   <% end %>
 
-  <% if policy(import).confirm? %>
-    <section class="cartao" aria-labelledby="decisao">
-      <header><h2 id="decisao">Confirmar ou descartar</h2><p>Nada foi gravado até agora.</p></header>
-      <div class="acoes">
-        <%= render("shared/confirmacao", id: "confirmar-importacao", titulo: "Confirmar a importação?", gatilho: "primary",
-                   mensagem: t("imports.confirm_message.#{import.kind}") + (import.portfolio? && import.full_sync? ? " Os que não vieram no arquivo saem da cobrança." : ""),
-                   acao: "Confirmar importação", url: import_confirmation_path(import), variante: "primary") { "Confirmar" } %>
-        <%= render("shared/confirmacao", id: "descartar-importacao", titulo: "Descartar a importação?",
-                   mensagem: t("imports.discard_message.#{import.kind}"),
-                   acao: "Descartar importação", url: import_discard_path(import)) { "Descartar" } %>
-      </div>
-    </section>
+  <% if data.present? %>
+    <%= render "imports/results/#{import.kind}", import: import, data: data %>
   <% end %>
 
   <% if rejections.any? %>
     <section class="cartao" aria-labelledby="recusadas">
       <header><h2 id="recusadas">Linhas recusadas<%= " e ignoradas" if import.rejections.where(ignored: true).exists? %></h2><p>Mostrando as primeiras <%= rejections.size %> de <%= number_br(import.rejections.count) %>.</p></header>
-      <div class="tabela" tabindex="0">
+      <div class="tabela" tabindex="0" data-fixa>
         <table>
           <caption class="apenas-leitor-de-tela">Linhas recusadas</caption>
           <thead><tr><th scope="col" data-numerico>Linha</th><th scope="col">Motivo</th></tr></thead>

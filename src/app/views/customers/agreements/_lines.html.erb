@@ -3,7 +3,6 @@
 <div id="acordos" hx-get="<%= customer_agreements_path(customer) %>" hx-trigger="cable:agreements-changed from:body" hx-swap="outerHTML" hx-target="this">
   <% proposals, running = agreements.partition(&:proposal?) %>
   <% if agreements.any? %>
-    <h2 class="apenas-leitor-de-tela">Acordos</h2>
     <ul class="promessas">
       <% if proposals.any? %>
         <li>
@@ -25,5 +24,7 @@
         </li>
       <% end %>
     </ul>
+  <% else %>
+    <p class="vazio">Nenhuma proposta ou acordo em andamento.</p>
   <% end %>
 </div>

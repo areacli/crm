@@ -11,13 +11,15 @@
           data-cartao data-driver="<%= card.driver %>" data-script="<%= card.script %>" data-config="<%= card.config.to_json %>" data-installments-url="<%= checkout_installments_path(checkout) %>"
           data-messages="<%= %w[card_form_error card_script_blocked card_brand_unsupported card_connection_error].index_with { |key| t("payments.checkout.page.#{key}") }.to_json %>">
       <noscript><%= aviso(tom: :warning) { tag.p t("payments.checkout.page.needs_javascript") } %></noscript>
-      <div class="campo">
-        <label for="cartao-numero"><%= t("payments.checkout.page.number_on_card") %></label>
-        <input id="cartao-numero" type="text" inputmode="numeric" autocomplete="cc-number" maxlength="23" required>
-      </div>
-      <div class="campo">
-        <label for="cartao-titular"><%= t("payments.checkout.page.name_on_card") %></label>
-        <input id="cartao-titular" type="text" autocomplete="cc-name" maxlength="60" required>
+      <div class="grupo-de-campos">
+        <div class="campo">
+          <label for="cartao-numero"><%= t("payments.checkout.page.number_on_card") %></label>
+          <input id="cartao-numero" type="text" inputmode="numeric" autocomplete="cc-number" maxlength="23" required>
+        </div>
+        <div class="campo">
+          <label for="cartao-titular"><%= t("payments.checkout.page.name_on_card") %></label>
+          <input id="cartao-titular" type="text" autocomplete="cc-name" maxlength="60" required>
+        </div>
       </div>
       <div class="grupo-de-campos">
         <div class="campo">
@@ -28,8 +30,8 @@
           <label for="cartao-codigo"><%= t("payments.checkout.page.card_code") %></label>
           <input id="cartao-codigo" type="password" inputmode="numeric" autocomplete="cc-csc" maxlength="4" required>
         </div>
+        <%= render "checkouts/installments", checkout: checkout, card: card %>
       </div>
-      <%= render "checkouts/installments", checkout: checkout, card: card %>
       <input type="hidden" id="payment-token" name="payment_token" value="">
       <p id="cartao-erro" role="alert" hidden></p>
       <div class="acoes"><button type="submit"><%= t("payments.checkout.page.pay", amount: money(checkout.amount_cents)) %></button></div>

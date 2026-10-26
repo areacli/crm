@@ -1,0 +1,6 @@
+<%= formulario_de_painel(titulo: "Alocar crédito", descricao: "Crédito aguardando alocação do contrato #{@contract.label}.", url: customer_credit_allocations_path(@customer), enviar: "Alocar", variante: :modal,
+                         escopo: :credit_allocation, erro: @error, voltar: customer_path(@customer, aba: "pagamentos")) do |form| %>
+  <%= form.hidden_field :contract_id, value: @contract.id %>
+  <div class="campo"><%= form.label :bill_id, "Título do mesmo contrato" %><%= form.select :bill_id, @bills.map { |bill| [ "#{bill.number} (vence em #{date_br(bill.due_date)})", bill.id ] }, { selected: params.dig(:credit_allocation, :bill_id) } %></div>
+  <div class="campo"><%= form.label :amount, "Valor" %><%= form.text_field :amount, value: params.dig(:credit_allocation, :amount), required: true, inputmode: "decimal", autocomplete: "off" %></div>
+<% end %>

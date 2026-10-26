@@ -1,5 +1,5 @@
 <% content_for :title, "Configuração · Carteira" %>
-<header class="cabecalho-da-pagina"><h1>Carteira</h1></header>
+<%= pagina "Carteira", subtitulo: "Faixas de atraso e políticas da carteira, por credor." %>
 <%= render "settings/abas" %>
 
 <% @settings.each do |setting| %>
@@ -15,24 +15,41 @@
         <%= hidden_field_tag :section, "brackets" %>
         <fieldset>
           <legend>Faixas de atraso (dias)</legend>
-          <p><small>A primeira começa em 1 dia, sem buraco nem sobreposição, e a última não tem fim. Deixe a linha em branco para não usar.</small></p>
-          <% rows = setting.aging_brackets.map { |bracket| [ bracket["from"], bracket["to"] ] } + [ [ nil, nil ], [ nil, nil ] ] %>
-          <% rows.each_with_index do |(from, to), index| %>
-            <div class="acoes">
-              <div class="campo"><label for="from-<%= tenant.id %>-<%= index %>">Faixa <%= index + 1 %>: de</label><input type="number" min="1" id="from-<%= tenant.id %>-<%= index %>" name="brackets[][from]" value="<%= from %>"></div>
-              <div class="campo"><label for="to-<%= tenant.id %>-<%= index %>">até</label><input type="number" min="1" id="to-<%= tenant.id %>-<%= index %>" name="brackets[][to]" value="<%= to %>"></div>
+          <% rows = setting.aging_brackets.map { |bracket| [ bracket["from"], bracket["to"] ] } %>
+          <% rows += Array.new([ 7 - rows.size, 2 ].max) { [ nil, nil ] } %>
+          <div class="faixas-edicao">
+            <div class="tabela tabela-editavel">
+              <table>
+                <caption class="apenas-leitor-de-tela">Faixas de atraso de <%= tenant.name %></caption>
+                <thead><tr><th scope="col">De</th><th scope="col">Até</th><th scope="col">Remover</th></tr></thead>
+                <tbody>
+                  <% rows.each_with_index do |(from, to), index| %>
+                    <tr>
+                      <td><input type="number" min="1" id="from-<%= tenant.id %>-<%= index %>" name="brackets[][from]" value="<%= from %>" aria-label="Faixa <%= index + 1 %>: de"></td>
+                      <td><input type="number" min="1" id="to-<%= tenant.id %>-<%= index %>" name="brackets[][to]" value="<%= to %>" aria-label="Faixa <%= index + 1 %>: até"></td>
+                      <td><% if from || to %><input type="checkbox" name="brackets[][remove]" value="1" aria-label="Remover a faixa <%= index + 1 %>"><% end %></td>
+                    </tr>
+                  <% end %>
+                </tbody>
+              </table>
             </div>
-          <% end %>
+            <div>
+              <p><small>A primeira começa em 1 dia, sem buraco nem sobreposição, e a última não tem fim. Linha em branco não é usada.</small></p>
+              <% saved = Portfolio::AgingBrackets.from_stored(setting.aging_brackets) %>
+              <h3>Pré-visualização das faixas salvas</h3>
+              <ol class="previa" aria-label="Faixas de atraso salvas de <%= tenant.name %>">
+                <% saved.labels.each do |label| %><li><%= label %><small>dias</small></li><% end %>
+              </ol>
+            </div>
+          </div>
         </fieldset>
-        <div class="acoes"><button type="submit">Salvar faixas</button></div>
+        <div class="acoes" data-rodape><button type="submit">Salvar faixas</button></div>
       <% end %>
 
       <%# Divergência de valor (05, R104): cartão de política com o efeito e o exemplo de cada opção. Sem a permissão 14, texto sem campo (P20). %>
       <% can_change_policy = Current.user.permitted?("change_financial_policies", tenant) %>
       <% policy_body = capture do %>
-        <fieldset>
-          <legend>Divergência de valor</legend>
-          <p><small>O que fazer quando uma carga traz outro valor para um título que já tem pagamento. Vale para as cargas seguintes; as divergências já registradas não mudam.</small></p>
+        <%= politica("Divergência de valor", "pol-1-#{tenant.id}", ajuda: "O que fazer quando uma carga traz outro valor para um título que já tem pagamento. Vale para as cargas seguintes; as divergências já registradas não mudam.") do %>
           <% TenantSetting.defined_enums.fetch("discrepancy_policy").each_key do |value| %>
             <% if can_change_policy %>
               <label>
@@ -49,14 +66,14 @@
             <% end %>
           <% end %>
           <% unless can_change_policy %><p><small>Só quem altera políticas financeiras muda esta política.</small></p><% end %>
-        </fieldset>
+        <% end %>
       <% end %>
       <% if can_change_policy %>
         <%= form_with url: settings_portfolio_path, method: :patch, html: { "hx-boost": "false" } do |form| %>
           <%= hidden_field_tag :tenant_id, tenant.id %>
           <%= hidden_field_tag :section, "discrepancy" %>
           <%= policy_body %>
-          <div class="acoes"><button type="submit">Salvar política de divergência</button></div>
+          <div class="acoes" data-rodape><button type="submit">Salvar política de divergência</button></div>
         <% end %>
       <% else %>
         <%= policy_body %>
@@ -67,9 +84,7 @@
       <%= form_with url: settings_portfolio_path, method: :patch, html: { "hx-boost": "false" } do |form| %>
         <%= hidden_field_tag :tenant_id, tenant.id %>
         <%= hidden_field_tag :section, "correction" %>
-        <fieldset>
-          <legend>Correção na tela ou carga: qual vale</legend>
-          <p><small>Quando a pessoa corrige o nome ou um contato de um cliente na tela e a carga seguinte traz outro valor. Vale para as cargas seguintes; a carga nunca apaga um contato.</small></p>
+        <%= politica("Correção na tela ou carga: qual vale", "pol-2-#{tenant.id}", ajuda: "Quando a pessoa corrige o nome ou um contato de um cliente na tela e a carga seguinte traz outro valor. Vale para as cargas seguintes; a carga nunca apaga um contato.") do %>
           <% TenantSetting.defined_enums.fetch("correction_policy").each_key do |value| %>
             <label>
               <%= radio_button_tag :correction_policy, value, setting.correction_policy == value, id: "correction-#{tenant.id}-#{value}" %>
@@ -78,20 +93,19 @@
             </label>
           <% end %>
           <% if last_correction %><p><small>Alterada por <%= last_correction.user&.name || "sistema" %> em <%= datetime_br(last_correction.occurred_at) %>.</small></p><% end %>
-        </fieldset>
-        <div class="acoes"><button type="submit">Salvar política de correção</button></div>
+        <% end %>
+        <div class="acoes" data-rodape><button type="submit">Salvar política de correção</button></div>
       <% end %>
 
       <%= form_with url: settings_portfolio_path, method: :patch, html: { "hx-boost": "false" } do |form| %>
         <%= hidden_field_tag :tenant_id, tenant.id %>
         <%= hidden_field_tag :section, "upcoming" %>
-        <fieldset>
-          <legend>Títulos a vencer</legend>
+        <%= politica("Títulos a vencer", "pol-3-#{tenant.id}") do %>
           <% { "separate" => "Mostrar à parte do vencido", "summed" => "Somar ao vencido, mostrando o vencido em separado", "detail_only" => "Só na ficha do cliente, fora dos totais" }.each do |value, label| %>
             <label><%= radio_button_tag :upcoming_display, value, setting.upcoming_display == value %> <%= label %></label>
           <% end %>
-        </fieldset>
-        <div class="acoes"><button type="submit">Salvar</button></div>
+        <% end %>
+        <div class="acoes" data-rodape><button type="submit">Salvar</button></div>
       <% end %>
     </div>
   </section>

@@ -1,15 +1,23 @@
-/* Estrutura da página: cabeçalho marinho com a marca em destaque, menu lateral claro só com texto, conteúdo, sem rodapé. */
+/*
+ * Estrutura da página (revisão 4): cabeçalho marinho de 56 px (marca, busca global, sino e usuário), barra de página de 48 px (título, indicadores e ações),
+ * menu lateral de 208 px, conteúdo. Quatro modelos de página: lista, ficha, configuração e entrada.
+ */
 @layer layout {
   body {
     display: grid;
     grid-template-columns: var(--largura-menu) minmax(0, 1fr);
-    grid-template-rows: var(--altura-cabecalho) 1fr;
-    grid-template-areas: "cabecalho cabecalho" "menu conteudo";
+    grid-template-rows: auto auto 1fr;
+    grid-template-areas: "demonstracao demonstracao" "cabecalho cabecalho" "menu conteudo";
     min-height: 100vh;
+    min-height: 100dvh;
   }
 
+  /* Sem menu (páginas públicas e senha temporária): o conteúdo ocupa a largura toda. */
+  body:not(:has(> nav)) { grid-template-columns: minmax(0, 1fr); grid-template-areas: "demonstracao" "cabecalho" "conteudo"; }
+  /* Sem cabeçalho (entrada): só a faixa da demonstração e o conteúdo. */
+  body:not(:has(> header)) { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr; grid-template-areas: "demonstracao" "conteudo"; }
+
   /* Faixa da demonstração pública (CRM_DEMO=1): uma linha a mais no alto da página, discreta. */
-  body:has(> .demonstracao) { grid-template-rows: auto var(--altura-cabecalho) 1fr; grid-template-areas: "demonstracao demonstracao" "cabecalho cabecalho" "menu conteudo"; }
   .demonstracao { grid-area: demonstracao; padding: var(--espaco-1) var(--espaco-4); background: var(--cor-amarelo); color: var(--cor-marinho); text-align: center; font-size: var(--texto-legenda); }
   .demonstracao p { margin: 0; }
 
@@ -18,9 +26,10 @@
     position: sticky;
     top: 0;
     z-index: 40;
-    display: flex;
+    height: var(--altura-cabecalho);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, var(--largura-busca)) minmax(0, 1fr);
     align-items: center;
-    justify-content: space-between;
     gap: var(--espaco-4);
     padding-inline: var(--espaco-4);
     background: var(--cor-marinho);
@@ -29,18 +38,22 @@
   body > header :focus-visible { outline-color: var(--cor-amarelo); }
   body > header a { color: inherit; text-decoration: none; }
 
-  /* A marca é o elemento de maior peso do cabeçalho (revisão 2): logotipo de 36 px (sem margem interna) e o nome do produto em 32 px, num cabeçalho de 56 px. */
+  /* A marca é o elemento de maior peso do cabeçalho: logotipo de 40 px (sem margem interna) e o nome do produto em 28 px. */
+  .identidade { grid-column: 1; display: flex; align-items: center; gap: var(--espaco-2); min-width: 0; }
   .marca { display: flex; align-items: center; gap: var(--espaco-3); }
   .marca img { height: var(--altura-logotipo); width: auto; }
   .marca strong { font-size: var(--texto-marca); line-height: 1; font-weight: 700; }
 
-  .usuario { display: flex; align-items: center; gap: var(--espaco-3); }
+  /* Busca global de cliente (nome ou documento): formulário GET para a lista de clientes, sem regra nova. */
+  .busca input { padding-right: calc(var(--altura-controle) + var(--espaco-1)); }
+
+  .conta { grid-column: 3; justify-self: end; display: flex; align-items: center; gap: var(--espaco-2); }
+  .usuario, .avisos > details { position: relative; }
   .usuario summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: var(--espaco-2); padding: var(--espaco-1); border-radius: var(--raio-controle); }
   .usuario summary::-webkit-details-marker { display: none; }
   .usuario summary:hover { background: var(--cor-azul-escuro); }
-  .iniciais { display: grid; place-items: center; width: 2.5rem; height: 2.5rem; border-radius: 50%; background: var(--cor-amarelo); color: var(--cor-marinho); font-weight: 700; }
+  .iniciais { display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: 50%; background: var(--cor-amarelo); color: var(--cor-marinho); font-weight: 700; font-size: var(--texto-tabela); }
 
-  .identidade { display: flex; align-items: center; gap: var(--espaco-2); }
   body > nav {
     grid-area: menu;
     /* O menu é um popover: na tela larga fica sempre à mostra, na estreita abre pelo botão do cabeçalho. */
@@ -55,65 +68,76 @@
     background: var(--cor-branco);
     border: 0;
     border-right: 1px solid var(--cor-linha);
-    padding: var(--espaco-3);
+    padding: var(--espaco-2);
   }
-  body > nav h2 { padding: var(--espaco-2) var(--espaco-3) var(--espaco-1); font-size: var(--texto-legenda); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--cor-texto-suave); }
-  body > nav ul { list-style: none; margin: 0 0 var(--espaco-3); padding: 0; }
-  body > nav a { display: block; padding: var(--espaco-2) var(--espaco-3); border-radius: var(--raio-controle); color: var(--cor-texto); text-decoration: none; font-weight: 600; }
+  body > nav h2 { padding: var(--espaco-3) var(--espaco-3) var(--espaco-1); font-size: var(--texto-legenda); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--cor-texto-suave); }
+  body > nav ul { list-style: none; margin: 0 0 var(--espaco-1); padding: 0; }
+  body > nav a { display: flex; align-items: center; justify-content: space-between; gap: var(--espaco-2); min-height: var(--altura-item-menu); padding: 0 var(--espaco-3); border-radius: var(--raio-controle); color: var(--cor-texto); text-decoration: none; font-weight: 600; }
   body > nav a:hover { background: var(--cor-superficie); }
   body > nav a[aria-current="page"] { background: var(--cor-marinho); color: var(--cor-branco); }
 
   body > main {
     grid-area: conteudo;
     min-width: 0;
-    padding: var(--espaco-6);
+    padding: 0 var(--espaco-4) var(--espaco-6);
     max-width: var(--largura-conteudo);
     width: 100%;
     margin-inline: auto;
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: var(--espaco-6);
+    gap: var(--espaco-4);
     align-content: start;
   }
   body > main:focus { outline: none; }
+  body > main > * { min-width: 0; }
 
-  /* Sem menu (página de entrada): o conteúdo ocupa a largura toda. */
-  body:not(:has(> nav)) { grid-template-columns: minmax(0, 1fr); grid-template-areas: "cabecalho" "conteudo"; }
+  /* Avisos da página (confirmações do servidor e do painel): ficam logo abaixo da barra, que sempre é o primeiro bloco visível. */
+  #avisos-da-pagina { display: grid; gap: var(--espaco-2); }
+  #avisos-da-pagina:not(:has(*)) { display: none; }
+  body > main > .cabecalho-da-pagina { order: -2; }
+  #avisos-da-pagina { order: -1; }
 
   .pular-para-o-conteudo { position: absolute; left: -999px; top: var(--espaco-2); z-index: 60; background: var(--cor-branco); padding: var(--espaco-2) var(--espaco-4); border-radius: var(--raio-controle); font-weight: 600; }
   .pular-para-o-conteudo:focus { left: var(--espaco-2); }
 
-  .cabecalho-da-pagina { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--espaco-3); }
-  .cabecalho-da-pagina p { margin: var(--espaco-1) 0 0; color: var(--cor-texto-suave); }
+  /* Barra de página: título, indicadores (chips) e as ações da página à direita; faixa branca de ponta a ponta do conteúdo. */
+  .cabecalho-da-pagina {
+    display: flex; flex-wrap: wrap; align-items: center; gap: var(--espaco-2) var(--espaco-4);
+    min-height: var(--altura-barra);
+    margin-inline: calc(-1 * var(--espaco-4));
+    padding: var(--espaco-2) var(--espaco-4);
+    background: var(--cor-branco);
+    border-bottom: 1px solid var(--cor-linha);
+  }
+  .cabecalho-da-pagina > div:first-child { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--espaco-1) var(--espaco-3); min-width: 0; }
+  .cabecalho-da-pagina h1 { overflow-wrap: anywhere; }
+  .cabecalho-da-pagina p { margin: 0; color: var(--cor-texto-suave); font-size: var(--texto-tabela); }
+  .cabecalho-da-pagina .indicadores { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espaco-2); }
+  .cabecalho-da-pagina .acoes { margin-left: auto; }
   .acoes { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espaco-2); }
 
-  /* Tela estreita: o menu vira uma faixa acima do conteúdo e o conteúdo usa menos espaço. */
+  /* Tela estreita: o menu vira um popover aberto pelo botão do cabeçalho; a busca some (o menu leva à lista de clientes). */
   @media (max-width: 48rem) {
-    body { grid-template-columns: minmax(0, 1fr); grid-template-rows: var(--altura-cabecalho) 1fr; grid-template-areas: "cabecalho" "conteudo"; }
+    body { grid-template-columns: minmax(0, 1fr); grid-template-areas: "demonstracao" "cabecalho" "conteudo"; }
+    body > header { grid-template-columns: minmax(0, 1fr) auto; }
+    .conta { grid-column: 2; }
     /* Fechado até o botão abrir; aberto, cobre a página abaixo do cabeçalho com rolagem própria. */
     body > nav:not(:popover-open) { display: none; }
     body > nav:popover-open { position: fixed; inset: var(--altura-cabecalho) 0 auto 0; max-height: calc(100dvh - var(--altura-cabecalho)); overflow-y: auto; z-index: 45; border-bottom: 1px solid var(--cor-linha-forte); box-shadow: var(--sombra-menu); }
     body > nav::backdrop { background: transparent; }
     /* Cabeçalho estreito: só as iniciais no menu do usuário, para a marca, o sino e o menu caberem. */
     .usuario summary > span:not(.iniciais) { position: absolute; left: 0; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-    .marca strong { white-space: nowrap; }
-    .conta { gap: var(--espaco-2); }
-    body > main { padding: var(--espaco-4); }
-    .marca strong { font-size: var(--texto-subtitulo); }
-  }
-
-  /* A faixa da demonstração acrescenta a primeira linha nas três disposições (com menu, sem menu e estreita). */
-  body:has(> .demonstracao):not(:has(> nav)) { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto var(--altura-cabecalho) 1fr; grid-template-areas: "demonstracao" "cabecalho" "conteudo"; }
-  @media (max-width: 48rem) {
-    body:has(> .demonstracao) { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto var(--altura-cabecalho) 1fr; grid-template-areas: "demonstracao" "cabecalho" "conteudo"; }
+    .marca strong { white-space: nowrap; font-size: var(--texto-titulo); }
+    .marca img { height: 2rem; }
+    body > main { padding-inline: var(--espaco-3); }
+    .cabecalho-da-pagina { margin-inline: calc(-1 * var(--espaco-3)); padding-inline: var(--espaco-3); }
+    .cabecalho-da-pagina .acoes { margin-left: 0; }
   }
 }
 
 /* Menu do usuário e sino de avisos: <details> no cabeçalho; o conteúdo abre sobre a página. */
 @layer layout {
-  .conta { display: flex; align-items: center; gap: var(--espaco-4); }
-  .usuario, .avisos > details { position: relative; }
-  .usuario[open] > div, .avisos > details[open] > div { position: absolute; right: 0; top: calc(100% + var(--espaco-2)); z-index: 50; display: grid; gap: var(--espaco-3); padding: var(--espaco-3) var(--espaco-4); background: var(--cor-branco); color: var(--cor-texto); border-radius: var(--raio-controle); box-shadow: var(--sombra-menu); }
+  .usuario[open] > div, .avisos > details[open] > div { position: absolute; right: 0; top: calc(100% + var(--espaco-2)); z-index: 50; display: grid; gap: var(--espaco-2); padding: var(--espaco-3); background: var(--cor-branco); color: var(--cor-texto); border-radius: var(--raio-controle); box-shadow: var(--sombra-menu); }
   .usuario[open] > div { width: max-content; min-width: 12rem; max-width: min(22rem, calc(100vw - 2 * var(--espaco-4))); }
   .usuario[open] > div p { overflow-wrap: anywhere; }
   .usuario > div p { margin: 0; }
@@ -130,26 +154,83 @@
   .avisos li > div { display: flex; justify-content: space-between; align-items: center; gap: var(--espaco-3); }
 }
 
-/* Telas da carteira: filtros, colunas e paginação. */
+/* Modelo Lista: filtros em uma linha, tabela densa com cabeçalho fixo, rodapé com paginação. */
 @layer layout {
-  .filtros { display: flex; flex-wrap: wrap; align-items: end; gap: var(--espaco-3); margin-block: var(--espaco-4); }
+  .filtros { display: flex; flex-wrap: wrap; align-items: end; gap: var(--espaco-2) var(--espaco-3); }
   .filtros .campo { margin: 0; }
   .duas-colunas { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 28rem), 1fr)); gap: var(--espaco-4); align-items: start; }
   .duas-colunas > * { min-width: 0; }
-  .paginacao { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: var(--espaco-4); margin-block: var(--espaco-4); }
+  .paginacao { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--espaco-4); padding: var(--espaco-2) var(--espaco-3); background: var(--cor-branco); border: 1px solid var(--cor-linha); border-top: 0; border-radius: 0 0 var(--raio-cartao) var(--raio-cartao); font-size: var(--texto-tabela); }
   .paginacao [aria-disabled="true"] { color: var(--cor-texto-suave); }
+  .paginacao > :first-child { order: 0; }
   .apenas-leitor-de-tela { position: absolute; left: 0; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-  progress { width: 100%; max-width: 20rem; height: var(--espaco-3); vertical-align: middle; accent-color: var(--cor-azul); }
+  progress { width: 100%; max-width: 20rem; height: var(--espaco-2); vertical-align: middle; accent-color: var(--cor-azul); }
+}
+
+/* Modelo Ficha: coluna principal com abas e coluna lateral fixa de 320 px com dados, totais e contatos. */
+@layer layout {
+  .ficha { display: grid; grid-template-columns: minmax(0, 1fr) var(--largura-lateral); gap: var(--espaco-4); align-items: start; }
+  .ficha > * { min-width: 0; }
+  /* Formulário à esquerda (24 rem) e a referência à direita: importar planilha. */
+  .ficha[data-lateral="esquerda"] { grid-template-columns: minmax(0, 24rem) minmax(0, 1fr); }
+  /* Formulário e resultado lado a lado (simulação de acordo): o resultado acompanha a rolagem do formulário. */
+  .ficha[data-lateral="formulario"] { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .ficha[data-lateral="formulario"] > #simulacao { display: grid; gap: var(--espaco-3); align-content: start; position: sticky; top: calc(var(--altura-cabecalho) + var(--espaco-3)); }
+  .ficha-principal { display: grid; gap: var(--espaco-3); align-content: start; }
+  .ficha-lateral { display: grid; gap: var(--espaco-3); align-content: start; }
+  @media (max-width: 64rem) {
+    .ficha, .ficha[data-lateral="esquerda"], .ficha[data-lateral="formulario"] { grid-template-columns: minmax(0, 1fr); }
+    .ficha[data-lateral="formulario"] > #simulacao { position: static; }
+  }
+}
+
+/* Modelo Configuração: menu vertical de seções à esquerda (200 px) e o conteúdo à direita. */
+@layer layout {
+  body > main:has(> nav.secoes) { grid-template-columns: var(--largura-secoes) minmax(0, 1fr); column-gap: var(--espaco-4); }
+  body > main:has(> nav.secoes) > .cabecalho-da-pagina { grid-column: 1 / -1; grid-row: 1; }
+  body > main:has(> nav.secoes) > nav.secoes { grid-column: 1; grid-row: 2 / span 2; align-self: start; }
+  body > main:has(> nav.secoes) > :not(nav.secoes, .cabecalho-da-pagina) { grid-column: 2; }
+  @media (max-width: 64rem) {
+    body > main:has(> nav.secoes) { grid-template-columns: minmax(0, 1fr); }
+    body > main:has(> nav.secoes) > nav.secoes { grid-column: 1; grid-row: auto; }
+    body > main:has(> nav.secoes) > :not(nav.secoes, .cabecalho-da-pagina) { grid-column: 1; }
+  }
+}
+
+/* Modelo Entrada: formulário à esquerda, centralizado na vertical (23,75 rem), e o painel de apresentação em marinho à direita; no celular, só o formulário. */
+@layer layout {
+  body > main.entrada { grid-area: conteudo; display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 0; padding: 0; max-width: none; align-content: stretch; }
+  .entrada-acesso { display: grid; align-content: center; justify-items: center; padding: var(--espaco-8) var(--espaco-6); background: var(--cor-branco); }
+  .entrada-formulario { width: min(var(--largura-entrada), 100%); display: grid; gap: var(--espaco-4); }
+  .entrada-formulario > header { display: none; }
+  .entrada-apresentacao { display: grid; align-content: center; gap: var(--espaco-6); padding: var(--espaco-8) clamp(var(--espaco-6), 6vw, 6rem); background: var(--cor-marinho); color: var(--cor-branco); }
+  .entrada-apresentacao img { width: min(20rem, 100%); height: auto; }
+  .entrada-apresentacao h2 { color: var(--cor-branco); font-size: var(--texto-titulo); }
+  .entrada-apresentacao > div > p { color: var(--cor-marinho-texto); }
+  .entrada-apresentacao ul { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--espaco-4); max-width: 34rem; }
+  .entrada-apresentacao li { display: grid; gap: var(--espaco-1); padding-left: var(--espaco-4); border-left: 3px solid var(--cor-amarelo); }
+  .entrada-apresentacao li span { color: var(--cor-marinho-texto); }
+  @media (max-width: 48rem) {
+    body > main.entrada { grid-template-columns: minmax(0, 1fr); }
+    .entrada-apresentacao { display: none; }
+    .entrada-acesso { align-content: start; padding: 0 0 var(--espaco-6); justify-items: stretch; }
+    .entrada-formulario { width: auto; padding-inline: var(--espaco-4); gap: var(--espaco-3); }
+    .entrada-formulario > header { display: block; margin-inline: calc(-1 * var(--espaco-4)); padding: var(--espaco-4); background: var(--cor-marinho); }
+    .entrada-formulario > header img { height: 2.5rem; width: auto; }
+  }
 }
 
 /* Páginas feitas de seções (guarda de dados) e a página para imprimir (07, R128): sem menu e sem botões ao imprimir. */
 @layer layout {
-  .pagina-em-secoes { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--espaco-6); }
+  /* A tela da importação (refeita pelo htmx) e a da guarda de dados empilham os blocos com o mesmo espaço. */
+  #importacao { display: grid; gap: var(--espaco-3); }
+  .pagina-em-secoes { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--espaco-4); }
   body[data-pagina="impressao"] { display: block; }
   /* Página pública de pagamento (12, parte C): uma coluna só, sem menu, para o celular do cliente. */
   body[data-pagina="pagamento"] { display: block; }
-  body[data-pagina="pagamento"] > main { max-width: 48rem; }
-  body[data-pagina="pagamento"] > header .marca strong { font-size: var(--texto-subtitulo); }
+  body[data-pagina="pagamento"] > main { max-width: 48rem; padding-top: var(--espaco-4); }
+  body[data-pagina="pagamento"] > header { display: flex; }
+  body[data-pagina="pagamento"] > header .marca strong { font-size: var(--texto-titulo); }
   body[data-pagina="pagamento"] .vazio h1 { font-size: var(--texto-titulo); margin-bottom: var(--espaco-3); }
   @media print {
     .nao-imprimir, body > header, body > nav { display: none; }

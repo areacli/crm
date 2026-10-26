@@ -1,0 +1,13 @@
+<% channels = Agreement::CHANNELS.map { |channel| [ channel_name(channel), channel ] } %>
+<%= formulario_de_painel(titulo: "Registrar o aceite", descricao: "Como o termo foi apresentado e como o cliente aceitou. O CRM confere a proposta de novo ao registrar.", url: agreement_acceptance_path(@agreement), enviar: "Registrar aceite",
+                         escopo: :acceptance, erro: @error, voltar: agreement_path(@agreement)) do |form| %>
+  <div class="campo"><%= form.label :presented_channel, "Canal da apresentação do termo" %><%= form.select :presented_channel, channels, { include_blank: false } %></div>
+  <div class="campo"><%= form.label :presented_at, "Data e hora da apresentação" %><%= form.datetime_local_field :presented_at, required: true, value: params.dig(:acceptance, :presented_at) %></div>
+  <div class="campo"><%= form.label :accepted_channel, "Canal do aceite" %><%= form.select :accepted_channel, channels, { include_blank: false } %></div>
+  <div class="campo"><%= form.label :accepted_at, "Data e hora do aceite" %><%= form.datetime_local_field :accepted_at, required: true, value: params.dig(:acceptance, :accepted_at) %></div>
+  <div class="campo">
+    <%= form.label :accepted_by_customer_id, "Quem aceitou" %>
+    <%= form.select :accepted_by_customer_id, @acceptors.map { |customer, role| [ "#{customer.name}, #{t("agreements.roles.#{role}")}", customer.id ] }, { include_blank: false } %>
+  </div>
+  <div class="campo"><%= form.label :proof, "Comprovante (opcional)" %><%= form.text_field :proof, value: params.dig(:acceptance, :proof), maxlength: 200 %><small>Protocolo, número da gravação ou referência da mensagem.</small></div>
+<% end %>

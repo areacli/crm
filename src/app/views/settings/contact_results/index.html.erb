@@ -1,14 +1,13 @@
 <% content_for :title, "Configuração · Resultados de acionamento" %>
-<header class="cabecalho-da-pagina">
-  <div><h1>Resultados de acionamento</h1><p>A lista que o operador escolhe ao registrar um contato. Cada credor tem a sua. O tipo não muda depois de criado; o resultado usado não se apaga, só se desativa.</p></div>
-  <div class="acoes"><%= link_to "Novo resultado", new_settings_contact_result_path, class: "botao" %></div>
-</header>
+<%= pagina "Resultados de acionamento", subtitulo: "A lista que o operador escolhe ao registrar um contato; cada credor tem a sua." do %>
+  <%= abrir_painel "Novo resultado", new_settings_contact_result_path %>
+<% end %>
 <%= render "settings/abas" %>
 
 <% @tenants.each do |tenant| %>
   <% results = @results.fetch(tenant, []) %>
   <section class="cartao" aria-labelledby="credor-<%= tenant.id %>">
-    <header><h2 id="credor-<%= tenant.id %>"><%= tenant.name %></h2></header>
+    <header><h2 id="credor-<%= tenant.id %>"><%= tenant.name %></h2><%= informacao "resultados", "O tipo não muda depois de criado; o resultado usado não se apaga, só se desativa.", "definicao-resultados-#{tenant.id}" %></header>
     <% if results.empty? %>
       <p class="vazio">Nenhum resultado cadastrado.</p>
     <% else %>
@@ -16,28 +15,29 @@
         <table>
           <caption class="apenas-leitor-de-tela">Resultados de acionamento de <%= tenant.name %></caption>
           <thead>
-            <tr><th scope="col">Resultado</th><th scope="col">Tipo</th><th scope="col">Retorno</th><th scope="col">Invalida o contato</th><th scope="col">Admite promessa</th><th scope="col" data-numerico>Acionamentos</th><th scope="col">Situação</th><th scope="col">Ações</th></tr>
+            <tr><th scope="col">Resultado</th><th scope="col">Tipo</th><th scope="col">Retorno</th><th scope="col">Invalida o contato</th><th scope="col">Admite promessa</th><th scope="col" data-numerico>Acionamentos</th><th scope="col">Situação</th><th scope="col"><span class="apenas-leitor-de-tela">Ações</span></th></tr>
           </thead>
           <tbody>
             <% results.each_with_index do |result, index| %>
               <tr id="resultado-<%= result.id %>">
-                <th scope="row"><%= link_to result.name, edit_settings_contact_result_path(result) %></th>
+                <th scope="row"><%= result.name %></th>
                 <td><%= t("contacts.kinds.#{result.kind}") %></td>
                 <td><%= t("contacts.return_rules.#{result.return_rule}") %></td>
                 <td><%= result.invalidates_contact? ? "Sim" : "Não" %></td>
                 <td><%= result.allows_promise? ? "Sim" : "Não" %></td>
                 <td data-numerico><%= number_br(@used.fetch(result.id, 0)) %></td>
                 <td><%= result.active? ? situacao("Ativo", tom: :success) : situacao("Desativado", tom: :neutral) %></td>
-                <td>
-                  <div class="acoes">
-                    <% if index.positive? %><%= button_to "Subir", settings_contact_result_movement_path(result), params: { "movement[direction]": "up" }, form: { "hx-boost": "false" }, data: { variant: "secondary", size: "small" }, "aria-label": "Subir #{result.name}" %><% end %>
-                    <% if index < results.size - 1 %><%= button_to "Descer", settings_contact_result_movement_path(result), params: { "movement[direction]": "down" }, form: { "hx-boost": "false" }, data: { variant: "secondary", size: "small" }, "aria-label": "Descer #{result.name}" %><% end %>
+                <td data-acoes>
+                  <%= menu_de_linha("resultado-menu-#{result.id}", "Ações de #{result.name}") do %>
+                    <%= abrir_painel "Editar", edit_settings_contact_result_path(result) %>
+                    <% if index.positive? %><%= button_to "Subir", settings_contact_result_movement_path(result), params: { "movement[direction]": "up" }, form: { "hx-boost": "false" }, "aria-label": "Subir #{result.name}" %><% end %>
+                    <% if index < results.size - 1 %><%= button_to "Descer", settings_contact_result_movement_path(result), params: { "movement[direction]": "down" }, form: { "hx-boost": "false" }, "aria-label": "Descer #{result.name}" %><% end %>
                     <% if result.active? %>
-                      <%= button_to "Desativar", settings_contact_result_activation_path(result), method: :delete, form: { "hx-boost": "false" }, data: { variant: "danger-outline", size: "small" }, "aria-label": "Desativar #{result.name}" %>
+                      <%= confirmar_no_painel "Desativar", titulo: "Desativar #{result.name}?", mensagem: "O resultado deixa de aparecer ao registrar acionamentos; os antigos continuam.", acao: "Desativar", url: settings_contact_result_activation_path(result), metodo: :delete %>
                     <% else %>
-                      <%= button_to "Reativar", settings_contact_result_activation_path(result), form: { "hx-boost": "false" }, data: { variant: "secondary", size: "small" }, "aria-label": "Reativar #{result.name}" %>
+                      <%= confirmar_no_painel "Reativar", titulo: "Reativar #{result.name}?", mensagem: "O resultado volta a aparecer ao registrar acionamentos.", acao: "Reativar", url: settings_contact_result_activation_path(result), perigoso: false %>
                     <% end %>
-                  </div>
+                  <% end %>
                 </td>
               </tr>
             <% end %>

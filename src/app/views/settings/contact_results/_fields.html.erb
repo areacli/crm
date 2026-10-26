@@ -2,23 +2,23 @@
 <div class="campo">
   <%= form.label :name, "Nome" %>
   <%= form.text_field :name, value: result.name, required: true, maxlength: 100 %>
-  <small>Único dentro do credor, sem diferença de maiúsculas e acentos. Renomear muda o nome também nos acionamentos antigos.</small>
+  <small>Único no credor. Renomear muda o nome também nos acionamentos antigos.</small>
 </div>
 <div class="campo">
   <%= form.label :kind, "Tipo" %>
   <%= form.select :kind, ContactResult::KINDS.keys.map { |kind| [ t("contacts.kinds.#{kind}"), kind ] }, { selected: result.kind }, required: true, disabled: kind_locked %>
-  <small><%= kind_locked ? "O tipo não muda depois de criado, para não alterar o significado dos acionamentos antigos." : "Permite medir contatos mesmo com nomes livres. Não muda depois." %></small>
+  <small><%= kind_locked ? "O tipo não muda depois de criado." : "Não muda depois de criado." %></small>
 </div>
 <div class="campo">
   <%= form.label :return_rule, "Data de retorno" %>
   <%= form.select :return_rule, ContactResult.return_rules.keys.map { |rule| [ t("contacts.return_rules.#{rule}"), rule ] }, { selected: result.return_rule }, required: true %>
-  <small>O retorno só fica registrado no acionamento; não há agenda nem aviso.</small>
+  <small>Fica só registrada no acionamento; não há agenda nem aviso.</small>
 </div>
 <div class="campo">
   <label><%= form.check_box :invalidates_contact, { checked: result.invalidates_contact }, "1", "0" %> Invalida o contato</label>
-  <small>Ao registrar um acionamento com este resultado, o contato usado, se estiver cadastrado, passa a inválido (não existe, não é do cliente).</small>
+  <small>O contato usado, se cadastrado, passa a inválido (não existe, não é do cliente).</small>
 </div>
 <div class="campo">
   <label><%= form.check_box :allows_promise, { checked: result.allows_promise }, "1", "0" %> Admite promessa</label>
-  <small>Só nos resultados do tipo "falou com o cliente". Com a marca, o formulário do acionamento oferece "Registrar promessa" (títulos, meio de pagamento e data prometida).</small>
+  <small>Só no tipo "falou com o cliente": o acionamento oferece "Registrar promessa".</small>
 </div>

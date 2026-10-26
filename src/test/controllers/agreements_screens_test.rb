@@ -98,15 +98,16 @@ class AgreementsScreensTest < ActionDispatch::IntegrationTest
     assert_redirected_to agreement_path(agreement)
     follow_redirect!
     assert_select "h1", text: /Acordo ACD-000001/
-    assert_select "h1 .situacao", text: "Aprovada"
+    assert_select ".cabecalho-da-pagina .situacao", text: "Aprovada"
     assert_select "dd", text: "R$ 1.543,66"
     assert_select "table th", text: "Parcela 4"
     assert_select "button", text: "Aprovar proposta", count: 0
 
     get customer_path(@customer)
+    assert_select "small", text: /Em proposta ACD-000001/
+    get customer_path(@customer, aba: "promessas")
     assert_select "ul.promessas li", text: /1 proposta aguardando aceite/
     assert_select "ul.promessas a", text: "ACD-000001"
-    assert_select "small", text: /Em proposta ACD-000001/
     assert_select "#historico-de-acordos"
     assert_select "td", text: "Proposta montada"
   end
@@ -130,7 +131,7 @@ class AgreementsScreensTest < ActionDispatch::IntegrationTest
     delete session_path
     entrar(users(:joana))
     get root_path
-    assert_select "nav a", text: "Acordos pendentes (1)"
+    assert_select "nav a", text: /Acordos pendentes\s*1/
     get pending_agreements_path
     assert_select "tbody tr", 1
     assert_select "tbody td", text: "R$ #{Money.format(agreement.value_cents)}"
@@ -158,7 +159,7 @@ class AgreementsScreensTest < ActionDispatch::IntegrationTest
     agreement = create_proposal(@customer, [ @nf1, @nf2 ])
     entrar(users(:ana))
     get agreement_path(agreement)
-    assert_select "summary", text: "Cancelar proposta"
+    assert_select "a", text: "Cancelar proposta"
     post agreement_cancellation_path(agreement), params: { agreement: { reason: "Cliente desistiu" } }, headers: { "HTTP_REFERER" => agreement_url(agreement) }
     assert_predicate agreement.reload, :state_canceled?
     assert_empty AgreementBill.where(held: true)
@@ -185,7 +186,8 @@ class AgreementsScreensTest < ActionDispatch::IntegrationTest
     assert_select "button[onclick]", 0
 
     get agreement_path(agreement)
-    assert_select "h2", text: "Registrar o aceite"
+    assert_select "a", text: "Registrar aceite"
+    get new_agreement_acceptance_path(agreement)
     assert_select "select[name='acceptance[accepted_by_customer_id]'] option", text: "Maria Souza, responsável financeiro"
     post agreement_acceptance_path(agreement), params: { acceptance: accept_params }
     assert_redirected_to agreement_path(agreement)
@@ -193,9 +195,9 @@ class AgreementsScreensTest < ActionDispatch::IntegrationTest
     follow_redirect!
     assert_select "h2", text: "Aceite registrado"
     assert_select "dd", text: /Maria Souza, responsável financeiro/
-    assert_select "h2", text: "Registrar o aceite", count: 0
+    assert_select "a", text: "Registrar aceite", count: 0
 
-    get customer_path(@customer)
+    get customer_path(@customer, aba: "promessas")
     assert_select "ul.promessas li", text: /ACD-000001.*NF-1 e NF-2.*aguardando efetivação|Aguardando efetivação/mi
   end
 
@@ -333,18 +335,18 @@ class AgreementsScreensTest < ActionDispatch::IntegrationTest
     get settings_promises_path
     assert_response :success
     assert_select "h1", text: "Promessas e acordos"
-    assert_select "nav.abas a", text: "Promessas e acordos"
+    assert_select "nav.secoes a", text: "Promessas e acordos"
     assert_select "h2", text: /Políticas dos acordos/
     assert_select "h2", text: /Variáveis de acordo dos segmentos/
     assert_select "h2", text: /Limites de acordo por perfil/
-    assert_select "legend", text: "Tolerância de valor dos títulos de acordo"
-    assert_select "legend", text: "Mínimo para quebrar e efetivar"
+    assert_select ".politica .titulo", text: /Tolerância de valor dos títulos de acordo/
+    assert_select ".politica .titulo", text: /Mínimo para quebrar e efetivar/
 
     patch settings_agreement_policies_path, params: { tenant_id: @alfa.id, tab: "agreements", policies: { break_form: "single_title", tolerance_agreement: { kind: "cents", value: "2,00" } } }
     assert_redirected_to settings_promises_path
     assert_equal "single_title", Agreements::Policies.value(@alfa.setting.reload, "break_form")
     follow_redirect!
-    assert_select "summary", text: "Ver histórico"
+    assert_select ".politica small", text: /Última alteração/
 
     patch settings_agreement_variables_path, params: { tenant_id: @alfa.id, segments: { Segment.catch_all_of(@alfa).id => { max_installments: "8", min_installment: "100,00", min_down_payment_pct: "10",
                                                                                                                         down_payment_days: "10", validity_days: "5", tolerance_days: "3", break_days: "30" } } }
@@ -370,8 +372,8 @@ class AgreementsScreensTest < ActionDispatch::IntegrationTest
     assert_equal I18n.t("agreements.settings.invalid_params"), flash[:alert]
 
     get settings_payment_policy_path
-    assert_select "legend", text: "Tolerância de valor do pagamento direto de título"
-    assert_select "legend", text: "Uso do crédito do contrato"
+    assert_select ".politica .titulo", text: /Tolerância de valor do pagamento direto de título/
+    assert_select ".politica .titulo", text: /Uso do crédito do contrato/
     patch settings_agreement_policies_path, params: { tenant_id: @alfa.id, tab: "payments", policies: { tolerance_direct: { kind: "cents", value: "0,50" }, credit_use: "record_only" } }
     assert_redirected_to settings_payment_policy_path
     assert_equal 50, Agreements::Policies.tolerance_cents(@alfa.setting.reload, "direct", 100_000)

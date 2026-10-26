@@ -1,0 +1,5 @@
+<%= formulario_de_painel(titulo: "Usar crédito", descricao: "No título #{@bill.number}, com o crédito disponível do contrato.", url: customer_credit_uses_path(@customer), enviar: "Usar crédito", variante: :modal,
+                         escopo: :credit_use, erro: @error, voltar: customer_path(@customer, aba: "titulos")) do |form| %>
+  <%= form.hidden_field :bill_id, value: @bill.id %>
+  <div class="campo"><%= form.label :amount, "Valor a usar" %><%= form.text_field :amount, value: params.dig(:credit_use, :amount), required: true, inputmode: "decimal", autocomplete: "off" %></div>
+<% end %>

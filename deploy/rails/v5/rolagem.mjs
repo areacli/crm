@@ -16,11 +16,19 @@ await pagina.waitForURL(BASE + '/');
 const rotas = ['/', '/clientes', '/acionamentos', '/importacoes', '/importacoes/nova', '/importacoes/nova?kind=payments', '/divergencias-de-valor', '/acordos', '/acordos/pendentes',
     '/promessas/pendentes', '/estornos-a-espera', '/arquivo-de-acordos', '/guarda-de-dados', '/configuracao/carteira', '/configuracao/canais-de-recebimento',
     '/configuracao/politicas-de-pagamento', '/configuracao/contas-de-pagamento', '/configuracao/segmentos', '/configuracao/promessas-e-acordos', '/configuracao/indices',
-    '/configuracao/resultados-de-acionamento'];
+    '/configuracao/resultados-de-acionamento', '/configuracao/dados-do-credor', '/usuarios', '/perfis', '/importacoes/nova?kind=reversals'];
 await pagina.goto(BASE + '/clientes');
 await pagina.locator('tbody tr').first().getByRole('link').first().click();
 await pagina.waitForURL(/\/clientes\/\d+/);
 rotas.push(new URL(pagina.url()).pathname);
+// Páginas de detalhe: uma importação, uma divergência, um título e as abas da ficha.
+const detalhes = [['/importacoes', 'tbody tr a[href^="/importacoes/"]'], ['/divergencias-de-valor', 'tbody tr a[href^="/divergencias-de-valor/"]']];
+for (const [lista, seletor] of detalhes) {
+    await pagina.goto(BASE + lista);
+    const item = pagina.locator(seletor).first();
+    if ((await item.count()) > 0) rotas.push(new URL(await item.evaluate((a) => a.href)).pathname);
+}
+for (const aba of ['acionamentos', 'promessas', 'pagamentos', 'contatos', 'historico']) rotas.push(`${rotas.find((r) => /^\/clientes\/\d+$/.test(r))}?aba=${aba}`);
 await pagina.goto(BASE + '/acordos');
 const acordo = pagina.locator('tbody tr a[href^="/acordos/"]').first();
 if ((await acordo.count()) > 0) rotas.push(new URL(await acordo.evaluate((a) => a.href)).pathname);

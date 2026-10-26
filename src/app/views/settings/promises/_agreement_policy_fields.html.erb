@@ -1,34 +1,31 @@
-<%# Campos das políticas dos acordos (escolha ou valor), cada um com a ajuda e "Ver histórico". Locais: tenant, policies, history, keys. %>
+<%# Campos das políticas dos acordos (escolha ou valor): cada política é uma linha com o título à esquerda, as opções à direita e a ajuda e o histórico em popovers. Locais: tenant, policies, history, keys. %>
 <% keys.each do |key| %>
   <% entry = Agreements::Policies.entry(key) %>
   <% changes = history.select { |change| change.field == key }.first(10) %>
-  <fieldset>
-    <legend><%= t("agreements.policies.#{key}.title") %></legend>
-    <p><small><%= t("agreements.policies.#{key}.help") %></small></p>
-    <% if entry.kind == :choice %>
-      <% entry.options.each do |option| %>
-        <label><%= radio_button_tag "policies[#{key}]", option, policies[key] == option, id: "pol-#{tenant.id}-#{key}-#{option}" %> <%= t("agreements.policies.#{key}.options.#{option}") %></label>
+  <% rotulo = "pol-#{tenant.id}-#{key}" %>
+  <div class="politica" role="group" aria-labelledby="<%= rotulo %>-titulo">
+    <span id="<%= rotulo %>-titulo" class="titulo"><%= t("agreements.policies.#{key}.title") %> <%= informacao t("agreements.policies.#{key}.title"), t("agreements.policies.#{key}.help"), "def-#{rotulo}" %></span>
+    <div class="opcoes">
+      <% if entry.kind == :choice %>
+        <% entry.options.each do |option| %>
+          <label><%= radio_button_tag "policies[#{key}]", option, policies[key] == option, id: "#{rotulo}-#{option}" %> <%= t("agreements.policies.#{key}.options.#{option}") %></label>
+        <% end %>
+      <% else %>
+        <% value = policies[key] %>
+        <div class="grupo-de-campos">
+          <div class="campo">
+            <%= label_tag "#{rotulo}-kind", "Em" %>
+            <%= select_tag "policies[#{key}][kind]", options_for_select(entry.options.map { |option| [ t("agreements.policies.#{key}.options.#{option}"), option ] }, value["kind"]), id: "#{rotulo}-kind" %>
+          </div>
+          <div class="campo">
+            <%= label_tag "#{rotulo}-value", "Valor (reais ou percentual)" %>
+            <%= text_field_tag "policies[#{key}][value]", policy_amount_field(value), id: "#{rotulo}-value", inputmode: "decimal", autocomplete: "off" %>
+          </div>
+        </div>
       <% end %>
-    <% else %>
-      <% value = policies[key] %>
-      <div class="grupo-de-campos">
-        <div class="campo">
-          <%= label_tag "pol-#{tenant.id}-#{key}-kind", "Em" %>
-          <%= select_tag "policies[#{key}][kind]", options_for_select(entry.options.map { |option| [ t("agreements.policies.#{key}.options.#{option}"), option ] }, value["kind"]), id: "pol-#{tenant.id}-#{key}-kind" %>
-        </div>
-        <div class="campo">
-          <%= label_tag "pol-#{tenant.id}-#{key}-value", "Valor (reais ou percentual)" %>
-          <%= text_field_tag "policies[#{key}][value]", policy_amount_field(value), id: "pol-#{tenant.id}-#{key}-value", inputmode: "decimal", autocomplete: "off" %>
-        </div>
-      </div>
-    <% end %>
-    <% if changes.any? %>
-      <details>
-        <summary>Ver histórico</summary>
-        <ul>
-          <% changes.each do |change| %><li><%= datetime_br(change.occurred_at) %>, <%= change.user&.name || "—" %>: de <%= change.before.presence || "—" %> para <%= change.after.presence || "—" %>.</li><% end %>
-        </ul>
-      </details>
-    <% end %>
-  </fieldset>
+      <% if changes.any? %>
+        <small>Última alteração: <%= datetime_br(changes.first.occurred_at) %>, <%= changes.first.user&.name || "—" %>: de <%= changes.first.before.presence || "—" %> para <%= changes.first.after.presence || "—" %>. <%= informacao "histórico de #{t("agreements.policies.#{key}.title")}", changes.map { |change| "#{datetime_br(change.occurred_at)}, #{change.user&.name || '—'}: de #{change.before.presence || '—'} para #{change.after.presence || '—'}." }.join(" "), "hist-#{rotulo}" %></small>
+      <% end %>
+    </div>
+  </div>
 <% end %>

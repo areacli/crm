@@ -1,0 +1,10 @@
+<%= formulario_de_painel(titulo: "Decidir o estorno", descricao: "Pagamento #{@wait.payment.identifier}: #{money(@wait.amount_cents)}.", url: reversal_wait_path(@wait), metodo: :patch, enviar: "Decidir", variante: :modal,
+                         escopo: :decision, erro: @error, voltar: reversal_waits_path) do |form| %>
+  <fieldset>
+    <legend>O que fazer</legend>
+    <% @choices.each do |choice| %>
+      <label><%= form.radio_button :choice, choice, required: true, checked: params.dig(:decision, :choice) == choice, id: "decisao-#{choice}" %> <%= t("reversal_waits.choices.#{choice}") %></label>
+    <% end %>
+  </fieldset>
+  <div class="campo"><%= form.label :note, "Motivo da decisão" %><%= form.text_field :note, value: params.dig(:decision, :note), required: true, maxlength: 300 %></div>
+<% end %>

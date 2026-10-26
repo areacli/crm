@@ -30,7 +30,7 @@ class MembershipsController < ApplicationController
     @tenants = manageable_tenants
     @tenant = @tenants.find_by(id: params[:tenant_id]) || @tenants.first
     @profiles = @tenant.profiles.order(:name)
-    render partial: "memberships/profile_field" if htmx_fragment?
+    render partial: "memberships/profile_field" if htmx_fragment? && !panel_request?
   end
 
   def create
@@ -46,13 +46,13 @@ class MembershipsController < ApplicationController
     existing = User.find_by(email_address: email_address)
     if existing
       manager.link(tenant: @tenant, user: existing, profile: profile)
-      redirect_to memberships_path, notice: t(".linked", name: existing.name, email: existing.email_address, tenant: @tenant.name), status: :see_other
+      panel_finish(memberships_path, notice: t(".linked", name: existing.name, email: existing.email_address, tenant: @tenant.name), atualizar: true)
     else
       return refuse(t(".name_required")) if attributes[:name].blank?
 
       user, password = manager.create(tenant: @tenant, email_address: email_address, name: attributes[:name], profile: profile)
       flash[:temporary_password] = { "email" => user.email_address, "password" => password }
-      redirect_to memberships_path, status: :see_other
+      panel_finish(memberships_path, atualizar: true)
     end
   rescue ActiveRecord::RecordInvalid => error
     refuse(error.record.errors.full_messages.to_sentence)
@@ -60,14 +60,19 @@ class MembershipsController < ApplicationController
     refuse(error.message)
   end
 
-  # Alterar o nome (R36, revisão 3): é da pessoa, então só de quem não atua em outro credor (R36a).
+  # Alterar o nome (R36, revisão 3): é da pessoa, então só de quem não atua em outro credor (R36a). O nome se pede num modal pequeno.
+  def edit
+    @membership = Membership.includes(:user, :tenant).find(params[:id])
+    authorize @membership, :edit_personal?
+  end
+
   def update
     @membership = Membership.includes(:user, :tenant).find(params[:id])
     authorize @membership, :edit_personal?
     manager.rename(@membership, params.expect(user: [ :name ])[:name])
-    redirect_to membership_path(@membership), notice: t(".done"), status: :see_other
+    panel_finish(membership_path(@membership), notice: t(".done"), atualizar: true)
   rescue ActiveRecord::RecordInvalid => error
-    redirect_to membership_path(@membership), alert: error.record.errors.full_messages.to_sentence, status: :see_other
+    panel_error(error.record.errors.full_messages.to_sentence, membership_path(@membership), :edit)
   end
 
   private

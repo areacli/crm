@@ -29,17 +29,20 @@ class AgreementTitlesScreensSystemTest < ApplicationSystemTestCase
     assert_acessivel
     sem_rolagem_horizontal
 
-    find("summary", text: "Calcular quitação").click
+    find("button.menu-de-linha[aria-label='Mais ações do acordo']").click
+    click_link "Calcular quitação"
+    assert_selector "dialog#painel[open][data-variant=modal]"
     fill_in "Data da quitação", with: (Date.current + 30).iso8601
-    click_button "Calcular quitação"
-    assert_selector "li", text: /Quitação calculada para/
+    within("dialog#painel[open]") { click_button "Calcular quitação" }
+    assert_selector "li", text: /Quitação calculada para/, wait: 10
     assert_acessivel
 
-    find("summary", text: "Quebrar o acordo").click
+    find("button.menu-de-linha[aria-label='Mais ações do acordo']").click
+    click_link "Quebrar o acordo"
     fill_in "Motivo da quebra", with: "documento falso"
     check "Quebra por fraude"
-    click_button "Quebrar o acordo"
-    assert_selector "aside", text: /Acordo quebrado em/
+    within("dialog#painel[open]") { click_button "Quebrar o acordo" }
+    assert_selector "aside", text: /Acordo quebrado em/, wait: 10
     assert_acessivel
     sem_rolagem_horizontal
   end
@@ -55,9 +58,10 @@ class AgreementTitlesScreensSystemTest < ApplicationSystemTestCase
     visit agreements_path
     click_link "Arquivo de acordos"
     assert_selector "h1", text: "Arquivo de acordos"
+    click_link "Exportar"
     select "Completo", from: "Forma"
-    click_button "Exportar"
-    assert_selector "[role=status], .aviso", text: /Arquivo de acordos exportado/
+    within("dialog#painel[open]") { click_button "Exportar" }
+    assert_selector "[role=status], .aviso", text: /Arquivo de acordos exportado/, wait: 10
     assert_selector "td a", text: "Baixar"
     assert_acessivel
     sem_rolagem_horizontal
