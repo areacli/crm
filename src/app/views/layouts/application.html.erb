@@ -42,6 +42,8 @@
       <% end %>
       <% if authenticated? %>
         <div class="conta">
+          <%# 14, R324: o usuário de operação vê de qual operação ele é. %>
+          <% if (operation = Current.user.operation) %><span class="operacao-atual" title="<%= operation.legal_name %>"><%= operation.short_name %></span><% end %>
           <%= render "notices/bell" unless Current.user.temporary_password? %>
           <details class="usuario">
             <summary><span class="iniciais" aria-hidden="true"><%= Current.user.name.first.upcase %></span> <span><%= Current.user.name %></span></summary>
@@ -56,7 +58,7 @@
       <%= yield :cabecalho %>
     </header>
     <%= render "layouts/navegacao" if menu_sections.present? %>
-    <main id="conteudo" tabindex="-1">
+    <main id="conteudo" tabindex="-1" <%= tag.attributes(data: { modelo: content_for(:modelo_da_pagina).presence }) %>>
       <%= yield %>
       <div id="avisos-da-pagina">
         <% if notice %><%= aviso(tom: :success) { tag.p notice } %><% end %>

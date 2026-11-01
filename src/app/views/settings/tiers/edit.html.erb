@@ -1,0 +1,24 @@
+<% content_for :title, "Configuração · Regras do item #{@tier.name}" %>
+<%= pagina "Regras do item #{@tier.name}", subtitulo: safe_join([ @tenant.name, " · ", link_to("Voltar para o enquadramento financeiro", settings_tiers_path) ]) %>
+<%= render "settings/modelo" %>
+<section class="cartao" aria-labelledby="regras">
+  <header><h2 id="regras">Encargos e promessa</h2><%= informacao "regras", "Campo vazio usa o parâmetro do credor. As variáveis e os limites de acordo ficam em Promessas e acordos.", "definicao-regras" %></header>
+  <div>
+    <% if @tier.errors.any? %><%= aviso(tom: :danger) { tag.p @tier.errors.full_messages.to_sentence } %><% end %>
+    <%= form_with model: @tier, scope: :tier, url: settings_tier_path(@tier), method: :patch, html: { "hx-boost": "false" } do |form| %>
+      <%= render "settings/tiers/charges", form: form, tier: @tier, raw: @raw, setting: @tenant.setting %>
+      <fieldset>
+        <legend>Promessa</legend>
+        <div class="campo">
+          <%= form.label :promise_max_days, "Prazo máximo da promessa (dias)" %>
+          <%= form.number_field :promise_max_days, value: (@raw&.key?(:promise_max_days) ? @raw[:promise_max_days] : @tier.promise_max_days), min: 1, max: 365, required: true %>
+          <small>Nenhuma promessa passa deste prazo, nem com aprovação. As alçadas por perfil ficam em Promessas e acordos.</small>
+        </div>
+      </fieldset>
+      <div class="acoes" data-rodape>
+        <%= link_to "Cancelar", settings_tiers_path, class: "botao", data: { variant: "secondary" } %>
+        <button type="submit">Conferir o impacto</button>
+      </div>
+    <% end %>
+  </div>
+</section>

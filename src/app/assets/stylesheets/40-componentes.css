@@ -66,36 +66,36 @@
   .grupo-de-campos > div { flex: 1 1 12rem; min-width: 0; }
 
   /* Campo em linha (configuração): rótulo à esquerda (180 px) e o campo na largura do dado (número 96 px, data 140 px, texto até 360 px). */
-  .campo[data-disposicao="linha"], body > main:has(> nav.secoes) :is(form, fieldset) > .campo { grid-template-columns: var(--largura-rotulo) minmax(0, 1fr); align-items: center; column-gap: var(--espaco-3); max-width: none; }
-  .campo[data-disposicao="linha"] > :is(small, .erro), body > main:has(> nav.secoes) :is(form, fieldset) > .campo > :is(small, .erro) { grid-column: 2; }
-  .campo[data-disposicao="linha"] label, body > main:has(> nav.secoes) :is(form, fieldset) > .campo label { font-size: var(--texto-tabela); }
-  .campo[data-disposicao="linha"] :is(input, select, textarea), body > main:has(> nav.secoes) :is(form, fieldset) > .campo :is(input, select, textarea) { max-width: var(--largura-campo-texto); }
-  .campo[data-tamanho="numero"] :is(input, select), body > main:has(> nav.secoes) :is(form, fieldset) > .campo input[type="number"] { width: var(--largura-campo-numero); }
-  .campo[data-tamanho="data"] input, body > main:has(> nav.secoes) :is(form, fieldset) > .campo input[type="date"] { width: var(--largura-campo-data); }
-  body > main:has(> nav.secoes) :is(form, fieldset) > .campo select { width: auto; min-width: var(--largura-campo-data); }
+  .campo[data-disposicao="linha"], body > main[data-modelo="configuracao"] :is(form, fieldset) > .campo { grid-template-columns: var(--largura-rotulo) minmax(0, 1fr); align-items: center; column-gap: var(--espaco-3); max-width: none; }
+  .campo[data-disposicao="linha"] > :is(small, .erro), body > main[data-modelo="configuracao"] :is(form, fieldset) > .campo > :is(small, .erro) { grid-column: 2; }
+  .campo[data-disposicao="linha"] label, body > main[data-modelo="configuracao"] :is(form, fieldset) > .campo label { font-size: var(--texto-tabela); }
+  .campo[data-disposicao="linha"] :is(input, select, textarea), body > main[data-modelo="configuracao"] :is(form, fieldset) > .campo :is(input, select, textarea) { max-width: var(--largura-campo-texto); }
+  .campo[data-tamanho="numero"] :is(input, select), body > main[data-modelo="configuracao"] :is(form, fieldset) > .campo input[type="number"] { width: var(--largura-campo-numero); }
+  .campo[data-tamanho="data"] input, body > main[data-modelo="configuracao"] :is(form, fieldset) > .campo input[type="date"] { width: var(--largura-campo-data); }
+  body > main[data-modelo="configuracao"] :is(form, fieldset) > .campo select { width: auto; min-width: var(--largura-campo-data); }
   /* Grupos de campos na configuração: em colunas de 26 rem, cada campo com o rótulo ao lado. */
-  body > main:has(> nav.secoes) .grupo-de-campos { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr)); gap: var(--espaco-2) var(--espaco-6); }
-  body > main:has(> nav.secoes) .grupo-de-campos > :is(.campo, div) { flex: none; }
-  body > main:has(> nav.secoes) .grupo-de-campos > .campo { grid-template-columns: var(--largura-rotulo) minmax(0, 1fr); align-items: center; column-gap: var(--espaco-3); max-width: none; }
-  body > main:has(> nav.secoes) .grupo-de-campos > .campo > :is(small, .erro) { grid-column: 2; }
-  body > main:has(> nav.secoes) .grupo-de-campos > .campo label { font-size: var(--texto-tabela); }
-  body > main:has(> nav.secoes) .grupo-de-campos > .campo :is(input, select, textarea) { max-width: var(--largura-campo-texto); }
+  body > main[data-modelo="configuracao"] .grupo-de-campos { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr)); gap: var(--espaco-2) var(--espaco-6); }
+  body > main[data-modelo="configuracao"] .grupo-de-campos > :is(.campo, div) { flex: none; }
+  body > main[data-modelo="configuracao"] .grupo-de-campos > .campo { grid-template-columns: var(--largura-rotulo) minmax(0, 1fr); align-items: center; column-gap: var(--espaco-3); max-width: none; }
+  body > main[data-modelo="configuracao"] .grupo-de-campos > .campo > :is(small, .erro) { grid-column: 2; }
+  body > main[data-modelo="configuracao"] .grupo-de-campos > .campo label { font-size: var(--texto-tabela); }
+  body > main[data-modelo="configuracao"] .grupo-de-campos > .campo :is(input, select, textarea) { max-width: var(--largura-campo-texto); }
   /* O rótulo ao lado do campo também vale para os grupos de opções (radio) e para o botão de salvar, sempre no rodapé do cartão. */
-  body > main:has(> nav.secoes) .cartao form > .acoes, .cartao form > .acoes[data-rodape] { justify-content: flex-end; padding-top: var(--espaco-3); border-top: 1px solid var(--cor-linha); }
-  body > main:has(> nav.secoes) fieldset { border: 0; padding: 0; display: grid; gap: var(--espaco-2); }
-  body > main:has(> nav.secoes) legend { padding: 0 0 var(--espaco-1); font-size: var(--texto-subtitulo); font-weight: 700; }
-  body > main:has(> nav.secoes) fieldset > label { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: var(--espaco-2); align-items: start; }
-  body > main:has(> nav.secoes) fieldset > label > :is(strong, small, span) { grid-column: 2; }
+  body > main[data-modelo="configuracao"] .cartao form > .acoes, .cartao form > .acoes[data-rodape] { justify-content: flex-end; padding-top: var(--espaco-3); border-top: 1px solid var(--cor-linha); }
+  body > main[data-modelo="configuracao"] fieldset { border: 0; padding: 0; display: grid; gap: var(--espaco-2); }
+  body > main[data-modelo="configuracao"] legend { padding: 0 0 var(--espaco-1); font-size: var(--texto-subtitulo); font-weight: 700; }
+  body > main[data-modelo="configuracao"] fieldset > label { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: var(--espaco-2); align-items: start; }
+  body > main[data-modelo="configuracao"] fieldset > label > :is(strong, small, span) { grid-column: 2; }
   @media (max-width: 40rem) {
-    body > main:has(> nav.secoes) .grupo-de-campos > .campo { grid-template-columns: minmax(0, 1fr); }
-    body > main:has(> nav.secoes) .grupo-de-campos > .campo > :is(small, .erro) { grid-column: 1; }
-    .campo[data-disposicao="linha"], body > main:has(> nav.secoes) :is(form, fieldset) > .campo { grid-template-columns: minmax(0, 1fr); }
-    .campo[data-disposicao="linha"] > :is(small, .erro), body > main:has(> nav.secoes) :is(form, fieldset) > .campo > :is(small, .erro) { grid-column: 1; }
+    body > main[data-modelo="configuracao"] .grupo-de-campos > .campo { grid-template-columns: minmax(0, 1fr); }
+    body > main[data-modelo="configuracao"] .grupo-de-campos > .campo > :is(small, .erro) { grid-column: 1; }
+    .campo[data-disposicao="linha"], body > main[data-modelo="configuracao"] :is(form, fieldset) > .campo { grid-template-columns: minmax(0, 1fr); }
+    .campo[data-disposicao="linha"] > :is(small, .erro), body > main[data-modelo="configuracao"] :is(form, fieldset) > .campo > :is(small, .erro) { grid-column: 1; }
   }
 
   /* Números e datas dentro dos grupos de campos da configuração: na largura do dado, não na do campo de texto. */
-  body > main:has(> nav.secoes) .grupo-de-campos > .campo input[type="number"] { width: var(--largura-campo-numero); }
-  body > main:has(> nav.secoes) .grupo-de-campos > .campo input[type="date"] { width: var(--largura-campo-data); }
+  body > main[data-modelo="configuracao"] .grupo-de-campos > .campo input[type="number"] { width: var(--largura-campo-numero); }
+  body > main[data-modelo="configuracao"] .grupo-de-campos > .campo input[type="date"] { width: var(--largura-campo-data); }
   /* Selo dentro de um bloco de valores pode quebrar linha (a situação da importação é longa); valores numéricos nunca quebram. */
   .valores dd .situacao { white-space: normal; line-height: 1.25; padding-block: var(--espaco-1); }
   td[data-numerico]:not(:has(small)), th[data-numerico] { white-space: nowrap; }
@@ -207,11 +207,6 @@
   .abas a { display: inline-flex; align-items: center; gap: var(--espaco-2); min-height: var(--altura-controle); padding: 0 var(--espaco-3); text-decoration: none; font-weight: 600; color: var(--cor-texto-suave); border-bottom: 3px solid transparent; margin-bottom: -1px; }
   .abas a:hover { color: var(--cor-texto); background: var(--cor-superficie); }
   .abas a[aria-current="page"] { color: var(--cor-texto); border-bottom-color: var(--cor-azul); }
-  /* Seções da configuração: menu vertical de 200 px (modelo Configuração). */
-  nav.secoes { display: grid; gap: var(--espaco-1); padding: var(--espaco-2); background: var(--cor-branco); border: 1px solid var(--cor-linha); border-radius: var(--raio-cartao); }
-  nav.secoes a { display: flex; align-items: center; min-height: var(--altura-item-menu); padding: 0 var(--espaco-3); border-radius: var(--raio-controle); color: var(--cor-texto); text-decoration: none; font-weight: 600; font-size: var(--texto-tabela); }
-  nav.secoes a:hover { background: var(--cor-superficie); }
-  nav.secoes a[aria-current="page"] { background: var(--cor-marinho); color: var(--cor-branco); }
 
   /* Selo de contagem (menu e abas): pílula amarela com texto marinho, o amarelo só como fundo. */
   .selo { display: inline-block; min-width: 1.25rem; padding: 0 var(--espaco-1); border-radius: 999px; background: var(--cor-neutro-fundo); color: var(--cor-neutro-texto); font-size: var(--texto-legenda); font-weight: 700; line-height: 1.25rem; text-align: center; }
@@ -294,5 +289,44 @@
   @media (max-width: 48rem) {
     button.botao-menu { display: grid; place-items: center; width: var(--altura-controle); height: var(--altura-controle); padding: 0; background: transparent; color: var(--cor-branco); border: 0; }
     button.botao-menu:hover { background: var(--cor-azul-escuro); }
+  }
+}
+
+/* Editor de segmentos (13, R301 a R305): caixa de texto em fonte de código, ajuda de escrita, coluna "Como fica" com a leitura e o erro de cada
+   linha, glossário em lista de definições. */
+@layer componentes {
+  .campo.campo-largo { max-width: none; }
+  textarea.editor-de-segmento { width: 100%; min-height: 16rem; font-family: var(--fonte-codigo); font-size: var(--texto-tabela); line-height: 1.6; tab-size: 2; white-space: pre; overflow-x: auto; }
+  .ajuda-de-escrita { margin-top: var(--espaco-3); padding: var(--espaco-3); background: var(--cor-superficie); border-radius: var(--raio-cartao); }
+  .ajuda-de-escrita h3 { margin: 0 0 var(--espaco-2); font-size: var(--texto-legenda); }
+  .ajuda-de-escrita ul { margin: 0; padding-left: var(--espaco-6); display: grid; gap: var(--espaco-1); font-size: var(--texto-legenda); }
+  .ajuda-de-escrita p { margin: var(--espaco-2) 0 0; }
+  ol.linhas-do-segmento { margin: 0 0 var(--espaco-3); padding-left: var(--espaco-8); display: grid; gap: var(--espaco-2); }
+  ol.linhas-do-segmento li::marker { color: var(--cor-texto-suave); font-family: var(--fonte-codigo); font-size: var(--texto-legenda); }
+  ol.linhas-do-segmento code { font-size: var(--texto-tabela); overflow-wrap: anywhere; }
+  ol.linhas-do-segmento li[data-erro] code { color: var(--cor-perigo); }
+  ol.linhas-do-segmento p { margin: var(--espaco-1) 0 0; }
+  p.erro { color: var(--cor-perigo); font-weight: 600; font-size: var(--texto-legenda); }
+  .leitura { margin: 0; color: var(--cor-texto-suave); font-size: var(--texto-legenda); }
+  .como-fica { display: grid; gap: var(--espaco-3); align-content: start; position: sticky; top: calc(var(--altura-topo) + var(--espaco-3)); }
+  .texto-do-segmento { margin: 0; padding: var(--espaco-2) var(--espaco-3); font-family: var(--fonte-codigo); font-size: var(--texto-tabela); white-space: pre-wrap; overflow-wrap: anywhere; background: var(--cor-superficie); border-radius: var(--raio-controle); }
+  code.texto-do-segmento { display: inline-block; padding: 0 var(--espaco-1); }
+  .passos { margin: 0; padding-left: var(--espaco-6); display: grid; gap: var(--espaco-1); }
+  ul.lista-de-acoes { display: flex; flex-wrap: wrap; gap: var(--espaco-2) var(--espaco-4); margin: 0; padding: 0; list-style: none; }
+  dl.glossario { display: grid; gap: var(--espaco-3); margin: 0; }
+  dl.glossario > div { display: grid; grid-template-columns: minmax(8rem, 14rem) minmax(0, 1fr); gap: var(--espaco-3); padding-bottom: var(--espaco-2); border-bottom: 1px solid var(--cor-linha); }
+  dl.glossario dt { font-weight: 600; }
+  dl.glossario dd { margin: 0; display: grid; gap: var(--espaco-1); }
+  dl.glossario p { margin: 0; }
+  .mudanca { display: grid; gap: var(--espaco-1); padding-bottom: var(--espaco-2); border-bottom: 1px solid var(--cor-linha); }
+  .mudanca h3 { margin: 0; font-size: var(--texto-base, 1rem); }
+  .mudanca p { margin: 0; }
+  .filtro-ativo { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espaco-2); margin: 0 0 var(--espaco-2); }
+  .carregando { display: inline-block; width: 0.9em; height: 0.9em; border: 2px solid var(--cor-linha); border-top-color: var(--cor-azul); border-radius: 50%; animation: girar 1s linear infinite; vertical-align: -0.1em; }
+  @keyframes girar { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .carregando { animation: none; } }
+  @media (max-width: 64rem) {
+    .como-fica { position: static; }
+    dl.glossario > div { grid-template-columns: minmax(0, 1fr); }
   }
 }

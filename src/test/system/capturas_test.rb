@@ -110,10 +110,11 @@ class CapturasTest < ApplicationSystemTestCase
     [ [ "CT-PJ1", SegmentsTestHelper::CNPJ_A, "Padaria Pão Quente Ltda", 35, 78_000 ], [ "CT-PJ2", SegmentsTestHelper::CNPJ_B, "Oficina Roda Viva Ltda", 120, 152_000 ] ].each do |code, cnpj, name, overdue, cents|
       make_contract(@tenant, code, bills: [ { overdue: overdue, cents: cents, product: "Mensalidade" } ], customers: [ customer_of(@tenant, cnpj, name) ], created_ago: 150)
     end
-    make_segment(@tenant, "Varejo PF recente", person_type: "person", min_overdue_days: 1, max_overdue_days: 90, max_balance_cents: 500_000)
-    make_segment(@tenant, "Contratos antigos", min_age_days: 365)
-    make_segment(@tenant, "Muito vencido", min_overdue_bills: 2, min_overdue_percent: 50)
-    @tenant.setting.update!(segments_version: 3)
+    @varejo = make_tier(@tenant, "Varejo PF recente", person_type: "person", min_overdue_days: 1, max_overdue_days: 90, max_balance_cents: 500_000)
+    make_tier(@tenant, "Contratos antigos", min_age_days: 365)
+    make_tier(@tenant, "Muito vencido", min_overdue_bills: 2, min_overdue_percent: 50)
+    make_segment(@tenant, "Clientes sem contato válido", [ { "path" => "contacts", "qualifier" => "valid", "quantifier" => "none" } ], subject: "customers")
+    @tenant.setting.update!(tiers_version: 3)
     recalc(@tenant)
     TaskRun.create!(tenant: @tenant, name: "segments_recalculation", status: "succeeded", started_at: Time.current.change(hour: 5, min: 30), finished_at: Time.current.change(hour: 5, min: 31), processed: 4)
     13.downto(1) do |back|
@@ -131,11 +132,10 @@ class CapturasTest < ApplicationSystemTestCase
       IndexRate.create!(series: "legal", month: (Date.current - back.months).beginning_of_month, value: (0.38 + (back % 4) * 0.21).round(6), fetched_at: Time.current.change(hour: 5))
     end
     @tenant.setting.update!(charge_fine_pct: 2, charge_interest_pct: 1, charge_index: "ipca")
-    Segment.catch_all_of(@tenant).update!(interest_kind: "fixed", fees_pct: 10, fees_in_contract: true)
-    @varejo = Segment.find_by!(tenant: @tenant, name: "Varejo PF recente")
+    Tier.catch_all_of(@tenant).update!(interest_kind: "fixed", fees_pct: 10, fees_in_contract: true)
     @varejo.update!(interest_kind: "fixed", interest_pct: 1.5, index_code: "ipca")
-    Segment.find_by!(tenant: @tenant, name: "Contratos antigos").update!(interest_kind: "legal", index_code: "ipca", fine_pct: 2)
-    Segment.find_by!(tenant: @tenant, name: "Muito vencido").update!(interest_kind: "fixed", interest_form: "compound", index_code: "igpm")
+    Tier.joins(:segment).find_by!(tenant: @tenant, segments: { name: "Contratos antigos" }).update!(interest_kind: "legal", index_code: "ipca", fine_pct: 2)
+    Tier.joins(:segment).find_by!(tenant: @tenant, segments: { name: "Muito vencido" }).update!(interest_kind: "fixed", interest_form: "compound", index_code: "igpm")
     Charges::RuleHistory.record!(@tenant, since: Date.current - 400)
     Charges::Recalculation.new(@tenant).apply(today: Date.current)
     TaskRun.create!(tenant: @tenant, name: "values_recalculation", status: "succeeded", started_at: Time.current.change(hour: 5, min: 31), finished_at: Time.current.change(hour: 5, min: 32), processed: BillValuation.where(tenant_id: @tenant.id).count)
@@ -150,9 +150,9 @@ class CapturasTest < ApplicationSystemTestCase
     [ @promise_customer, Customer.order(:id).fifth, @contacted_customer ].each { |customer| ContractCustomer.find_or_create_by!(contract: customer.bills.first.contract, customer: customer) }
     @promise_customer.bills.order(:id).each { |bill| bill.update_columns(due_date: Date.current - 70) }
     seed_indexes! if IndexRate.none?
-    Segment.catch_all_of(@tenant).update!(interest_kind: "fixed")
-    Segment.where(tenant: @tenant).update_all(promise_max_days: 60)
-    PromiseLimit.where(segment: Segment.where(tenant: @tenant), profile: profiles(:alfa_manager)).update_all(max_days: 60)
+    Tier.catch_all_of(@tenant).update!(interest_kind: "fixed")
+    Tier.where(tenant: @tenant).update_all(promise_max_days: 60)
+    PromiseLimit.where(tier: Tier.where(tenant: @tenant), profile: profiles(:alfa_manager)).update_all(max_days: 60)
     @tenant.setting.update!(charge_fine_pct: 2, charge_interest_pct: 1, charge_index: "ipca")
     Charges::RuleHistory.record!(@tenant, since: Date.current - 400)
     bills = @promise_customer.bills.order(:id).to_a
@@ -170,7 +170,7 @@ class CapturasTest < ApplicationSystemTestCase
     Municipality.create!(ibge_code: "3304557", name: "Rio de Janeiro", state: "RJ")
     Holiday.create!(state: "SP", municipality: sao_paulo, date: Date.new(Date.current.year + 1, 1, 25), name: "Aniversário da cidade")
     @tenant.update!(cnpj: "11222333000181", legal_name: "Escola Alfa Ltda")
-    Segment.where(tenant: @tenant).find_each { |segment| segment.update!(**AgreementsTestHelper::EXAMPLE_VARIABLES) }
+    Tier.where(tenant: @tenant).find_each { |tier| tier.update!(**AgreementsTestHelper::EXAMPLE_VARIABLES) }
     @tenant.setting.update!(installment_rate_pct: 1.5, installment_method: "price")
     rebuild_agreement_limits(@tenant)
     @agreement_customer = Customer.order(:id).offset(6).first
@@ -287,16 +287,42 @@ class CapturasTest < ApplicationSystemTestCase
     # Incremento 7: direitos do titular e guarda de dados.
     "guarda-de-dados" => -> { data_retention_path },
     "ficha-anonimizada" => -> { customer_path(@anonymized_customer) },
-    # Incremento 8: índices do Banco Central e segmentos.
+    # Incremento 8: índices do Banco Central. Incremento 13: segmentos (filtros), editor, glossário, enquadramento financeiro e conferência.
     "indices" => -> { settings_indexes_path },
     "segmentos" => -> { settings_segments_path },
     "novo-segmento" => -> { new_settings_segment_path(tenant_id: @tenant.id) },
-    "conferencia-de-segmentos" => lambda {
+    "editor-de-segmento" => lambda {
+      visit new_settings_segment_path(tenant_id: @tenant.id, exemplo: "promessa-quebrada")
+      fill_in "Nome do segmento", with: "Contratos com promessa quebrada recente"
+      fill_in "Texto do segmento", with: "contratos\n  alguma promessa \"quebrada\" em 90 dias\n  títulos vencidos >= 2\n  qualquer:\n    tipo = PF\n    saldo > R$ 5.000"
+      assert_selector "li[value='6'] p.leitura", text: /saldo/, wait: 10
+      click_button "Conferir"
+      assert_selector "#conferir", text: "Contando"
+      perform_enqueued_jobs(only: SegmentProbeJob)
+      assert_selector "#conferir", text: "Pega", wait: 10
+      :current
+    },
+    "editor-com-erro" => lambda {
       visit new_settings_segment_path(tenant_id: @tenant.id)
-      fill_in "Nome", with: "Pessoa jurídica"
-      select "Pessoa jurídica", from: "Tipo"
-      fill_in "segment_min_overdue_days", with: "1"
-      click_button "Conferir mudança"
+      fill_in "Texto do segmento", with: "contratos\n  atraso > 90\n  titulos vencidos 3\n  tipo = azul"
+      assert_selector "li[data-erro]", count: 2, wait: 10
+      :current
+    },
+    "glossario-dos-segmentos" => -> { settings_segment_glossary_path },
+    "enquadramento-financeiro" => -> { settings_tiers_path },
+    "incluir-segmento" => lambda {
+      visit settings_tiers_path
+      click_link "Incluir segmento", match: :first
+      assert_selector "dialog#painel[open]"
+      :current
+    },
+    "conferencia-do-enquadramento" => lambda {
+      visit settings_tiers_path
+      find("button.menu-de-linha[aria-label='Ações de Muito vencido']").click
+      click_button "Mover para cima"
+      assert_text "Conferindo"
+      perform_enqueued_jobs(only: TierReviewJob)
+      assert_selector "h2", text: "Por item do enquadramento", wait: 10
       :current
     },
     "ficha-com-segmentos" => -> { customer_path(@contacted_customer, aba: "historico") },
@@ -307,13 +333,16 @@ class CapturasTest < ApplicationSystemTestCase
       assert_selector "caption", text: /Memória de cálculo/, visible: :all, wait: 10
       :current
     },
-    "regra-de-encargos" => -> { edit_settings_segment_path(@varejo) },
+    "regra-de-encargos" => -> { edit_settings_tier_path(@varejo) },
     "conferencia-de-encargos" => lambda {
-      visit edit_settings_segment_path(@varejo)
-      fill_in "segment_interest_pct", with: "2,5"
-      fill_in "segment_fees_pct", with: "8"
+      visit edit_settings_tier_path(@varejo)
+      fill_in "tier_interest_pct", with: "2,5"
+      fill_in "tier_fees_pct", with: "8"
       check "O contrato prevê honorários"
-      click_button "Conferir mudança"
+      click_button "Conferir o impacto"
+      assert_text "Conferindo"
+      perform_enqueued_jobs(only: TierReviewJob)
+      assert_selector "h2", text: "Valor atualizado", wait: 10
       :current
     },
     # Incremento 10: promessas.
@@ -358,7 +387,7 @@ class CapturasTest < ApplicationSystemTestCase
     "lista-de-acordos" => -> { agreements_path },
     "acordos-pendentes" => -> { pending_agreements_path },
     "ficha-com-acordos" => -> { customer_path(@agreement_customer, aba: "promessas") },
-    "parametros-dos-acordos" => -> { settings_segments_path },
+    "parametros-dos-acordos" => -> { settings_tiers_path },
     "acordo-efetivado" => -> { agreement_path(@effectuated_agreement) },
     "acordo-quebrado" => -> { agreement_path(@broken_agreement) },
     "ficha-com-titulos-de-acordo" => -> { customer_path(@effectuated_customer) },
@@ -425,14 +454,54 @@ class CapturasTest < ApplicationSystemTestCase
       sleep 0.5
       :current
     },
-    "exportacao-de-dados" => -> { customer_data_export_path(@forecast_customer, token: Rails.application.message_verifier(:data_export).generate([ @forecast_customer.id, users(:joana).id ], expires_in: 10.minutes, purpose: :data_export)) }
+    "exportacao-de-dados" => -> { customer_data_export_path(@forecast_customer, token: Rails.application.message_verifier(:data_export).generate([ @forecast_customer.id, users(:joana).id ], expires_in: 10.minutes, purpose: :data_export)) },
+    # Incremento 14 (operações): a Recupera credenciada, com contratos pela regra e clientes à mão; por último, a lista vista pelo usuário da operação.
+    "operacoes" => -> { prepare_operations && settings_operations_path },
+    "credenciamento" => -> { settings_operation_path(@accreditation) },
+    "distribuicao" => -> { distributions_path },
+    "enquadramento-da-distribuicao" => -> { settings_distribution_rules_path(tenant_id: @tenant.id) },
+    "trilha-das-operacoes" => -> { settings_operation_trails_path },
+    "ficha-distribuida" => -> { customer_path(@distributed_customer) },
+    "clientes-da-operacao" => lambda {
+      page.driver.clear_cookies
+      visit new_session_path
+      fill_in "E-mail", with: @operation_user.email_address
+      fill_in "Senha", with: "senha-de-teste-1"
+      click_button "Entrar"
+      assert_selector "body > header", text: "Recupera"
+      customers_path
+    }
   }.freeze
+
+  # Operações (14) para as fotos: a Recupera credenciada, a regra "Cartão" do enquadramento da distribuição e três clientes à mão.
+  def prepare_operations
+    @accreditation, @operation_user, = Operations::Accreditor.new(users(:joana)).accredit(tenant: @tenant, cnpj: "11222333000262", legal_name: "Recupera Cobranças Ltda",
+                                                                                         short_name: "Recupera", manager_name: "Caio Recupera", manager_email: "caio@recupera.exemplo.com.br")
+    @operation_user.update!(password: "senha-de-teste-1", temporary_password_until: nil)
+    Operations::Accreditor.new(users(:joana)).link(@accreditation, user: @operation_user, profile: operator_profile(@tenant))
+    segment = Segment.where(tenant: @tenant, subject: "contracts").order(:id).first
+    DistributionRuleItem.create!(tenant: @tenant, segment: segment, operation_ids: [ @accreditation.operation_id ], exposure: "overdue", position: 1) if segment
+    DistributionRules::Recalculation.new(@tenant).apply
+    distributor = Distributions::Distributor.new(users(:joana))
+    Customer.where(tenant: @tenant).order(:id).limit(6).each do |customer|
+      distributor.distribute(tenant: @tenant, operation: @accreditation.operation, customer: customer, exposure: "all", ends_on: Date.current + 30)
+      @distributed_customer ||= customer
+    rescue Distributions::Refused
+      next
+    end
+    Operations::ReachBuilder.new(@tenant).rebuild
+    Operations::Context.for_user(@operation_user) do
+      Operations::Trail.record("record_opened", user: @operation_user, customer: @distributed_customer)
+      Operations::Trail.record("search", user: @operation_user, query: "Silva", results: 2)
+    end
+    true
+  end
 
   # Telas fotografadas com os blocos recolhidos (`<details>`) abertos, para mostrar o que há dentro.
   ABERTAS = %w[ficha-com-contatos].freeze
 
   # Telas longas, fotografadas com a janela mais alta para mostrar o que importa (o histórico, o formulário).
-  ALTAS = %w[ficha-com-acionamentos ficha-com-contatos formulario-de-promessa configuracao-de-promessas ficha-com-promessas politica-de-correcao exportacao-de-dados guarda-de-dados indices novo-segmento ficha-com-segmentos segmentos
+  ALTAS = %w[editor-de-segmento editor-com-erro glossario-dos-segmentos enquadramento-financeiro conferencia-do-enquadramento ficha-com-acionamentos ficha-com-contatos formulario-de-promessa configuracao-de-promessas ficha-com-promessas politica-de-correcao exportacao-de-dados guarda-de-dados indices novo-segmento ficha-com-segmentos segmentos
              regra-de-encargos conferencia-de-encargos conferencia-da-carteira resumo ficha-com-valor-atualizado simulacao-de-acordo termo-do-acordo lista-de-acordos proposta-de-acordo acordo-efetivado acordo-quebrado ficha-com-titulos-de-acordo
              acordo-em-reversao ficha-com-credito-por-estado estornos-a-espera simulacao-de-acordo-sobre-acordo nova-conta-de-pagamento conta-de-pagamento pagamento-do-cliente].freeze
 
@@ -444,6 +513,27 @@ class CapturasTest < ApplicationSystemTestCase
       assert_selector "h1"
       page.execute_script("document.querySelectorAll('main details').forEach((d) => d.open = true)") if ABERTAS.include?(nome)
       page.save_screenshot(Rails.root.join("tmp/capturas/#{nome}.png").to_s)
+    end
+  end
+
+  # Protótipo das telas da segmentação (13, R299) para o Paulo aprovar: cada tela a 1440, 1024 e 390 px, página inteira. Só roda com CAPTURAS=1
+  # CAPTURAS_SEGMENTACAO=1; grava em tmp/capturas-segmentacao.
+  test "capturas do protótipo da segmentação" do
+    skip "defina CAPTURAS_SEGMENTACAO=1" unless ENV["CAPTURAS_SEGMENTACAO"] == "1"
+    pasta = Rails.root.join("tmp/capturas-segmentacao")
+    FileUtils.mkdir_p(pasta)
+    telas = TELAS.slice("segmentos", "editor-de-segmento", "editor-com-erro", "glossario-dos-segmentos", "enquadramento-financeiro", "incluir-segmento", "conferencia-do-enquadramento",
+                        "regra-de-encargos", "ficha-com-segmentos").to_a
+    telas.insert(2, [ "novo-segmento-em-branco", -> { new_settings_segment_path(tenant_id: @tenant.id) } ])
+    telas << [ "lista-filtrada-por-segmento", -> { customers_path(segment: Segment.find_by!(tenant: @tenant, name: "Clientes sem contato válido").id) } ]
+    [ 1440, 1024, 390 ].each do |largura|
+      telas.each do |nome, caminho|
+        page.driver.resize(largura, 900)
+        destino = instance_exec(&caminho)
+        visit destino unless destino == :current
+        assert_selector "h1"
+        page.save_screenshot(pasta.join("#{largura}-#{nome}.png").to_s, full: true)
+      end
     end
   end
 
@@ -463,9 +553,9 @@ class CapturasTest < ApplicationSystemTestCase
               [ "17-simulacao-de-acordo", -> { new_customer_agreement_simulation_path(@agreement_customer) } ], [ "18-usuarios", -> { memberships_path } ], [ "19-perfis", -> { profiles_path } ],
               [ "20-guarda-de-dados", -> { data_retention_path } ], [ "21-config-dados-do-credor", -> { settings_tenant_registry_path } ], [ "22-config-carteira", -> { settings_portfolio_path } ],
               [ "23-config-canais", -> { settings_channels_path } ], [ "24-config-politicas-de-pagamento", -> { settings_payment_policy_path } ], [ "25-config-contas", -> { settings_payment_accounts_path } ],
-              [ "26-config-segmentos", -> { settings_segments_path } ], [ "27-config-promessas-e-acordos", -> { settings_promises_path } ], [ "28-config-indices", -> { settings_indexes_path } ],
+              [ "26-config-segmentos", -> { settings_segments_path } ], [ "26b-config-enquadramento-financeiro", -> { settings_tiers_path } ], [ "27-config-promessas-e-acordos", -> { settings_promises_path } ], [ "28-config-indices", -> { settings_indexes_path } ],
               [ "29-config-resultados", -> { settings_contact_results_path } ], [ "30-nova-conta", -> { new_settings_payment_account_path(tenant_id: @tenant.id, modality: "pix", provider: "efi") } ],
-              [ "31-conferencia-de-segmentos-novo", -> { new_settings_segment_path(tenant_id: @tenant.id) } ] ]
+              [ "31-editor-de-segmento", -> { new_settings_segment_path(tenant_id: @tenant.id, exemplo: "atraso-longo") } ] ]
     telas.each do |nome, caminho|
       page.driver.resize(1440, 900)
       visit instance_exec(&caminho)

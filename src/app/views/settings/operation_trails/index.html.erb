@@ -1,0 +1,33 @@
+<% content_for :title, "Configuração · Trilha das operações" %>
+<%= pagina "Trilha das operações", subtitulo: safe_join([ "O que os usuários das operações abriram, buscaram, não encontraram e exportaram. Guardada por 12 meses. ", link_to("Voltar para as operações", settings_operations_path) ]) %>
+<%= render "settings/modelo" %>
+<form class="filtros" role="search" action="<%= settings_operation_trails_path %>" method="get">
+  <div class="campo"><label for="operation">Operação</label><select id="operation" name="operation"><option value="">Todas</option><%= options_for_select(@operations, params[:operation]) %></select></div>
+  <div class="campo"><label for="user">Usuário</label><select id="user" name="user"><option value="">Todos</option><%= options_for_select(@users, params[:user]) %></select></div>
+  <div class="campo"><label for="kind">Tipo</label><select id="kind" name="kind"><option value="">Todos</option><%= options_for_select(OperationTrailEvent::KINDS.map { [ t("operation_trails.kinds.#{_1}"), _1 ] }, params[:kind]) %></select></div>
+  <div class="campo"><label for="from">De</label><input type="date" id="from" name="from" value="<%= params[:from] %>"></div>
+  <div class="campo"><label for="to">Até</label><input type="date" id="to" name="to" value="<%= params[:to] %>"></div>
+  <button type="submit" data-variant="secondary">Filtrar</button>
+</form>
+<% if @events.empty? %>
+  <p class="vazio">Nada registrado no período.</p>
+<% else %>
+  <div class="tabela" tabindex="0" data-fixa>
+    <table>
+      <caption class="apenas-leitor-de-tela">Trilha das operações</caption>
+      <thead><tr><th scope="col">Quando</th><th scope="col">Operação</th><th scope="col">Usuário</th><th scope="col">O quê</th><th scope="col">Detalhe</th></tr></thead>
+      <tbody>
+        <% @events.each do |event| %>
+          <tr>
+            <td><%= datetime_br(event.created_at) %></td>
+            <td><%= event.operation.short_name %></td>
+            <td><%= event.user.name %></td>
+            <td><%= t("operation_trails.kinds.#{event.kind}") %></td>
+            <td><%= event.customer ? link_to(event.customer.name, customer_path(event.customer)) : (event.query_text ? "“#{event.query_text}” (#{number_br(event.results.to_i)} resultados)" : "—") %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+  <%= render "shared/paginacao", pagination: @pagination, unit: "registros", path: ->(page) { settings_operation_trails_path(request.query_parameters.merge("page" => page)) } %>
+<% end %>

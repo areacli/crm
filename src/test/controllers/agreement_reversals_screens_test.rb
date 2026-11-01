@@ -121,7 +121,7 @@ class AgreementReversalsScreensTest < ActionDispatch::IntegrationTest
     assert_includes flash[:alert], "título de acordo ou de estorno"
   end
 
-  test "R242: o painel mostra os acordos do credor: em acordo, aceitos, ativos, desconto concedido por componente e quem montou" do
+  test "R242: o painel mostra os acordos do credor: em acordo, aceitos, ativos e desconto concedido por componente, sem quebra por usuário" do
     entrar(users(:joana))
     get root_path
     assert_response :success
@@ -131,6 +131,6 @@ class AgreementReversalsScreensTest < ActionDispatch::IntegrationTest
     assert_select "dd", text: /R\$ 36,27/
     assert_select "th", text: /Desconto: multa/
     assert_select "td", text: /R\$ 15,08/
-    assert_select "th", text: /Carlos Lima/
+    assert_select "th", text: /Carlos Lima/, count: 0
   end
 end

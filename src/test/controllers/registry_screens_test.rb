@@ -28,7 +28,7 @@ class RegistryScreensTest < ActionDispatch::IntegrationTest
 
   # ---- Ficha (R124) ----
 
-  test "R124 (DC6): até três contatos válidos no topo, telefones primeiro e os usados mais recentemente antes; 'ver todos' traz todos com situação, origem e motivo" do
+  test "R124: a aba Contatos traz todos com situação, origem e motivo, e a ficha não repete os contatos fora da aba" do
     a = add_contact(@maria, "phone", "(11) 91111-1111")
     b = add_contact(@maria, "phone", "(11) 92222-2222")
     c = add_contact(@maria, "phone", "(11) 93333-3333")
@@ -42,10 +42,7 @@ class RegistryScreensTest < ActionDispatch::IntegrationTest
     get customer_path(@maria)
 
     assert_response :success
-    assert_select "#contatos-resumo ul.contatos > li", 3
-    assert_equal [ c.value, b.value, a.value ], css_select("#contatos-resumo ul.contatos > li").map { |li| li.text.sub(/\A\s*Telefone:\s*/, "").strip }
-    assert_select "#contatos-resumo ul.contatos li", text: /maria@exemplo/, count: 0
-    assert_select "#contatos-resumo a", text: /Ver todos e editar \(6\)/
+    assert_select "#contatos-resumo", 0
     get customer_path(@maria, aba: "contatos")
     assert_select "#contatos tbody tr[id^=contato-]", 6
     assert_select "#contatos", text: /número errado/
@@ -68,8 +65,7 @@ class RegistryScreensTest < ActionDispatch::IntegrationTest
     entrar(viewer)
 
     get customer_path(@maria)
-    assert_select "#contatos-resumo li", text: /98765-4321/
-    assert_select "#contatos-resumo button", 0
+    assert_select "section[aria-labelledby=dados]", text: /98765-4321/
     assert_select "a[hx-get*='/nome/'], a[hx-get*='/contatos/']", 0
     get customer_path(@maria, aba: "contatos")
     assert_select "#contatos button.menu-de-linha", 0
@@ -373,7 +369,7 @@ class RegistryScreensTest < ActionDispatch::IntegrationTest
     get settings_tenant_registry_path
     assert_response :not_found
     get root_path
-    assert_select "nav.secoes a", text: "Dados do credor", count: 0
+    assert_select "#menu-principal .submenu a", text: "Dados do credor", count: 0
   end
 
   test "R117: a política 'Correção na tela ou carga' é um cartão na aba Carteira, com padrão 'a tela prevalece', salva por credor com o histórico" do

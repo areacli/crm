@@ -2,6 +2,7 @@
 # (04, revisão 5); quem errou registra um acionamento novo com a observação. Cada registro avisa o credor pelo WebSocket para as telas refazerem o trecho (sem polling).
 class ContactAttempt < ApplicationRecord
   include TenantScoped
+  include OperationOrigin
 
   # Lista fixa de canais (R65).
   CHANNELS = %w[phone whatsapp sms email letter in_person other].freeze
@@ -28,6 +29,10 @@ class ContactAttempt < ApplicationRecord
 
   # Imutável depois de gravado.
   def readonly? = persisted? || super
+
+  # 14, R315 e R331: para o usuário de operação, o acionamento de outra origem aparece sem o texto livre e sem quem registrou (o RLS já decide
+  # se ele aparece).
+  def summary_only_for_viewer? = Operations::Context.operation? && operation_id != Operations::Context.operation_id
 
   private
     # Evento pequeno de invalidação: quem tem a lista (canal do credor) ou a ficha (canal do cliente) aberta busca o trecho de novo (decisão 0020).

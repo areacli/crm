@@ -1,0 +1,39 @@
+<% content_for :title, "Distribuir em lote" %>
+<%= pagina "Distribuir em lote", subtitulo: safe_join([ "Os clientes do filtro da lista, um segmento ou uma planilha. Nada muda até você confirmar a conferência. ", link_to("Voltar para a distribuição", distributions_path) ]) %>
+<% if @error %><%= aviso(tom: :danger) { tag.p @error } %><% end %>
+<% if @accreditations.empty? %>
+  <p class="vazio">Nenhuma operação credenciada e ativa. Credencie em <%= link_to "Configuração › Operações", settings_operations_path %>.</p>
+<% else %>
+  <%= form_with scope: :distribution_batch, url: distribution_batches_path, multipart: true, class: "cartao" do |form| %>
+    <div>
+      <div class="campo">
+        <%= form.label :accreditation_id, "Operação" %>
+        <%= form.select :accreditation_id, @accreditations.map { |item| [ "#{item.operation.short_name} (#{item.tenant.name})", item.id ] }, {}, required: true %>
+      </div>
+      <fieldset>
+        <legend>De onde vem o lote</legend>
+        <% if @selection.present? %>
+          <label><%= form.radio_button :kind, "selection", checked: true %> Os clientes do filtro da lista de clientes</label>
+          <% @selection.each do |key, value| %><%= hidden_field_tag "distribution_batch[selection][#{key}]", value, id: nil %><% end %>
+        <% end %>
+        <label><%= form.radio_button :kind, "segment", checked: @selection.blank? %> Um segmento</label>
+        <label><%= form.radio_button :kind, "file" %> Uma planilha (CSV com uma coluna: <code>documento</code> ou <code>contrato</code>)</label>
+      </fieldset>
+      <div class="campo">
+        <%= form.label :segment_id, "Segmento" %>
+        <%= form.select :segment_id, @segments.map { |segment| [ "#{segment.name} (#{t("segments.subjects.#{segment.subject}")})", segment.id ] }, include_blank: "Escolha, se o lote for de um segmento" %>
+      </div>
+      <div class="campo">
+        <%= form.label :file, "Planilha" %>
+        <%= form.file_field :file, accept: ".csv,text/csv" %>
+      </div>
+      <div class="campo">
+        <%= form.label :exposure, "Exposição" %>
+        <%= form.select :exposure, Distribution::EXPOSURES.map { [ t("distributions.exposures.#{_1}"), _1 ] } %>
+      </div>
+      <div class="campo"><%= form.label :starts_on, "Início" %><%= form.date_field :starts_on, value: Date.current %></div>
+      <div class="campo"><%= form.label :ends_on, "Fim (opcional)" %><%= form.date_field :ends_on %></div>
+      <div class="acoes" data-rodape><%= form.submit "Conferir o lote" %></div>
+    </div>
+  <% end %>
+<% end %>

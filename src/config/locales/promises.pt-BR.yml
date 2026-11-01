@@ -35,8 +35,8 @@ pt-BR:
       cancel_reason_required: "Informe o motivo do cancelamento."
       not_cancelable: "A promessa não está aberta nem pendente."
     settings:
-      invalid_days: "O prazo máximo de %{segment} vai de 1 a 365 dias."
-      invalid_limit: "A alçada em %{segment} vai de 0 dias até o prazo máximo do segmento."
+      invalid_days: "O prazo máximo de %{tier} vai de 1 a 365 dias."
+      invalid_limit: "A alçada em %{tier} vai de 0 dias até o prazo máximo do item."
     policies:
       counting:
         promise_only: "Só os pagamentos da promessa, com o número dela"

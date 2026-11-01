@@ -3,6 +3,7 @@ module Webhooks
   # HMAC do corpo com o segredo do canal. O evento é guardado uma única vez (canal + identificador do evento) e processado em segundo
   # plano; o reenvio responde 200 e não processa de novo.
   class PaymentsController < ActionController::API
+    include SystemDbRole
     MAX_BYTES = 64.kilobytes
 
     rate_limit to: 600, within: 1.minute, by: -> { request.remote_ip }, with: -> { head :too_many_requests }

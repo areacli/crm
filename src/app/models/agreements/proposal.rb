@@ -19,7 +19,10 @@ module Agreements
 
         number = Numbering.next_for(tenant.id)
         # R218: a proposta substituída é cancelada antes, com o número da nova, e libera os títulos que o índice único prende.
-        replaced_proposals(quote, input).each { |old| Canceller.new(@actor).cancel(old, I18n.t("agreements.canceled.replaced", number: number), kind: "replaced") }
+        replaced_proposals(quote, input).each do |old|
+          Canceller.new(@actor).cancel(old, I18n.t("agreements.canceled.replaced", number: number), kind: "replaced")
+          Operations::UndoNotice.call(old, @actor, number: old.number)
+        end
         agreement = persist(quote, input, today, number)
       end
       agreement
@@ -38,17 +41,17 @@ module Agreements
       def persist(quote, input, today, number)
         tenant = @customer.tenant
         setting = tenant.setting
-        segment = quote.segment
+        tier = quote.tier
         state = quote.pending? ? "pending" : "approved"
         agreement = Agreement.new(
-          tenant: tenant, customer: @customer, segment: segment, user: @actor, number: number, state: state, mode: quote.mode, built_on: today,
-          valid_until: today + segment.agreement_validity_days, decided_by: (@actor unless quote.pending?), decided_at: (Time.current unless quote.pending?),
+          tenant: tenant, customer: @customer, tier: tier, user: @actor, number: number, state: state, mode: quote.mode, built_on: today,
+          valid_until: today + tier.agreement_validity_days, decided_by: (@actor unless quote.pending?), decided_at: (Time.current unless quote.pending?),
           discounts: quote.discounts, base_cents: quote.base_cents, discount_cents: quote.discount_cents, value_cents: quote.value_cents, net_cents: quote.net_cents,
           credit_mode: (quote.credit.mode unless quote.credit.none?), credit_cents: (quote.credit.rebate? ? quote.credit.total : 0), credit_down_cents: (quote.credit.down_payment? ? quote.credit.total : 0),
           down_payment_cents: quote.down_payment_cents, down_payment_due: quote.down_payment_on, installments_count: quote.installments.size, installment_day: (input.day.to_i if quote.installments.any?),
           installment_method: quote.method, rate_pct: quote.rate_pct, effective_annual_pct: quote.effective_annual_pct, total_cents: quote.total_cents, interest_cents: quote.interest_cents,
           schedule: quote.schedule.map { |row| { "number" => row.number, "due" => row.due.iso8601, "amount_cents" => row.amount_cents, "interest_cents" => row.interest_cents, "amortization_cents" => row.amortization_cents, "balance_cents" => row.balance_cents } },
-          terms: terms_of(quote, setting, segment)
+          terms: terms_of(quote, setting, tier)
         )
         quote.rows.each do |row|
           agreement.agreement_bills.build(bill: row.bill, contract: row.bill.contract, base: row.base, discount: row.discount, credit: row.credit, value_cents: row.value,
@@ -61,14 +64,14 @@ module Agreements
 
       # Tudo o que o acordo congela na proposta (R210): as variáveis do segmento, os parâmetros de encargos, o limite de quem montou, as políticas que congelam,
       # a praça e o que a tela avisou. O segmento que vale é o para negociar (R211).
-      def terms_of(quote, setting, segment)
+      def terms_of(quote, setting, tier)
         profile = Membership.active.where(user_id: @actor.id, tenant_id: @customer.tenant_id).includes(:profile).first&.profile
-        { "segment" => { "id" => segment.id, "name" => segment.name,
-                         "caps" => Caps.normalize(segment.agreement_caps), "max_installments" => segment.agreement_max_installments,
-                         "min_installment_cents" => segment.agreement_min_installment_cents, "min_down_payment_pct" => segment.agreement_min_down_payment_pct,
-                         "down_payment_days" => segment.agreement_down_payment_days, "validity_days" => segment.agreement_validity_days,
-                         "tolerance_days" => segment.agreement_tolerance_days, "break_days" => segment.agreement_break_days },
-          "parameters" => Parameters.frozen(setting, segment),
+        { "tier" => { "id" => tier.id, "name" => tier.name,
+                         "caps" => Caps.normalize(tier.agreement_caps), "max_installments" => tier.agreement_max_installments,
+                         "min_installment_cents" => tier.agreement_min_installment_cents, "min_down_payment_pct" => tier.agreement_min_down_payment_pct,
+                         "down_payment_days" => tier.agreement_down_payment_days, "validity_days" => tier.agreement_validity_days,
+                         "tolerance_days" => tier.agreement_tolerance_days, "break_days" => tier.agreement_break_days },
+          "parameters" => Parameters.frozen(setting, tier),
           "limit" => limit_of(quote.limit, profile),
           "policies" => Policies.frozen_for(setting),
           "credit" => { "mode" => quote.credit.mode, "distribution" => quote.credit.distribution, "use" => Policies.value(setting, "credit_use"), "entry_policy" => Policies.value(setting, "credit_entry") },

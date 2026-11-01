@@ -13,7 +13,7 @@ module ChargesTestHelper
   # Regra do "Varejo PF recente" dada como parâmetro do credor: multa 2%, juros de taxa fixa 1% ao mês e IPCA (os segmentos herdam).
   def configure_charges(tenant, fine: 2, interest: 1, index: "ipca", **policies)
     tenant.setting.update!(charge_fine_pct: fine, charge_interest_pct: interest, charge_index: index, **policies)
-    demais = Segment.catch_all_of(tenant)
+    demais = Tier.catch_all_of(tenant)
     demais.update!(interest_kind: interest.to_d.positive? ? "fixed" : "none")
     Charges::RuleHistory.record!(tenant, since: Date.new(2026, 1, 1))
   end

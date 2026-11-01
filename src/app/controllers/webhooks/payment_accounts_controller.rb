@@ -4,6 +4,7 @@ module Webhooks
   # uma única vez (conta + identificador do evento, R282) e responde 2xx logo; quem consulta o fornecedor e mexe no instrumento é o job da fila `webhooks`
   # (R283). Nada aqui chama o fornecedor. 404 igual para conta inexistente, desativada de fornecedor ou sem fornecedor instalado; 401 para autenticação errada.
   class PaymentAccountsController < ActionController::API
+    include SystemDbRole
     MAX_BYTES = 64.kilobytes
 
     rate_limit to: 600, within: 1.minute, by: -> { request.remote_ip }, with: -> { head :too_many_requests }

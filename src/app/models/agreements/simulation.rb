@@ -17,7 +17,7 @@ module Agreements
     Installment = Data.define(:number, :due, :amount_cents, :interest_cents, :amortization_cents, :balance_cents)
 
     # `error`: a primeira recusa da R215 (nil quando a proposta pode ser gravada); `status`: aprovada ou pendente pela alçada (R216).
-    Quote = Data.define(:rows, :segment, :limit, :mode, :discounts, :base_cents, :discount_cents, :value_cents, :net_cents, :down_payment_cents, :down_payment_on,
+    Quote = Data.define(:rows, :tier, :limit, :mode, :discounts, :base_cents, :discount_cents, :value_cents, :net_cents, :down_payment_cents, :down_payment_on,
                         :schedule, :method, :rate_pct, :effective_annual_pct, :total_cents, :interest_cents, :error, :status, :warnings, :calendar, :square, :credit) do
       def installments = schedule.reject { |row| row.number.zero? }
       def down_payment = schedule.first
@@ -44,12 +44,12 @@ module Agreements
     # proposta prende e a que o operador não pediu para substituir.
     def call
       bills = load_bills
-      segment = negotiation_segment(bills)
+      tier = negotiation_tier(bills)
       calendar = Square.calendar_for(@customer, today: @today)
       square = Square.municipality_for(@customer)
       pricing = price(bills)
       rules = Charges::RuleSet.rules(@tenant)
-      rows = pricing.rows.map { |row| discounted(row, rules, segment) }
+      rows = pricing.rows.map { |row| discounted(row, rules, tier) }
       base = rows.sum(&:base_total)
       discount = rows.sum(&:discount_total)
       after_discount = base - discount
@@ -66,17 +66,17 @@ module Agreements
       end
       value = after_discount
       net = rows.sum(&:value) # o valor líquido: o valor do acordo menos o crédito usado como abatimento (R223)
-      limit = AgreementLimit.for(profile, segment)
+      limit = AgreementLimit.for(profile, tier)
       down_on = calendar.next_business(@input.down_payment_on || (@today + 1))
-      down = cash ? net : (@input.down_payment_cents || minimum_down(net, segment))
-      schedule, method, rate, interest = build_schedule(net, down, down_on, segment, calendar, cash)
+      down = cash ? net : (@input.down_payment_cents || minimum_down(net, tier))
+      schedule, method, rate, interest = build_schedule(net, down, down_on, tier, calendar, cash)
       annual = method == "none" || rate.zero? ? BigDecimal("0") : (((1 + rate / 100)**12 - 1) * 100).round(4)
-      quote = Quote.new(rows: rows, segment: segment, limit: limit, mode: @input.mode, discounts: @input.discounts_bp, base_cents: base, discount_cents: discount, value_cents: value,
+      quote = Quote.new(rows: rows, tier: tier, limit: limit, mode: @input.mode, discounts: @input.discounts_bp, base_cents: base, discount_cents: discount, value_cents: value,
                         net_cents: net, down_payment_cents: down, down_payment_on: down_on, schedule: schedule, method: method, rate_pct: rate, effective_annual_pct: annual,
                         total_cents: schedule.sum(&:amount_cents), interest_cents: interest, error: nil, status: "approved", warnings: warnings(bills, square), calendar: calendar, square: square,
                         credit: credit)
       quote = quote.with(mode: "cash") if cash
-      error = first_error(quote, segment)
+      error = first_error(quote, tier)
       quote = quote.with(error: error)
       quote.with(status: within_limits?(quote, limit) ? "approved" : "pending")
     end
@@ -124,13 +124,13 @@ module Agreements
 
       # R211, DS8: o segmento do contrato; com títulos de mais de um contrato, o do contrato mais atrasado, e no empate o de maior saldo. Contrato sem segmento
       # vale "Demais" (M11).
-      def negotiation_segment(bills)
+      def negotiation_tier(bills)
         contracts = bills.group_by(&:contract).map do |contract, items|
           overdue = items.map { |bill| bill.days_overdue(@today) }.max
           [ overdue, items.sum(&:balance_cents), contract ]
         end
         contract = contracts.max_by { |overdue, balance, _| [ overdue, balance ] }.last
-        Promises::Limits.segment_of(contract)
+        Promises::Limits.tier_of(contract)
       end
 
       # A base de cada título (R211, R250): o título comum pelo valor atualizado da 09; o título de acordo, da quebra ou de estorno pelo saldo devedor de hoje, com a composição que falta e,
@@ -150,7 +150,7 @@ module Agreements
         Promises::Pricing::Quote.new(bills.map { |bill| by_bill.fetch(bill.id) }, @today)
       end
 
-      def discounted(row, rules, segment)
+      def discounted(row, rules, tier)
         discount = {}
         after = {}
         row.components.each do |component, cents|
@@ -177,7 +177,7 @@ module Agreements
 
       # R212, DA30: os honorários são recalculados pela taxa do contrato sobre o resultado dos outros componentes, e só então recebe o desconto.
       def recompute_fees!(row, discount, after, rules)
-        rate = rules[row.bill.contract.segment_id || Charges::RuleSet.demais_id(@tenant)]&.fees.to_f
+        rate = rules[row.bill.contract.tier_id || Charges::RuleSet.demais_id(@tenant)]&.fees.to_f
         # No acordo sobre acordo, os honorários são recalculados só sobre o principal e a correção herdados (R212).
         base = (row.bill.kind_common? ? %w[principal correction fine interest] : %w[principal correction]).sum { |component| after.fetch(component, 0) }
         recomputed = Charges::Calculator.round_cents(base * rate)
@@ -188,11 +188,11 @@ module Agreements
 
       def fees_on_negotiated? = Policies.value(@setting, "fees") == "on_negotiated"
 
-      def minimum_down(net, segment) = (net * segment.agreement_min_down_payment_pct + 99) / 100
+      def minimum_down(net, tier) = (net * tier.agreement_min_down_payment_pct + 99) / 100
 
       # Entrada e parcelas (R213, R214): vencimentos mensais no dia escolhido, a primeira no mês seguinte ao da entrada, cada um em dia útil.
-      def build_schedule(net, down, down_on, segment, calendar, cash)
-        parameters = Parameters.installment(@setting, segment)
+      def build_schedule(net, down, down_on, tier, calendar, cash)
+        parameters = Parameters.installment(@setting, tier)
         entry = Installment.new(0, down_on, down, 0, down, net - down)
         return [ [ entry ], "none", BigDecimal("0"), 0 ] if cash || (@input.installments.to_i < 1) || @input.day.to_i < 1 || @input.day.to_i > 28 || down >= net
 
@@ -258,13 +258,13 @@ module Agreements
       end
 
       # R215, na ordem da especificação; devolve a primeira recusa, ou nil.
-      def first_error(quote, segment)
-        caps = Caps.normalize(segment.agreement_caps)[quote.mode == "cash" ? "cash" : "installment"]
+      def first_error(quote, tier)
+        caps = Caps.normalize(tier.agreement_caps)[quote.mode == "cash" ? "cash" : "installment"]
         discount_error(quote, caps) ||
           credit_error(quote) ||
           (I18n.t("agreements.refused.total_forgiveness") if quote.value_cents <= 0) ||
-          installments_error(quote, segment) ||
-          down_payment_error(quote, segment) ||
+          installments_error(quote, tier) ||
+          down_payment_error(quote, tier) ||
           (I18n.t("agreements.refused.total_forgiveness") if forgiveness?(quote)) ||
           minimum_to_break_error(quote)
       end
@@ -291,26 +291,26 @@ module Agreements
         nil
       end
 
-      def installments_error(quote, segment)
+      def installments_error(quote, tier)
         return nil if quote.mode == "cash"
 
         count = @input.installments.to_i
         return I18n.t("agreements.refused.installments_required") if count < 1
-        return I18n.t("agreements.refused.installments_above", max: segment.agreement_max_installments) if count > segment.agreement_max_installments
+        return I18n.t("agreements.refused.installments_above", max: tier.agreement_max_installments) if count > tier.agreement_max_installments
         return I18n.t("agreements.refused.day_range") unless @input.day.to_i.between?(1, 28)
 
-        small = quote.installments.find { |row| row.amount_cents < segment.agreement_min_installment_cents }
-        small ? I18n.t("agreements.refused.installment_minimum", min: Money.format(segment.agreement_min_installment_cents)) : nil
+        small = quote.installments.find { |row| row.amount_cents < tier.agreement_min_installment_cents }
+        small ? I18n.t("agreements.refused.installment_minimum", min: Money.format(tier.agreement_min_installment_cents)) : nil
       end
 
-      def down_payment_error(quote, segment)
+      def down_payment_error(quote, tier)
         net = quote.net_cents
         down = quote.down_payment_cents
         earliest = quote.calendar.next_business(@today + 1)
-        latest = [ @today + segment.agreement_down_payment_days, earliest ].max
+        latest = [ @today + tier.agreement_down_payment_days, earliest ].max
         requested = @input.down_payment_on
         if quote.mode != "cash"
-          return I18n.t("agreements.refused.down_minimum", pct: segment.agreement_min_down_payment_pct, min: Money.format(minimum_down(net, segment))) if down * 100 < net * segment.agreement_min_down_payment_pct
+          return I18n.t("agreements.refused.down_minimum", pct: tier.agreement_min_down_payment_pct, min: Money.format(minimum_down(net, tier))) if down * 100 < net * tier.agreement_min_down_payment_pct
           return I18n.t("agreements.refused.down_below_net") if down >= net
         end
         return I18n.t("agreements.refused.down_due_range", from: I18n.l(earliest, format: "%d/%m/%Y"), to: I18n.l(latest, format: "%d/%m/%Y")) if requested && (requested <= @today || requested > latest)

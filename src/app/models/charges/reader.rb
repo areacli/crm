@@ -2,7 +2,7 @@ module Charges
   # Lê do banco o que o cálculo precisa dos títulos vencidos em cobrança de um credor: valor vigente, vencimento, segmento do contrato, pagamentos
   # de principal por data, encargos já alocados e histórico de segmento. Em lotes por chave (200 mil clientes não cabem de uma vez), sempre dentro
   # de um credor (V10). Consultas: `bills (tenant_id, status, due_date)` e a chave de `contracts`; `payment_allocations (bill_id)` e
-  # `contract_segments (contract_id, since)`.
+  # `contract_tiers (contract_id, since)`.
   class Reader
     BATCH = 20_000
 
@@ -16,16 +16,16 @@ module Charges
     NO_PAID = {}.freeze
     NO_DATES = Set.new.freeze
 
-    Input = Struct.new(:bill_id, :customer_id, :contract_id, :amount, :due, :segment_id, :payments, :periods, :paid, :dates)
+    Input = Struct.new(:bill_id, :customer_id, :contract_id, :amount, :due, :tier_id, :payments, :periods, :paid, :dates)
 
-    # `bill_ids` limita a esses títulos (ficha, pagamento); `segment_ids`, aos contratos que passaram por esses segmentos (conferência do impacto).
-    # `unsegmented`: com `segment_ids`, inclui também os contratos ainda sem segmento (valem como "Demais" até o primeiro recálculo dos segmentos).
-    def initialize(tenant, today:, bill_ids: nil, segment_ids: nil, unsegmented: false)
+    # `bill_ids` limita a esses títulos (ficha, pagamento); `tier_ids`, aos contratos que passaram por esses segmentos (conferência do impacto).
+    # `unsegmented`: com `tier_ids`, inclui também os contratos ainda sem segmento (valem como "Demais" até o primeiro recálculo dos segmentos).
+    def initialize(tenant, today:, bill_ids: nil, tier_ids: nil, unsegmented: false)
       @unsegmented = unsegmented
       @tenant = tenant
       @today = today
       @bill_ids = bill_ids
-      @segment_ids = segment_ids
+      @tier_ids = tier_ids
     end
 
     def each_batch
@@ -44,9 +44,9 @@ module Charges
       def bills(after)
         where = [ "b.tenant_id = :t", "b.status = 'active'", "b.kind = 'common'", "b.due_date < :today", "b.id > :after" ]
         where << "b.id in (:ids)" if @bill_ids
-        where << "(#{'c.segment_id is null or ' if @unsegmented}c.segment_id in (:segments) or exists (select 1 from contract_segments cs where cs.contract_id = b.contract_id and cs.segment_id in (:segments)))" if @segment_ids
-        sql = ActiveRecord::Base.sanitize_sql_array([ <<~SQL, { t: @tenant.id, today: @today, after: after, ids: @bill_ids || [ 0 ], segments: @segment_ids || [ 0 ] } ])
-          select b.id, b.customer_id, b.contract_id, b.amount_cents, (b.due_date - date '2000-01-01') as due_days, c.segment_id
+        where << "(#{'c.tier_id is null or ' if @unsegmented}c.tier_id in (:tiers) or exists (select 1 from contract_tiers cs where cs.contract_id = b.contract_id and cs.tier_id in (:tiers)))" if @tier_ids
+        sql = ActiveRecord::Base.sanitize_sql_array([ <<~SQL, { t: @tenant.id, today: @today, after: after, ids: @bill_ids || [ 0 ], tiers: @tier_ids || [ 0 ] } ])
+          select b.id, b.customer_id, b.contract_id, b.amount_cents, (b.due_date - date '2000-01-01') as due_days, c.tier_id
           from bills b join contracts c on c.id = b.contract_id
           where #{where.join(' and ')} order by b.id limit #{BATCH}
         SQL
@@ -54,13 +54,13 @@ module Charges
       end
 
       def contracts_with_history(contracts)
-        Portfolio::Sql.rows("select contract_id from contract_segments where contract_id in (?) group by contract_id having count(*) > 1", contracts).map { |row| row["contract_id"].to_i }
+        Portfolio::Sql.rows("select contract_id from contract_tiers where contract_id in (?) group by contract_id having count(*) > 1", contracts).map { |row| row["contract_id"].to_i }
       end
 
       # Os contratos do credor com mais de uma linha de histórico, lidos uma vez por leitura (uma agregação).
       def multi_history_contracts
         @multi_history_contracts ||= Portfolio::Sql.rows(<<~SQL, @tenant.id).map { |row| row["contract_id"].to_i }
-          select cs.contract_id from contract_segments cs join contracts c on c.id = cs.contract_id
+          select cs.contract_id from contract_tiers cs join contracts c on c.id = cs.contract_id
           where c.tenant_id = ? group by cs.contract_id having count(*) > 1
         SQL
       end
@@ -94,12 +94,12 @@ module Charges
         contracts = rows.map { |row| row[2] }.uniq
         moved = @bill_ids ? contracts_with_history(contracts) : contracts & multi_history_contracts
         if moved.any?
-          Portfolio::Sql.rows("select cs.contract_id, cs.since, cs.segment_id from contract_segments cs where cs.contract_id in (?) order by cs.contract_id, cs.since", moved).each do |row|
-            history[row["contract_id"].to_i] << [ Date.parse(row["since"].to_s), row["segment_id"]&.to_i ]
+          Portfolio::Sql.rows("select cs.contract_id, cs.since, cs.tier_id from contract_tiers cs where cs.contract_id in (?) order by cs.contract_id, cs.since", moved).each do |row|
+            history[row["contract_id"].to_i] << [ Date.parse(row["since"].to_s), row["tier_id"]&.to_i ]
           end
         end
-        rows.map do |id, customer_id, contract_id, amount, due, segment_id|
-          Input.new(id.to_i, customer_id.to_i, contract_id.to_i, amount.to_i, Date.jd(JD_2000 + due.to_i), segment_id&.to_i,
+        rows.map do |id, customer_id, contract_id, amount, due, tier_id|
+          Input.new(id.to_i, customer_id.to_i, contract_id.to_i, amount.to_i, Date.jd(JD_2000 + due.to_i), tier_id&.to_i,
                     payments.fetch(id.to_i, NONE), history.fetch(contract_id.to_i, NONE), paid.fetch(id.to_i, NO_PAID), dates.fetch(id.to_i, NO_DATES))
         end
       end

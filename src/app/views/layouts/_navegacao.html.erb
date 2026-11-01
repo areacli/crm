@@ -1,4 +1,5 @@
-<%# Menu lateral de 208 px: só texto, o item atual com aria-current="page" e a contagem (quando há) como selo. `menu_sections` vem do NavigationHelper. %>
+<%# Menu lateral de 256 px (design system, revisão 6), cada rótulo numa linha: só texto, o item atual com aria-current="page" e a contagem (quando há) como selo. `menu_sections` vem do NavigationHelper.
+    O item "Configuração" abre e fecha o submenu das seções (design system, revisão 5): aberto nas páginas da configuração, fechado nas demais. %>
 <nav aria-label="Menu" id="menu-principal" popover>
   <%# Tela estreita: a busca global do cabeçalho some e entra aqui, no topo do menu (mesma consulta da lista de clientes). %>
   <% if Current.user&.permitted_anywhere?("view_portfolio") %>
@@ -12,7 +13,20 @@
     <% if secao[:titulo].present? %><h2><%= secao[:titulo] %></h2><% end %>
     <ul>
       <% secao[:itens].each do |item| %>
-        <li><%= link_to safe_join([ item[:rotulo], (tag.span(number_br(item[:contador]), class: "selo", data: { destaque: true }) if item[:contador]) ].compact, " "), item[:caminho], aria: { current: (item[:atual] ? "page" : nil) } %></li>
+        <% if item[:subitens] %>
+          <li>
+            <details class="submenu" <%= "open" if item[:atual] %>>
+              <summary><%= item[:rotulo] %> <%= icone "chevron-down" %></summary>
+              <ul>
+                <% item[:subitens].each do |subitem| %>
+                  <li><%= link_to subitem[:rotulo], subitem[:caminho], aria: { current: (subitem[:atual] ? "page" : nil) } %></li>
+                <% end %>
+              </ul>
+            </details>
+          </li>
+        <% else %>
+          <li><%= link_to safe_join([ item[:rotulo], (tag.span(number_br(item[:contador]), class: "selo", data: { destaque: true }) if item[:contador]) ].compact, " "), item[:caminho], aria: { current: (item[:atual] ? "page" : nil) } %></li>
+        <% end %>
       <% end %>
     </ul>
   <% end %>

@@ -21,7 +21,8 @@ services:
     environment:
       POSTGRES_DB: crm
       POSTGRES_USER: crm
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      # O dono das tabelas; a aplicação entra como crm_app (decisão 0024). Só vale na criação do volume.
+      POSTGRES_PASSWORD: ${DB_ADMIN_PASSWORD}
     volumes:
       # A imagem 19 grava em /var/lib/postgresql/<versão>/docker: monta o diretório pai.
       - pgdata:/var/lib/postgresql
@@ -35,7 +36,7 @@ services:
       retries: 30
 
   valkey:
-    image: valkey/valkey:9-trixie@sha256:418652cfb58ef879d4978c33553735d7147016032d5aefaa14c828e611eb9dfd
+    image: valkey/valkey:9.1.3-trixie@sha256:3add1a336a920ea54770a001ab6feb3da5fceea96a40373a3a2cd469b815f0b7
     command: ["valkey-server", "--requirepass", "${REDIS_PASSWORD}", "--appendonly", "yes", "--maxmemory", "256mb"]
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
@@ -62,10 +63,20 @@ services:
       test: ["CMD-SHELL", "curl -fs http://127.0.0.1:80/up >/dev/null || exit 1"]
       interval: 10s
       retries: 6
+      # A subida migra o banco antes do servidor: uma migração longa não conta como falha (o Sidekiq espera o app saudável).
+      start_period: 300s
 
   sidekiq:
     <<: *aplicacao
     command: ["bundle", "exec", "sidekiq"]
+    # O app migra e cria o papel de entrada (crm_app) ao subir; o Sidekiq entra com esse papel, então espera o app ficar saudável.
+    depends_on:
+      db:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+      app:
+        condition: service_healthy
     volumes:
       - storage:/rails/storage
     mem_limit: 1536m

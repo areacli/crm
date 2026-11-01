@@ -1,0 +1,103 @@
+<% content_for :title, "Configuração · Enquadramento financeiro" %>
+<% content_for :cable_channels, @tenants.map { |tenant| { channel: "SegmentsChannel", tenant_id: tenant.id } }.to_json %>
+<%= pagina "Enquadramento financeiro", subtitulo: "Cada contrato em aberto recebe as regras do primeiro item cujo segmento ele atende, de cima para baixo. Quem não atende nenhum fica em Demais." %>
+<%= render "settings/modelo" %>
+
+<div id="enquadramento" hx-get="<%= settings_tiers_path %>" hx-trigger="cable:segments-changed from:body" hx-swap="outerHTML" hx-push-url="false" hx-select="#enquadramento" hx-disinherit="hx-select hx-swap hx-push-url">
+  <% @tenants.each do |tenant| %>
+    <% tiers = @tiers.fetch(tenant.id, []).select { |tier| tier.active? || tier.catch_all? } %>
+    <% setting = @settings.fetch(tenant.id) %>
+    <% can_change = @can_change.include?(tenant.id) %>
+    <% run = @runs[tenant.id] %>
+    <section class="cartao" aria-labelledby="credor-<%= tenant.id %>">
+      <header>
+        <h2 id="credor-<%= tenant.id %>"><%= tenant.name %></h2>
+        <% if can_change %><div class="acoes"><%= abrir_painel "Incluir segmento", new_settings_tier_path(tenant_id: tenant.id), variante: "modal", tamanho: "small", data: { size: "small" } %></div><% end %>
+      </header>
+      <div>
+        <% if run&.failed? %>
+          <%= aviso(tom: :danger) { tag.p "O recálculo de #{datetime_br(run.started_at)} falhou#{" (#{run.error_kind})" if run.error_kind.present?}. A lista mostra os últimos itens calculados; o recálculo roda de novo amanhã às 5h30 ou ao confirmar uma carga." } %>
+        <% elsif run %>
+          <p><small>Recalculado em <%= datetime_br(run.started_at) %> (<%= number_br(run.processed) %> contratos mudaram de item).</small></p>
+        <% else %>
+          <p><small>O recálculo ainda não rodou para este credor.</small></p>
+        <% end %>
+        <div class="tabela" tabindex="0">
+          <table>
+            <caption class="apenas-leitor-de-tela">Itens do enquadramento financeiro de <%= tenant.name %>, em ordem</caption>
+            <thead><tr><th scope="col" data-numerico>Ordem</th><th scope="col">Segmento</th><th scope="col" data-numerico>Contratos</th><th scope="col" data-numerico>Saldo</th><th scope="col">Regras</th><% if can_change %><th scope="col"><span class="apenas-leitor-de-tela">Ações</span></th><% end %></tr></thead>
+            <tbody>
+              <% active = tiers.reject(&:catch_all?) %>
+              <% tiers.each do |tier| %>
+                <% count, cents = @totals.fetch(tier.id, [ 0, 0 ]) %>
+                <% index = active.index(tier) %>
+                <tr id="item-<%= tier.id %>">
+                  <td data-numerico><%= tier.catch_all? ? "—" : index + 1 %></td>
+                  <th scope="row">
+                    <% if tier.catch_all? %>
+                      <%= tier.name %> <%= situacao("Trilha padrão", tom: :neutral) %>
+                    <% else %>
+                      <%= link_to tier.name, settings_segment_path(tier.segment) %>
+                      <% reading = tier.segment.text %>
+                      <br><small><code><%= reading.lines.drop(1).map(&:short).join(" · ") %></code></small> <%= informacao "condições de #{tier.name}", reading.long_text, "leitura-item-#{tier.id}" %>
+                    <% end %>
+                  </th>
+                  <td data-numerico><%= number_br(count) %></td>
+                  <td data-numerico><%= money(cents) %></td>
+                  <td>
+                    <small>Encargos: <%= charge_rule_summary(tier, setting) %></small><br>
+                    <small>Promessa: até <%= tier.promise_max_days %> dias</small><br>
+                    <small>Acordo: até <%= tier.agreement_max_installments %> parcelas · entrada mínima <%= tier.agreement_min_down_payment_pct %>%</small>
+                  </td>
+                  <% if can_change %>
+                    <td data-acoes>
+                      <%= menu_de_linha("item-menu-#{tier.id}", "Ações de #{tier.name}") do %>
+                        <%= link_to "Editar regras", edit_settings_tier_path(tier), class: "botao" %>
+                        <% unless tier.catch_all? %>
+                          <% if index.positive? %><%= button_to "Mover para cima", settings_tier_movement_path(tier), params: { "movement[direction]": "up" }, form: { "hx-boost": "false" } %><% end %>
+                          <% if index < active.size - 1 %><%= button_to "Mover para baixo", settings_tier_movement_path(tier), params: { "movement[direction]": "down" }, form: { "hx-boost": "false" } %><% end %>
+                          <%= button_to "Tirar do enquadramento", settings_tier_path(tier), method: :delete, form: { "hx-boost": "false" } %>
+                          <%= link_to "Abrir segmento", settings_segment_path(tier.segment), class: "botao" %>
+                        <% end %>
+                      <% end %>
+                    </td>
+                  <% end %>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+        <p><small>Mover, incluir, tirar e mudar regras passam pela conferência do impacto antes de valer.</small></p>
+
+        <%= form_with scope: :charges, url: settings_charges_path, method: :patch, html: { "hx-boost": "false" } do |form| %>
+          <%= hidden_field_tag :tenant_id, tenant.id %>
+          <fieldset <%= "disabled" unless can_change %>>
+            <legend>Parâmetros de encargos do credor</legend>
+            <p><small>Valem para os itens que não definem o próprio valor; mudar passa pela conferência do impacto.</small></p>
+            <div class="campo"><%= label_tag "charge_fine_pct-#{tenant.id}", "Multa (%)" %><%= text_field_tag "charges[charge_fine_pct]", charge_field_value(setting, nil, :charge_fine_pct), id: "charge_fine_pct-#{tenant.id}", inputmode: "decimal", autocomplete: "off" %></div>
+            <div class="campo"><%= label_tag "charge_interest_pct-#{tenant.id}", "Juros de taxa fixa (% ao mês)" %><%= text_field_tag "charges[charge_interest_pct]", charge_field_value(setting, nil, :charge_interest_pct), id: "charge_interest_pct-#{tenant.id}", inputmode: "decimal", autocomplete: "off" %></div>
+            <div class="campo"><%= label_tag "charge_index-#{tenant.id}", "Correção monetária" %><%= select_tag "charges[charge_index]", options_for_select(Tier::INDEX_CODES.map { |value| [ charge_label(:index, value), value ] }, setting.charge_index), id: "charge_index-#{tenant.id}" %></div>
+            <div class="campo"><%= label_tag "charge_days_convention-#{tenant.id}", "Convenção de dias dos juros" %><%= select_tag "charges[charge_days_convention]", options_for_select(Tier::DAYS_CONVENTIONS.map { |value| [ charge_label(:days_convention, value), value ] }, setting.charge_days_convention), id: "charge_days_convention-#{tenant.id}" %></div>
+            <div class="campo"><%= label_tag "charge_fine_base-#{tenant.id}", "Base da multa" %><%= select_tag "charges[charge_fine_base]", options_for_select(Tier::FINE_BASES.map { |value| [ charge_label(:fine_base, value), value ] }, setting.charge_fine_base), id: "charge_fine_base-#{tenant.id}" %></div>
+          </fieldset>
+          <% if can_change %><div class="acoes" data-rodape><button type="submit" data-variant="secondary">Conferir mudança</button></div><% end %>
+        <% end %>
+
+        <% TenantSetting::CHARGE_POLICIES.each do |policy| %>
+          <%= form_with scope: :charges, url: settings_charges_path, method: :patch, html: { "hx-boost": "false" } do |form| %>
+            <%= hidden_field_tag :tenant_id, tenant.id %>
+            <fieldset <%= "disabled" unless can_change %>>
+              <legend><%= t("charges.policies.#{policy}.title") %></legend>
+              <p><small><%= t("charges.policies.#{policy}.help") %></small></p>
+              <% TenantSetting.defined_enums.fetch(policy).each_key do |value| %>
+                <label><%= radio_button_tag "charges[#{policy}]", value, setting[policy] == value, id: "#{policy}-#{tenant.id}-#{value}" %> <%= t("charges.policies.#{policy}.#{value}") %></label>
+              <% end %>
+            </fieldset>
+            <% if can_change %><div class="acoes" data-rodape><button type="submit" data-variant="secondary">Conferir mudança</button></div><% end %>
+          <% end %>
+        <% end %>
+        <% if can_change %><%= render "settings/tiers/agreement_parameters", tenant: tenant, setting: setting, tiers: tiers %><% end %>
+      </div>
+    </section>
+  <% end %>
+</div>

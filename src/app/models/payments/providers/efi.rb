@@ -336,7 +336,7 @@ module Payments
           nil
         end
 
-        def escape(segment) = ERB::Util.url_encode(segment.to_s)
+        def escape(tier) = ERB::Util.url_encode(tier.to_s)
 
         def billet_issued(data, fallback_amount: nil, fallback_due: nil)
           billet = nested_billet(data) || data

@@ -51,7 +51,7 @@ class Agreements::RenegotiationTest < ActiveSupport::TestCase
     refused = refuse_agreement { simulate_agreement(@customer, [ @break_title ], discounts: { "inherited_late" => 5_000 }, down: 30_000, down_on: Date.new(2027, 2, 9), installments: 3, day: 9).tap { |quote| raise Agreements::Refused, quote.error if quote.error } }
     assert_includes refused, "encargos de atraso herdados"
 
-    Segment.catch_all_of(@alfa).update!(agreement_caps: { "installment" => { "inherited_late" => 100, "fine" => 100, "interest" => 100 }, "cash" => {} })
+    Tier.catch_all_of(@alfa).update!(agreement_caps: { "installment" => { "inherited_late" => 100, "fine" => 100, "interest" => 100 }, "cash" => {} })
     rebuild_agreement_limits(@alfa)
     quote = simulate_agreement(@customer, [ @break_title ], discounts: { "inherited_late" => 10_000 }, down: 30_000, down_on: Date.new(2027, 2, 9), installments: 3, day: 9, user: users(:joana))
     assert_nil quote.error

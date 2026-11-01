@@ -1,16 +1,18 @@
 # Menu lateral por permissão: o item só aparece para quem tem a permissão em algum credor (MT-4). Só texto, o atual com aria-current.
 module NavigationHelper
-  # Abas da configuração (P21): rótulo, rota e a permissão de cada uma. A entrada "Configuração" do menu abre a primeira que o usuário vê.
+  # Seções da configuração (P21): rótulo, rota e a permissão de cada uma. São o submenu do item "Configuração" do menu lateral (design system, revisão 5).
   SETTINGS_TABS = [
     [ "Dados do credor", :settings_tenant_registry_path, "change_settings" ],
     [ "Carteira", :settings_portfolio_path, "change_settings" ],
     [ "Canais de recebimento", :settings_channels_path, "change_settings" ],
     [ "Políticas de pagamento", :settings_payment_policy_path, "change_financial_policies" ],
     [ "Contas de pagamento", :settings_payment_accounts_path, "change_financial_policies" ],
-    [ "Segmentos e encargos", :settings_segments_path, %w[change_settings change_financial_policies] ],
+    [ "Segmentos", :settings_segments_path, %w[change_settings change_financial_policies] ],
+    [ "Enquadramento financeiro", :settings_tiers_path, %w[change_settings change_financial_policies] ],
     [ "Promessas e acordos", :settings_promises_path, "change_financial_policies" ],
     [ "Índices", :settings_indexes_path, %w[change_settings change_financial_policies] ],
-    [ "Resultados de acionamento", :settings_contact_results_path, "manage_contact_results" ]
+    [ "Resultados de acionamento", :settings_contact_results_path, "manage_contact_results" ],
+    [ "Operações", :settings_operations_path, "manage_operations" ]
   ].freeze
 
   # Abas visíveis para o usuário, com o caminho e se é a da página atual.
@@ -22,8 +24,6 @@ module NavigationHelper
       { rotulo: label, caminho: path, atual: request.path.start_with?(path) }
     end
   end
-
-  def settings_entry_path = settings_tabs.first&.fetch(:caminho) || root_path
 
   def menu_sections
     return @menu if @menu
@@ -39,6 +39,7 @@ module NavigationHelper
                                      [ "Importar pagamentos", new_import_path(kind: "payments"), "upload_payments", %r{\A/importacoes/nova\?kind=payments} ],
                                      [ "Importar estornos", new_import_path(kind: "reversals"), "upload_payments", %r{\A/importacoes/nova\?kind=reversals} ],
                                      [ "Divergências de valor", value_discrepancies_path, "confirm_payments", %r{\A/divergencias-de-valor}, discrepancies_count ],
+                                     [ "Distribuição", distributions_path, "distribute_portfolio", %r{\A/distribuicao} ],
                                      [ "Importações", imports_path, ImportPolicy::UPLOAD.values.uniq + ImportPolicy::CONFIRM.values.uniq, %r{\A/importacoes(?!/nova)} ] ] },
       { titulo: "Cobrança", itens: [ [ "Acordos", agreements_path, "negotiate_agreements", %r{\A/acordos(?!/pendentes)} ],
                                      *pending_promises_items,
@@ -46,11 +47,19 @@ module NavigationHelper
       { titulo: "Administração", itens: [ [ "Usuários", memberships_path, "manage_users", %r{\A/usuarios} ],
                                           [ "Guarda de dados", data_retention_path, "handle_data_subject_rights", %r{\A/guarda-de-dados} ],
                                           [ "Perfis", profiles_path, "manage_profiles", %r{\A/perfis} ],
-                                          [ "Configuração", settings_entry_path, SETTINGS_TABS.flat_map(&:last), %r{\A/configuracao} ] ] }
+                                          [ "Configuração", nil, SETTINGS_TABS.flat_map(&:last), %r{\A/configuracao} ] ] }
     ]
+    # Pessoas da operação (14, R327): para o gestor da operação, no grupo Administração (sem permissão de credor).
+    if user.operation_manager?
+      admin = sections.find { |section| section[:titulo] == "Administração" }
+      admin[:itens].unshift([ "Pessoas da operação", operation_people_path, :operation_manager, %r{\A/operacao/pessoas} ])
+    end
     sections.filter_map do |section|
       items = section[:itens].filter_map do |label, path, permissions, pattern, count|
-        next unless Array(permissions).any? { |permission| user.permitted_anywhere?(permission) }
+        next unless permissions == :operation_manager || Array(permissions).any? { |permission| user.permitted_anywhere?(permission) }
+
+        # Sem caminho, o item abre e fecha o submenu das seções da configuração (aberto nas páginas dela).
+        next { rotulo: label, atual: request.fullpath.match?(pattern), subitens: settings_tabs } if path.nil?
 
         { rotulo: label, caminho: path, atual: request.fullpath.match?(pattern), contador: (count if count.to_i.positive?) }
       end

@@ -1,7 +1,7 @@
 require "application_system_test_case"
 
-# Segmentos e índices no navegador (08): abas, criar com conferência, tela de índices com a busca manual e o evento do WebSocket; todos no axe,
-# sem rolagem horizontal.
+# Segmentos, enquadramento financeiro e índices no navegador (13, 08): editor em blocos com htmx e o "Conferir" pelo WebSocket, conferência do
+# impacto em segundo plano, lista e ficha, e a tela de índices; todos no axe, sem rolagem horizontal.
 class SegmentsSystemScreensTest < ApplicationSystemTestCase
   include ActiveJob::TestHelper
 
@@ -12,7 +12,7 @@ class SegmentsSystemScreensTest < ApplicationSystemTestCase
     IndexRate.create!(series: "selic", month: Date.current.beginning_of_month, value: "0.61", partial: true, fetched_at: Time.current)
     IndexAdjustment.create!(tenant: @alfa, series: "igpm", month: @month, value: "1.52", reason: "valor da FGV", user: users(:joana), adjusted_at: Time.current)
     TaskRun.create!(name: "index_fetch", status: "succeeded", started_at: 2.hours.ago, finished_at: 2.hours.ago, processed: 4)
-    make_segment(@alfa, "PF", person_type: "person")
+    make_tier(@alfa, "PF", person_type: "person")
     @contract = make_contract(@alfa, "CT-1", bills: [ { overdue: 40, cents: 120_000 } ], customers: [ customer_of(@alfa, FakeData.cpf(51), "Maria Souza") ])
     recalc(@alfa)
     visit new_session_path
@@ -24,7 +24,7 @@ class SegmentsSystemScreensTest < ApplicationSystemTestCase
 
   def sem_rolagem_horizontal = assert_not(page.evaluate_script("document.documentElement.scrollWidth > document.documentElement.clientWidth"))
 
-  test "a aba Segmentos, o formulário, a conferência e a ficha passam no axe" do
+  test "o editor de segmentos, o enquadramento, a conferência e a ficha passam no axe; a leitura e os erros aparecem enquanto escreve e o Conferir chega pelo WebSocket" do
     visit settings_segments_path
     assert_selector "h1", text: "Segmentos"
     assert_selector "th", text: "PF"
@@ -33,26 +33,46 @@ class SegmentsSystemScreensTest < ApplicationSystemTestCase
 
     click_link "Criar segmento"
     assert_selector "h1", text: "Novo segmento"
-    fill_in "Nome", with: "Varejo PF recente"
-    fill_in "segment_min_overdue_days", with: "1"
-    fill_in "segment_max_overdue_days", with: "90"
+    fill_in "Nome do segmento", with: "Atraso de 1 a 90"
+    fill_in "Texto do segmento", with: "contratos\n  atraso entre 1 e 90\n  titulos vencidos 2"
+    assert_selector "li[data-erro] p.erro", text: "Linha 3: vem uma comparação", wait: 10
+    fill_in "Texto do segmento", with: "contratos\n  atraso entre 1 e 90"
+    assert_selector "p.leitura strong", text: "Seleciona contratos em que o contrato tem atraso entre 1 dia e 90 dias.", wait: 10
+    click_button "Conferir"
+    assert_selector "#conferir", text: "Contando"
+    perform_enqueued_jobs(only: SegmentProbeJob)
+    assert_selector "#conferir", text: "Pega 1 contrato", wait: 10
     assert_acessivel
     sem_rolagem_horizontal
-    click_button "Conferir mudança"
-    assert_selector "h1", text: "Conferir mudança nos segmentos"
+    click_button "Salvar segmento"
+    assert_text "Segmento \"Atraso de 1 a 90\" criado"
+
+    visit settings_tiers_path
+    assert_selector "h1", text: "Enquadramento financeiro"
+    assert_acessivel
+    click_link "Incluir segmento"
+    assert_selector "dialog#painel[open]"
+    select "Atraso de 1 a 90 — atraso entre 1 e 90", from: "Segmento"
+    click_button "Conferir o impacto"
+    assert_selector "h1", text: "Conferir o impacto"
+    assert_text "Conferindo"
+    perform_enqueued_jobs(only: TierReviewJob)
+    assert_selector "h3", text: "Incluído no enquadramento: Atraso de 1 a 90"
+    assert_text "Nenhum contrato muda de item", wait: 10
     assert_acessivel
     sem_rolagem_horizontal
-    click_button "Confirmar mudança nos segmentos"
-    assert_text "Segmentos de Escola Alfa atualizados"
-    assert_selector "th", text: "Varejo PF recente"
+    click_button "Confirmar mudança"
+    assert_text "Enquadramento financeiro de Escola Alfa atualizado"
 
     visit customers_path(q: "Maria")
     assert_selector "td", text: "PF"
     assert_acessivel
     visit customer_path(@contract.customers.first, aba: "historico")
-    assert_selector "h2", text: "Histórico de segmento"
+    assert_selector "h2", text: "Histórico do enquadramento financeiro"
     assert_acessivel
     sem_rolagem_horizontal
+    visit settings_segment_glossary_path
+    assert_acessivel
   end
 
   test "a aba Índices passa no axe e se refaz sozinha pelo WebSocket quando a busca termina" do

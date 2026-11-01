@@ -94,6 +94,21 @@ class DesignSystemArchitectureTest < ActiveSupport::TestCase
     assert_empty problemas, "<details> com formulário (use o painel):\n#{problemas.join("\n")}"
   end
 
+  # Regra de navegação (design system, revisão 5): o menu lateral é a única coluna de navegação; área com páginas por assunto é submenu dele. Numa view,
+  # <nav> só para abas de um objeto, paginação ou índice de âncoras da própria página.
+  test "nenhuma view do app desenha um menu de navegação próprio" do
+    problemas = APP.reject { |arquivo| arquivo.include?("/layouts/") }.flat_map do |arquivo|
+      File.read(arquivo).scan(%r{<nav\b(.*?)>(.*?)</nav>}m).filter_map do |atributos, conteudo|
+        next if atributos.match?(/class="(abas|paginacao)"/)
+        next if conteudo.scan(/href="([^"]*)"/).flatten.all? { |href| href.start_with?("#") } && !conteudo.match?(/link_to|_path|_url/)
+
+        arquivo.delete_prefix("#{Rails.root}/")
+      end
+    end
+
+    assert_empty problemas, "<nav> de menu numa view (use o submenu do menu lateral):\n#{problemas.join("\n")}"
+  end
+
   test "nenhuma view do app declara um <dialog> próprio" do
     problemas = APP.select { |arquivo| File.read(arquivo).match?(/<dialog\b/) }.map { |arquivo| arquivo.delete_prefix("#{Rails.root}/") }
 
@@ -106,7 +121,8 @@ class DesignSystemArchitectureTest < ActiveSupport::TestCase
   end
 
   # Formulário de ação (new/edit de painel) usa o helper; as páginas de edição da configuração e o envio de planilha são páginas de verdade e ficam fora.
-  PAGINAS_DE_FORMULARIO = %w[settings/channels/edit settings/segments/ settings/payment_accounts/ imports/new customer_contacts/edit].freeze
+  # O lote de distribuição (14, R316) também envia planilha.
+  PAGINAS_DE_FORMULARIO = %w[settings/channels/edit settings/segments/ settings/tiers/edit settings/payment_accounts/ imports/new customer_contacts/edit distribution_batches/new].freeze
 
   test "todo new/edit de ação do app usa o formulario_de_painel" do
     problemas = APP.select { |arquivo| arquivo.match?(%r{/(new|edit)\.html\.erb\z}) }

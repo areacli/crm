@@ -28,7 +28,6 @@ class ChargesSystemScreensTest < ApplicationSystemTestCase
     travel_to(TODAY.in_time_zone.change(hour: 10)) do
       entrar
       assert_selector "dt", text: "Atualizado"
-      assert_selector "h2", text: "Segmentos"
       assert_acessivel
       sem_rolagem_horizontal
 
@@ -47,31 +46,34 @@ class ChargesSystemScreensTest < ApplicationSystemTestCase
     end
   end
 
-  test "a aba Segmentos e encargos, o formulário do Demais, a conferência do impacto e o aviso do CDC passam no axe" do
+  test "o enquadramento financeiro, as regras do Demais, a conferência do impacto em segundo plano e o aviso do CDC passam no axe" do
     travel_to(TODAY.in_time_zone.change(hour: 10)) do
       entrar
-      visit settings_segments_path
-      assert_selector "h1", text: "Segmentos"
-      assert_selector "td", text: "multa 2% · juros 1% a.m. simples · IPCA · sem honorários"
+      visit settings_tiers_path
+      assert_selector "h1", text: "Enquadramento financeiro"
+      assert_selector "small", text: "Encargos: multa 2% · juros 1% a.m. simples · IPCA · sem honorários"
       assert_selector "legend", text: "Parâmetros de encargos do credor"
       assert_acessivel
       sem_rolagem_horizontal
 
       find("button.menu-de-linha[aria-label='Ações de Demais']").click
-      click_link "Editar encargos"
+      click_link "Editar regras"
       assert_selector "legend", text: "Encargos"
       assert_acessivel
       sem_rolagem_horizontal
 
-      fill_in "segment_fine_pct", with: "5"
-      click_button "Conferir mudança"
-      assert_selector "h1", text: "Conferir mudança nos segmentos"
-      assert_selector "h3", text: "Valor atualizado da carteira"
+      fill_in "tier_fine_pct", with: "5"
+      click_button "Conferir o impacto"
+      assert_selector "h1", text: "Conferir o impacto"
+      assert_text "Conferindo"
+      perform_enqueued_jobs(only: TierReviewJob)
+      assert_selector "h2", text: "Valor atualizado", wait: 10
       assert_selector "td", text: "R$ 1.057,56"
+      assert_text "Multa acima de 2% em Demais"
       assert_acessivel
       sem_rolagem_horizontal
-      click_button "Confirmar mudança nos segmentos"
-      assert_text "Segmentos de Escola Alfa atualizados"
+      click_button "Confirmar mudança"
+      assert_text "Enquadramento financeiro de Escola Alfa atualizado"
     end
   end
 

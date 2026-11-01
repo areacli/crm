@@ -1,6 +1,6 @@
 <% content_for :title, "Configuração · Políticas de pagamento" %>
 <%= pagina "Políticas de pagamento", subtitulo: "Como o pagamento baixa o título, o título retirado e o mês do estorno. Cada credor tem as suas." %>
-<%= render "settings/abas" %>
+<%= render "settings/modelo" %>
 
 <% groups = { "partial_payment_policy" => "Pagamento menor que o saldo", "withdrawn_payment_policy" => "Pagamento de título retirado",
               "withdrawn_reversal_policy" => "Título retirado, quitado e depois estornado", "reversal_month_policy" => "Mês em que o estorno desconta do valor recuperado" } %>

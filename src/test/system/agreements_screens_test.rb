@@ -67,7 +67,7 @@ class AgreementsScreensSystemTest < ApplicationSystemTestCase
     wait_htmx
     assert_selector "#simulacao aside", text: /não permite desconto em principal/i
     click_button "Criar proposta"
-    assert_selector "aside[role=alert]", text: "O segmento não permite desconto em principal."
+    assert_selector "aside[role=alert]", text: "O item do enquadramento não permite desconto em principal."
     assert_equal 0, Agreement.count
     assert_acessivel
   end
@@ -118,12 +118,12 @@ class AgreementsScreensSystemTest < ApplicationSystemTestCase
   test "a aba Promessas e acordos, os parâmetros dos acordos e as políticas de pagamento passam no axe" do
     visit settings_promises_path
     assert_selector "h1", text: "Promessas e acordos"
-    assert_selector "h2", text: /Variáveis de acordo dos segmentos/
+    assert_selector "h2", text: /Variáveis de acordo do enquadramento financeiro/
     assert_selector "h2", text: /Limites de acordo por perfil/
     assert_acessivel
     sem_rolagem_horizontal
 
-    visit settings_segments_path
+    visit settings_tiers_path
     assert_selector "legend", text: "Parâmetros dos acordos do credor"
     assert_acessivel
     sem_rolagem_horizontal

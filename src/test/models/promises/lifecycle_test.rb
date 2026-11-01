@@ -6,9 +6,9 @@ class Promises::LifecycleTest < ActiveSupport::TestCase
     @alfa = tenants(:alfa)
     travel_day(ChargesTestHelper::TODAY)
     @customer, @nf1, @nf2 = promise_scenario(@alfa)
-    @segment = Segment.catch_all_of(@alfa)
-    @segment.update!(promise_max_days: 60)
-    PromiseLimit.where(segment: @segment, profile: profiles(:alfa_manager)).update_all(max_days: 60)
+    @tier = Tier.catch_all_of(@alfa)
+    @tier.update!(promise_max_days: 60)
+    PromiseLimit.where(tier: @tier, profile: profiles(:alfa_manager)).update_all(max_days: 60)
   end
 
   teardown { travel_back }
@@ -59,29 +59,29 @@ class Promises::LifecycleTest < ActiveSupport::TestCase
   end
 
   test "R190: a alçada nasce com o segmento e com o perfil, pelo padrão: gestor com o prazo do segmento, operador até 30 dias" do
-    segment = Segment.create!(tenant: @alfa, name: "Varejo PF recente", promise_max_days: 90)
-    assert_equal 90, PromiseLimit.find_by(segment: segment, profile: profiles(:alfa_manager)).max_days
-    assert_equal 30, PromiseLimit.find_by(segment: segment, profile: profiles(:alfa_operator)).max_days
+    tier = make_tier(@alfa, "Varejo PF recente", promise_max_days: 90)
+    assert_equal 90, PromiseLimit.find_by(tier: tier, profile: profiles(:alfa_manager)).max_days
+    assert_equal 30, PromiseLimit.find_by(tier: tier, profile: profiles(:alfa_operator)).max_days
 
     profile = Profile.create!(tenant: @alfa, name: "Supervisor", permissions: %w[view_portfolio record_contact_attempts change_financial_policies])
-    assert_equal 90, PromiseLimit.find_by(segment: segment, profile: profile).max_days
-    assert_equal 60, PromiseLimit.find_by(segment: @segment, profile: profile).max_days
+    assert_equal 90, PromiseLimit.find_by(tier: tier, profile: profile).max_days
+    assert_equal 60, PromiseLimit.find_by(tier: @tier, profile: profile).max_days
   end
 
   test "R190: baixar o prazo do segmento baixa a alçada que passava dele; subir não sobe nenhuma" do
     settings = Promises::Settings.new(users(:joana))
-    settings.update_limits(@alfa, { @segment.id => { max_days: 20, limits: {} } })
-    assert_equal [ 20, 20 ], PromiseLimit.where(segment: @segment, profile: [ profiles(:alfa_manager), profiles(:alfa_operator) ]).order(:id).pluck(:max_days)
+    settings.update_limits(@alfa, { @tier.id => { max_days: 20, limits: {} } })
+    assert_equal [ 20, 20 ], PromiseLimit.where(tier: @tier, profile: [ profiles(:alfa_manager), profiles(:alfa_operator) ]).order(:id).pluck(:max_days)
 
-    settings.update_limits(@alfa, { @segment.id => { max_days: 90, limits: {} } })
-    assert_equal [ 20, 20 ], PromiseLimit.where(segment: @segment, profile: [ profiles(:alfa_manager), profiles(:alfa_operator) ]).order(:id).pluck(:max_days)
-    assert_equal I18n.t("promises.settings.invalid_limit", segment: "Demais"), refuse_message { settings.update_limits(@alfa, { @segment.id => { max_days: 30, limits: { profiles(:alfa_operator).id => 40 } } }) }
+    settings.update_limits(@alfa, { @tier.id => { max_days: 90, limits: {} } })
+    assert_equal [ 20, 20 ], PromiseLimit.where(tier: @tier, profile: [ profiles(:alfa_manager), profiles(:alfa_operator) ]).order(:id).pluck(:max_days)
+    assert_equal I18n.t("promises.settings.invalid_limit", tier: "Demais"), refuse_message { settings.update_limits(@alfa, { @tier.id => { max_days: 30, limits: { profiles(:alfa_operator).id => 40 } } }) }
   end
 
   test "R187: mudar a alçada e as políticas não mexe nas promessas existentes" do
     promise = register_promise(@customer, [ @nf1 ])
     Promises::Settings.new(users(:joana)).update_policies(@alfa, { promise_tolerance_days: "9", promise_grace_days: "5" })
-    Promises::Settings.new(users(:joana)).update_limits(@alfa, { @segment.id => { max_days: 10, limits: {} } })
+    Promises::Settings.new(users(:joana)).update_limits(@alfa, { @tier.id => { max_days: 10, limits: {} } })
 
     assert_equal 3, promise.reload.policies["tolerance_days"]
     assert_equal 9, promise.days_asked

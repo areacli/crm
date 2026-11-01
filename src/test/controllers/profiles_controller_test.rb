@@ -30,7 +30,7 @@ class ProfilesControllerTest < ActionDispatch::IntegrationTest
     assert_select "tbody tr", 2
     assert_select "th", text: "Credor", count: 0
     assert_select "tbody tr", text: /Operador.*3/m
-    assert_select "tbody tr", text: /Gestor.*16 de 16.*1/m
+    assert_select "tbody tr", text: /Gestor.*19 de 19.*1/m
   end
 
   test "quem gerencia perfis em dois credores vê os dois, com a coluna Credor (MT-6)" do
@@ -60,12 +60,12 @@ class ProfilesControllerTest < ActionDispatch::IntegrationTest
     assert_equal [ @beta.id ], AccessEvent.where(event: "access_denied", user: users(:joana)).pluck(:tenant_id).uniq
   end
 
-  test "R30: o formulário traz as 16 permissões" do
+  test "R30: o formulário traz as 19 permissões (16 e as 3 da especificação 14)" do
     sign_in_as users(:joana)
 
     get new_profile_url
 
-    assert_select "input[type=checkbox][name='profile[permissions][]']", 16
+    assert_select "input[type=checkbox][name='profile[permissions][]']", 19
     assert_select "label", text: /10\. Gerenciar usuários/
   end
 
@@ -81,7 +81,7 @@ class ProfilesControllerTest < ActionDispatch::IntegrationTest
     sign_in_as users(:carlos)
     get root_url
     assert_select "nav a", text: "Importar carteira"
-    assert_select "nav a", text: "Configuração", count: 0
+    assert_select "nav summary", text: "Configuração", count: 0
     assert_select "nav a", text: "Usuários", count: 0
   end
 

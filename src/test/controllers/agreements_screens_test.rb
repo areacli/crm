@@ -65,11 +65,11 @@ class AgreementsScreensTest < ActionDispatch::IntegrationTest
   test "R215: a simulação que viola o teto mostra a mensagem do limite e a proposta não é criada" do
     entrar(users(:carlos))
     post customer_agreement_simulations_path(@customer), params: { agreement: form(discounts: { principal: "5" }) }, headers: htmx
-    assert_select "#simulacao aside", text: /o segmento não permite desconto em principal/i
+    assert_select "#simulacao aside", text: /o item do enquadramento não permite desconto em principal/i
 
     post customer_agreements_path(@customer), params: { agreement: form(discounts: { principal: "5" }) }
     assert_response :unprocessable_content
-    assert_includes response.body, "O segmento não permite desconto em principal."
+    assert_includes response.body, "O item do enquadramento não permite desconto em principal."
     assert_select "input[name='agreement[down_payment]'][value='343,66']"
     assert_equal 0, Agreement.count
   end
@@ -257,7 +257,7 @@ class AgreementsScreensTest < ActionDispatch::IntegrationTest
   end
 
   test "R245a, V10: a lista e a página de acordo de outro credor não aparecem para quem não tem a 16 nele" do
-    Segment.catch_all_of(@beta).update!(**AgreementsTestHelper::EXAMPLE_VARIABLES)
+    Tier.catch_all_of(@beta).update!(**AgreementsTestHelper::EXAMPLE_VARIABLES)
     rebuild_agreement_limits(@beta)
     beta_customer, beta_nf = promise_scenario(@beta, document: PaymentsHelper::JOAO, contract_code: "CT-B", name: "João Souza").then { |customer, bill, _| [ customer, bill ] }
     @beta.update!(cnpj: "45723174000110", legal_name: "Clínica Beta Ltda")
@@ -335,9 +335,9 @@ class AgreementsScreensTest < ActionDispatch::IntegrationTest
     get settings_promises_path
     assert_response :success
     assert_select "h1", text: "Promessas e acordos"
-    assert_select "nav.secoes a", text: "Promessas e acordos"
+    assert_select "#menu-principal .submenu a", text: "Promessas e acordos"
     assert_select "h2", text: /Políticas dos acordos/
-    assert_select "h2", text: /Variáveis de acordo dos segmentos/
+    assert_select "h2", text: /Variáveis de acordo do enquadramento financeiro/
     assert_select "h2", text: /Limites de acordo por perfil/
     assert_select ".politica .titulo", text: /Tolerância de valor dos títulos de acordo/
     assert_select ".politica .titulo", text: /Mínimo para quebrar e efetivar/
@@ -348,27 +348,29 @@ class AgreementsScreensTest < ActionDispatch::IntegrationTest
     follow_redirect!
     assert_select ".politica small", text: /Última alteração/
 
-    patch settings_agreement_variables_path, params: { tenant_id: @alfa.id, segments: { Segment.catch_all_of(@alfa).id => { max_installments: "8", min_installment: "100,00", min_down_payment_pct: "10",
-                                                                                                                        down_payment_days: "10", validity_days: "5", tolerance_days: "3", break_days: "30" } } }
-    assert_equal 8, Segment.catch_all_of(@alfa).reload.agreement_max_installments
+    patch settings_agreement_variables_path, params: { tenant_id: @alfa.id, tiers: { Tier.catch_all_of(@alfa).id => { max_installments: "8", min_installment: "100,00", min_down_payment_pct: "10",
+                                                                                                                     down_payment_days: "10", validity_days: "5", tolerance_days: "3", break_days: "30" } } }
+    follow_review
+    confirm_review(@alfa)
+    assert_equal 8, Tier.catch_all_of(@alfa).reload.agreement_max_installments
 
-    patch settings_agreement_limits_path, params: { tenant_id: @alfa.id, limits: { Segment.catch_all_of(@alfa).id => { profiles(:alfa_operator).id => { max_installments: "3", min_down_payment_pct: "20" } } } }
-    assert_equal 3, AgreementLimit.find_by!(segment: Segment.catch_all_of(@alfa), profile: profiles(:alfa_operator)).max_installments
+    patch settings_agreement_limits_path, params: { tenant_id: @alfa.id, limits: { Tier.catch_all_of(@alfa).id => { profiles(:alfa_operator).id => { max_installments: "3", min_down_payment_pct: "20" } } } }
+    assert_equal 3, AgreementLimit.find_by!(tier: Tier.catch_all_of(@alfa), profile: profiles(:alfa_operator)).max_installments
     follow_redirect!
     assert_select "td", text: /Acordos: Tolerância de valor dos títulos de acordo|Acordos, Demais/
   end
 
-  test "R246: parâmetros do acordo na aba 'Segmentos e encargos' e crédito e tolerância na aba 'Pagamentos'" do
+  test "R246: parâmetros do acordo na aba 'Enquadramento financeiro' e crédito e tolerância na aba 'Pagamentos'" do
     entrar(users(:joana))
-    get settings_segments_path
+    get settings_tiers_path
     assert_select "legend", text: "Parâmetros dos acordos do credor"
     patch settings_agreement_parameters_path, params: { tenant_id: @alfa.id, credor: { installment_rate_pct: "2", installment_method: "sac", agreement_days_convention: "thirty", agreement_fine_base: "corrected" },
-                                                        segments: { Segment.catch_all_of(@alfa).id => { installment_rate_pct: "", installment_method: "", agreement_days_convention: "", agreement_fine_base: "" } } }
-    assert_redirected_to settings_segments_path
+                                                        tiers: { Tier.catch_all_of(@alfa).id => { installment_rate_pct: "", installment_method: "", agreement_days_convention: "", agreement_fine_base: "" } } }
+    assert_redirected_to settings_tiers_path
     assert_equal "sac", @alfa.setting.reload.installment_method
 
     patch settings_agreement_parameters_path, params: { tenant_id: @alfa.id, credor: { installment_rate_pct: "999", installment_method: "sac", agreement_days_convention: "thirty", agreement_fine_base: "corrected" } }
-    assert_redirected_to settings_segments_path
+    assert_redirected_to settings_tiers_path
     assert_equal I18n.t("agreements.settings.invalid_params"), flash[:alert]
 
     get settings_payment_policy_path

@@ -1,0 +1,135 @@
+<%# Conferência do impacto (13, R291), na ordem: o que muda numa frase; o que foi alterado (antes e depois, no texto curto e por extenso); por item;
+    de onde para onde; avisos. Rodapé: Confirmar, Voltar e editar, Descartar. Em andamento, "Conferindo…" e o trecho se refaz quando o WebSocket
+    avisa (e uma vez ao carregar, para o resultado que já ficou pronto). Locais: review, id, tenant. %>
+<% running = review["status"] == "running" %>
+<div id="conferencia" class="pagina-em-secoes" <% if running %>hx-get="<%= settings_tier_review_path(id) %>" hx-trigger="load delay:500ms, cable:tier-review-ready from:body" hx-swap="outerHTML" hx-push-url="false"<% end %>>
+  <div class="ficha" data-lateral="formulario">
+    <div class="pagina-em-secoes">
+      <section class="cartao" aria-labelledby="o-que-muda">
+        <header><h2 id="o-que-muda">O que muda</h2></header>
+        <div role="status" aria-live="polite">
+          <% if running %>
+            <p><span class="carregando" aria-hidden="true"></span> Conferindo… O resultado aparece aqui sozinho, em segundos na maior parte das vezes. Nada muda até você confirmar.</p>
+          <% elsif review["status"] == "failed" %>
+            <%= aviso(tom: :danger) { tag.p review["error"] } %>
+          <% elsif review["total"].to_i.zero? %>
+            <p><strong>Nenhum contrato muda de item.</strong> Nada muda até você confirmar.</p>
+          <% else %>
+            <p><strong>Esta mudança move <%= number_br(review["total"]) %> <%= review["total"].to_i == 1 ? "contrato" : "contratos" %>, com <%= money(review["balance_cents"]) %> de saldo.</strong> Nada muda até você confirmar.</p>
+          <% end %>
+        </div>
+      </section>
+
+      <section class="cartao" aria-labelledby="o-que-foi-alterado">
+        <header><h2 id="o-que-foi-alterado">O que foi alterado</h2></header>
+        <div>
+          <% if review["changes"].blank? %>
+            <p class="vazio">Nenhuma alteração.</p>
+          <% else %>
+            <% review["changes"].each do |change| %>
+              <div class="mudanca">
+                <h3><%= change["what"] %></h3>
+                <% if change["before"] %><p><span class="situacao" data-tom="neutral">Antes</span> <code class="texto-do-segmento"><%= change["before"]["short"] %></code></p><% if change["before"]["long"] %><p class="leitura"><%= change["before"]["long"] %></p><% end %><% end %>
+                <% if change["after"] %><p><span class="situacao" data-tom="info">Depois</span> <code class="texto-do-segmento"><%= change["after"]["short"] %></code></p><% if change["after"]["long"] %><p class="leitura"><%= change["after"]["long"] %></p><% end %><% end %>
+              </div>
+            <% end %>
+          <% end %>
+        </div>
+      </section>
+
+      <% unless running || review["status"] == "failed" %>
+        <section class="cartao" aria-labelledby="por-item">
+          <header><h2 id="por-item">Por item do enquadramento</h2></header>
+          <div class="tabela" tabindex="0">
+            <table>
+              <caption class="apenas-leitor-de-tela">Contratos e saldo que entram e saem de cada item</caption>
+              <thead><tr><th scope="col">Item</th><th scope="col" data-numerico>Entram</th><th scope="col" data-numerico>Saldo que entra</th><th scope="col" data-numerico>Saem</th><th scope="col" data-numerico>Saldo que sai</th></tr></thead>
+              <tbody>
+                <% review["items"].each do |item| %>
+                  <tr><th scope="row"><%= item["name"] %></th><td data-numerico><%= number_br(item["in"]) %></td><td data-numerico><%= money(item["in_cents"]) %></td><td data-numerico><%= number_br(item["out"]) %></td><td data-numerico><%= money(item["out_cents"]) %></td></tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <% if review["moves"].any? %>
+          <section class="cartao" aria-labelledby="movimentos">
+            <header><h2 id="movimentos">De onde para onde</h2></header>
+            <div class="tabela" tabindex="0">
+              <table>
+                <caption class="apenas-leitor-de-tela">Movimentos entre itens, do maior para o menor</caption>
+                <thead><tr><th scope="col">De</th><th scope="col">Para</th><th scope="col" data-numerico>Contratos</th><th scope="col" data-numerico>Saldo</th></tr></thead>
+                <tbody>
+                  <% review["moves"].each do |move| %>
+                    <tr><th scope="row"><%= move["from"] %></th><td><%= move["to"] %></td><td data-numerico><%= number_br(move["contracts"]) %></td><td data-numerico><%= money(move["balance_cents"]) %></td></tr>
+                  <% end %>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        <% end %>
+
+        <% if review["values"] %>
+          <section class="cartao" aria-labelledby="valores">
+            <header><h2 id="valores">Valor atualizado</h2></header>
+            <div>
+              <% if review["values"].empty? %>
+                <p class="vazio">Nenhum título em cobrança muda de valor.</p>
+              <% else %>
+                <div class="tabela" tabindex="0">
+                  <table>
+                    <caption class="apenas-leitor-de-tela">Valor atualizado por item, antes e depois</caption>
+                    <thead><tr><th scope="col">Item</th><th scope="col" data-numerico>Clientes afetados</th><th scope="col" data-numerico>Antes</th><th scope="col" data-numerico>Depois</th><th scope="col" data-numerico>Diferença</th></tr></thead>
+                    <tbody>
+                      <% review["values"].each do |row| %>
+                        <tr><th scope="row"><%= row["name"] %></th><td data-numerico><%= number_br(row["customers"]) %></td><td data-numerico><%= money(row["before"]) %></td><td data-numerico><%= money(row["after"]) %></td><td data-numerico><%= money(row["after"].to_i - row["before"].to_i) %></td></tr>
+                      <% end %>
+                    </tbody>
+                  </table>
+                </div>
+              <% end %>
+            </div>
+          </section>
+        <% end %>
+
+        <% warnings = Array(review["cdc"]).map { |name| "Multa acima de 2% em #{name}: em relação de consumo com crédito ou financiamento, o limite é 2% (CDC, art. 52, § 1º). Confirme se os contratos deste item estão fora dessa regra." } %>
+        <% warnings << "Entre os contratos que mudam, #{number_br(review['mixed'])} são mistos (responsáveis PF e PJ)." if review["mixed"].to_i.positive? %>
+        <% if warnings.any? %>
+          <section class="cartao" aria-labelledby="avisos">
+            <header><h2 id="avisos">Avisos</h2></header>
+            <div><% warnings.each do |warning| %><%= aviso(tom: :warning) { tag.p warning } %><% end %></div>
+          </section>
+        <% end %>
+      <% end %>
+
+      <section class="cartao">
+        <div>
+          <%= form_with scope: :confirmation, url: settings_tier_confirmation_path, html: { "hx-boost": "false" } do |form| %>
+            <%= hidden_field_tag :tenant_id, tenant.id %>
+            <%= form.hidden_field :token, value: review["token"] %>
+            <div class="acoes" data-rodape>
+              <%= link_to "Descartar", settings_tiers_path, class: "botao", data: { variant: "secondary" } %>
+              <%= link_to "Voltar e editar", review["back"], class: "botao", data: { variant: "secondary" } %>
+              <button type="submit" <%= "disabled" if running || review["status"] == "failed" %>>Confirmar mudança</button>
+            </div>
+          <% end %>
+        </div>
+      </section>
+    </div>
+
+    <aside class="como-fica" aria-labelledby="ajuda-conferencia">
+      <section class="cartao">
+        <header><h2 id="ajuda-conferencia">Como ler esta conferência</h2></header>
+        <div>
+          <dl class="glossario">
+            <div><dt>Entram e saem</dt><dd>Contratos em cobrança que mudam de item com esta mudança, e o saldo deles sem encargos.</dd></div>
+            <div><dt>De onde para onde</dt><dd>Os movimentos entre itens, do maior para o menor.</dd></div>
+            <div><dt>Valor atualizado</dt><dd>O valor com encargos, calculado hoje, antes e depois da mudança.</dd></div>
+            <div><dt>Ao confirmar</dt><dd>A mudança vale na hora. Os encargos dos dias seguintes usam a regra nova; promessas e propostas de acordo abertas continuam com a regra congelada nelas.</dd></div>
+          </dl>
+        </div>
+      </section>
+    </aside>
+  </div>
+</div>

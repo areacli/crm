@@ -26,7 +26,7 @@ class Agreements::CapsTest < ActiveSupport::TestCase
     assert_not Agreements::Caps.valid?({ "installment" => { "fine" => 12.5 } })
     assert_not Agreements::Caps.valid?({ "installment" => { "multa" => 10 } })
     assert_not Agreements::Caps.valid?({ "avista" => { "fine" => 10 } })
-    assert_not Segment.new(agreement_caps: { "cash" => { "fine" => -1 } }).tap(&:valid?).errors[:agreement_caps].empty?
+    assert_not Tier.new(agreement_caps: { "cash" => { "fine" => -1 } }).tap(&:valid?).errors[:agreement_caps].empty?
   end
 
   test "R210: política com valor fora da lista cai no padrão, e o percentual da tolerância tem teto de 100%" do

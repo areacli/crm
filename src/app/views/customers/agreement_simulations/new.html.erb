@@ -82,7 +82,7 @@
         <div class="campo">
           <%= label_tag "entrada-vencimento", "Vencimento da entrada" %>
           <%= date_field_tag "agreement[down_payment_on]", form[:down_payment_on], id: "entrada-vencimento" %>
-          <small>Do dia útil seguinte até o prazo do segmento.</small>
+          <small>Do dia útil seguinte até o prazo do item do enquadramento.</small>
           <% if @field == "down_payment_on" %><small data-erro><%= @problem %></small><% end %>
         </div>
         <div class="campo">

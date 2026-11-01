@@ -1,0 +1,19 @@
+<%= formulario_de_painel(titulo: "Incluir segmento na distribuição", url: settings_distribution_rules_path(tenant_id: @tenant.id), enviar: "Conferir o impacto", escopo: :rule, variante: :modal,
+                         tamanho: :small, erro: @error, voltar: settings_distribution_rules_path(tenant_id: @tenant.id),
+                         descricao: "Os contratos que o segmento pegar vão para as operações escolhidas, se nenhum item acima os pegar antes.") do |form| %>
+  <% if @segments.empty? %>
+    <p class="vazio">Nenhum segmento de contratos disponível. <%= link_to "Crie um segmento", new_settings_segment_path(tenant_id: @tenant.id, subject: "contracts") %>.</p>
+  <% else %>
+    <div class="campo"><%= form.label :segment_id, "Segmento" %><%= form.select :segment_id, @segments.map { [ _1.name, _1.id ] }, {}, required: true %></div>
+    <fieldset>
+      <legend>Operações</legend>
+      <% @accredited.each do |operation| %><label><%= check_box_tag "rule[operation_ids][]", operation.id, false, id: "operacao-#{operation.id}" %> <%= operation.short_name %></label><% end %>
+      <% if @tenant.setting.operation_exclusive %><small>Com a exclusividade ligada, escolha uma operação só.</small><% end %>
+    </fieldset>
+    <div class="campo"><%= form.label :exposure, "Exposição" %><%= form.select :exposure, Distribution::EXPOSURES.map { [ t("distributions.exposures.#{_1}"), _1 ] } %></div>
+    <div class="campo">
+      <%= form.label :position, "Posição" %>
+      <%= form.select :position, @current.each_with_index.map { |item, index| [ "Antes de #{item.segment.name}", index ] } + [ [ "No fim", @current.size ] ], selected: @current.size %>
+    </div>
+  <% end %>
+<% end %>

@@ -8,6 +8,11 @@ Capybara.register_driver(:cuprite_crm) do |app|
                                 browser_options: { "no-sandbox" => nil })
 end
 
+# Nos testes de sistema, o servidor e o teste dividem uma conexão com o banco (a transação do teste). O papel do RLS é da conexão (decisão
+# 0024): duas requisições ao mesmo tempo nela trocariam o papel uma da outra (a que termina faz RESET ROLE no meio da outra). Em produção
+# cada thread tem a sua conexão; aqui o servidor atende uma requisição por vez.
+Capybara.server = :puma, { Silent: true, Threads: "1:1" }
+
 class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
   include Acessibilidade
 

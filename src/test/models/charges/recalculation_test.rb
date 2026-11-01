@@ -52,13 +52,13 @@ class ChargesRecalculationTest < ActiveSupport::TestCase
   end
 
   test "R171 e R174a: a troca de segmento do contrato em 20/10 muda os juros dos dias seguintes; antes do histórico vale o primeiro segmento" do
-    pf = make_segment(@alfa, "PF", person_type: "person", fine_pct: 2, interest_kind: "fixed", interest_pct: 2, index_code: "none")
+    pf = make_tier(@alfa, "PF", person_type: "person", fine_pct: 2, interest_kind: "fixed", interest_pct: 2, index_code: "none")
     bill = make_bill(@alfa, due: DUE)
     contract = bill.contract
-    first = Segment.catch_all_of(@alfa)
-    ContractSegment.create!(contract: contract, segment: first, since: Date.new(2026, 10, 1))
-    ContractSegment.create!(contract: contract, segment: pf, since: Date.new(2026, 10, 15))
-    contract.update!(segment: pf)
+    first = Tier.catch_all_of(@alfa)
+    ContractTier.create!(contract: contract, tier: first, since: Date.new(2026, 10, 1))
+    ContractTier.create!(contract: contract, tier: pf, since: Date.new(2026, 10, 15))
+    contract.update!(tier: pf)
     recalc_values(@alfa)
     months = 16.0 / 31 + 2 + 14.0 / 31 # de 15/07 a 14/10 a 1% (Demais, índice IPCA); depois, a 2% sem correção
     row = valuation_of(bill)

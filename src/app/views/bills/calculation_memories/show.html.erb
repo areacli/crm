@@ -6,13 +6,13 @@
   <div class="tabela" tabindex="0">
     <table>
       <caption class="apenas-leitor-de-tela">Memória de cálculo do título <%= @bill.number %></caption>
-      <thead><tr><th scope="col">Período</th><th scope="col" data-numerico>Dias</th><th scope="col">Segmento</th><th scope="col">Correção</th><th scope="col">Juros</th><th scope="col" data-numerico>Base dos juros</th><th scope="col" data-numerico>Juros do período</th></tr></thead>
+      <thead><tr><th scope="col">Período</th><th scope="col" data-numerico>Dias</th><th scope="col">Enquadramento</th><th scope="col">Correção</th><th scope="col">Juros</th><th scope="col" data-numerico>Base dos juros</th><th scope="col" data-numerico>Juros do período</th></tr></thead>
       <tbody>
         <% @result.stretches.each do |stretch| %>
           <tr>
             <th scope="row"><%= date_br(stretch[:from]) %> a <%= date_br(stretch[:to]) %></th>
             <td data-numerico><%= number_br(stretch[:days]) %></td>
-            <td><%= stretch[:segment] %></td>
+            <td><%= stretch[:tier] %></td>
             <td><%= stretch[:correction] %> <small>fator <%= format("%.6f", stretch[:factor]).tr(".", ",") %></small><% stretch[:notes].each do |note| %><br><small><%= note %></small><% end %></td>
             <td><%= stretch[:interest_origin] %> <small><%= format("%.6f", stretch[:rate]).tr(".", ",") %>% (<%= format("%.4f", stretch[:months]).tr(".", ",") %> meses)</small></td>
             <td data-numerico><%= money(stretch[:base]) %></td>

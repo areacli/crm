@@ -2,7 +2,7 @@
 @layer base {
   *, *::before, *::after { box-sizing: border-box; }
 
-  html { scroll-padding-top: calc(var(--altura-cabecalho) + var(--espaco-4)); -webkit-text-size-adjust: 100%; }
+  html { scroll-padding-top: calc(var(--altura-topo) + var(--espaco-4)); -webkit-text-size-adjust: 100%; }
 
   body {
     margin: 0;

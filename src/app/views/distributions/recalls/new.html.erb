@@ -1,0 +1,10 @@
+<%= formulario_de_painel(titulo: "Recolher a distribuição de #{@distribution.target_label}?", url: distribution_recall_path(@distribution), enviar: "Recolher", escopo: :recall,
+                         variante: :modal, tamanho: :small, perigoso: true, erro: @error, voltar: distributions_path,
+                         descricao: "A #{@distribution.operation.short_name} deixa de ver o que esta distribuição cobria, e as propostas dela ainda não aceitas são canceladas. As promessas e os acordos que ela fez continuam com ela até terminar, salvo se marcar abaixo.") do |form| %>
+  <div class="campo">
+    <%= form.label :reason, "Motivo" %>
+    <%= form.select :reason, Distribution::RECALL_REASONS.map { [ t("distributions.end_reasons.#{_1}").capitalize, _1 ] }, { include_blank: "Escolha" }, required: true %>
+  </div>
+  <div class="campo"><%= form.label :note, "Observação (obrigatória em \"outro\")" %><%= form.text_field :note, maxlength: 300 %></div>
+  <label><%= form.check_box :release_retention %> Recolher também as promessas e os acordos que a operação fez nestes contratos</label>
+<% end %>

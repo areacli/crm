@@ -28,6 +28,12 @@
     <label for="kind">Tipo</label>
     <select id="kind" name="kind"><option value="">Todos</option><%= options_for_select(ContactResult::KINDS.keys.map { |kind| [ t("contacts.kinds.#{kind}"), kind ] }, params[:kind]) %></select>
   </div>
+  <% if @origins.present? %>
+    <div class="campo">
+      <label for="origin">Origem</label>
+      <select id="origin" name="origin"><option value="">Todas</option><%= options_for_select([ [ "Equipe do credor", "team" ] ] + @origins, params[:origin]) %></select>
+    </div>
+  <% end %>
   <% if @several_tenants %>
     <div class="campo">
       <label for="tenant">Credor</label>

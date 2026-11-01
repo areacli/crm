@@ -1,16 +1,19 @@
-<%# Contratos em que o cliente figura (06, R124a), só para leitura: o papel dele, os clientes do contrato e o crédito. Locais: customer, contracts, members, credit_totals, brackets, overdue (dias de atraso por contrato), segments. %>
+<%# Contratos em que o cliente figura (06, R124a), só para leitura: o papel dele, os clientes do contrato e o crédito. Locais: customer, contracts, members, credit_totals, brackets, tiers, since, overdue (dias de atraso por contrato), segments. %>
 <section class="cartao" id="contratos" aria-labelledby="contratos-titulo">
   <header><div><h2 id="contratos-titulo">Contratos</h2><p>Os contratos em que este cliente figura e o papel de cada cliente neles.</p></div></header>
   <div class="tabela" tabindex="0">
     <table>
       <caption class="apenas-leitor-de-tela">Contratos do cliente e os clientes de cada um</caption>
-      <thead><tr><th scope="col">Contrato</th><th scope="col">Papel deste cliente</th><th scope="col">Clientes do contrato</th><th scope="col">Faixa de atraso</th><th scope="col">Segmento</th><th scope="col" data-numerico>Crédito</th></tr></thead>
+      <thead><tr><th scope="col">Contrato</th><th scope="col">Papel deste cliente</th><th scope="col">Clientes do contrato</th><th scope="col">Faixa de atraso</th><th scope="col">Enquadramento</th><th scope="col" data-numerico>Crédito</th></tr></thead>
       <tbody>
         <% contracts.each do |contract| %>
           <% rows = members.fetch(contract.id, []) %>
           <% own = rows.find { |row| row.customer_id == customer.id } %>
           <tr>
-            <th scope="row"><%= contract.label %></th>
+            <th scope="row">
+              <%= contract.label %>
+              <% Array(local_assigns[:operations]&.fetch(contract.id, nil)).each do |holder| %><br><small><%= holder %></small><% end %>
+            </th>
             <td><%= own ? role_label(own, rows) : "—" %></td>
             <td>
               <% rows.sort_by { |row| row.customer.name }.each do |row| %>
@@ -19,7 +22,15 @@
               <% end %>
             </td>
             <td><%= overdue[contract.id] ? "#{brackets.label(brackets.index_for(overdue[contract.id]))} dias" : "Sem atraso" %></td>
-            <td><%= segments[contract.segment_id]&.name || t("segments.none") %></td>
+            <% tier = tiers[contract.tier_id] %>
+            <td>
+              <% if tier %>
+                <%= tier.name %><% if since[contract.id] %> <small>desde <%= date_br(since[contract.id]) %></small><% end %>
+                <%= informacao "enquadramento do contrato #{contract.label}", tier.catch_all? ? "Não atende a nenhum segmento do enquadramento financeiro; fica com as regras de Demais." : "Atende ao segmento: #{tier.segment.text.long_text}", "porque-#{contract.id}" %>
+              <% else %>
+                <%= t("tiers.none") %>
+              <% end %>
+            </td>
             <td data-numerico><%= money(credit_totals.fetch(contract.id, 0)) %></td>
           </tr>
         <% end %>

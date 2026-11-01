@@ -50,7 +50,7 @@ module Agreements
         ids = Sql.rows(<<~SQL, @tenant.id, today).map { |row| row["id"].to_i }
           select distinct a.id from agreements a join bills b on b.agreement_id = a.id
           where a.tenant_id = ? and a.state in ('awaiting_effectuation', 'active_on_time', 'active_late')
-            and b.status in ('active', 'scheduled') and b.due_date + coalesce((a.terms->'segment'->>'tolerance_days')::int, 0) < ?::date
+            and b.status in ('active', 'scheduled') and b.due_date + coalesce((a.terms->'tier'->>'tolerance_days')::int, 0) < ?::date
         SQL
         changed = []
         ids.each_slice(500) do |slice|

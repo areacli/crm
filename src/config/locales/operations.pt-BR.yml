@@ -1,0 +1,145 @@
+pt-BR:
+  operations:
+    refused:
+      already_accredited: "A %{name} já está credenciada neste credor."
+      reason_required: "Informe o motivo."
+      not_member: "Esta pessoa não é da operação, ou está desativada nela."
+      profile_not_available: "Escolha um perfil deste credor marcado como disponível para operações."
+      team_member: "Esta pessoa é da equipe do credor; uma pessoa de operação usa outro e-mail."
+      person_taken: "Este e-mail já é de outra operação ou da equipe de um credor; use outro e-mail."
+      self: "Você não pode desativar a si mesmo."
+      last_manager: "A operação precisa de pelo menos um gestor ativo."
+    statuses:
+      active: "Ativo"
+      suspended: "Suspenso"
+      ended: "Encerrado"
+    status_actions:
+      suspended: "Suspender"
+      ended: "Encerrar"
+      active: "Reativar"
+    status_done:
+      suspended: "Credenciamento da %{name} suspenso: os usuários dela perderam o acesso a %{tenant}."
+      ended: "Credenciamento da %{name} encerrado: acesso e distribuições de %{tenant} encerrados."
+      active: "Credenciamento da %{name} reativado."
+    sign_in:
+      suspended: "O acesso da %{operation} a %{tenants} está suspenso. Fale com o credor."
+      none_active: "Nenhum credor ativo para a %{operation} agora."
+  operation_people:
+    create:
+      done: "%{name} cadastrada na operação."
+    update:
+      done: "%{name} atualizada."
+  operation_links:
+    create:
+      done: "%{name} vinculada a %{tenant}."
+  operation_trails:
+    kinds:
+      record_opened: "Abriu a ficha"
+      search: "Buscou"
+      not_found: "Endereço fora do alcance"
+      export: "Exportou"
+  settings:
+    operation_policies:
+      update:
+        done: "Políticas das operações de %{tenant} salvas."
+    distribution_rules:
+      confirm:
+        done: "Enquadramento da distribuição confirmado; o recálculo roda em segundo plano."
+    operations:
+      create:
+        done: "%{name} credenciada em %{tenant}."
+      links:
+        create:
+          done: "%{name} vinculada com o perfil %{profile}."
+        destroy:
+          done: "Vínculo de %{name} desativado."
+  activerecord:
+    models:
+      operation: "Operação"
+      accreditation: "Credenciamento"
+      operation_member: "Pessoa da operação"
+      distribution: "Distribuição"
+    attributes:
+      operation:
+        cnpj: "CNPJ"
+        legal_name: "Razão social"
+        short_name: "Nome curto"
+      membership:
+        operation: "Operação"
+    errors:
+      models:
+        operation:
+          attributes:
+            cnpj:
+              taken: "já é de outra operação"
+        membership:
+          attributes:
+            operation:
+              not_member: "a pessoa não é desta operação"
+              not_accredited: "a operação não está credenciada neste credor"
+            profile:
+              not_for_operations: "não está disponível para operações"
+        distribution:
+          attributes:
+            base:
+              customer_or_contract: "Escolha um cliente ou um contrato."
+  distribution_rules:
+    stale: "O enquadramento da distribuição mudou depois desta conferência (ou ela expirou); confira de novo."
+    refused:
+      duplicate: "O mesmo segmento entra no enquadramento da distribuição uma vez só."
+      segment: "Escolha um segmento de contratos ativo."
+      operations: "Escolha pelo menos uma operação credenciada e ativa."
+      exclusive: "Com a exclusividade ligada, cada item tem uma operação só."
+      exposure: "Escolha a exposição."
+  distribution_batches:
+    kinds:
+      selection: "Filtro da lista de clientes"
+      segment: "Segmento"
+      file: "Planilha"
+    too_many: "O lote passa de %{max} clientes ou contratos; divida em lotes menores."
+    expired: "A conferência passou de 30 minutos; confira de novo."
+    discarded: "Lote descartado."
+    failed: "A conferência do lote falhou."
+    segment_required: "Escolha um segmento ativo."
+    kind_required: "Escolha de onde vem o lote."
+    file_required: "Envie a planilha."
+    file_columns: "A planilha precisa de uma coluna só, chamada documento ou contrato."
+  distributions:
+    create:
+      done: "%{target} distribuído à %{name}."
+    update:
+      done: "Distribuição de %{target} atualizada."
+    recalls:
+      create:
+        done: "Distribuição de %{target} recolhida."
+    refused:
+      not_active: "A %{name} não está com o credenciamento ativo neste credor."
+      exclusive: "O %{target} já está com a %{name} (%{period}). Com a exclusividade ligada, um contrato fica com uma operação de cada vez."
+      ended: "Esta distribuição já foi encerrada."
+      past_end: "O fim não pode ser antes de hoje."
+      started: "O início só muda enquanto a distribuição está agendada."
+      target_required: "Informe o documento do cliente ou o código do contrato."
+      not_found: "Nenhum cliente ou contrato encontrado com %{value}."
+    proposal_canceled: "Distribuição encerrada: %{reason}."
+    end_reasons:
+      period_end: "fim do período"
+      operation_contract: "fim do contrato com a operação"
+      performance: "desempenho"
+      contested: "contestação da dívida"
+      deceased: "falecimento"
+      customer_request: "pedido do cliente"
+      other: "outro"
+      accreditation_ended: "credenciamento encerrado"
+      left_segment: "saiu do segmento"
+      manual_override: "distribuído à mão"
+    exposures:
+      overdue: "Vencidas"
+      all: "Vencidas e a vencer"
+    sources:
+      manual: "À mão"
+      batch: "Lote"
+      rule: "Regra"
+    statuses:
+      scheduled: "Agendada"
+      in_force: "Vigente"
+      ended: "Encerrada"

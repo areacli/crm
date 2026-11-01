@@ -1,0 +1,11 @@
+<%= formulario_de_painel(titulo: "Vínculo de #{@member.user.name}", url: operation_person_links_path(@member), enviar: "Salvar vínculo", escopo: :link, variante: :modal, tamanho: :small, erro: @error, voltar: operation_people_path,
+                         descricao: "Só nos credores que deixam o gestor da operação dar vínculos, com os perfis que eles marcaram.") do |form| %>
+  <div class="campo">
+    <%= form.label :accreditation_id, "Credor" %>
+    <%= form.select :accreditation_id, @accreditations.map { |accreditation| [ accreditation.tenant.name, accreditation.id ] }, {}, required: true %>
+  </div>
+  <div class="campo">
+    <%= form.label :profile_id, "Perfil" %>
+    <%= form.select :profile_id, grouped_options_for_select(@accreditations.map { |accreditation| [ accreditation.tenant.name, accreditation.tenant.profiles.select(&:available_to_operations?).map { |profile| [ profile.name, profile.id ] } ] }), {}, required: true %>
+  </div>
+<% end %>

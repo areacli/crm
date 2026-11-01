@@ -1,0 +1,154 @@
+pt-BR:
+  segment_language:
+    subjects:
+      contracts: { short: "contratos", long: "contratos", owner: "o contrato", owner_of: "do contrato", one: "contrato", other: "contratos", definition: "Cada contrato separado. É o que o enquadramento financeiro usa." }
+      customers: { short: "clientes", long: "clientes", owner: "o cliente", owner_of: "do cliente", one: "cliente", other: "clientes", definition: "Pessoas e empresas. Use na lista de clientes e, no futuro, na régua." }
+    groups:
+      subject_contracts: "Do contrato"
+      subject_customers: "Do cliente"
+      holder: "Do titular"
+      responsible: "Do responsável financeiro"
+      customer: "De qualquer cliente do contrato"
+      collections: "Coleções"
+    parents:
+      holder: { short: "titular", owner: "algum titular", definition: "Os clientes com o papel de titular no contrato (sem papel declarado, vale como titular)." }
+      responsible: { short: "responsável", owner: "algum responsável financeiro", definition: "Os responsáveis financeiros do contrato; sem nenhum declarado, os titulares." }
+      customer: { short: "cliente", owner: "algum cliente do contrato", definition: "Qualquer cliente do contrato, em qualquer papel." }
+    attributes:
+      contracts:
+        overdue_days: { short: "atraso", long: "atraso", definition: "Dias desde o vencimento do título em cobrança mais atrasado do contrato.", unit: days }
+        balance: { short: "saldo", long: "saldo em cobrança", definition: "Soma dos saldos dos títulos em cobrança do contrato, sem encargos.", unit: money }
+        overdue_percent: { short: "% vencido", long: "percentual vencido", definition: "Saldo vencido dividido pelo saldo em cobrança do contrato, de 0 a 100%.", unit: percent }
+        age_days: { short: "idade", long: "idade", definition: "Dias desde que o contrato foi criado no CRM.", unit: days }
+        person_type: { short: "tipo", long: "tipo", definition: "PF ou PJ pelos responsáveis financeiros (sem eles, pelos titulares); com PF e PJ juntos, misto." }
+        product: { short: "produto", long: "produto", definition: "Produto do título em cobrança mais atrasado que tem produto." }
+        product_largest: { short: "produto maior saldo", long: "produto de maior saldo", definition: "O produto com mais saldo em cobrança somado no contrato." }
+        broke_agreement: { short: "quebrou acordo", long: "quebrou acordo", definition: "O contrato já teve acordo quebrado depois da efetivação; a marca fica mesmo depois de quitar.", "yes": "já quebrou acordo", "no": "nunca quebrou acordo" }
+        in_arrears: { short: "em atraso", long: "em atraso", definition: "O contrato tem algum título em cobrança vencido.", "yes": "está em atraso", "no": "não está em atraso" }
+        updated_value: { short: "atualizado", long: "valor atualizado", definition: "Soma do valor atualizado (com encargos) dos títulos em cobrança, do último recálculo.", unit: money }
+      customers:
+        person_type: { short: "tipo", long: "tipo", definition: "PF ou PJ, pelo documento do cliente." }
+        customer_days: { short: "cliente há", long: "tempo como cliente", definition: "Dias desde que o cliente entrou no CRM.", unit: days }
+        overdue_days: { short: "atraso", long: "maior atraso entre os contratos", definition: "O maior atraso entre os contratos do cliente no credor.", unit: days }
+        balance: { short: "saldo", long: "saldo dos contratos", definition: "Soma dos saldos em cobrança dos contratos do cliente no credor, sem encargos.", unit: money }
+    collections:
+      bills: { one: "título", other: "títulos", definition: "Títulos em aberto: com saldo a pagar, vencidos ou a vencer, de qualquer tipo." }
+      contact_attempts: { one: "acionamento", other: "acionamentos", definition: "Acionamentos registrados, com resultado, canal e data." }
+      contacts: { one: "contato", other: "contatos", definition: "Telefones, e-mails e endereços do cliente." }
+      promises: { one: "promessa", other: "promessas", definition: "Promessas de pagamento, em qualquer situação." }
+      agreements: { one: "acordo", other: "acordos", definition: "Acordos, em qualquer situação." }
+      payments: { one: "pagamento", other: "pagamentos", definition: "Pagamentos aplicados aos títulos." }
+      contracts: { one: "contrato", other: "contratos", definition: "Os contratos do cliente no credor." }
+      other_contracts: { one: "outro contrato", other: "outros contratos", definition: "Os outros contratos do cliente, sem o próprio contrato." }
+      customers: { one: "cliente", other: "clientes", definition: "Os clientes do contrato, em qualquer papel." }
+    qualifiers:
+      bills:
+        overdue: { one: "vencido", other: "vencidos" }
+        due: { one: "a vencer", other: "a vencer" }
+        paid: { one: "pago", other: "pagos" }
+        withdrawn: { one: "retirado", other: "retirados" }
+        renegotiated: { one: "renegociado", other: "renegociados" }
+      contacts:
+        valid: { one: "válido", other: "válidos" }
+        invalid: { one: "inválido", other: "inválidos" }
+        do_not_disturb: { one: "com não perturbe", other: "com não perturbe" }
+      contracts:
+        in_arrears: { one: "em atraso", other: "em atraso" }
+      other_contracts:
+        in_arrears: { one: "em atraso", other: "em atraso" }
+    fields:
+      bills: { overdue_days: "atraso", balance: "saldo", amount: "valor", product: "produto", kind: "tipo" }
+      contact_attempts: { result: "resultado", result_kind: "tipo do resultado", channel: "canal" }
+      contacts: { status: "situação", kind: "tipo", origin: "origem", state: "UF", city: "cidade" }
+      promises: { state: "situação" }
+      agreements: { state: "situação", mode: "modalidade" }
+      payments: { method: "meio", amount: "valor" }
+      contracts: { overdue_days: "atraso", balance: "saldo", overdue_percent: "% vencido", age_days: "idade", product: "produto", product_largest: "produto maior saldo", broke_agreement: "quebrou acordo", in_arrears: "em atraso" }
+      other_contracts: { overdue_days: "atraso", balance: "saldo", overdue_percent: "% vencido", age_days: "idade", product: "produto", product_largest: "produto maior saldo", broke_agreement: "quebrou acordo", in_arrears: "em atraso" }
+      customers: { person_type: "tipo" }
+    aggregates:
+      count: { short: "quantidade", long: "quantidade" }
+      sum: { short: "soma", long: "a soma do %{field}" }
+      max: { short: "maior", long: "o maior %{field}" }
+      min: { short: "menor", long: "o menor %{field}" }
+    quantifiers:
+      some: { short: "algum", short_f: "alguma", label: "algum" }
+      all: { short: "todos os", short_f: "todas as", label: "todos" }
+      none: { short: "nenhum", short_f: "nenhuma", label: "nenhum" }
+      without: "sem"
+    ops:
+      symbols: { eq: "=", ne: "≠", gt: ">", gte: ">=", lt: "<", lte: "<=" }
+      between_short: "entre %{low} e %{high}"
+      in_short: "em %{values}"
+      long: { eq: "igual a %{value}", ne: "diferente de %{value}", gt: "maior que %{value}", gte: "de pelo menos %{value}", lt: "menor que %{value}", lte: "de no máximo %{value}", between: "entre %{low} e %{high}", in: "igual a um destes: %{values}" }
+      count_long: { eq: "exatamente %{value}", ne: "um número diferente de %{value}", gt: "mais de %{value}", gte: "pelo menos %{value}", lt: "menos de %{value}", lte: "no máximo %{value}", between: "entre %{low} e %{high}", in: "%{values}" }
+    window_short: "em %{days} dias"
+    window_long: "nos últimos %{days} dias"
+    any_short: "qualquer:"
+    any_long: "pelo menos uma destas: %{parts}"
+    not_short: "não"
+    sentence:
+      has: "%{owner} tem %{rest}"
+      has_not: "%{owner} não tem %{rest}"
+      all_items: "%{owner} tem %{items} e todos têm %{where}"
+      all_items_not: "nem todos os %{items} %{owner_of} têm %{where}"
+      with: "com %{field} %{op}"
+      whole: "Seleciona %{subject} em que %{parts}."
+      joiner: "; e "
+      or_joiner: "; ou "
+    values:
+      days: { one: "1 dia", other: "%{count} dias" }
+      currency: "R$"
+    options:
+      person_type: { person: "PF", company: "PJ", mixed: "misto" }
+      person_type_long: { person: "pessoa física", company: "pessoa jurídica", mixed: "misto (PF e PJ)" }
+      kind: { common: "comum", agreement: "acordo", break: "quebra", reversal: "estorno" }
+      result_kind: { spoke_with_customer: "falou com o cliente", spoke_with_third_party: "falou com terceiro", no_contact: "sem contato" }
+      channel: { phone: "telefone", whatsapp: "WhatsApp", sms: "SMS", email: "e-mail", letter: "carta", in_person: "presencial", other: "outro" }
+      status: { valid: "válido", invalid: "inválido", do_not_disturb: "não perturbe" }
+      contact_kind: { phone: "telefone", email: "e-mail", address: "endereço" }
+      origin: { load: "carga", screen: "tela", contact_attempt: "acionamento" }
+      promise_state: { pending: "pendente", open: "aberta", fulfilled: "cumprida", fulfilled_late: "cumprida com atraso", broken: "quebrada", canceled: "cancelada", refused: "recusada", not_approved: "não aprovada" }
+      agreement_state: { pending: "pendente", approved: "aprovada", refused: "recusada", not_approved: "não aprovada", expired: "expirada", canceled: "cancelada", awaiting_effectuation: "aguardando efetivação", active_on_time: "em dia", active_late: "em atraso", settled: "quitado", broken: "quebrado", renegotiated: "renegociado" }
+      mode: { installments: "parcelado", cash: "à vista" }
+      method: { pix: "Pix", boleto: "boleto", credit_card: "cartão de crédito", debit_card: "cartão de débito", transfer: "transferência", cash: "dinheiro", other: "outro" }
+    unknown_result: "resultado removido"
+    errors:
+      subject: "Escolha o que o segmento seleciona: clientes ou contratos."
+      grammar: "Versão da linguagem desconhecida."
+      empty: "Inclua pelo menos uma condição."
+      too_many: "Um segmento tem no máximo %{count} condições; divida em dois segmentos."
+      group_empty: "O grupo \"qualquer uma\" precisa de pelo menos uma condição."
+      nested_group: "Um grupo \"qualquer uma\" não pode ter outro grupo dentro."
+      incomplete: "Complete a condição."
+      path: "Atributo não disponível para segmentos."
+      qualifier: "Qualificador não disponível para esta coleção."
+      window: "A janela de dias vale só para acionamentos, promessas, acordos e pagamentos, de 1 a 3.650 dias."
+      quantifier: "Escolha algum, todos ou nenhum."
+      aggregate: "Escolha quantidade, soma, maior ou menor."
+      field: "Campo não disponível para esta coleção."
+      op: "Comparação não disponível para este campo."
+      range_inverted: "O primeiro valor tem de ser menor que o segundo."
+      percent: "O percentual vai de 0 a 100%."
+    parse_errors:
+      empty_text: "Escreva o segmento: na primeira linha, contratos ou clientes; nas seguintes, as condições."
+      subject: "A primeira linha diz o que o segmento seleciona: contratos ou clientes (está \"%{found}\")."
+      subject_fixed: "O segmento seleciona %{subject} e isso não muda; para outro público, crie outro segmento."
+      group_empty: "O grupo \"qualquer:\" precisa de pelo menos uma condição nas linhas de baixo, mais recuadas."
+      line: "Linha %{number}: %{message}"
+      start: "não reconheci o começo. Comece por um dado (atraso, saldo, tipo, produto…), por uma coleção (títulos, acionamentos, contatos…), por \"algum\", \"todos\", \"nenhum\", \"sem\" ou por \"soma\", \"maior\", \"menor\". Veja o glossário."
+      collection: "depois disso vem uma coleção (títulos, acionamentos, contatos, promessas, acordos, pagamentos…)."
+      aggregate_field: "depois de \"soma\", \"maior\" ou \"menor\" vem o campo (saldo, valor, atraso) e a coleção."
+      window: "\"em N dias\" vale só para acionamentos, promessas, acordos e pagamentos."
+      comparison: "vem uma comparação: =, ≠, >, >=, <, <=, entre ou em."
+      between: "\"entre\" pede dois valores: entre 30 e 90."
+      list: "\"em\" pede uma lista separada por vírgulas: em PF, misto."
+      value: "falta o valor."
+      number: "\"%{text}\" não é um número inteiro."
+      money: "\"%{text}\" não é um valor em reais (por exemplo R$ 5.000 ou 5.000,50)."
+      option: "\"%{text}\" não é uma opção. Use: %{options}."
+      result: "não há resultado de acionamento chamado \"%{text}\" neste credor."
+      quotes: "o valor entre aspas não fechou."
+      with: "depois da coleção vem o valor entre aspas, \"com\" e um campo, ou nada."
+      field: "o campo não existe nesta coleção. Use: %{fields}."
+      leftover: "sobrou \"%{text}\" no fim da linha."

@@ -10,11 +10,15 @@ module Agreements
 
     # Cancela as promessas abertas ou pendentes que prendem os títulos (`bill_ids`: lista ou subconsulta), sem carência, com o motivo dado: o aceite (R222), a abertura da reversão
     # (R239, "acordo em reversão") e o título de acordo cancelado (R251).
+    # Como o sistema (decisão 0024): a promessa de outra origem que o RLS esconde do usuário de operação também é cancelada.
     def cancel(bill_ids, actor, reason)
-      promise_ids = PaymentPromiseBill.where(bill_id: bill_ids, held: true, removed_at: nil).select(:promise_id)
-      PaymentPromise.where(id: promise_ids, state: PaymentPromise::HOLDING).lock.each do |promise|
-        promise.close!("canceled", reason: reason, actor: actor)
-        promise.update!(grace_free: true)
+      Operations::Context.system do
+        promise_ids = PaymentPromiseBill.where(bill_id: bill_ids, held: true, removed_at: nil).select(:promise_id)
+        PaymentPromise.where(id: promise_ids, state: PaymentPromise::HOLDING).lock.each do |promise|
+          promise.close!("canceled", reason: reason, actor: actor)
+          promise.update!(grace_free: true)
+          Operations::UndoNotice.call(promise, actor, number: promise.number || "promessa pendente")
+        end
       end
     end
   end

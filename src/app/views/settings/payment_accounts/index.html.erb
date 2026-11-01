@@ -2,7 +2,7 @@
 <%= pagina "Contas de pagamento", subtitulo: "Fornecedor de boleto, Pix e cartão de cada credor, uma conta por modalidade e ambiente." do %>
   <%= link_to "Nova conta", new_settings_payment_account_path, class: "botao" %>
 <% end %>
-<%= render "settings/abas" %>
+<%= render "settings/modelo" %>
 
 <div id="resultado">
   <% if @accounts.empty? %>

@@ -20,8 +20,8 @@ module Agreements
     # O limite do usuário no credor do acordo (MT-2): o do perfil dele nele; sem vínculo ativo, nenhum.
     def limit_of(user, agreement)
       membership = Membership.active.where(user_id: user.id, tenant_id: agreement.tenant_id).includes(:profile).first or return
-      segment = agreement.segment || Segment.catch_all_of(agreement.tenant)
-      AgreementLimit.for(membership.profile, segment)
+      tier = agreement.tier || Tier.catch_all_of(agreement.tenant)
+      AgreementLimit.for(membership.profile, tier)
     end
 
     # R216: os limites atuais de quem aprova cobririam a proposta se ele mesmo a fizesse.

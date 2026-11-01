@@ -10,7 +10,7 @@
           <tr>
             <th scope="col">Contato</th><th scope="col">Cliente</th>
             <% if @several_tenants %><th scope="col">Credor</th><% end %>
-            <th scope="col">Canal</th><th scope="col">Resultado</th><th scope="col">Tipo</th><th scope="col">Operador</th><th scope="col">Retorno</th>
+            <th scope="col">Canal</th><th scope="col">Resultado</th><th scope="col">Tipo</th><th scope="col">Operador</th><% if @origins.present? %><th scope="col">Origem</th><% end %><th scope="col">Retorno</th>
           </tr>
         </thead>
         <tbody>
@@ -22,7 +22,8 @@
               <td><%= t("contacts.channels.#{attempt.channel}") %></td>
               <td><%= attempt.result.name %></td>
               <td><%= t("contacts.kinds.#{attempt.result_kind}") %></td>
-              <td><%= attempt.user&.name || "—" %></td>
+              <td><%= attempt.summary_only_for_viewer? ? "Outra origem" : (attempt.user&.name || "—") %></td>
+              <% if @origins.present? %><td><%= origin_label(attempt) %></td><% end %>
               <td><%= attempt.return_at ? datetime_br(attempt.return_at) : "—" %></td>
             </tr>
           <% end %>

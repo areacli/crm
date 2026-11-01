@@ -1,4 +1,16 @@
 pt-BR:
+  errors:
+    back: "Ir para o início"
+    retry: "Voltar e tentar de novo"
+    request_code: "Código do pedido (informe ao suporte)"
+    400: { title: "Pedido inválido", text: "O endereço ou os dados enviados não puderam ser lidos. Volte e tente de novo." }
+    403: { title: "Acesso negado", text: "Você não tem permissão para esta ação." }
+    404: { title: "Página não encontrada", text: "O endereço não existe ou você não tem acesso a ele." }
+    406: { title: "Navegador não suportado", text: "Use uma versão atual do Chrome, Edge, Firefox ou Safari." }
+    422: { title: "Não foi possível concluir", text: "A solicitação foi recusada, por exemplo porque a página ficou aberta por muito tempo. Volte, atualize a página e tente de novo." }
+    429: { title: "Muitas tentativas", text: "Aguarde alguns minutos e tente de novo." }
+    500: { title: "Algo deu errado do nosso lado", text: "O erro foi registrado. Tente de novo em instantes; se persistir, informe o código abaixo ao suporte." }
+    503: { title: "Sistema indisponível", text: "Estamos atualizando o sistema. Tente de novo em alguns minutos." }
   sessions:
     invalid: "E-mail ou senha incorretos."
     too_many: "Muitas tentativas. Aguarde alguns minutos."
@@ -335,6 +347,9 @@ pt-BR:
       linked_to_tenant:
         title: "%{actor_name} ligou você a %{tenant_name}"
         body: "Perfil: %{profile_name}."
+      operation_undone:
+        title: "%{actor_name} desfez %{number}"
+        body: "Credor %{tenant_name}. Outra origem fechou um acordo ou montou uma proposta sobre as mesmas faturas."
       import_stalled:
         title: "A importação %{file_name} parou e foi marcada como falhou"
         body: "Credor %{tenant_name}. Ficou mais de 30 minutos sem avançar. Envie o arquivo de novo: o que já foi gravado não se repete."
@@ -431,6 +446,9 @@ pt-BR:
     cancel_payment_promises: "Cancelar promessas"
     negotiate_agreements: "Negociar acordos"
     administer_agreements: "Administrar acordos"
+    manage_operations: "Gerenciar operações"
+    distribute_portfolio: "Distribuir carteira"
+    view_operation_trail: "Ver a trilha das operações"
   activerecord:
     models:
       tenant: "Credor"

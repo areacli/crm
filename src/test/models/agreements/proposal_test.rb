@@ -31,11 +31,11 @@ class Agreements::ProposalTest < ActiveSupport::TestCase
   test "R210: tudo o que é do acordo fica congelado: variáveis, parâmetros, limite de quem montou, políticas e praça" do
     agreement = create_proposal(@customer, [ @nf1, @nf2 ])
     @alfa.setting.update!(installment_rate_pct: 3, agreement_policies: { "break_form" => "single_title", "effectuation" => "acceptance" })
-    Segment.catch_all_of(@alfa).update!(agreement_break_days: 10, agreement_max_installments: 2)
+    Tier.catch_all_of(@alfa).update!(agreement_break_days: 10, agreement_max_installments: 2)
     terms = agreement.reload.terms
 
-    assert_equal 30, terms.dig("segment", "break_days")
-    assert_equal 12, terms.dig("segment", "max_installments")
+    assert_equal 30, terms.dig("tier", "break_days")
+    assert_equal 12, terms.dig("tier", "max_installments")
     assert_equal "1.5", terms.dig("parameters", "installment_rate_pct")
     assert_equal "price", terms.dig("parameters", "installment_method")
     assert_equal "installments_follow", terms.dig("policies", "break_form")
@@ -80,10 +80,10 @@ class Agreements::ProposalTest < ActiveSupport::TestCase
   end
 
   test "R216: o perfil com limites maiores aprova a que o Operador não podia; a política do Gestor acompanha o segmento" do
-    limit = AgreementLimit.for(profiles(:alfa_manager), Segment.catch_all_of(@alfa))
+    limit = AgreementLimit.for(profiles(:alfa_manager), Tier.catch_all_of(@alfa))
     assert_equal [ 12, 10 ], [ limit.max_installments, limit.min_down_payment_pct ]
     assert_equal 100, Agreements::Caps.get(limit.caps, "installment", "fine")
-    operator = AgreementLimit.for(profiles(:alfa_operator), Segment.catch_all_of(@alfa))
+    operator = AgreementLimit.for(profiles(:alfa_operator), Tier.catch_all_of(@alfa))
     assert_equal [ 6, 10, 50, 25 ], [ operator.max_installments, operator.min_down_payment_pct, Agreements::Caps.get(operator.caps, "installment", "fine"), Agreements::Caps.get(operator.caps, "installment", "fees") ]
   end
 
@@ -170,7 +170,7 @@ class Agreements::ProposalTest < ActiveSupport::TestCase
   end
 
   test "R210: o número do acordo é sequência por credor" do
-    Segment.catch_all_of(tenants(:beta)).update!(**AgreementsTestHelper::EXAMPLE_VARIABLES)
+    Tier.catch_all_of(tenants(:beta)).update!(**AgreementsTestHelper::EXAMPLE_VARIABLES)
     beta_customer, beta_nf = promise_scenario(tenants(:beta), document: PaymentsHelper::JOAO, contract_code: "CT-B", name: "João Souza").then { |customer, bill, _| [ customer, bill ] }
     rebuild_agreement_limits(tenants(:beta))
     a = create_proposal(@customer, [ @nf1 ])
@@ -192,12 +192,12 @@ class Agreements::ProposalTest < ActiveSupport::TestCase
   end
 
   test "R210a: o limite do perfil do usuário no credor do acordo vale, e a mesma pessoa tem limites diferentes em credores diferentes" do
-    ana_alfa = Agreements::Limits.limit_of(users(:ana), Agreement.new(tenant: @alfa, segment: Segment.catch_all_of(@alfa)))
+    ana_alfa = Agreements::Limits.limit_of(users(:ana), Agreement.new(tenant: @alfa, tier: Tier.catch_all_of(@alfa)))
     assert_equal 6, ana_alfa.max_installments, "Operadora na Alfa"
-    beta_segment = Segment.catch_all_of(tenants(:beta))
-    beta_segment.update!(**AgreementsTestHelper::EXAMPLE_VARIABLES)
+    beta_tier = Tier.catch_all_of(tenants(:beta))
+    beta_tier.update!(**AgreementsTestHelper::EXAMPLE_VARIABLES)
     rebuild_agreement_limits(tenants(:beta))
-    ana_beta = Agreements::Limits.limit_of(users(:ana), Agreement.new(tenant: tenants(:beta), segment: beta_segment))
+    ana_beta = Agreements::Limits.limit_of(users(:ana), Agreement.new(tenant: tenants(:beta), tier: beta_tier))
     assert_equal 12, ana_beta.max_installments, "Gestora na Beta"
   end
 end

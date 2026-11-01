@@ -17,7 +17,7 @@ class ChargesCalculatorTest < ActiveSupport::TestCase
   end
 
   def calc(rule, today: TODAY, policies: Charges::Policies.default, rates: { "ipca" => IPCA, "legal" => LEGAL }, amount: 100_000, due: DUE, **options)
-    Charges::Calculator.call(tables(today: today, policies: policies, rates: rates), { 1 => rule }, amount, due, segment_today: 1, **options)
+    Charges::Calculator.call(tables(today: today, policies: policies, rates: rates), { 1 => rule }, amount, due, tier_today: 1, **options)
   end
 
   test "R164 a R169 e critério de aceite: Maria, R$ 1.000,00 vencido em 15/07/2026, calculado em 21/10/2026" do
@@ -73,11 +73,11 @@ class ChargesCalculatorTest < ActiveSupport::TestCase
     a = rule(name: "Varejo PF recente", index: "")
     b = rule(name: "PF", index: "", rate: 0.02)
     periods = [ [ Date.new(2026, 10, 20), 1 ], [ Date.new(2026, 11, 20), 2 ] ]
-    result = Charges::Calculator.call(tables(today: Date.new(2026, 11, 30)), { 1 => a, 2 => b }, 100_000, DUE, periods: periods, segment_today: 2, memory: true)
+    result = Charges::Calculator.call(tables(today: Date.new(2026, 11, 30)), { 1 => a, 2 => b }, 100_000, DUE, periods: periods, tier_today: 2, memory: true)
     months = 16.0 / 31 + 3 + 19.0 / 30
     assert_equal round(100_000 * (0.01 * months + 0.02 * 11.0 / 30)), result.interest
-    assert_equal [ "Varejo PF recente", "PF" ], result.stretches.map { |stretch| stretch[:segment] }.uniq
-    assert(result.notes.any? { |note| note.include?("antes disso vale o primeiro segmento registrado") })
+    assert_equal [ "Varejo PF recente", "PF" ], result.stretches.map { |stretch| stretch[:tier] }.uniq
+    assert(result.notes.any? { |note| note.include?("antes disso vale o primeiro item registrado") })
   end
 
   test "R172: o cálculo parte do valor vigente do título" do
@@ -90,7 +90,7 @@ class ChargesCalculatorTest < ActiveSupport::TestCase
   end
 
   test "caso de exceção: vencimento antes de janeiro de 2000 conta desde 01/01/2000 e a memória diz isso" do
-    result = Charges::Calculator.call(tables, { 1 => rule(index: "", fine: 0.0) }, 100_000, Date.new(1998, 12, 10), segment_today: 1, memory: true)
+    result = Charges::Calculator.call(tables, { 1 => rule(index: "", fine: 0.0) }, 100_000, Date.new(1998, 12, 10), tier_today: 1, memory: true)
     assert(result.notes.any? { |note| note.include?("antes de janeiro de 2000") })
     assert_equal Date.new(2000, 1, 1), result.stretches.first[:from]
     assert_equal round(100_000 * 0.01 * (26 * 12 + 9 + 21.0 / 31)), result.interest
@@ -132,8 +132,8 @@ class ChargesCalculatorTest < ActiveSupport::TestCase
     paid_on = Date.new(2026, 9, 15)
     old_rule = rule(index: "", fine: 0.0, rate: 0.01)
     new_rule = rule(index: "", fine: 0.0, rate: 0.02)
-    versions = ->(_segment, _date) { old_rule }
-    result = Charges::Calculator.call(tables, { 1 => new_rule }, 100_000, DUE, payments: [ [ paid_on, 35_984 ] ], segment_today: 1, versions: versions, consolidated: [ paid_on ])
+    versions = ->(_tier, _date) { old_rule }
+    result = Charges::Calculator.call(tables, { 1 => new_rule }, 100_000, DUE, payments: [ [ paid_on, 35_984 ] ], tier_today: 1, versions: versions, consolidated: [ paid_on ])
     # Até 15/09, 1% sobre R$ 1.000,00 (R$ 20,1613); depois, 2% sobre R$ 640,16 (R$ 15,0747): R$ 35,24 no total, menos os R$ 20,16 pagos.
     assert_equal 3524, result.interest
     assert_equal 1508, result.minus_paid("interest" => 2016).interest
@@ -150,8 +150,8 @@ class ChargesCalculatorTest < ActiveSupport::TestCase
                         index: [ "", "ipca" ].sample(random: random), fees: [ 0, 0.1 ].sample(random: random))
         due = TODAY - random.rand(1..900)
         amount = random.rand(1000..10_000_000)
-        fast = Charges::Calculator.call(tab, { 1 => the_rule }, amount, due, segment_today: 1)
-        general = Charges::Calculator.call(tab, { 1 => the_rule }, amount, due, segment_today: 1, memory: true)
+        fast = Charges::Calculator.call(tab, { 1 => the_rule }, amount, due, tier_today: 1)
+        general = Charges::Calculator.call(tab, { 1 => the_rule }, amount, due, tier_today: 1, memory: true)
         assert_equal [ general.corrected_principal, general.fine, general.interest, general.fees ], [ fast.corrected_principal, fast.fine, fast.interest, fast.fees ], [ the_rule, due ].inspect
       end
     end

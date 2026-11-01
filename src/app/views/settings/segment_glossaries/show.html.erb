@@ -1,0 +1,24 @@
+<% content_for :title, "Configuração · Glossário dos segmentos" %>
+<%= pagina "Glossário dos segmentos", subtitulo: safe_join([ "Cada termo da linguagem dos segmentos, com um exemplo e a leitura em português comum. ", link_to("Voltar para os segmentos", settings_segments_path) ]) %>
+<nav class="cartao" aria-label="Seções do glossário">
+  <div><ul class="lista-de-acoes"><% @glossary.each_with_index do |section, index| %><li><a href="#secao-<%= index %>"><%= section.title %></a></li><% end %></ul></div>
+</nav>
+<% @glossary.each_with_index do |section, index| %>
+  <section class="cartao" aria-labelledby="secao-<%= index %>">
+    <header><h2 id="secao-<%= index %>"><%= section.title %></h2></header>
+    <div>
+      <dl class="glossario">
+        <% section.entries.each do |entry| %>
+          <div id="<%= entry.anchor %>">
+            <dt><code><%= entry.term %></code></dt>
+            <dd>
+              <p><%= entry.definition %></p>
+              <% if entry.details %><p><small><%= entry.details %></small></p><% end %>
+              <% if entry.example %><p><small>Exemplo: <code><%= entry.example %></code><%= " — #{entry.reading}." if entry.reading %></small></p><% end %>
+            </dd>
+          </div>
+        <% end %>
+      </dl>
+    </div>
+  </section>
+<% end %>

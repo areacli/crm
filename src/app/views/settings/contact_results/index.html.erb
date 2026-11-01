@@ -2,7 +2,7 @@
 <%= pagina "Resultados de acionamento", subtitulo: "A lista que o operador escolhe ao registrar um contato; cada credor tem a sua." do %>
   <%= abrir_painel "Novo resultado", new_settings_contact_result_path %>
 <% end %>
-<%= render "settings/abas" %>
+<%= render "settings/modelo" %>
 
 <% @tenants.each do |tenant| %>
   <% results = @results.fetch(tenant, []) %>

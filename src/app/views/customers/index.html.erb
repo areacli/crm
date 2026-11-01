@@ -1,5 +1,10 @@
 <% content_for :title, "Clientes" %>
-<%= pagina "Clientes" %>
+<%= pagina "Clientes" do %>
+  <%# 14, R316: o lote "da seleção" são os clientes do filtro atual da lista. %>
+  <% if Current.user.permitted_anywhere?("distribute_portfolio") %>
+    <%= link_to "Distribuir estes clientes", new_distribution_batch_path(request.query_parameters.slice(*DistributionBatchesController::FILTERS)), class: "botao", data: { variant: "secondary" } %>
+  <% end %>
+<% end %>
 
 <form class="filtros" role="search" action="<%= customers_path %>" method="get"
       hx-sync="this:replace" hx-get="<%= customers_path %>" hx-trigger="input changed delay:300ms from:#q, change" hx-target="#resultado" hx-push-url="true" hx-swap="outerHTML">
@@ -27,7 +32,7 @@
     <label for="segment">Segmento</label>
     <select id="segment" name="segment">
       <option value="">Todos</option>
-      <%= options_for_select(@segments, params[:segment]) %>
+      <%= grouped_options_for_select(@segments, params[:segment]) %>
     </select>
   </div>
   <div class="campo">

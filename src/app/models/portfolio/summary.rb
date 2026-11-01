@@ -87,12 +87,7 @@ module Portfolio
             from bill_valuations v join bills b on b.id = v.bill_id, r where v.tenant_id in (?) group by b.customer_id
           ) c group by 1
         SQL
-        segments = Sql.rows(<<~SQL, ids).map { |row| { name: row["name"] || I18n.t("segments.none"), customers: row["customers"].to_i, balance_cents: row["balance"].to_i, updated_cents: row["updated"].to_i } }
-          select s.name, count(distinct b.customer_id) as customers, sum(v.principal_cents) as balance, sum(v.total_cents) as updated
-          from bill_valuations v join bills b on b.id = v.bill_id join contracts c on c.id = b.contract_id left join segments s on s.id = c.segment_id
-          where v.tenant_id in (?) group by s.name order by bool_or(s.catch_all) nulls first, min(s.position), s.name
-        SQL
-        { total_cents: total["cents"].to_i, calculated_on: total["on_date"], by_bill: by_bill, by_customer: by_customer, segments: segments }
+        { total_cents: total["cents"].to_i, calculated_on: total["on_date"], by_bill: by_bill, by_customer: by_customer }
       end
 
       # Acionamentos dos últimos 7 e 30 dias (04, R79), pela data do contato: número de acionamentos e de clientes acionados, no total e por
@@ -135,42 +130,47 @@ module Portfolio
       end
 
       # Acordos do credor no mês corrente (11, R242): quanto está em acordo (títulos de acordo em cobrança, sem somar duas vezes), os aceitos, os ativos em dia e em atraso, os quebrados e
-      # quitados, o desconto concedido por componente (contado na efetivação; o acordo cancelado depois da efetivação o tira no mês do cancelamento) por quem montou e por quem aprovou, e,
+      # quitados, o desconto concedido por componente (contado na efetivação; o acordo cancelado depois da efetivação o tira no mês do cancelamento), e,
       # à parte, os abatimentos por tolerância, pelo credor e por mínimo. Consultas: `agreements (tenant_id, state, valid_until)` e `(tenant_id, created_at)`, `agreement_bills (agreement_id)`
       # e `abatements (tenant_id, created_at)`; o "em acordo" lê os títulos de acordo pelo índice parcial de `agreement_id`.
       def agreements(ids)
         from = @reference.beginning_of_month.in_time_zone
         to = from.next_month
         in_agreement = Sql.one("select coalesce(sum(#{AGREEMENT_BALANCE}), 0) as cents, count(distinct b.agreement_id) as n from bills b left join bill_valuations v on v.bill_id = b.id where b.tenant_id in (?) and b.status = 'active' and b.kind in ('agreement', 'break')", @reference, ids)
-        accepted = Sql.one("select count(*) as n, coalesce(sum(value_cents), 0) as cents from agreements where tenant_id in (?) and accepted_at >= ? and accepted_at < ?", ids, from, to)
         states = Sql.rows("select state, count(*) as n from agreements where tenant_id in (?) and state in ('active_on_time', 'active_late') group by 1", ids).to_h { |row| [ row["state"], row["n"].to_i ] }
-        broken = Sql.one("select count(*) as n from agreements where tenant_id in (?) and broken_at >= ? and broken_at < ? and broken_after_effectuation", ids, from, to)["n"].to_i
-        settled = Sql.one("select count(*) as n from agreements where tenant_id in (?) and state = 'settled' and closed_at >= ? and closed_at < ?", ids, from, to)["n"].to_i
+        month = agreement_month(ids, from, to)
+        previous = agreement_month(ids, from.prev_month, from)
+        accepted = { "n" => month[:accepted], "cents" => month[:accepted_cents] }
+        broken = month[:broken]
+        settled = month[:settled]
         discounts = Hash.new(0)
-        by_user = Hash.new(0)
-        by_approver = Hash.new(0)
         discount_rows = lambda do |condition, sign|
           Sql.rows(<<~SQL, ids, from, to).each do |row|
-            select a.user_id, a.decided_by_id, d.key as component, sum(d.value::bigint) as cents
+            select d.key as component, sum(d.value::bigint) as cents
             from agreements a join agreement_bills ab on ab.agreement_id = a.id, jsonb_each_text(ab.discount) d
-            where a.tenant_id in (?) and #{condition} group by 1, 2, 3
+            where a.tenant_id in (?) and #{condition} group by 1
           SQL
             cents = sign * row["cents"].to_i
             discounts[row["component"]] += cents
-            by_user[row["user_id"]&.to_i] += cents
-            by_approver[row["decided_by_id"]&.to_i] += cents
           end
         end
         discount_rows.call("a.effectuated_at >= ? and a.effectuated_at < ?", 1)
         discount_rows.call("a.effectuated_at is not null and a.reverted_at >= ? and a.reverted_at < ?", -1)
-        names = User.where(id: (by_user.keys + by_approver.keys).compact).pluck(:id, :name).to_h
         abatements = Sql.rows("select kind, coalesce(sum(amount_cents), 0) as cents from abatements where tenant_id in (?) and created_at >= ? and created_at < ? and kind <> 'early' group by 1", ids, from, to).to_h { |row| [ row["kind"], row["cents"].to_i ] }
         waiting = ReversalWait.where(tenant_id: ids, state: "waiting").count
         { label: I18n.l(@reference.beginning_of_month, format: "%B de %Y"), in_agreement_cents: in_agreement["cents"].to_i, in_agreement_count: in_agreement["n"].to_i,
           accepted: accepted["n"].to_i, accepted_cents: accepted["cents"].to_i, on_time: states.fetch("active_on_time", 0), late: states.fetch("active_late", 0), broken: broken, settled: settled,
           discounts: discounts.select { |_, cents| cents.nonzero? }, discount_total: discounts.values.sum,
-          by_user: by_user.reject { |_, cents| cents.zero? }.map { |id, cents| [ names[id] || "—", cents ] }, by_approver: by_approver.reject { |_, cents| cents.zero? }.map { |id, cents| [ names[id] || "—", cents ] },
-          abatements: abatements, waiting: waiting }
+          abatements: abatements, waiting: waiting,
+          previous_label: I18n.l(from.prev_month.to_date, format: "%B de %Y"), previous: previous }
+      end
+
+      # Aceitos, quebrados e quitados de um mês (R242), para o mês corrente e o anterior lado a lado. Mesmos índices das consultas do mês corrente.
+      def agreement_month(ids, from, to)
+        accepted = Sql.one("select count(*) as n, coalesce(sum(value_cents), 0) as cents from agreements where tenant_id in (?) and accepted_at >= ? and accepted_at < ?", ids, from, to)
+        broken = Sql.one("select count(*) as n from agreements where tenant_id in (?) and broken_at >= ? and broken_at < ? and broken_after_effectuation", ids, from, to)["n"].to_i
+        settled = Sql.one("select count(*) as n from agreements where tenant_id in (?) and state = 'settled' and closed_at >= ? and closed_at < ?", ids, from, to)["n"].to_i
+        { accepted: accepted["n"].to_i, accepted_cents: accepted["cents"].to_i, broken: broken, settled: settled }
       end
 
       # Valor recuperado no mês corrente e no anterior, por meio de pagamento (R58, R64), crédito do credor (cada contrato uma vez, R55b)

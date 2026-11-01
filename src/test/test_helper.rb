@@ -8,6 +8,7 @@ require_relative "support/discrepancies_helper"
 require_relative "support/registry_test_helper"
 require_relative "support/titular_helper"
 require_relative "support/segments_test_helper"
+require_relative "support/tiers_review_helper"
 require_relative "support/charges_test_helper"
 require_relative "support/promises_test_helper"
 require_relative "support/agreements_test_helper"
@@ -15,12 +16,18 @@ require_relative "support/payment_accounts_helper"
 require_relative "support/efi_http_helper"
 require_relative "support/checkouts_helper"
 require_relative "support/webhooks_helper"
+require_relative "support/operations_test_helper"
 require_relative "test_helpers/session_test_helper"
+
+# Sem processos paralelos (poucos testes), o banco é o principal: o RLS entra nele também.
+Operations::Rls.install!
 
 module ActiveSupport
   class TestCase
     # Run tests in parallel with specified workers
     parallelize(workers: :number_of_processors)
+    # O RLS (decisão 0024) não está no `schema.rb`: cada banco de teste o recebe depois da carga do esquema.
+    parallelize_setup { |_worker| Operations::Rls.install! }
 
     # Setup all fixtures in test/fixtures/*.yml for all tests in alphabetical order.
     fixtures :all
@@ -32,6 +39,7 @@ module ActiveSupport
     include RegistryTestHelper
     include TitularHelper
     include SegmentsTestHelper
+    include TiersReviewHelper
     include ChargesTestHelper
     include PromisesTestHelper
     include AgreementsTestHelper
@@ -39,6 +47,7 @@ module ActiveSupport
     include EfiHttpHelper
     include CheckoutsHelper
     include WebhooksHelper
+    include OperationsTestHelper
 
     # Nenhum teste chama a Efí real (12): o cliente padrão recusa; os testes da Efí trocam por um falso com respostas gravadas. O token fica só na memória do processo.
     setup do

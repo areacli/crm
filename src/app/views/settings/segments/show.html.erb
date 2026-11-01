@@ -1,0 +1,16 @@
+<% content_for :title, "Configuração · Segmento #{@segment.name}" %>
+<% text = @segment.text %>
+<%= pagina @segment.name, subtitulo: safe_join([ @segment.tenant.name, " · ", t("segments.subjects.#{@segment.subject}"), " · ", link_to("Voltar para os segmentos", settings_segments_path) ]) do %>
+  <% if policy(@segment).update? %><%= link_to "Editar", edit_settings_segment_path(@segment), class: "botao" %><% end %>
+<% end %>
+<%= render "settings/modelo" %>
+<section class="cartao" aria-labelledby="condicoes">
+  <header><h2 id="condicoes">Condições</h2></header>
+  <div>
+    <pre class="texto-do-segmento"><%= text.short_text %></pre>
+    <p class="leitura"><%= text.long_text %></p>
+    <p><%= @segment.active? ? situacao("Ativo", tom: :success) : situacao("Desativado", tom: :neutral) %>
+      <% uses = @segment.uses.to_a %>
+      <%= uses.any? ? "Usado no enquadramento financeiro, item #{uses.map(&:position).join(', ')}." : "Sem uso." %></p>
+  </div>
+</section>

@@ -1,0 +1,36 @@
+<%# Resultado do "Conferir" (13, R288, revisão 3). Locais: probe (hash: invalid | status running com id | done com total, balance_cents e
+    conditions | timeout), subject, expression (a árvore conferida, para o texto de cada condição). Em andamento, o trecho se refaz quando o WebSocket avisa (e uma vez ao carregar, para o resultado
+    que já ficou pronto). %>
+<% noun = ->(n) { n == 1 ? segment_t("subjects.#{subject}.one") : segment_t("subjects.#{subject}.other") } %>
+<div id="conferir" role="status" aria-live="polite"
+  <% if probe && probe["status"] == "running" %>hx-get="<%= probe_result_settings_segments_path(probe_id: probe['id']) %>" hx-trigger="load delay:400ms, cable:segment-probe-ready from:body" hx-swap="outerHTML" hx-push-url="false"<% end %>>
+  <% if probe.nil? %>
+    <p><small>"Conferir" mostra quantos <%= segment_t("subjects.#{subject}.other") %> o segmento pega hoje, sem gravar nada.</small></p>
+  <% elsif probe["invalid"] %>
+    <p><small>Corrija os erros do texto para conferir.</small></p>
+  <% elsif probe["timeout"] %>
+    <%= aviso(tom: :warning) { tag.p "A contagem passou do tempo. O segmento é pesado: simplifique as condições ou use-o só no enquadramento." } %>
+  <% elsif probe["status"] == "running" %>
+    <p><span class="carregando" aria-hidden="true"></span> Contando…</p>
+  <% else %>
+    <p><strong>Pega <%= number_br(probe["total"]) %> <%= noun.call(probe["total"].to_i) %></strong> (<%= money(probe["balance_cents"]) %> de saldo em cobrança).</p>
+    <% if probe["total"].to_i.zero? %>
+      <%= aviso(tom: :warning) { tag.p "O segmento não pega ninguém hoje. Veja abaixo qual condição zera a contagem." } %>
+    <% end %>
+    <% if expression && probe["conditions"].to_h.size > 1 %>
+      <div class="tabela" tabindex="0">
+        <table>
+          <caption>Cada condição sozinha</caption>
+          <thead><tr><th scope="col">Condição</th><th scope="col" data-numerico><%= segment_t("subjects.#{subject}.short").upcase_first %></th></tr></thead>
+          <tbody>
+            <% text = Segments::Text.new(expression) %>
+            <% expression.each_condition do |node, address| %>
+              <% count = probe["conditions"].to_h[address].to_i %>
+              <tr><th scope="row"><code><%= text.short(node) %></code></th><td data-numerico><%= number_br(count) %><%= " (zera)" if count.zero? %></td></tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% end %>
+  <% end %>
+</div>

@@ -1,0 +1,11 @@
+<%= formulario_de_painel(titulo: "Mudar a distribuição de #{@distribution.target_label}", url: distribution_path(@distribution), metodo: :patch, enviar: "Salvar", escopo: :distribution,
+                         variante: :modal, tamanho: :small, erro: @error, voltar: distributions_path, descricao: "Com a #{@distribution.operation.short_name}. Prorrogar passa de novo pela exclusividade.") do |form| %>
+  <div class="campo">
+    <%= form.label :exposure, "Exposição" %>
+    <%= form.select :exposure, Distribution::EXPOSURES.map { [ t("distributions.exposures.#{_1}"), _1 ] }, selected: @distribution.exposure %>
+  </div>
+  <% if @distribution.agendada? %>
+    <div class="campo"><%= form.label :starts_on, "Início" %><%= form.date_field :starts_on, value: @distribution.starts_on %></div>
+  <% end %>
+  <div class="campo"><%= form.label :ends_on, "Fim (opcional)" %><%= form.date_field :ends_on, value: @distribution.ends_on %></div>
+<% end %>

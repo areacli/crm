@@ -6,8 +6,8 @@ class PromisesScreensSystemTest < ApplicationSystemTestCase
   setup do
     @alfa = tenants(:alfa)
     @customer, @nf1, @nf2 = promise_scenario(@alfa)
-    Segment.catch_all_of(@alfa).update!(promise_max_days: 60)
-    PromiseLimit.where(segment: Segment.catch_all_of(@alfa), profile: profiles(:alfa_manager)).update_all(max_days: 60)
+    Tier.catch_all_of(@alfa).update!(promise_max_days: 60)
+    PromiseLimit.where(tier: Tier.catch_all_of(@alfa), profile: profiles(:alfa_manager)).update_all(max_days: 60)
     visit new_session_path
     fill_in "E-mail", with: users(:joana).email_address
     fill_in "Senha", with: "senha-de-teste-1"

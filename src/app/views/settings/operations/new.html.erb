@@ -1,0 +1,36 @@
+<%= formulario_de_painel(titulo: "Credenciar operação", url: settings_operations_path, enviar: "Credenciar", escopo: :operation, erro: @error, voltar: settings_operations_path,
+                         descricao: "Informe o CNPJ. Se a operação já atende outro credor, ela é só ligada a este: você vê a razão social, o nome e o CNPJ, nada dos outros credores.") do |form| %>
+  <% if @tenants.size > 1 %>
+    <div class="campo">
+      <%= form.label :tenant_id, "Credor" %>
+      <%= form.select :tenant_id, @tenants.map { |tenant| [ tenant.name, tenant.id ] }, { selected: params.dig(:operation, :tenant_id) }, required: true %>
+    </div>
+  <% else %>
+    <%= form.hidden_field :tenant_id, value: @tenants.first&.id %>
+  <% end %>
+  <div class="campo">
+    <%= form.label :cnpj, "CNPJ" %>
+    <%= form.text_field :cnpj, value: params.dig(:operation, :cnpj), required: true, maxlength: 18, inputmode: "numeric" %>
+  </div>
+  <fieldset>
+    <legend>Se a operação ainda não existe no CRM</legend>
+    <div class="campo">
+      <%= form.label :legal_name, "Razão social" %>
+      <%= form.text_field :legal_name, value: params.dig(:operation, :legal_name), maxlength: 200 %>
+    </div>
+    <div class="campo">
+      <%= form.label :short_name, "Nome curto" %>
+      <%= form.text_field :short_name, value: params.dig(:operation, :short_name), maxlength: 60, "aria-describedby": "ajuda-nome-curto" %>
+      <small id="ajuda-nome-curto">O que aparece nas telas, por exemplo "Recupera".</small>
+    </div>
+    <div class="campo">
+      <%= form.label :manager_name, "Nome do gestor da operação" %>
+      <%= form.text_field :manager_name, value: params.dig(:operation, :manager_name), maxlength: 200 %>
+    </div>
+    <div class="campo">
+      <%= form.label :manager_email, "E-mail do gestor da operação" %>
+      <%= form.email_field :manager_email, value: params.dig(:operation, :manager_email), maxlength: 200, "aria-describedby": "ajuda-gestor" %>
+      <small id="ajuda-gestor">Ele cadastra as pessoas da operação e recebe uma senha temporária, mostrada uma vez depois de credenciar.</small>
+    </div>
+  </fieldset>
+<% end %>

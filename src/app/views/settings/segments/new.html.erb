@@ -1,17 +1,22 @@
 <% content_for :title, "Configuração · Novo segmento" %>
-<%= pagina "Novo segmento", subtitulo: safe_join([ @tenant.name, " · ", link_to("Voltar para os segmentos", settings_segments_path) ]) %>
-<%= render "settings/abas" %>
-<section class="cartao" aria-labelledby="dados">
-  <header><h2 id="dados"><%= @segment.catch_all? ? "Encargos do segmento" : "Critérios e encargos do segmento" %></h2></header>
-  <div>
-    <% if @segment.errors.any? %><%= aviso(tom: :danger) { tag.p @segment.errors.full_messages.to_sentence } %><% end %>
-    <%= form_with model: @segment, scope: :segment, url: settings_segments_path(tenant_id: @tenant.id), method: :post, html: { "hx-boost": "false" } do |form| %>
-      <%= hidden_field_tag :tenant_id, @tenant.id %>
-      <%= render "settings/segments/fields", form: form, segment: @segment, raw: @raw, setting: @tenant.setting %>
-      <div class="acoes" data-rodape>
-        <%= link_to "Cancelar", settings_segments_path, class: "botao", data: { variant: "secondary" } %>
-        <button type="submit">Conferir mudança</button>
+<% content_for :cable_channels, [ { channel: "SegmentsChannel", tenant_id: @segment.tenant_id } ].to_json %>
+<%= pagina "Novo segmento", subtitulo: safe_join([ @segment.tenant.name, " · ", link_to("Voltar para os segmentos", settings_segments_path) ]) %>
+<%= render "settings/modelo" %>
+<%# Aviso e exemplos num bloco só: na grade da configuração o menu de seções ocupa duas linhas, e cada elemento solto viraria uma linha esticada. %>
+<div class="pagina-em-secoes">
+  <%= aviso { tag.p "Um segmento só descreve um público. Ele não muda nada até ser usado num enquadramento." } %>
+  <% if params[:exemplo].blank? && params[:from].blank? && @parsed.nil? %>
+    <section class="cartao" aria-labelledby="exemplos">
+      <header><h2 id="exemplos">Começar de um exemplo</h2></header>
+      <div>
+        <p><small>Os exemplos só preenchem o editor; nada é salvo até você salvar.</small></p>
+        <ul class="lista-de-acoes">
+          <% Segments::Examples::LIST.each do |example| %>
+            <li><%= link_to example.name, new_settings_segment_path(tenant_id: @segment.tenant_id, exemplo: example.key) %></li>
+          <% end %>
+        </ul>
       </div>
-    <% end %>
-  </div>
-</section>
+    </section>
+  <% end %>
+</div>
+<%= render "settings/segments/editor", segment: @segment, source: @source, parsed: @parsed, probe: @probe %>

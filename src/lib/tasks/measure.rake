@@ -516,75 +516,6 @@ namespace :crm do
     puts "credor de medição apagado"
   end
 
-  desc "V4 dos segmentos (08): N contratos (1 cliente e 2 títulos cada) e 5 segmentos; mede conferência, confirmação, recálculo diário, aba, lista e ficha: crm:measure_segments[contratos]"
-  task :measure_segments, %i[contracts] => :environment do |_task, args|
-    abort "Recusado em produção." if Rails.env.production?
-
-    Rails.logger.level = :info # o nível da produção; o registro detalhado de desenvolvimento e teste distorce a vazão
-
-    count = (args[:contracts].presence || 10_000).to_i
-    tenant = Tenant.provision!("Medição de segmentos #{Time.current.strftime('%H%M%S')}")
-    t = tenant.id
-    user = User.create!(name: "Medição", email_address: "medicao#{t}@exemplo.com.br", password: SecureRandom.base58(24))
-    Membership.create!(user: user, tenant: tenant, profile: tenant.profiles.find_by!(name: "Gestor"))
-    measure = lambda do |label, limit = nil, &work|
-      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-      result = work.call
-      elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
-      peak = (File.read("/proc/self/status")[/VmHWM:\s+(\d+)/, 1].to_i / 1024 rescue 0)
-      verdict = limit ? (elapsed <= limit ? "  ok (limite #{limit} s)" : "  ACIMA do limite de #{limit} s") : ""
-      puts format("%-62s %8.2f s   (pico de memória %d MB)%s", label, elapsed, peak, verdict)
-      result
-    end
-
-    # Um cliente por contrato (60% CPF, 40% CNPJ), dois títulos de produtos diferentes, atrasos de 1 a 400 dias (insert_all! dos modelos).
-    MeasureData.portfolio(t, count, document: ->(i) { i % 5 < 3 ? i.to_s.rjust(11, "0") : i.to_s.rjust(14, "0") }, contract_age: ->(i) { i % 700 },
-                          bills_per: 2, bill: ->(i, n) { { number: "NF-#{i}/#{n}", due_date: Date.current - (1 + (i * 37 + n * 11) % 400), amount_cents: 5000 + (i * 7919 + n * 131) % 250_000, product: n == 1 ? "Mensalidade" : "Cartão" } })
-    MeasureData.analyze("customers", "contracts", "bills", "contract_customers")
-    puts "#{count} contratos criados no credor de medição"
-
-    # Cinco segmentos (4 com critérios e o Demais), no mesmo desenho da especificação.
-    base = { tenant: tenant }
-    Segment.create!(**base, name: "Varejo PF recente", position: 1, person_type: "person", min_overdue_days: 1, max_overdue_days: 90, max_balance_cents: 500_000)
-    Segment.create!(**base, name: "PF", position: 2, person_type: "person")
-    Segment.create!(**base, name: "Muito vencido", position: 3, min_overdue_bills: 2, min_overdue_percent: 50)
-    Segment.create!(**base, name: "Cartões", position: 4, products: [ "cartao" ])
-    proposal = Segments::Proposal.current(tenant)
-    token = proposal.token
-    measure.call("recálculo inicial (diário) dos #{count} contratos", 120) { Segments::Recalculation.new(tenant).call }
-    MeasureData.analyze("contract_segments", "contracts")
-    puts "  contratos por segmento: #{Segment.where(tenant_id: t).ordered.map { |s| "#{s.name}=#{Contract.where(segment_id: s.id).count}" }.join(', ')}"
-
-    changed = Segments::Proposal.current(tenant).with_created(Segment.new(tenant: tenant, name: "Recentes", min_age_days: 0, max_age_days: 200).tap(&:valid?))
-    4.times { changed = changed.with_moved(Segments::Proposal::NEW_ID, "up") }
-    impact = measure.call("conferir uma mudança de segmentos", 10) { Segments::Impact.new(changed) }
-    puts "  entram em outros segmentos: #{impact.total} contratos"
-    measure.call("confirmar a mudança de segmentos (grava e recalcula)", 10) { Segments::Applier.new(user).confirm(tenant, changed.token) }
-    measure.call("política de produto: conferir a mudança para 'qualquer título'", 10) { Segments::Impact.new(Segments::Proposal.current(tenant).with_policy("any_bill")) }
-    measure.call("recálculo diário depois da mudança (nada muda)", 120) { Segments::Recalculation.new(tenant).call }
-
-    measure.call("aba Segmentos: totais por segmento") { Segments::Totals.new([ tenant ]).call }
-    query = Portfolio::Query.new(user)
-    measure.call("lista de clientes com a coluna Segmento (primeira página)") { query.customers.limit(20).to_a.tap { |page| query.segment_names(page.map(&:id)) } }
-    measure.call("lista de clientes (contagem total)") { query.customers.except(:select, :order).count }
-    measure.call("lista filtrada por segmento (primeira página)") { query.customers(segment: Segment.where(tenant_id: t, name: "Recentes").pick(:id)).limit(20).to_a.tap { |page| query.segment_names(page.map(&:id)) } }
-    measure.call("lista filtrada por 'sem segmento' (primeira página)") { query.customers(segment: "none", search: "Cliente 1").limit(20).to_a }
-    some = Customer.where(tenant_id: t).order(:id).first
-    measure.call("ficha: segmento e histórico do contrato") { ContractSegment.where(contract_id: some.contracts.select(:id)).includes(:segment).order(since: :desc).limit(100).to_a }
-
-    if ENV["KEEP"] == "1"
-      puts "KEEP=1: credor de medição #{t} mantido para análise (EXPLAIN)"
-      next
-    end
-    MeasureData.clear(t, %w[changes task_runs])
-    MeasureData.wipe_portfolio(t)
-    tenant.contact_results.delete_all
-    Membership.where(tenant_id: t).delete_all
-    user.destroy
-    tenant.destroy
-    puts "credor de medição apagado"
-  end
-
   desc "V4 dos encargos (09): N contratos (2 títulos vencidos cada), 5 segmentos com regras diferentes, índices desde 2000 e P pagamentos; mede recálculo, conferência, confirmação, lista, ficha, resumo e a baixa por componente: crm:measure_charges[contratos,pagamentos]"
   task :measure_charges, %i[contracts payments] => :environment do |_task, args|
     abort "Recusado em produção." if Rails.env.production?
@@ -620,14 +551,21 @@ namespace :crm do
     puts "#{count} contratos (#{count * 2} títulos vencidos) criados no credor de medição"
 
     tenant.setting.update!(charge_fine_pct: 2, charge_interest_pct: 1, charge_index: "ipca")
-    Segment.catch_all_of(tenant).update!(interest_kind: "fixed", fees_pct: 10, fees_in_contract: true)
-    Segment.create!(tenant: tenant, name: "Varejo PF recente", position: 1, person_type: "person", min_overdue_days: 1, max_overdue_days: 90, interest_kind: "fixed", index_code: "ipca")
-    Segment.create!(tenant: tenant, name: "PF", position: 2, person_type: "person", interest_kind: "fixed", interest_pct: 2, index_code: "inpc")
-    Segment.create!(tenant: tenant, name: "Pessoa jurídica", position: 3, person_type: "company", interest_kind: "legal", index_code: "ipca")
-    Segment.create!(tenant: tenant, name: "Muito vencido", position: 4, min_overdue_bills: 2, min_overdue_percent: 50, interest_kind: "fixed", interest_form: "compound", index_code: "igpm")
+    Tier.catch_all_of(tenant).update!(interest_kind: "fixed", fees_pct: 10, fees_in_contract: true)
+    # Itens do enquadramento financeiro (13) com segmentos na linguagem e regras diferentes.
+    tier = lambda do |name, position, conditions, **rules|
+      segment = Segment.create!(tenant: tenant, name: name, subject: "contracts", expression: { "all" => conditions })
+      Tier.create!(tenant: tenant, kind: "financial", segment: segment, position: position, **rules)
+    end
+    pf = { "path" => "person_type", "op" => "eq", "value" => "person" }
+    tier.call("Varejo PF recente", 1, [ pf, { "path" => "overdue_days", "op" => "between", "value" => [ 1, 90 ] } ], interest_kind: "fixed", index_code: "ipca")
+    tier.call("PF", 2, [ pf ], interest_kind: "fixed", interest_pct: 2, index_code: "inpc")
+    tier.call("Pessoa jurídica", 3, [ { "path" => "person_type", "op" => "eq", "value" => "company" } ], interest_kind: "legal", index_code: "ipca")
+    tier.call("Muito vencido", 4, [ { "path" => "bills", "qualifier" => "overdue", "aggregate" => "count", "op" => "gte", "value" => 2 }, { "path" => "overdue_percent", "op" => "gte", "value" => 50 } ],
+              interest_kind: "fixed", interest_form: "compound", index_code: "igpm")
     Charges::RuleHistory.record!(tenant, since: Date.current - 400)
-    Segments::Recalculation.new(tenant).apply
-    MeasureData.analyze("contract_segments", "contracts")
+    Tiers::Recalculation.new(tenant).apply
+    MeasureData.analyze("contract_tiers", "contracts")
 
     measure.call("recálculo diário do valor atualizado (#{count * 2} títulos)", 120) { Charges::Recalculation.new(tenant).apply }
     puts "  títulos com valor atualizado: #{BillValuation.where(tenant_id: t).count}; total R$ #{Money.format(BillValuation.where(tenant_id: t).sum(:total_cents))}"
@@ -635,19 +573,19 @@ namespace :crm do
 
     measure.call("recálculo diário de novo (medido sem a carga fria)", 120) { Charges::Recalculation.new(tenant).apply }
     impact_rule = measure.call("conferir uma mudança de regra em 'PF' (juros 2% → 3%)", 10) do
-      segment = Segment.find_by!(tenant_id: t, name: "PF")
-      proposal = Segments::Proposal.current(tenant).with_updated(segment.tap { |record| record.interest_pct = 3 })
+      tier = Tier.joins(:segment).find_by!(tenant_id: t, segments: { name: "PF" })
+      proposal = Tiers::Proposal.current(tenant).with_rules(tier.id, interest_pct: 3)
       Charges::Impact.new(proposal).tap(&:rows)
     end
     puts "  diferença: R$ #{Money.format(impact_rule.total_difference_cents)} em #{impact_rule.rows.sum(&:customers)} clientes"
-    measure.call("conferir uma mudança de política ('Índice negativo' sempre; base toda)", 10) { Charges::Impact.new(Segments::Proposal.current(tenant).with_charges("negative_index_policy" => "always")).tap(&:rows) }
+    measure.call("conferir uma mudança de política ('Índice negativo' sempre; base toda)", 10) { Charges::Impact.new(Tiers::Proposal.current(tenant).with_charges("negative_index_policy" => "always")).tap(&:rows) }
     measure.call("confirmar a mudança de regra (grava; o recálculo vai para o segundo plano)", 10) do
-      Segments::Applier.new(user).confirm(tenant, Segments::Proposal.current(tenant).with_charges("charge_interest_pct" => "1.5").token)
+      Tiers::Applier.new(user).confirm(tenant, Tiers::Proposal.current(tenant).with_charges("charge_interest_pct" => "1.5").token)
     end
     measure.call("recálculo depois da confirmação", 120) { Charges::Recalculation.new(tenant).apply }
 
     query = Portfolio::Query.new(user)
-    measure.call("lista de clientes com a coluna Atualizado (primeira página)", 3) { query.customers.limit(20).to_a.tap { |page| query.updated_totals(page.map(&:id)); query.segment_names(page.map(&:id)) } }
+    measure.call("lista de clientes com a coluna Atualizado (primeira página)", 3) { query.customers.limit(20).to_a.tap { |page| query.updated_totals(page.map(&:id)); query.tier_names(page.map(&:id)) } }
     measure.call("resumo com atualizado, faixas e segmentos", 10) { Portfolio::Summary.new(user).totals }
     some = Bill.where(tenant_id: t).order(:id).first
     measure.call("ficha: memória de cálculo de um título", 1) do
@@ -726,14 +664,14 @@ namespace :crm do
     IndexRate.delete_all
     IndexRate.insert_all!(IndexRate::SERIES.flat_map { |series| months.each_with_index.map { |month, i| { series: series, month: month, value: (0.2 + (i % 7) * 0.11).round(6), partial: false, fetched_at: Time.current } } })
     tenant.setting.update!(charge_fine_pct: 2, charge_interest_pct: 1, charge_index: "ipca", promise_sequence: promises)
-    Segment.catch_all_of(tenant).update!(interest_kind: "fixed")
+    Tier.catch_all_of(tenant).update!(interest_kind: "fixed")
     Charges::RuleHistory.record!(tenant, since: Date.current - 400)
 
     MeasureData.portfolio(t, customers, bill: ->(i, _n) { { number: "NF-#{i}", due_date: Date.current - (30 + (i % 60)), amount_cents: 5000 + (i * 7919) % 250_000 } })
     MeasureData.analyze("customers", "contracts", "bills", "contract_customers")
     channel = PaymentChannel.create!(tenant: tenant, kind: :account, code: "341-1234-56789", description: "Conta de medição")
     result = tenant.contact_results.find_by!(allows_promise: true, name: "Prometeu pagar")
-    segment = Segment.catch_all_of(tenant)
+    tier = Tier.catch_all_of(tenant)
     first_ids = Customer.where(tenant_id: t).order(:id).limit(promises).pluck(:id)
     puts "#{customers} clientes e títulos criados; #{promises} promessas abertas, #{promise_payments} pagamentos de promessa e #{direct} diretos"
 
@@ -750,7 +688,7 @@ namespace :crm do
     attempts = ContactAttempt.where(tenant_id: t).order(:id).pluck(:id, :customer_id, :contract_id)
     attempts.each_slice(10_000).with_index do |slice, slice_index|
       PaymentPromise.insert_all!(slice.each_with_index.map do |(attempt_id, customer_id, contract_id), index|
-        { tenant_id: t, customer_id: customer_id, contract_id: contract_id, contact_attempt_id: attempt_id, user_id: user.id, segment_id: segment.id,
+        { tenant_id: t, customer_id: customer_id, contract_id: contract_id, contact_attempt_id: attempt_id, user_id: user.id, tier_id: tier.id,
           number: "PRM-#{(slice_index * 10_000 + index + 1).to_s.rjust(6, '0')}", state: "open", payment_method: "pix", promised_on: Date.current - 5, contacted_on: Date.current - 12,
           policies: policies, total_cents: bills_of.fetch(customer_id).last }
       end, returning: false)
@@ -831,19 +769,19 @@ namespace :crm do
     end
     tenant.update!(legal_name: "Medição de acordos Ltda")
     tenant.setting.update!(charge_fine_pct: 2, charge_interest_pct: 1, installment_rate_pct: 1.5, installment_method: "price")
-    segment = Segment.catch_all_of(tenant)
+    tier = Tier.catch_all_of(tenant)
 
     # Um cliente por acordo, com o título original já renegociado (insert_all! dos modelos).
     customer_ids = MeasureData.portfolio(t, count, bill: ->(i, _n) { { number: "NF-#{i}", due_date: Date.current - 200, amount_cents: 120_000, status: "renegotiated" } })
     MeasureData.analyze("customers", "contracts", "bills", "contract_customers")
-    terms = { segment: { id: segment.id, name: segment.name, tolerance_days: 3, break_days: 30 }, square: { holidays: [] }, parameters: { late_rule: { fine: 0.02, rate: 0.01, form: "simple", convention: "thirty", fine_base: "corrected", index: "", fees: 0.0 } },
+    terms = { tier: { id: tier.id, name: tier.name, tolerance_days: 3, break_days: 30 }, square: { holidays: [] }, parameters: { late_rule: { fine: 0.02, rate: 0.01, form: "simple", convention: "thirty", fine_base: "corrected", index: "", fees: 0.0 } },
               policies: { break_form: "installments_follow", late_charges: "by_parameters", minimum_to_break: { kind: "cents", value: 0 }, tolerance_agreement: { kind: "cents", value: 100 }, early_payment: "discounts", effectuation: "payment", reactivation: "reactivates" } }
     today = Date.current
     now = Time.current
     originals = Bill.where(tenant_id: t).pluck(:customer_id, :id, :contract_id).to_h { |customer, id, contract| [ customer, [ id, contract ] ] }
     customer_ids.each_slice(10_000).with_index do |slice, slice_index|
       Agreement.insert_all!(slice.each_with_index.map do |customer_id, index|
-        { tenant_id: t, customer_id: customer_id, segment_id: segment.id, number: "ACD-#{(slice_index * 10_000 + index + 1).to_s.rjust(6, '0')}", state: "active_on_time", mode: "installments",
+        { tenant_id: t, customer_id: customer_id, tier_id: tier.id, number: "ACD-#{(slice_index * 10_000 + index + 1).to_s.rjust(6, '0')}", state: "active_on_time", mode: "installments",
           built_on: today - 60, valid_until: today - 55, base_cents: 120_000, discount_cents: 0, value_cents: 120_000, net_cents: 120_000, down_payment_cents: 30_000, down_payment_due: today - 50,
           installments_count: 3, installment_method: "none", total_cents: 120_000, effectuated_at: now - 50.days, effectuated_by: "payment", terms: terms }
       end, returning: false)

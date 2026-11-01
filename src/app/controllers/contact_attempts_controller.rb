@@ -2,6 +2,7 @@
 # operador, canal, resultado, tipo e credor. Mistura os credores, com a coluna Credor quando são mais de um (MT-4 a MT-6);
 # a busca e a paginação refazem só o trecho, e um acionamento novo de qualquer operador refaz a página atual pelo WebSocket.
 class ContactAttemptsController < ApplicationController
+  include OriginFilter
   MAX_PERIOD_DAYS = 92
   DEFAULT_PERIOD_DAYS = 7
 
@@ -16,7 +17,9 @@ class ContactAttemptsController < ApplicationController
     scope = scope.where(result_id: params[:result]) if params[:result].present?
     scope = scope.where(result_kind: params[:kind]) if ContactResult::KINDS.key?(params[:kind].to_s.to_sym)
     scope = scope.where(tenant_id: params[:tenant]) if params[:tenant].present?
-    @pagination = Pagination.new(scope.includes(:customer, :contract, :result, :user, :tenant).recent, page: params[:page], per_page: params[:per_page])
+    load_origins(@tenant_ids)
+    scope = apply_origin(scope)
+    @pagination = Pagination.new(scope.includes(:customer, :contract, :result, :user, :tenant, :operation).recent, page: params[:page], per_page: params[:per_page])
     @attempts = @pagination.records
     load_filter_options
     render partial: "contact_attempts/result" if htmx_fragment?

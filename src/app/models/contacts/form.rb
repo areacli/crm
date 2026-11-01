@@ -56,12 +56,12 @@ module Contacts
     # Dia do contato: o informado ou hoje (R70); só serve para dizer até quando vai o prazo.
     def contacted_on = (Time.zone.parse(values[:contacted_at].to_s)&.to_date rescue nil) || Date.current
 
-    def promise_segment = promise_contract && Promises::Limits.segment_of(promise_contract)
+    def promise_tier = promise_contract && Promises::Limits.tier_of(promise_contract)
 
-    def promise_last_day = promise_segment && contacted_on + Promises::Limits.ceiling(promise_segment).days
+    def promise_last_day = promise_tier && contacted_on + Promises::Limits.ceiling(promise_tier).days
 
     # Dias que o usuário dá sozinho no segmento, para dizer se a promessa nasce aberta ou aguarda aprovação (R191).
-    def promise_own_days = promise_segment && Promises::Limits.days_for(Current.user, customer.tenant_id, promise_segment)
+    def promise_own_days = promise_tier && Promises::Limits.days_for(Current.user, customer.tenant_id, promise_tier)
 
     # O valor de cada título na data prometida, mostrado antes de gravar (R186); nil enquanto faltam títulos ou data.
     def promise_quote

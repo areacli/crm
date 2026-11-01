@@ -25,6 +25,8 @@ module Agreements
         "missing" => missing,
         "creditor" => { "legal_name" => tenant.legal_name, "trade_name" => tenant.trade_name, "cnpj" => (Document.format(tenant.cnpj) if tenant.cnpj.present?), "address" => address_of(tenant) },
         "customer" => { "name" => agreement.customer.name, "document" => agreement.customer.formatted_document },
+        # 14, R324: o acordo feito por uma operação diz quem negociou, em nome do credor.
+        "operation" => (agreement.operation && { "legal_name" => agreement.operation.legal_name, "cnpj" => Document.format(agreement.operation.cnpj) }),
         "addressees" => addressees.map { |customer| { "name" => customer.name, "document" => customer.formatted_document } },
         "mode" => agreement.mode,
         "bills" => bills.map { |item| { "number" => item.bill.number, "contract" => item.contract.label, "due" => item.bill.due_date.iso8601, "base" => item.base, "discount" => item.discount, "value_cents" => item.value_cents } },
@@ -32,7 +34,7 @@ module Agreements
         "discounts_bp" => agreement.discounts_bp,
         "schedule" => agreement.schedule, "method" => agreement.installment_method, "rate_pct" => agreement.rate_pct.to_s("F"), "effective_annual_pct" => agreement.effective_annual_pct.to_s("F"),
         "total_cents" => agreement.total_cents, "interest_cents" => agreement.interest_cents,
-        "variables" => { "break_days" => terms.dig("segment", "break_days"), "tolerance_days" => terms.dig("segment", "tolerance_days"), "down_payment_days" => terms.dig("segment", "down_payment_days") },
+        "variables" => { "break_days" => terms.dig("tier", "break_days"), "tolerance_days" => terms.dig("tier", "tolerance_days"), "down_payment_days" => terms.dig("tier", "down_payment_days") },
         "late" => late_of(terms),
         "policies" => policy_lines(terms),
         "warnings" => terms["warnings"].to_a

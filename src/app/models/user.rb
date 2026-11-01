@@ -7,6 +7,8 @@ class User < ApplicationRecord
   has_many :memberships, dependent: :destroy
   has_many :tenants, through: :memberships
   has_many :notices, dependent: :destroy
+  # Pessoa de operação (14, R309): pertence a uma operação só.
+  has_one :operation_member, dependent: :destroy
 
   normalizes :email_address, with: ->(e) { e.strip.downcase }
   validates :name, presence: true
@@ -16,9 +18,10 @@ class User < ApplicationRecord
   MAX_FAILED_ATTEMPTS = 5
   LOCK_FOR = 15.minutes
 
-  # Só entra quem está ativo, com a senha temporária dentro do prazo (R37) e vínculo ativo com algum credor ativo (R30).
+  # Só entra quem está ativo, com a senha temporária dentro do prazo (R37) e vínculo ativo com algum credor ativo (R30); o gestor da operação
+  # entra mesmo sem vínculo, para cuidar das pessoas dela (14, R310a).
   def can_sign_in?
-    active? && !temporary_password_expired? && memberships.active.joins(:tenant).merge(Tenant.where(active: true)).exists?
+    active? && !temporary_password_expired? && (memberships.usable.joins(:tenant).merge(Tenant.where(active: true)).exists? || operation_manager?)
   end
 
   def locked? = locked_until.present? && locked_until.future?
@@ -67,7 +70,7 @@ class User < ApplicationRecord
   # Credores em que o usuário tem a permissão (vínculo e credor ativos), guardados por instância.
   def tenant_ids_with(permission)
     @tenant_ids_with ||= {}
-    @tenant_ids_with[permission.to_s] ||= memberships.active.joins(:profile, :tenant).merge(Tenant.where(active: true))
+    @tenant_ids_with[permission.to_s] ||= memberships.usable.joins(:profile, :tenant).merge(Tenant.where(active: true))
       .where("profiles.permissions @> ?", [ permission.to_s ].to_json).pluck(:tenant_id)
   end
 
@@ -77,6 +80,17 @@ class User < ApplicationRecord
   end
 
   def permitted_anywhere?(permission) = tenant_ids_with(permission).any?
+
+  # Operação da pessoa (14, R309) e o gestor dela (R310a).
+  def operation = operation_member&.active? ? operation_member.operation : nil
+  def operation_manager? = operation_member&.active? && operation_member.manager? && operation_member.operation.active?
+
+  # Credores em que o vínculo é de operação e o credenciamento está suspenso: o aviso ao entrar (R308).
+  def suspended_operation_tenants
+    Tenant.where(id: memberships.active.where.not(operation_id: nil)
+                                .joins("JOIN accreditations a ON a.tenant_id = memberships.tenant_id AND a.operation_id = memberships.operation_id AND a.status = 'suspended'")
+                                .select(:tenant_id))
+  end
 
   private
     # Confere contra a senha gravada, e não contra a que o objeto já recebeu em memória.

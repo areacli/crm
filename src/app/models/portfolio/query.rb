@@ -43,17 +43,18 @@ module Portfolio
       brackets.label(brackets.index_for(max_days_overdue.to_i))
     end
 
-    # Segmento do contrato mais atrasado de cada cliente da página (R159); empate no atraso, o de maior saldo (P-S3). Uma consulta para os (até 100)
+    # Enquadramento financeiro do contrato mais atrasado de cada cliente da página (13, R275, R296); empate no atraso, o de maior saldo (P-S3). Uma consulta para os (até 100)
     # clientes mostrados, e não uma subconsulta na lista inteira: a medição com 200 mil clientes mostrou 7,6 s contra 0,1 s. Índices:
     # `contract_customers (customer_id)` e `bills (contract_id)`.
-    def segment_names(customer_ids)
+    def tier_names(customer_ids)
       return {} if customer_ids.empty?
 
       rows = Portfolio::Sql.rows(<<~SQL, @reference, @reference, customer_ids)
-        select distinct on (cc.customer_id) cc.customer_id, s.name
+        select distinct on (cc.customer_id) cc.customer_id, case when s.catch_all then null else g.name end as name
         from contract_customers cc
-        join contracts c on c.id = cc.contract_id and c.segment_id is not null
-        join segments s on s.id = c.segment_id
+        join contracts c on c.id = cc.contract_id and c.tier_id is not null
+        join tiers s on s.id = c.tier_id
+        left join segments g on g.id = s.segment_id
         left join lateral (
           select max(?::date - b.due_date) filter (where b.due_date < ?::date) as days, sum(greatest(b.amount_cents - b.paid_cents, 0)) as balance
           from bills b where b.contract_id = c.id and b.status = 'active'
@@ -61,7 +62,7 @@ module Portfolio
         where cc.customer_id in (?)
         order by cc.customer_id, late.days desc nulls last, late.balance desc nulls last, c.id
       SQL
-      rows.to_h { |row| [ row["customer_id"].to_i, row["name"] ] }
+      rows.to_h { |row| [ row["customer_id"].to_i, row["name"] || I18n.t("tiers.catch_all") ] }
     end
 
     # Valor atualizado dos títulos vencidos de cada cliente da página (09, R175): lido de `bill_valuations` só para os (até 100) clientes mostrados, depois da
@@ -73,8 +74,11 @@ module Portfolio
                           customer_ids).to_h { |row| [ row["customer_id"].to_i, row["cents"].to_i ] }
     end
 
-    # Segmentos que o usuário pode escolher no filtro: os ativos dos credores em que consulta (R159).
-    def segment_options(ids = tenant_ids) = Segment.where(tenant_id: ids, active: true).includes(:tenant).ordered.to_a
+    # Segmentos que o usuário pode escolher no filtro: os ativos dos credores em que consulta, de clientes e de contratos (13, R275).
+    def segment_options(ids = tenant_ids) = Segment.where(tenant_id: ids, active: true).includes(:tenant).order(:subject, :name_key).to_a
+
+    # O segmento escolhido passou do tempo da lista (2 s): a lista diz que ele demora demais para ela (13, revisão 3).
+    def segment_too_slow? = @segment_too_slow == true
 
     private
       def restrict_to_promise(relation, filter)
@@ -85,14 +89,16 @@ module Portfolio
         end
       end
 
-      # O filtro casa com qualquer contrato do cliente, inclusive "sem segmento" (R159). `segment` é o id ou "none".
-      def restrict_to_segment(relation, ids, segment)
-        if segment == "none"
-          relation.where("exists (select 1 from contract_customers cc join contracts c on c.id = cc.contract_id where cc.customer_id = customers.id and c.segment_id is null)")
-        else
-          id = Segment.where(tenant_id: ids, id: segment.to_i).pick(:id)
-          relation.where("exists (select 1 from contract_customers cc join contracts c on c.id = cc.contract_id where cc.customer_id = customers.id and c.segment_id = ?)", id || 0)
-        end
+      # Filtro por segmento (13, R275): segmento de clientes casa com o cliente; de contratos, com o cliente que tem algum contrato que casa. Avaliado
+      # na hora (SG4), com 2 s de limite; os clientes que casam vão para uma tabela temporária da conexão, e a lista a lê (valor nenhum da árvore
+      # entra no texto da consulta, decisão 0023).
+      def restrict_to_segment(relation, ids, segment_id)
+        segment = Segment.find_by(tenant_id: ids, id: segment_id.to_i)
+        return relation.none unless segment
+
+        loaded = Segments::ListFilter.load(segment)
+        @segment_too_slow = !loaded
+        loaded ? relation.where("customers.id in (select customer_id from #{Segments::ListFilter::TABLE})") : relation.none
       end
 
       def aggregate_sql(ids)

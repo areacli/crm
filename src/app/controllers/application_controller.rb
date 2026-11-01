@@ -15,11 +15,15 @@ class ApplicationController < ActionController::Base
   # Com senha temporária, só a tela de definir a senha abre (R38).
   before_action :require_password_change
 
+  # 14, R313 e R314 (decisão 0024): o papel do banco de quem age vale do começo ao fim de cada requisição; para o usuário de operação, o RLS só
+  # devolve o que está pra a operação dele, em qualquer consulta desta requisição.
+  around_action { |_controller, action| Operations::Context.for_user(Current.user) { action.call } }
+
   # Acesso recusado por falta de permissão fica registrado, com o credor do registro (R33, R42), e responde como "não encontrado",
   # sem revelar o registro.
   rescue_from Pundit::NotAuthorizedError do |error|
     AccessEvent.record("access_denied", request: request, user: Current.user, tenant_id: error.record.try(:tenant_id), details: { path: request.path })
-    head :not_found
+    render_not_found
   end
 
   # Alteração de acesso recusada por uma regra (R41, PD7...): volta para a tela de onde veio, com a mensagem.
@@ -30,6 +34,16 @@ class ApplicationController < ActionController::Base
   end
 
   private
+    # Acesso recusado ou registro de outro credor: a mesma página de "não encontrado" do resto do sistema, dentro do layout do app
+    # (sem revelar se o registro existe). Pedido do htmx recebe só o código, e o navegador mostra o aviso (application.js).
+    def render_not_found
+      return head :not_found if request.headers["HX-Request"].present? && request.headers["HX-Boosted"].blank?
+
+      @status = 404
+      @request_id = request.request_id
+      render "errors/show", status: :not_found, layout: authenticated? ? "application" : "erro"
+    end
+
     def require_password_change
       redirect_to edit_password_path if Current.user&.temporary_password?
     end

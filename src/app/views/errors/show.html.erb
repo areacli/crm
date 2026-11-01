@@ -1,0 +1,11 @@
+<% content_for :title, t("errors.#{@status}.title") %>
+<section class="pagina-de-erro" aria-labelledby="titulo-do-erro">
+  <p class="codigo-do-erro"><%= @status %></p>
+  <h1 id="titulo-do-erro"><%= t("errors.#{@status}.title") %></h1>
+  <p><%= t("errors.#{@status}.text") %></p>
+  <div class="acoes">
+    <a class="botao" href="<%= root_path %>"><%= t("errors.back") %></a>
+    <% if [ 422, 429, 500, 503 ].include?(@status) %><a class="botao" data-variant="secondary" href="javascript:history.back()"><%= t("errors.retry") %></a><% end %>
+  </div>
+  <% if @request_id.present? && @status >= 500 %><p class="codigo-do-pedido"><small><%= t("errors.request_code") %>: <code><%= @request_id %></code></small></p><% end %>
+</section>

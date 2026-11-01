@@ -15,7 +15,8 @@ module PromisesTestHelper
   end
 
   # Registra a promessa pelo acionamento, como a tela: devolve a promessa.
-  def register_promise(customer, bills, user: users(:joana), on: PROMISED, method: "pix", result: :promised, **overrides)
+  # A data padrão é a do exemplo (30/10/2026); depois dela, os testes que não viajam no tempo prometeriam para o passado e seriam recusados.
+  def register_promise(customer, bills, user: users(:joana), on: [ PROMISED, Date.current ].max, method: "pix", result: :promised, **overrides)
     contract_id = overrides.delete(:promise_contract_id) || bills.first&.contract_id
     attempt = record_attempt(customer, user, result: result_of(customer.tenant, result), promise_contract_id: contract_id,
                                               promise_bill_ids: bills.map { |bill| bill.id.to_s }, promise_payment_method: method, promise_on: on.iso8601, **{ text: SecureRandom.hex(4) }.merge(overrides))

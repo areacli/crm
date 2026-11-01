@@ -1,0 +1,4 @@
+<% content_for :title, "Lote de distribuição" %>
+<% content_for :cable_channels, @cable %>
+<%= pagina "Lote de distribuição à #{@batch.operation.short_name}", subtitulo: safe_join([ "#{t("distribution_batches.kinds.#{@batch.kind}")} · #{t("distributions.exposures.#{@batch.exposure}")} · #{date_br(@batch.starts_on)} a #{@batch.ends_on ? date_br(@batch.ends_on) : 'sem fim'} · ", link_to("Voltar para a distribuição", distributions_path) ]) %>
+<%= render "distribution_batches/result", batch: @batch %>

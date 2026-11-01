@@ -1,0 +1,12 @@
+<%= formulario_de_painel(titulo: "Nova pessoa da operação", url: operation_people_path, enviar: "Cadastrar", escopo: :operation_member, erro: @error, voltar: operation_people_path,
+                         descricao: "A pessoa recebe uma senha temporária, mostrada uma vez. Ela só vê um credor depois de receber o vínculo nele.") do |form| %>
+  <div class="campo">
+    <%= form.label :name, "Nome" %>
+    <%= form.text_field :name, value: params.dig(:operation_member, :name), required: true, maxlength: 200 %>
+  </div>
+  <div class="campo">
+    <%= form.label :email_address, "E-mail" %>
+    <%= form.email_field :email_address, value: params.dig(:operation_member, :email_address), required: true, maxlength: 200 %>
+  </div>
+  <label><%= form.check_box :manager %> Gestor da operação</label>
+<% end %>

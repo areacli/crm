@@ -115,7 +115,7 @@ class ChargesSettlementTest < ActiveSupport::TestCase
     pay(bill, 40_000, on: Date.new(2026, 9, 15))
     assert_equal({ "interest" => 2016, "fine" => 2000, "principal" => 35_984 }, allocated(bill))
     travel_to TODAY.in_time_zone.change(hour: 9) do
-      Segments::Applier.new(users(:joana)).confirm(@alfa, Segments::Proposal.current(@alfa).with_charges("charge_interest_pct" => "2").token)
+      Tiers::Applier.new(users(:joana)).confirm(@alfa, Tiers::Proposal.current(@alfa).with_charges("charge_interest_pct" => "2").token)
     end
     recalc_values(@alfa)
     # Até 15/09 vale 1% (R$ 20,1613, já pago); de 15/09 a 21/10, 2% sobre os R$ 640,16 em aberto (R$ 15,0747): R$ 15,08 de juros em aberto.
@@ -127,7 +127,7 @@ class ChargesSettlementTest < ActiveSupport::TestCase
     configure_charges(@alfa, index: "none")
     bill = make_bill(@alfa, due: DUE)
     travel_to TODAY.in_time_zone.change(hour: 9) do
-      Segments::Applier.new(users(:joana)).confirm(@alfa, Segments::Proposal.current(@alfa).with_charges("charge_interest_pct" => "2").token)
+      Tiers::Applier.new(users(:joana)).confirm(@alfa, Tiers::Proposal.current(@alfa).with_charges("charge_interest_pct" => "2").token)
     end
     recalc_values(@alfa)
     assert_equal round_cents(100_000 * 0.02 * (16.0 / 31 + 2 + 21.0 / 31)), valuation_of(bill).interest_cents

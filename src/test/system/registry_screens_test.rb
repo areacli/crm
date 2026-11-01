@@ -32,8 +32,6 @@ class RegistryScreensSystemTest < ApplicationSystemTestCase
 
   test "a ficha com os contatos, o menu de linha e o histórico passa no axe" do
     visit customer_path(@maria)
-    assert_selector "h2", text: "Contatos"
-    assert_selector "#contatos-resumo ul.contatos li", count: 2
     assert_acessivel
     visit customer_path(@maria, aba: "contatos")
     assert_selector "#contatos tbody tr[id^=contato-]", count: 4

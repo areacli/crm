@@ -31,22 +31,55 @@ pt-BR:
       skipped: "Adiada"
   segments:
     none: "Sem segmento"
-    person_types:
-      person: "Pessoa física"
-      company: "Pessoa jurídica"
-      mixed: "Misto"
-    broke_agreement:
-      "yes": "Sim"
-      "no": "Não"
-    policies:
-      most_overdue: "Pelo título mais atrasado"
-      largest_balance: "Pelo maior saldo"
-      any_bill: "Por qualquer título"
+    condition: "Condição %{number}"
+    subjects:
+      contracts: "Contratos"
+      customers: "Clientes"
     flash:
-      confirmed: "Segmentos de %{tenant} atualizados; os contratos já foram reclassificados."
+      created: "Segmento \"%{name}\" criado. Ele não muda nada até ser usado num enquadramento."
+      updated: "Segmento \"%{name}\" atualizado."
+      destroyed: "Segmento \"%{name}\" apagado."
+      deactivated: "Segmento \"%{name}\" desativado."
+      reactivated: "Segmento \"%{name}\" reativado. Para usá-lo de novo no enquadramento, inclua-o."
+    errors:
+      in_use: "O segmento está em uso no enquadramento: desative em vez de apagar."
+      too_slow: "Este segmento demora demais para a lista; use-o no enquadramento ou simplifique-o."
+  tiers:
+    none: "Sem enquadramento"
+    fields:
+      fine_pct: "multa (%)"
+      interest_kind: "juros de mora"
+      interest_pct: "taxa fixa (% ao mês)"
+      interest_form: "forma dos juros"
+      index_code: "correção monetária"
+      fees_pct: "honorários (%)"
+      fees_in_contract: "o contrato prevê honorários"
+      days_convention: "convenção de dias dos juros"
+      fine_base: "base da multa"
+      promise_max_days: "prazo máximo da promessa (dias)"
+      installment_rate_pct: "juros do parcelamento (% ao mês)"
+      installment_method: "método do parcelamento"
+      agreement_days_convention: "convenção de dias do título de acordo"
+      agreement_fine_base: "base da multa do título de acordo"
+      agreement_caps: "tetos de desconto"
+      agreement_max_installments: "parcelas (máximo)"
+      agreement_min_installment_cents: "parcela mínima (centavos)"
+      agreement_min_down_payment_pct: "entrada mínima (%)"
+      agreement_down_payment_days: "prazo da entrada (dias)"
+      agreement_validity_days: "validade da proposta (dias)"
+      agreement_tolerance_days: "tolerância (dias)"
+      agreement_break_days: "dias para a quebra"
+      charge_fine_pct: "multa do credor (%)"
+      charge_interest_pct: "juros do credor (% ao mês)"
+      charge_index: "correção do credor"
+      charge_days_convention: "convenção de dias do credor"
+      charge_fine_base: "base da multa do credor"
+    catch_all: "Demais"
+    flash:
+      confirmed: "Enquadramento financeiro de %{tenant} atualizado; os contratos já foram reclassificados."
     errors:
       invalid_token: "A conferência não vale mais. Refaça a mudança."
-      stale: "Os segmentos mudaram depois da sua conferência; confira de novo."
+      stale: "O enquadramento mudou depois da sua conferência; confira de novo."
       number_invalid: "informe um número inteiro"
       money_invalid: "informe o valor em reais, por exemplo 5.000,00"
       percent_invalid: "informe o percentual, por exemplo 2,5"
@@ -54,18 +87,10 @@ pt-BR:
     attributes:
       segment:
         name: "Nome"
-        min_overdue_days: "Atraso mínimo"
-        max_overdue_days: "Atraso máximo"
-        min_balance_cents: "Saldo mínimo"
-        max_balance_cents: "Saldo máximo"
-        min_overdue_bills: "Mínimo de títulos vencidos"
-        max_overdue_bills: "Máximo de títulos vencidos"
-        min_overdue_percent: "Percentual vencido mínimo"
-        max_overdue_percent: "Percentual vencido máximo"
-        min_customers: "Mínimo de clientes"
-        max_customers: "Máximo de clientes"
-        min_age_days: "Idade mínima"
-        max_age_days: "Idade máxima"
+        subject: "O que o segmento seleciona"
+        expression: "Condições"
+      tier:
+        segment: "Segmento"
     errors:
       models:
         segment:
@@ -74,20 +99,15 @@ pt-BR:
               taken: "já existe um segmento com esse nome neste credor"
               blank: "é obrigatório"
               too_long: "tem no máximo 100 caracteres"
+            subject:
+              inclusion: "escolha clientes ou contratos"
+              unchangeable: "não muda depois de criado; para outro sujeito, crie outro segmento"
+        tier:
+          attributes:
+            segment:
+              required: "escolha o segmento"
+              subject: "o enquadramento financeiro só aceita segmentos de contratos"
+              other_tenant: "é de outro credor"
             fees_pct: { fees_without_contract: "marque se o contrato prevê honorários", greater_than_or_equal_to: "não pode ser negativo", less_than_or_equal_to: "vai de 0 a 100" }
             fine_pct: { greater_than_or_equal_to: "não pode ser negativo", less_than_or_equal_to: "vai de 0 a 100" }
             interest_pct: { greater_than_or_equal_to: "não pode ser negativo", less_than_or_equal_to: "vai de 0 a 100" }
-            min_overdue_days: { negative: "não pode ser negativo" }
-            max_overdue_days: { negative: "não pode ser negativo", range_inverted: "não pode ser menor que o mínimo" }
-            min_balance_cents: { negative: "não pode ser negativo" }
-            max_balance_cents: { negative: "não pode ser negativo", range_inverted: "não pode ser menor que o mínimo" }
-            min_overdue_bills: { negative: "não pode ser negativo" }
-            max_overdue_bills: { negative: "não pode ser negativo", range_inverted: "não pode ser menor que o mínimo" }
-            min_overdue_percent: { negative: "não pode ser negativo", percent: "vai de 0 a 100" }
-            max_overdue_percent: { negative: "não pode ser negativo", range_inverted: "não pode ser menor que o mínimo", percent: "vai de 0 a 100" }
-            min_customers: { negative: "não pode ser negativo" }
-            max_customers: { negative: "não pode ser negativo", range_inverted: "não pode ser menor que o mínimo" }
-            min_age_days: { negative: "não pode ser negativo" }
-            max_age_days: { negative: "não pode ser negativo", range_inverted: "não pode ser menor que o mínimo" }
-          base:
-            catch_all_criteria: "o segmento Demais não tem critérios"

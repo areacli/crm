@@ -3,6 +3,7 @@
 # estorno que reabre o acordo encerrado vêm nas etapas 5 e 6. Tudo o que é do acordo fica congelado na proposta (R210), em `terms`.
 class Agreement < ApplicationRecord
   include TenantScoped
+  include OperationOrigin
 
   STATES = %w[pending approved refused not_approved expired canceled awaiting_effectuation active_on_time active_late settled broken renegotiated].freeze
   # Propostas: ainda não aceitas (R218). Prendem os títulos enquanto valem.
@@ -13,7 +14,7 @@ class Agreement < ApplicationRecord
   MODES = %w[cash installments].freeze
 
   belongs_to :customer
-  belongs_to :segment, optional: true
+  belongs_to :tier, optional: true
   belongs_to :user, optional: true
   belongs_to :decided_by, class_name: "User", optional: true
   belongs_to :accepted_by_customer, class_name: "Customer", optional: true
@@ -100,8 +101,8 @@ class Agreement < ApplicationRecord
     calendar.next_business(base + days)
   end
 
-  def tolerance_days = terms.dig("segment", "tolerance_days").to_i
-  def break_days = terms.dig("segment", "break_days").to_i
+  def tolerance_days = terms.dig("tier", "tolerance_days").to_i
+  def break_days = terms.dig("tier", "break_days").to_i
 
   # O mínimo para quebrar e efetivar (R229, M1), em centavos, pela política congelada: em reais, em percentual do valor líquido do acordo ou igual à tolerância de valor
   # dos títulos de acordo (em percentual, sobre o valor líquido). Zero quer dizer que qualquer resto conta.

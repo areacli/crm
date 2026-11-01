@@ -1,0 +1,5 @@
+<% content_for :title, "Configuração · Conferir o impacto" %>
+<% content_for :cable_channels, [ { channel: "SegmentsChannel", tenant_id: @tenant.id } ].to_json %>
+<%= pagina "Conferir o impacto", subtitulo: @tenant.name %>
+<%= render "settings/modelo" %>
+<%= render "settings/tier_reviews/result", review: @review, id: @id, tenant: @tenant %>

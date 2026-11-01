@@ -1,0 +1,11 @@
+# O "Demais" do enquadramento financeiro de cada credor dos testes (13, R265): a trilha padrão, sem segmento.
+alfa_catch_all:
+  tenant: alfa
+  kind: financial
+  catch_all: true
+  position: 0
+beta_catch_all:
+  tenant: beta
+  kind: financial
+  catch_all: true
+  position: 0

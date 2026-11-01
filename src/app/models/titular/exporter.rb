@@ -9,7 +9,7 @@ module Titular
         credor: @customer.tenant.display_name, exportado_em: Time.current.iso8601, anonimizado: @customer.anonymized?,
         cliente: { nome: @customer.name, documento: (@customer.anonymized? ? nil : @customer.formatted_document), anonimizado_em: @customer.anonymized_at&.iso8601 },
         contatos: contacts, contratos: contracts, titulos: bills, pagamentos: payments, estornos: reversals, creditos: credits,
-        divergencias_de_valor: discrepancies, promessas: promises, acordos: agreements, instrumentos_de_pagamento: payment_instruments, links_de_pagamento: payment_checkouts, acionamentos: attempts, historico: history
+        divergencias_de_valor: discrepancies, promessas: promises, acordos: agreements, instrumentos_de_pagamento: payment_instruments, links_de_pagamento: payment_checkouts, operacoes: operations, acionamentos: attempts, historico: history
       }
     end
 
@@ -102,6 +102,17 @@ module Titular
         PaymentCheckout.where(customer_id: @customer.id).order(:created_at, :id).map do |c|
           { situacao: c.state, valor_centavos: c.amount_cents, modalidades: c.modalities, valido_ate: c.expires_at.iso8601, acessos: c.access_count, nome_do_pagador: c.payer_name,
             email_do_pagador: c.payer_email, telefone_do_pagador: c.payer_phone }
+        end
+      end
+
+      # 14, R323: as operações a que o cliente ou os contratos dele foram distribuídos, com os períodos. Como o sistema: o titular tem direito a
+      # todas, também as que o RLS esconde de um usuário de operação.
+      def operations
+        Operations::Context.system do
+          Distribution.where(customer_id: @customer.id).or(Distribution.where(contract_id: contract_ids)).includes(:operation, :contract).order(:starts_on, :id).map do |d|
+            { operacao: d.operation.legal_name, cliente_ou_contrato: d.contract ? "Contrato #{d.contract.code}" : "Cliente",
+              inicio: d.starts_on.iso8601, fim: (d.ended_at&.to_date || d.ends_on)&.iso8601 }
+          end
         end
       end
 

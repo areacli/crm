@@ -1,0 +1,11 @@
+<%= formulario_de_painel(titulo: "#{t("operations.status_actions.#{@status}")} o credenciamento da #{@accreditation.operation.short_name}?", url: settings_operation_status_path(@accreditation), enviar: t("operations.status_actions.#{@status}"),
+                         escopo: :accreditation, variante: :modal, tamanho: :small, perigoso: @status != "active", erro: @error, voltar: settings_operation_path(@accreditation),
+                         descricao: { "suspended" => "Os usuários da operação perdem o acesso a #{@accreditation.tenant.name} na hora; as distribuições continuam.",
+                                      "ended" => "Os usuários perdem o acesso e as distribuições de #{@accreditation.tenant.name} se encerram. Reativar não as traz de volta.",
+                                      "active" => "Os usuários com vínculo voltam a ter acesso a #{@accreditation.tenant.name}." }[@status]) do |form| %>
+  <%= form.hidden_field :status, value: @status %>
+  <div class="campo">
+    <%= form.label :reason, "Motivo" %>
+    <%= form.text_field :reason, required: true, maxlength: 300 %>
+  </div>
+<% end %>

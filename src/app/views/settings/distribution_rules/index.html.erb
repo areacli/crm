@@ -1,0 +1,39 @@
+<% content_for :title, "Configuração · Enquadramento da distribuição" %>
+<% content_for :cable_channels, @cable %>
+<%= pagina "Enquadramento da distribuição", subtitulo: "Cada contrato com título em cobrança vai para as operações do primeiro item cujo segmento ele atende, de cima para baixo. Quem não atende nenhum fica com a equipe do credor. Distribuição à mão vence a regra." do %>
+  <%= abrir_painel "Incluir segmento", new_settings_distribution_rule_path(tenant_id: @tenant.id), variante: "modal", tamanho: "small" %>
+<% end %>
+<%= render "settings/modelo" %>
+
+<div id="enquadramento-da-distribuicao" hx-get="<%= settings_distribution_rules_path(tenant_id: @tenant.id) %>" hx-trigger="cable:distribution-rules-changed from:body" hx-select="#enquadramento-da-distribuicao" hx-swap="outerHTML" hx-push-url="false">
+  <section class="cartao" aria-labelledby="itens">
+    <header><h2 id="itens"><%= @tenant.name %></h2></header>
+    <div class="tabela" tabindex="0">
+      <table>
+        <caption class="apenas-leitor-de-tela">Itens do enquadramento da distribuição</caption>
+        <thead><tr><th scope="col" data-numerico>Ordem</th><th scope="col">Segmento</th><th scope="col">Operações</th><th scope="col">Exposição</th><th scope="col" data-numerico>Contratos</th><th scope="col"><span class="apenas-leitor-de-tela">Ações</span></th></tr></thead>
+        <tbody>
+          <% @items.each_with_index do |item, index| %>
+            <tr>
+              <td data-numerico><%= index + 1 %></td>
+              <th scope="row"><%= link_to item.segment.name, settings_segment_path(item.segment) %><br><code><%= item.segment.text.short_text.lines.drop(1).map(&:strip).join(" · ") %></code></th>
+              <td><%= item.operation_ids.map { @operations[_1] }.compact.join(", ") %></td>
+              <td><%= t("distributions.exposures.#{item.exposure}") %></td>
+              <td data-numerico><%= number_br(@counts[item.id].to_i) %></td>
+              <td data-acoes>
+                <%= menu_de_linha("item-#{index}", "Ações do item #{item.segment.name}") do %>
+                  <%= abrir_painel "Mudar", edit_settings_distribution_rule_path(index, tenant_id: @tenant.id), variante: "modal", tamanho: "small" %>
+                  <% if index.positive? %><%= button_to "Mover para cima", move_settings_distribution_rule_path(index, tenant_id: @tenant.id, offset: -1), data: { variant: "secondary" } %><% end %>
+                  <% if index < @items.size - 1 %><%= button_to "Mover para baixo", move_settings_distribution_rule_path(index, tenant_id: @tenant.id, offset: 1), data: { variant: "secondary" } %><% end %>
+                  <%= button_to "Tirar", settings_distribution_rule_path(index, tenant_id: @tenant.id), method: :delete, data: { variant: "danger-outline" } %>
+                <% end %>
+              </td>
+            </tr>
+          <% end %>
+          <tr><td data-numerico>—</td><th scope="row">Equipe do credor <%= situacao "Trilha padrão", tom: :neutral %></th><td colspan="4">Quem não atende nenhum item</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p><small>Incluir, mudar, mover e tirar passam pela conferência do impacto antes de valer.</small></p>
+  </section>
+</div>

@@ -10,6 +10,9 @@ class Payment < ApplicationRecord
   has_many :reversals, class_name: "PaymentReversal", dependent: :restrict_with_error
 
   enum :status, { applied: "applied", pending: "pending", cancelled: "cancelled" }, validate: true
+
+  # Posse (14, R321): ao ficar aplicado a uma fatura, o pagamento grava as operações com quem o contrato estava na data dele.
+  before_save :record_possession, if: -> { applied? && bill_id && (will_save_change_to_status? || will_save_change_to_bill_id?) }
   # `prefix` porque "other" e "cash" colidiriam com nomes comuns de método.
   enum :payment_method, { pix: "pix", boleto: "boleto", credit_card: "credit_card", debit_card: "debit_card", transfer: "transfer", cash: "cash",
                           other: "other" }, prefix: :via, validate: true
@@ -25,4 +28,9 @@ class Payment < ApplicationRecord
 
   # O que ainda pode ser estornado (R61).
   def reversible_cents = amount_cents - reversed_cents
+
+  private
+    def record_possession
+      self.possession_operation_ids = Distributions::Possession.operation_ids(bill&.contract_id, paid_on || Date.current)
+    end
 end

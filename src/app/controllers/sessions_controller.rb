@@ -19,7 +19,18 @@ class SessionsController < ApplicationController
     if user&.can_sign_in?
       start_new_session_for user
       AccessEvent.record("login", request: request, user: user)
+      # 14, R308: o credor que suspendeu a operação some do acesso, com o aviso; o gestor da operação sem carteira vai às pessoas dela.
+      suspended = user.suspended_operation_tenants.order(:name).pluck(:name)
+      flash[:alert] = t("operations.sign_in.suspended", operation: user.operation.short_name, tenants: suspended.to_sentence) if suspended.any? && user.operation
+      return redirect_to(operation_people_path) if user.operation_manager? && !user.permitted_anywhere?("view_portfolio")
+
       redirect_to after_authentication_url
+    elsif user&.operation && user.active?
+      # Senha certa, mas nenhum credor ativo para a operação (credenciamentos suspensos ou encerrados): a mensagem diz isso, não "inválido".
+      AccessEvent.record("login_refused", request: request, user: user, email_address: email_address)
+      suspended = user.suspended_operation_tenants.order(:name).pluck(:name)
+      message = suspended.any? ? t("operations.sign_in.suspended", operation: user.operation.short_name, tenants: suspended.to_sentence) : t("operations.sign_in.none_active", operation: user.operation.short_name)
+      redirect_to new_session_path, alert: message
     else
       blocked = candidate.present? && user.nil? && candidate.register_failed_login!
       AccessEvent.record("account_locked", request: request, user: candidate, details: { minutes: User::LOCK_FOR.in_minutes.to_i }) if blocked

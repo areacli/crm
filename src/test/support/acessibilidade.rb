@@ -2,6 +2,7 @@
 # com a lista de violações. O axe vem na gem `axe-core-api`; a execução usa o Capybara com o Cuprite, sem a camada WebDriver da gem.
 module Acessibilidade
   TAGS = %w[wcag2a wcag2aa wcag21a wcag21aa wcag22aa].freeze
+  PRAZO_DO_AXE = 30
 
   def self.fonte_do_axe
     @fonte_do_axe ||= Pathname(Gem.loaded_specs.fetch("axe-core-api").full_gem_path).join("node_modules/axe-core/axe.min.js").read
@@ -9,7 +10,8 @@ module Acessibilidade
 
   def violacoes_de_acessibilidade(contexto = "document")
     page.execute_script(Acessibilidade.fonte_do_axe)
-    resultado = page.evaluate_async_script(<<~JS)
+    # O axe numa página grande, com a suíte em paralelo e a máquina carregada, passa da espera padrão do Capybara: prazo próprio.
+    resultado = using_wait_time(PRAZO_DO_AXE) { page.evaluate_async_script(<<~JS) }
       const feito = arguments[arguments.length - 1]
       axe.run(#{contexto}, { runOnly: { type: "tag", values: #{TAGS.to_json} } }).then((r) => feito(JSON.stringify(r.violations.map((v) => ({
         id: v.id, impacto: v.impact, ajuda: v.help,

@@ -2,7 +2,7 @@
 // de quase 50 MB nas três importações (o arquivo é trocado por um fictício, então o que se confere é que ele CHEGA: nginx, Thruster, Rails), recusa arquivo
 // acima de 50 MB, registra um acionamento, aprova e recusa uma promessa pendente, aprova uma proposta de acordo e abre o termo, corrige um contato do
 // cadastro, exporta os dados de um cliente, muda e desfaz uma política, cria e apaga um canal, confere o que a demonstração fecha, o link público de
-// pagamento (sem login) e o isolamento do operador.
+// pagamento (sem login), o isolamento do operador e o da operação de cobrança (incremento 14).
 //
 //   deploy/rails/v5/v5.sh v5-demo.mjs http://127.0.0.1:3220            (ou BASE_URL=... V5_EMAIL=... V5_SENHA=... node v5-demo.mjs)
 import { chromium } from 'playwright';
@@ -318,6 +318,29 @@ await passo('o operador só enxerga a Escola Alfa (nunca a Clínica Beta) e não
     await outro.locator('main tbody tr').first().waitFor(); // com um credor só, a lista não mostra o nome dele
     if ((await outro.getByText('Clínica Beta').count()) > 0) throw new Error('o operador vê a Clínica Beta na lista');
     await outro.context().close();
+});
+
+await passo('a operação vê o nome dela no cabeçalho, só o que foi distribuído, e não abre a configuração nem a distribuição', async () => {
+    const op = await (await navegador.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1440, height: 900 } })).newPage();
+    op.setDefaultTimeout(60000);
+    await op.goto(BASE + '/session/new');
+    await op.fill('#email_address', EMAIL.replace('gestor@', 'operacao@'));
+    await op.fill('#password', 'demonstracao-operacao');
+    await op.click('button[type=submit]');
+    await op.waitForURL(BASE + '/');
+    await op.locator('body > header').getByText('Recupera').first().waitFor();
+    for (const rota of ['/distribuicao', '/configuracao/operacoes', '/configuracao/canais-de-recebimento']) {
+        const r = await op.goto(BASE + rota);
+        if (r.status() !== 404) throw new Error(`${rota} respondeu ${r.status()}`);
+    }
+    await op.goto(BASE + '/clientes');
+    await op.locator('main tbody tr').first().waitFor();
+    const total = await op.locator('main').getByText(/Mostrando \d+ a \d+ de [\d.]+ clientes/).first().textContent();
+    const n = Number(total.match(/de ([\d.]+) clientes/)[1].replace('.', ''));
+    if (!(n > 0 && n < 3000)) throw new Error(`a operação vê ${n} clientes`);
+    if ((await op.getByText('Clínica Beta').count()) > 0) throw new Error('a operação vê a Clínica Beta');
+    await op.screenshot({ path: `${PASTA}/operacao-clientes.png`, fullPage: true });
+    await op.context().close();
 });
 
 await passo('o gestor vê os dois credores (o resumo é um conjunto de totais; os credores aparecem na lista de clientes)', async () => {
