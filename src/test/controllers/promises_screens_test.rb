@@ -42,13 +42,14 @@ class PromisesScreensTest < ActionDispatch::IntegrationTest
                                                                                  promise_payment_method: "pix", promise_on: PromisesTestHelper::PROMISED.iso8601, promise_bill_ids: [ @nf1.id, @nf2.id ] } }
     assert_response :redirect
     get customer_path(@customer, aba: "promessas")
-    assert_select "ul.promessas li", 1
-    assert_select "ul.promessas li", text: /PRM-000001.*NF-1 e NF-2.*R\$ 1\.579,93 por Pix até 30\/10\/2026.*Pago R\$ 0,00/m
-    assert_select "ul.promessas li", text: /Aberta/
+    # Padrões de interface, revisão 25: uma linha por promessa (número, situação, valor, meio, data, pago) e os títulos no detalhe.
+    assert_select "#promessas tbody tr:not(.detalhe-da-linha)", 1
+    assert_select "#promessas tbody tr:not(.detalhe-da-linha)", text: /PRM-000001.*Aberta.*R\$ 1\.579,93.*Pix.*30\/10\/2026.*R\$ 0,00/m
+    assert_select "#promessas tr.detalhe-da-linha[hidden]", text: /Títulos NF-1 e NF-2/
     get customer_path(@customer)
-    assert_select "small", text: "Em promessa PRM-000001."
+    assert_select "tbody th .situacao", text: "Em promessa"
     get customer_path(@customer, aba: "acionamentos")
-    assert_select "td p, td small", text: /Promessa PRM-000001/
+    assert_select "tr.detalhe-da-linha p", text: /Promessa PRM-000001/
   end
 
   test "R184: a promessa enviada com resultado que não a admite é recusada e o formulário volta com a mensagem" do
@@ -65,7 +66,7 @@ class PromisesScreensTest < ActionDispatch::IntegrationTest
     promise = pending_promise
     entrar(users(:carlos))
     get customer_path(@customer, aba: "promessas")
-    assert_select "ul.promessas li", text: /Pendente de aprovação/
+    assert_select "#promessas tbody tr", text: /Pendente de aprovação/
     assert_select "button", text: "Aprovar promessa", count: 0
     assert_difference -> { AccessEvent.where(event: "access_denied").count }, 1 do
       post promise_approval_path(promise)
@@ -120,9 +121,9 @@ class PromisesScreensTest < ActionDispatch::IntegrationTest
     Promises::Canceller.new(users(:joana)).cancel(promise, "Pediu para negociar")
     entrar(users(:joana))
     get customer_path(@customer, aba: "promessas")
-    assert_select "ul.promessas", 0
+    assert_select "#promessas table", 0
     get customer_path(@customer, aba: "acionamentos")
-    assert_select "td small", text: /Promessa PRM-000001.*Cancelada — Pediu para negociar/m
+    assert_select "tr.detalhe-da-linha p", text: /Promessa PRM-000001.*Cancelada — Pediu para negociar/m
   end
 
   test "R204: a lista de pendentes traz as que o usuário aprova, com o número no menu; quem registrou não a vê" do

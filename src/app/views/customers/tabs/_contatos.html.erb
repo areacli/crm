@@ -9,19 +9,17 @@
     <p class="vazio">Nenhum contato cadastrado.</p>
   <% else %>
     <div class="tabela" tabindex="0">
-      <table>
+      <table data-detalhes>
         <caption class="apenas-leitor-de-tela">Todos os contatos do cliente</caption>
         <thead>
           <tr>
-            <th scope="col">Tipo</th><th scope="col">Contato</th><th scope="col">Situação</th><th scope="col">Origem</th>
+            <th scope="col"><%= alternar_todos_os_detalhes %>Tipo</th><th scope="col">Contato</th><th scope="col">Situação</th><th scope="col">Origem</th>
             <th scope="col">Última mudança</th><th scope="col">Motivo</th><th scope="col"><span class="apenas-leitor-de-tela">Ações</span></th>
           </tr>
         </thead>
-        <tbody>
-          <% @listed_contacts.each do |contact| %>
-            <%= render "customers/contacts/row", customer: @customer, contact: contact, can_edit: @can_edit_registry %>
-          <% end %>
-        </tbody>
+        <% @listed_contacts.each do |contact| %>
+          <%= render "customers/contacts/row", customer: @customer, contact: contact, can_edit: @can_edit_registry %>
+        <% end %>
       </table>
     </div>
   <% end %>

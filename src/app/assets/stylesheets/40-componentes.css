@@ -133,13 +133,36 @@
   thead th { position: sticky; top: 0; z-index: 1; box-shadow: inset 0 -1px 0 var(--cor-linha); }
   th, td { padding: var(--espaco-1) var(--espaco-3); height: var(--altura-linha); border-bottom: 1px solid var(--cor-linha); vertical-align: middle; }
   tbody th[scope="row"] { font-size: var(--texto-tabela); color: var(--cor-texto); background: transparent; white-space: normal; }
-  tbody tr:last-child :is(td, th) { border-bottom: 0; }
+  tbody:last-of-type tr:last-child :is(td, th), tbody:last-of-type tr:has(+ tr.detalhe-da-linha[hidden]:last-child) > * { border-bottom: 0; }
   tbody tr:hover { background: var(--cor-superficie); }
   [data-numerico] { text-align: right; }
   th a { color: inherit; text-decoration: none; display: inline-flex; align-items: center; gap: var(--espaco-1); }
   tfoot td { color: var(--cor-texto-suave); font-size: var(--texto-legenda); }
-  td small, th small { display: block; font-weight: 400; color: var(--cor-texto-suave); font-size: var(--texto-legenda); }
+  td small, th small { font-weight: 400; color: var(--cor-texto-suave); font-size: var(--texto-legenda); }
+  /* Uma linha por registro (padrões de interface, revisão 25, P26; design system, revisão 10): o resto vai no detalhe, uma faixa logo abaixo,
+     aberta pela seta antes do conteúdo da primeira coluna. A seta fica num recuo próprio, para as linhas sem detalhe ficarem alinhadas. */
+  table[data-detalhes] > :is(thead, tbody) > tr:not(.detalhe-da-linha) > :first-child { position: relative; padding-left: 2.25rem; }
+  .alternar-detalhe { position: absolute; left: var(--espaco-1); top: 50%; translate: 0 -50%; display: inline-grid; place-items: center; width: 1.5rem; height: 1.5rem; padding: 0; border: 0; border-radius: var(--raio-controle); background: transparent; color: var(--cor-texto-suave); cursor: pointer; }
+  .alternar-detalhe:hover { background: var(--cor-linha); color: var(--cor-texto); }
+  .alternar-detalhe .icone { width: 1rem; height: 1rem; transition: rotate 120ms ease-out; }
+  .alternar-detalhe[aria-expanded="true"] .icone { rotate: 90deg; }
+  tr.detalhe-da-linha > td { height: auto; padding: var(--espaco-2) var(--espaco-3) var(--espaco-3) 2.25rem; background: var(--cor-superficie); font-size: var(--texto-legenda); color: var(--cor-texto-suave); white-space: normal; }
+  tr.detalhe-da-linha p, tr.detalhe-da-linha ul { margin: 0 0 var(--espaco-1); }
+  tr.detalhe-da-linha ul { padding-left: 1.25rem; }
+  tr.detalhe-da-linha :is(p, li):last-child { margin-bottom: 0; }
+  tr.detalhe-da-linha strong { color: var(--cor-texto); font-weight: 600; }
+  tbody tr:has(+ tr.detalhe-da-linha:not([hidden])) > * { border-bottom-color: transparent; }
+  /* Composição do valor atualizado (revisões 26 e 27, na página do título): rótulo e valor lado a lado, numa linha, num painel com borda; na largura do conteúdo. */
+  dl.composicao { display: inline-flex; flex-wrap: wrap; gap: var(--espaco-1) var(--espaco-4); max-width: 100%; margin: 0 0 var(--espaco-1); padding: var(--espaco-2) var(--espaco-3); background: var(--cor-branco); border: 1px solid var(--cor-linha-forte); border-radius: var(--raio-controle); }
+  dl.composicao > div { display: flex; gap: var(--espaco-1); align-items: baseline; }
+  dl.composicao dd { margin: 0; color: var(--cor-texto); font-variant-numeric: tabular-nums; }
+  ul.observacoes-do-calculo { margin: var(--espaco-2) 0 0; padding-left: 1.25rem; font-size: var(--texto-legenda); color: var(--cor-texto-suave); }
+  .cortado { display: block; max-width: 22rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  td .situacao, th .situacao { margin-left: var(--espaco-1); }
+  td > .situacao:first-child { margin-left: 0; }
   table td:has(> [data-acao-de-linha]), td[data-acoes] { width: 1%; text-align: right; white-space: nowrap; }
+  /* Botão direto e menu ⋯ lado a lado na mesma linha (P26). */
+  td[data-acoes] > form { display: inline-block; vertical-align: middle; margin-right: var(--espaco-1); }
   /* Texto digitado pelo operador (04, R72): texto puro, com as quebras de linha como foram escritas. */
   .texto-do-operador { margin: 0; max-width: 40rem; white-space: pre-line; overflow-wrap: anywhere; }
 
@@ -184,6 +207,8 @@
   /* Botão (i): alvo de 24 px; o popover da definição fica ancorado nele. */
   button.informacao { min-height: var(--alvo-minimo); width: var(--alvo-minimo); padding: 0; border-radius: 50%; background: transparent; color: var(--cor-texto-suave); border: 1px solid var(--cor-linha-forte); font-size: var(--texto-legenda); font-weight: 700; font-style: italic; flex-shrink: 0; }
   button.informacao:hover { background: var(--cor-superficie); color: var(--cor-texto); }
+  /* Na célula, o (i) se afasta do link ao lado, para o alvo curto (um nome de segmento de uma letra) não encostar nele (WCAG 2.5.8). */
+  :is(td, th) > a + button.informacao { margin-left: var(--espaco-2); }
   [popover]:is(.definicao, .menu) { margin: 0; padding: var(--espaco-3); border: 1px solid var(--cor-linha-forte); border-radius: var(--raio-cartao); background: var(--cor-branco); color: var(--cor-texto); box-shadow: var(--sombra-menu); max-width: min(20rem, calc(100vw - 2rem)); font-size: var(--texto-tabela); font-weight: 400; }
   [popover].definicao { position: fixed; inset: auto; position-area: block-end span-inline-end; position-try-fallbacks: flip-inline; }
   [popover].definicao p { margin: 0; }
@@ -195,6 +220,7 @@
   .vazio { padding: var(--espaco-6); text-align: center; color: var(--cor-texto-suave); background: var(--cor-branco); border: 1px dashed var(--cor-linha-forte); border-radius: var(--raio-cartao); margin: 0; }
   .cartao .vazio { border: 0; border-radius: 0; background: transparent; }
   .cartao > #promessas, .cartao > #acordos { padding: 0; }
+  .cartao > :is(#promessas, #acordos) > .tabela { border: 0; border-radius: 0 0 var(--raio-cartao) var(--raio-cartao); }
   .cartao[data-formulario] { max-width: var(--largura-formulario); }
   .cartao > form.painel { padding: 0; }
   .tabela:has(+ .paginacao) { border-radius: var(--raio-cartao) var(--raio-cartao) 0 0; }
@@ -271,11 +297,6 @@
   ul.contatos small { color: var(--cor-texto-suave); }
 
   /* Promessas e acordos da ficha (10, P17): uma linha por promessa; as ações ficam no fim da linha. */
-  .promessas { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
-  .promessas > li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espaco-2) var(--espaco-3); padding: var(--espaco-2) var(--espaco-3); border-bottom: 1px solid var(--cor-linha); font-size: var(--texto-tabela); }
-  .promessas > li:last-child { border-bottom: 0; }
-  .promessas .detalhe { flex: 1 1 20rem; min-width: 0; overflow-wrap: anywhere; }
-  .promessas .acoes { margin-left: auto; }
 
   /* Lista de caixas de seleção: uma por linha (títulos da promessa, 10, R183). */
   ul.caixas { display: grid; gap: var(--espaco-1); margin: 0; padding: 0; list-style: none; }
@@ -286,6 +307,10 @@
 /* Botão do menu no cabeçalho: só existe na tela estreita (o menu é um popover, ver 30-layout.css). Fica aqui, na camada dos botões, para vencer a regra geral. */
 @layer componentes {
   button.botao-menu { display: none; }
+  /* Tela larga (design system, revisão 7): o botão esconde e mostra o menu lateral; na estreita quem abre o menu é o botão-menu. */
+  button.alternar-menu { display: grid; place-items: center; width: var(--altura-controle); height: var(--altura-controle); padding: 0; background: transparent; color: var(--cor-branco); border: 0; }
+  button.alternar-menu:hover { background: var(--cor-azul-escuro); }
+  @media (max-width: 48rem) { button.alternar-menu { display: none; } }
   @media (max-width: 48rem) {
     button.botao-menu { display: grid; place-items: center; width: var(--altura-controle); height: var(--altura-controle); padding: 0; background: transparent; color: var(--cor-branco); border: 0; }
     button.botao-menu:hover { background: var(--cor-azul-escuro); }
@@ -324,9 +349,45 @@
   .filtro-ativo { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espaco-2); margin: 0 0 var(--espaco-2); }
   .carregando { display: inline-block; width: 0.9em; height: 0.9em; border: 2px solid var(--cor-linha); border-top-color: var(--cor-azul); border-radius: 50%; animation: girar 1s linear infinite; vertical-align: -0.1em; }
   @keyframes girar { to { transform: rotate(360deg); } }
-  @media (prefers-reduced-motion: reduce) { .carregando { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .carregando { animation: none; } .alternar-detalhe .icone { transition: none; } }
   @media (max-width: 64rem) {
     .como-fica { position: static; }
     dl.glossario > div { grid-template-columns: minmax(0, 1fr); }
   }
+}
+
+/* Ficha (padrões de interface, revisão 21): a barra "Contrato" recorta a página; a coluna "Operações" dos contratos lista uma operação por linha. */
+@layer componentes {
+  /* Cartão Contratos, filtro da ficha (padrões de interface, revisão 28): a linha do contrato escolhido marcada. */
+  .ficha-principal > #contratos { margin-bottom: var(--espaco-3); }
+  #contratos tbody tr[data-atual] > * { background: var(--cor-info-fundo); }
+  #contratos tbody tr[data-atual] th a { color: var(--cor-marinho); }
+  #contratos > p.mais { margin: 0; padding: var(--espaco-2) var(--espaco-3); border-top: 1px solid var(--cor-linha); font-size: var(--texto-legenda); }
+  .filtro-em-pilulas ul { display: flex; flex-wrap: wrap; gap: var(--espaco-1); margin: 0; padding: 0; list-style: none; }
+  .filtro-em-pilulas a { display: inline-flex; align-items: center; gap: var(--espaco-1); min-height: var(--altura-controle-pequeno); padding: 0 var(--espaco-3); border: 1px solid var(--cor-linha-forte); border-radius: 999px; color: var(--cor-texto); text-decoration: none; font-size: var(--texto-tabela); font-weight: 600; }
+  .filtro-em-pilulas a:hover { background: var(--cor-superficie); }
+  .filtro-em-pilulas a[aria-current="true"] { background: var(--cor-marinho); border-color: var(--cor-marinho); color: var(--cor-branco); }
+  .filtro-em-pilulas a[aria-current="true"] .selo { background: var(--cor-branco); color: var(--cor-marinho); }
+  /* As tabelas da coluna principal da ficha dividem a largura com a lateral de 320 px: respiro lateral menor, e o número do título não quebra no meio. */
+  .ficha-principal :is(th, td) { padding-inline: var(--espaco-2); }
+  .ficha-principal tbody th[scope="row"] > a:first-child { white-space: nowrap; }
+  /* Só as etiquetas das operações, lado a lado (revisão 23); o histórico fica na linha do tempo da lateral. */
+  ul.operacoes-do-contrato { display: flex; flex-wrap: wrap; gap: var(--espaco-1); margin: 0; padding: 0; list-style: none; }
+
+  /* Linha do tempo da ficha (padrões de interface, revisões 23 e 24): um trilho à esquerda e um marcador por evento, quadrado no atendimento,
+     redondo e cheio na entrada, redondo e vazado na saída. O texto diz qual é; a cor e a forma só reforçam. O filtro usa as pílulas do contrato. */
+  .filtro-em-pilulas { margin-bottom: var(--espaco-3); }
+  .filtro-em-pilulas ul { gap: var(--espaco-1); }
+  ol.linha-do-tempo { margin: 0; padding: 0; list-style: none; }
+  ol.linha-do-tempo li { position: relative; display: grid; gap: 2px; padding: 0 0 var(--espaco-3) var(--espaco-6); }
+  ol.linha-do-tempo li::before { content: ""; position: absolute; left: 5px; top: 14px; bottom: -4px; border-left: 2px solid var(--cor-linha); }
+  ol.linha-do-tempo li:last-child { padding-bottom: 0; }
+  ol.linha-do-tempo li:last-child::before { display: none; }
+  ol.linha-do-tempo li::after { content: ""; position: absolute; left: 0; top: 3px; width: 12px; height: 12px; box-sizing: border-box; border-radius: 50%; border: 2px solid var(--cor-azul); background: var(--cor-azul); }
+  ol.linha-do-tempo li[data-evento="saida"]::after { background: var(--cor-branco); border-color: var(--cor-linha-forte); }
+  ol.linha-do-tempo li[data-evento="atendimento"]::after { border-radius: 3px; border-color: var(--cor-marinho); background: var(--cor-marinho); }
+  #linha-do-tempo .paginacao { margin-top: var(--espaco-3); }
+  ol.linha-do-tempo time { font-size: var(--texto-legenda); color: var(--cor-texto-suave); line-height: 1.2; }
+  ol.linha-do-tempo p { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espaco-2); margin: 0; }
+  ol.linha-do-tempo small { color: var(--cor-texto-suave); }
 }

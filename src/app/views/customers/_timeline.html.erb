@@ -1,0 +1,63 @@
+<%# Linha do tempo (padrões de interface, revisão 24): na lateral da ficha, abaixo de "Em cobrança". Os eventos do cliente do passado até agora,
+    o mais recente em cima, 10 por página, com o filtro por tipo (Todos, Atendimento, Distribuição). Entrada, saída e atendimento se distinguem pelo
+    texto e pelo marcador (quadrado no atendimento, cheio na entrada, vazado na saída), nunca só pela cor. Filtro e páginas são links para a ficha; com JavaScript, o htmx troca só este cartão.
+    Locais: customer, timeline (`CustomerTimeline`) e base (os parâmetros da ficha que seguem: aba e contrato). %>
+<% href = ->(linha, pagina) { customer_path(customer, **base, linha: linha, linha_pagina: (pagina if pagina.to_i > 1)) } %>
+<% fragment = ->(linha, pagina) { customer_timeline_path(customer, **base, linha: linha, linha_pagina: (pagina if pagina.to_i > 1)) } %>
+<% link = ->(label, linha, pagina, **options) { link_to label, href.call(linha, pagina), **options, data: { hx_get: fragment.call(linha, pagina), hx_target: "#linha-do-tempo", hx_swap: "outerHTML" } } %>
+<%# Refeito quando chega um acionamento ou um acordo novo pelo WebSocket e quando uma assinatura conecta, na página e no filtro em que está. %>
+<section class="cartao" id="linha-do-tempo" aria-labelledby="linha-do-tempo-titulo" hx-get="<%= fragment.call(timeline.kind, timeline.page) %>"
+         hx-trigger="cable:contact-attempts-changed from:body, cable:agreements-changed from:body, cable:connected from:body" hx-swap="outerHTML">
+  <header><h2 id="linha-do-tempo-titulo">Linha do tempo</h2></header>
+  <div>
+    <div class="filtro-em-pilulas" role="group" aria-label="Filtrar a linha do tempo">
+      <ul>
+        <% [ [ "Todos", nil ], [ "Atendimento", "atendimento" ], [ "Distribuição", "distribuicao" ] ].each do |label, kind| %>
+          <% next if kind && !timeline.kinds.include?(kind) %>
+          <li><%= link.call(label, kind, 1, aria: { current: (timeline.kind == kind).to_s }) %></li>
+        <% end %>
+      </ul>
+    </div>
+    <% events = timeline.events %>
+    <% if events.empty? %>
+      <p class="vazio"><%= timeline.kind == "distribuicao" ? "Nenhuma distribuição: a equipe do credor cobra este cliente." : "Nenhum evento para este cliente." %></p>
+    <% else %>
+      <ol class="linha-do-tempo">
+        <% events.each do |event| %>
+          <% record = event.record %>
+          <% origin = timeline.origins[record.try(:operation_id)] unless event.source == :distribution %>
+          <% case event.source %>
+          <% when :contact_attempt %>
+            <li data-evento="atendimento">
+              <time datetime="<%= event.at.iso8601 %>"><%= datetime_br(event.at) %></time>
+              <p><strong>Acionamento</strong> <%= t("contacts.channels.#{record.channel}") %><% if origin %> <span class="situacao" data-tone="info" title="<%= origin.legal_name %>"><%= origin.short_name %></span><% end %></p>
+              <small><%= [ record.result.name, (record.contract && "Contrato #{record.contract.label}"), (record.summary_only_for_viewer? ? "Outra origem" : record.user&.name) ].compact.join(" · ") %></small>
+              <% if (promise = record.promise) %>
+                <small>Promessa <%= promise.label %>, <%= money(promise.total_cents) %> até <%= date_br(promise.promised_on) %> <%= promise_state(promise) %></small>
+              <% end %>
+            </li>
+          <% when :agreement %>
+            <li data-evento="atendimento">
+              <time datetime="<%= event.at.iso8601 %>"><%= datetime_br(event.at) %></time>
+              <p><strong>Proposta de acordo</strong> <%= policy(record).show? ? link_to(record.label, agreement_path(record)) : record.label %><% if origin %> <span class="situacao" data-tone="info" title="<%= origin.legal_name %>"><%= origin.short_name %></span><% end %></p>
+              <small><%= [ money(record.total_cents), record.user&.name ].compact.join(" · ") %> <%= agreement_state(record) %></small>
+            </li>
+          <% else %>
+            <li data-evento="<%= record.entry? ? "entrada" : "saida" %>">
+              <time datetime="<%= event.at.iso8601 %>"><%= event.with_time ? datetime_br(event.at) : date_br(record.date) %></time>
+              <p><strong><%= record.entry? ? "Entrada" : "Saída" %></strong> <span class="situacao" data-tone="info" title="<%= record.operation.legal_name %>"><%= record.operation.short_name %></span></p>
+              <small><%= record.detail %></small>
+            </li>
+          <% end %>
+        <% end %>
+      </ol>
+      <% if timeline.pages > 1 %>
+        <nav class="paginacao" aria-label="Páginas da linha do tempo">
+          <% if timeline.previous_page %><%= link.call("Anterior", timeline.kind, timeline.previous_page, rel: "prev") %><% else %><span aria-disabled="true">Anterior</span><% end %>
+          <span><%= timeline.page %> de <%= number_br(timeline.pages) %></span>
+          <% if timeline.next_page %><%= link.call("Próxima", timeline.kind, timeline.next_page, rel: "next") %><% else %><span aria-disabled="true">Próxima</span><% end %>
+        </nav>
+      <% end %>
+    <% end %>
+  </div>
+</section>

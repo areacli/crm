@@ -159,7 +159,7 @@ class MembershipsControllerTest < ActionDispatch::IntegrationTest
     membership = memberships(:ana_alfa)
 
     get membership_url(membership)
-    assert_select "button", text: "Alterar o nome", count: 0
+    assert_select "button", text: "Salvar o nome", count: 0
     assert_select "button", text: "Redefinir a senha", count: 0
 
     patch membership_url(membership), params: { user: { name: "Outro Nome" } }
@@ -203,7 +203,7 @@ class MembershipsControllerTest < ActionDispatch::IntegrationTest
 
     get membership_url(propria)
     assert_response :success
-    assert_select "button", text: "Mudar o perfil", count: 0
+    assert_select "button", text: "Salvar o perfil", count: 0
     assert_select "button", text: "Desativar o acesso", count: 0
 
     patch membership_profile_url(propria), params: { membership: { profile_id: profiles(:alfa_operator).id } }

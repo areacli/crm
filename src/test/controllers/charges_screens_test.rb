@@ -19,22 +19,23 @@ class ChargesScreensTest < ActionDispatch::IntegrationTest
 
   def on_the_day(&block) = travel_to(TODAY.in_time_zone.change(hour: 10), &block)
 
-  test "R174 e critério de aceite: a ficha mostra o atualizado e os componentes de Maria, e a memória de cálculo abre por título" do
+  test "R174 e critério de aceite: a ficha mostra o atualizado e os componentes de Maria, e a memória de cálculo fica na página do título (revisão 7)" do
     on_the_day do
       entrar(users(:joana))
       get customer_path(@bill.customer)
       assert_response :success
       assert_select "dt", text: "Atualizado"
       assert_select "dd", text: "R$ 1.057,56"
-      assert_select "td small", text: /principal corrigido R\$ 1\.005,34 · multa R\$ 20,11 · juros R\$ 32,11 · honorários R\$ 0,00/
-      assert_select "summary", text: "Ver memória de cálculo"
+            assert_select "dl.composicao", 0 # padrões de interface, revisão 27: os componentes ficam na página do título
+      assert_select "summary", text: "Ver memória de cálculo", count: 0
 
-      get bill_calculation_memory_path(@bill)
+      get bill_path(@bill)
       assert_response :success
+      assert_select "dl.composicao", text: /Principal corrigido\s*R\$ 1\.005,34\s*Multa\s*R\$ 20,11\s*Juros\s*R\$ 32,11\s*Honorários\s*R\$ 0,00\s*Atualizado\s*R\$ 1\.057,56/
+      assert_select "h2", text: "Memória de cálculo"
       assert_select "caption", text: /Memória de cálculo do título NF-1/
-      assert_select "p", text: /Parâmetros de Escola Alfa/
+      assert_select "caption small", text: /pelos parâmetros de Escola Alfa/
       assert_select "td", text: /IPCA/
-      assert_select "dd", text: "R$ 1.057,56"
       assert_select "a", text: "Ver índices"
     end
   end
@@ -42,9 +43,9 @@ class ChargesScreensTest < ActionDispatch::IntegrationTest
   test "R179: quem só consulta vê o atualizado e a memória, sem o link de índices nem a edição" do
     on_the_day do
       entrar(users(:carlos))
-      get bill_calculation_memory_path(@bill)
+      get bill_path(@bill)
       assert_response :success
-      assert_select "dd", text: "R$ 1.057,56"
+      assert_select "caption", text: /Memória de cálculo do título NF-1/
       assert_select "a", text: "Ver índices", count: 0
     end
   end
@@ -54,7 +55,7 @@ class ChargesScreensTest < ActionDispatch::IntegrationTest
     on_the_day do
       entrar(users(:joana))
       assert_difference -> { AccessEvent.where(event: "access_denied", user_id: users(:joana).id).count }, 1 do
-        get bill_calculation_memory_path(other)
+        get bill_path(other)
         assert_response :not_found
       end
     end
@@ -91,7 +92,7 @@ class ChargesScreensTest < ActionDispatch::IntegrationTest
     entrar(users(:joana))
     get settings_tiers_path
     assert_response :success
-    assert_select "small", text: "Encargos: multa 2% · juros 1% a.m. simples · IPCA · sem honorários"
+    assert_select "tr.detalhe-da-linha p", text: "Encargos: multa 2% · juros 1% a.m. simples · IPCA · sem honorários."
     assert_select "legend", text: "Parâmetros de encargos do credor"
     %w[Mês\ sem\ índice Forma\ dos\ juros Índice\ negativo Juros\ legais\ antes\ de\ 30/08/2024 Comparação\ dos\ acréscimos\ da\ carga].each { |title| assert_select "legend", text: title }
   end

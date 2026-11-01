@@ -222,7 +222,8 @@ class SegmentsScreensTest < ActionDispatch::IntegrationTest
     entrar(users(:joana))
     get customer_path(contract.customers.first)
     assert_select "th", text: "Enquadramento"
-    assert_select "td", text: /Longo\s+desde/
+    assert_select "td", text: /Longo/
+    assert_select "tr.detalhe-da-linha p", text: /No item Longo do enquadramento financeiro desde/
   end
 
   test "R276 e V10: com a 14 na Alfa e só consulta na Beta, Marta vê a Beta sem botões e é recusada por envio direto, com registro" do

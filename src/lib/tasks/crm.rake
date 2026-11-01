@@ -32,11 +32,9 @@ namespace :crm do
 end
 
 namespace :crm do
-  desc "Importa os municípios do IBGE (11, R249): crm:import_municipalities[caminho do CSV com codigo_ibge;nome;uf]"
+  desc "Importa os municípios do IBGE (11, R249): crm:import_municipalities[caminho do CSV com codigo_ibge;nome;uf]; sem caminho, a lista que vem com o sistema"
   task :import_municipalities, [ :path ] => :environment do |_task, args|
-    abort "Informe o caminho do CSV." if args[:path].blank?
-
-    result = Agreements::CalendarImporter.new.municipalities(args[:path])
+    result = Agreements::CalendarImporter.new.municipalities(args[:path].presence || Municipality::BUNDLED)
     puts "#{result.processed} municípios importados, #{result.rejected.size} linhas recusadas."
     result.rejected.first(20).each { |line| puts "  #{line}" }
   rescue ArgumentError, Errno::ENOENT => error

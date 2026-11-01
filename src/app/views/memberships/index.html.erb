@@ -1,6 +1,6 @@
 <% content_for :title, "Usuários" %>
 <%= pagina "Usuários", subtitulo: "Quem tem acesso aos credores que você administra" do %>
-  <%= abrir_painel "Novo usuário", new_membership_path %>
+  <%= abrir_painel "Criar usuário", new_membership_path %>
 <% end %>
 
 <% if flash[:temporary_password] %><%= render "memberships/temporary_password", data: flash[:temporary_password] %><% end %>

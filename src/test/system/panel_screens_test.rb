@@ -17,7 +17,7 @@ class PanelScreensSystemTest < ApplicationSystemTestCase
 
   def abrir_corrigir_nome
     find("button.menu-de-linha[aria-label='Mais ações do cliente']").click
-    click_link "Corrigir nome"
+    click_link "Editar nome"
     assert_selector "dialog#painel[open]"
   end
 
@@ -67,7 +67,7 @@ class PanelScreensSystemTest < ApplicationSystemTestCase
     within("#painel") do
       fill_in "Nome", with: "x"
       page.execute_script("document.querySelector('#customer_name').value = '   '; document.querySelector('#customer_name').required = false")
-      click_button "Corrigir nome"
+      click_button "Salvar nome"
       assert_selector "[role=alert]"
     end
     assert_selector "dialog#painel[open]"
@@ -80,7 +80,7 @@ class PanelScreensSystemTest < ApplicationSystemTestCase
     abrir_corrigir_nome
     within("#painel") do
       fill_in "Nome", with: "Maria da Silva Souza"
-      click_button "Corrigir nome"
+      click_button "Salvar nome"
     end
     assert_no_selector "dialog#painel[open]"
     assert_selector "#avisos-da-pagina", text: "Nome corrigido"
@@ -91,12 +91,12 @@ class PanelScreensSystemTest < ApplicationSystemTestCase
 
   test "sem JavaScript a mesma rota é uma página inteira, com a barra de página e o formulário num cartão" do
     visit edit_customer_name_path(@maria)
-    assert_selector "h1", text: "Corrigir nome"
+    assert_selector "h1", text: "Editar nome"
     assert_selector "section.cartao form.painel"
     assert_no_selector "dialog[open]"
     assert_acessivel
     fill_in "Nome", with: "Maria Souza Lima"
-    click_button "Corrigir nome"
+    click_button "Salvar nome"
     assert_selector "h1", text: "Maria Souza Lima"
   end
 end

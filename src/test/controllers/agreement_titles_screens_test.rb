@@ -37,10 +37,13 @@ class AgreementTitlesScreensTest < ActionDispatch::IntegrationTest
     get customer_path(@customer)
 
     assert_response :success
-    assert_select "small", text: /Título de acordo/
-    assert_select "small", text: /Renegociado no acordo/
     assert_select "td", text: "Renegociado"
     assert_select "td", text: "Pago"
+    # Padrões de interface, revisão 27: a origem fica na página do título.
+    get bill_path(Bill.where(customer: @customer).where.not(agreement_id: nil).first)
+    assert_select "section[aria-labelledby=cobranca-do-titulo] p", text: /Título de acordo/
+    get bill_path(Bill.where(customer: @customer).detect(&:renegotiated?))
+    assert_select "section[aria-labelledby=cobranca-do-titulo] p", text: /Renegociado no acordo/
   end
 
   test "R230: 'Calcular quitação' grava o saldo para a data e a página o mostra" do

@@ -1,5 +1,5 @@
-<% content_for :title, "Configuração · Trilha das operações" %>
-<%= pagina "Trilha das operações", subtitulo: safe_join([ "O que os usuários das operações abriram, buscaram, não encontraram e exportaram. Guardada por 12 meses. ", link_to("Voltar para as operações", settings_operations_path) ]) %>
+<% content_for :title, "Operações · Trilha" %>
+<%= pagina "Trilha das operações", subtitulo: "O que os usuários das operações abriram, buscaram, não encontraram e exportaram. Guardada por 12 meses." %>
 <%= render "settings/modelo" %>
 <form class="filtros" role="search" action="<%= settings_operation_trails_path %>" method="get">
   <div class="campo"><label for="operation">Operação</label><select id="operation" name="operation"><option value="">Todas</option><%= options_for_select(@operations, params[:operation]) %></select></div>

@@ -1,4 +1,4 @@
-<%= formulario_de_painel(titulo: "Mudar o item #{@segment.name}", url: settings_distribution_rule_path(@index, tenant_id: @tenant.id), metodo: :patch, enviar: "Conferir o impacto", escopo: :rule,
+<%= formulario_de_painel(titulo: "Editar o item #{@segment.name}", url: settings_distribution_rule_path(@index, tenant_id: @tenant.id), metodo: :patch, enviar: "Conferir o impacto", escopo: :rule,
                          variante: :modal, tamanho: :small, voltar: settings_distribution_rules_path(tenant_id: @tenant.id)) do |form| %>
   <fieldset>
     <legend>Operações</legend>

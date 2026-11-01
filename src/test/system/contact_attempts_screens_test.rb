@@ -52,7 +52,7 @@ class ContactAttemptsScreensSystemTest < ApplicationSystemTestCase
     visit settings_contact_results_path
     assert_selector "h1", text: "Resultados de acionamento"
     assert_acessivel
-    click_link "Novo resultado"
+    click_link "Criar resultado"
     assert_selector "dialog#painel[open][data-variant=drawer]", text: "Novo resultado de acionamento"
     assert_acessivel
     visit edit_settings_contact_result_path(result_of(@alfa, :voicemail))
@@ -88,6 +88,7 @@ class ContactAttemptsScreensSystemTest < ApplicationSystemTestCase
     assert_equal 1, page.evaluate_script("window.__sem_recarregar")
     within("#historico-acionamentos") do
       assert_text "Negociação em andamento"
+      find("button[data-alternar-detalhe]").click
       assert_text "(11) 3333-4444"
       assert_text "Contrato CT-1"
       assert_text "Pediu o boleto"

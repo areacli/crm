@@ -220,13 +220,16 @@ class Portfolio::ValueDiscrepancyTest < ActiveSupport::TestCase
     assert_not_nil bill.paid_on
   end
 
+  # O pagamento do teste tem data de ontem: no dia 1º ele cai no mês anterior. O recuperado é somado em todos os meses do resumo.
+  def recovered_total(summary) = summary[:recovered].sum { |month| month[:total_cents] }
+
   test "R58: o excedente de valor reduzido não conta como recuperado" do
     paid_bill
-    before = Portfolio::Summary.new(users(:joana)).for_tenant(@alfa)[:recovered].first[:total_cents]
+    before = recovered_total(Portfolio::Summary.new(users(:joana)).for_tenant(@alfa))
     assert_equal 40_000, before
     run_portfolio_import([ bill_line("NF-1024/3", "300,00") ], confirm: true)
     summary = Portfolio::Summary.new(users(:joana)).for_tenant(@alfa)
-    assert_equal 30_000, summary[:recovered].first[:total_cents]
+    assert_equal 30_000, recovered_total(summary)
     assert_equal 10_000, summary[:credit_cents]
   end
 

@@ -109,6 +109,15 @@ class DesignSystemArchitectureTest < ActiveSupport::TestCase
     assert_empty problemas, "<nav> de menu numa view (use o submenu do menu lateral):\n#{problemas.join("\n")}"
   end
 
+  # Uma região ao vivo com hx-select passa o filtro aos links de dentro: o painel aberto por eles recebia a resposta e jogava fora (o "Mudar" do
+  # enquadramento da distribuição não abria nada, 01/11/2026). Toda tag com hx-select declara hx-disinherit.
+  test "toda tag com hx-select declara hx-disinherit" do
+    offenders = Rails.root.glob("app/views/**/*.erb").flat_map do |file|
+      File.read(file).gsub(/<%.*?%>/m, "").scan(/<[a-z]+\b[^>]*hx-select=[^>]*>/m).reject { _1.include?("hx-disinherit") }.map { file.relative_path_from(Rails.root).to_s }
+    end
+    assert_empty offenders.uniq
+  end
+
   test "nenhuma view do app declara um <dialog> próprio" do
     problemas = APP.select { |arquivo| File.read(arquivo).match?(/<dialog\b/) }.map { |arquivo| arquivo.delete_prefix("#{Rails.root}/") }
 

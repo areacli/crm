@@ -18,6 +18,9 @@ class DemoDatasetTest < ActiveSupport::TestCase
     Rails.configuration.x.demo.customers = @customers
     # O teste não é transacional (a recriação trunca tabelas): devolve o banco ao que as fixtures esperam.
     Demo::Reset.new.wipe
+    # A recriação preserva a lista do IBGE (`Demo::Reset::KEEP`); os outros testes criam os municípios de que precisam.
+    Holiday.delete_all
+    Municipality.delete_all
     Session.delete_all
     User.where("email_address like ?", "%@#{Demo.domain}").delete_all
   end
@@ -110,6 +113,12 @@ class DemoDatasetTest < ActiveSupport::TestCase
     checkout = PaymentCheckout.find_by!(token: Demo::Dataset::InstrumentSteps::CHECKOUT_TOKEN)
     assert_equal %w[boleto card pix], checkout.modalities.sort
     assert checkout.available?
+
+    # --- A lista do IBGE vem com a carga (11, revisão 9): todo cliente com endereço válido casa com um município
+    assert_equal 5571, Municipality.count
+    with_address = Customer.where(tenant_id: alpha.id).where("exists (select 1 from customer_contacts c where c.customer_id = customers.id and c.kind = 'address' and c.status = 'valid')")
+    assert_operator with_address.count, :>, 100
+    assert_equal 0, with_address.where(Agreements::Square::UNRECOGNIZED_SQL).count, "cidade não reconhecida com a lista do IBGE carregada"
   end
 
   test "recriar apaga e recria tudo e mantém os usuários públicos e as sessões" do

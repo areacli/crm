@@ -44,9 +44,9 @@ class RegistryScreensTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "#contatos-resumo", 0
     get customer_path(@maria, aba: "contatos")
-    assert_select "#contatos tbody tr[id^=contato-]", 6
+    assert_select "#contatos tbody[id^=contato-]", 6
     assert_select "#contatos", text: /número errado/
-    assert_select "#contatos", text: /pedido em 20\/10\/2026/
+    assert_select "#contatos", text: /Pedido de não perturbe em 20\/10\/2026/
     assert_select "#contatos .situacao", text: "Não perturbe"
   end
 
@@ -56,7 +56,7 @@ class RegistryScreensTest < ActionDispatch::IntegrationTest
 
     get customer_path(@maria, aba: "contatos")
 
-    assert_select "#contatos", text: /Carga.*veio na carga de 20\/10\/2026/m
+    assert_select "#contatos", text: /Carga.*Veio na carga de 20\/10\/2026/m
   end
 
   test "R113 (critério de aceite): quem não tem 'editar cadastro' vê os contatos, mas nenhum botão de edição, e o envio direto é recusado e registrado" do
@@ -103,8 +103,8 @@ class RegistryScreensTest < ActionDispatch::IntegrationTest
     assert_equal [ "invalid", "telefone desligado" ], [ fixed.reload.status, fixed.reason ]
 
     get customer_path(@maria, aba: "historico")
-    assert_select "#historico-do-cadastro li", text: /Carlos Lima/, count: 6
-    assert_select "#historico-do-cadastro li", text: /válido → não perturbe/
+    assert_select "#historico-do-cadastro tbody tr", text: /Carlos Lima/, count: 6
+    assert_select "#historico-do-cadastro tbody tr", text: /válido → não perturbe/
   end
 
   test "R113: corrigir o nome pela ficha marca 'mantido pelo credor'; o documento não tem campo de edição (R115)" do
@@ -194,12 +194,12 @@ class RegistryScreensTest < ActionDispatch::IntegrationTest
 
     get customer_path(pedro)
 
-    assert_select "#contratos tbody tr", 1
+    assert_select "#contratos tbody tr:not(.detalhe-da-linha)", 1
     assert_select "#contratos th", text: "C-2026-7"
     assert_select "#contratos td", text: /titular/
-    assert_select "#contratos td", text: /Ana Prado\s*titular e responsável financeiro/
-    assert_select "#contratos td", text: /Pedro Lima\s*titular/
-    assert_select "#contratos button, #contratos form, #contratos input", 0
+    assert_select "#contratos tr.detalhe-da-linha p", text: /Ana Prado \(titular e responsável financeiro\)/
+    assert_select "#contratos tr.detalhe-da-linha p", text: /Pedro Lima \(titular\)/
+    assert_select "#contratos button:not(.alternar-detalhe), #contratos form, #contratos input", 0
   end
 
   test "R124a: sem responsável declarado, os titulares aparecem como responsáveis financeiros (MT-16)" do

@@ -8,7 +8,7 @@
           <li>
             <strong><%= setting.tenant.name %>:</strong> <%= setting.retention_years %> <%= setting.retention_years == 1 ? "ano" : "anos" %> do fim da última relação em aberto.
             <% if @can_change_period.include?(setting.tenant_id) %>
-              <%= link_to "Alterar nos dados do credor", settings_tenant_registry_path(anchor: "credor-#{setting.tenant_id}") %>
+              <%= link_to "Editar nos dados do credor", settings_tenant_registry_path(anchor: "credor-#{setting.tenant_id}") %>
             <% else %>
               <small>O prazo é definido nos dados do credor.</small>
             <% end %>

@@ -99,7 +99,7 @@ class DiscrepanciesScreensTest < ActionDispatch::IntegrationTest
     get customer_path(@bill.customer)
     assert_response :success
     assert_select "th", text: "Pago"
-    assert_select "small", text: /Divergência de valor aberta/
+    assert_select "tbody th .situacao", text: "Divergência"
     get customer_path(@bill.customer, aba: "pagamentos")
     assert_select "h3", text: /CT-1: R\$ 100,00/ # crédito do contrato: excedente de R$ 100,00
     assert_select "td", text: /Valor do título reduzido/

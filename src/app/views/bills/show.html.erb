@@ -1,4 +1,4 @@
-<% content_for :title, "Histórico do título #{@bill.number}" %>
+<% content_for :title, "Título #{@bill.number}" %>
 <% bill = @bill %>
 <% situation = if bill.withdrawn? then situacao("Retirado", tom: :neutral)
                elsif bill.paid? then situacao("Pago", tom: :success)
@@ -13,6 +13,42 @@
   <% if bill.excess_cents.positive? %><%= kpi "Excedente", money(bill.excess_cents), definicao: "Crédito do contrato: o que foi pago além do valor do título." %><% end %>
   <%= kpi "Vencimento", date_br(bill.due_date), detalhe: "Contrato #{bill.contract.label}#{" · #{bill.product}" if bill.product.present?}" %>
 </dl>
+
+<% notes = [] %>
+<% notes << safe_join([ bill.kind_break? ? "Título da quebra do acordo " : "Título de acordo ", link_to(bill.agreement.number, agreement_path(bill.agreement)), "." ]) if bill.agreement_id %>
+<% notes << safe_join([ "Título de estorno do acordo ", link_to(bill.origin_agreement.number, agreement_path(bill.origin_agreement)), ", fora do acordo." ]) if bill.kind_reversal? %>
+<% notes << safe_join([ "Renegociado no acordo ", link_to(@renegotiated_by.number, agreement_path(@renegotiated_by)), "." ]) if @renegotiated_by %>
+<% notes << "Em promessa #{@held_promise.label}." if @held_promise %>
+<% notes << safe_join([ @held_agreement.proposal? ? "Em proposta " : "Em acordo ", link_to(@held_agreement.number, agreement_path(@held_agreement)), "." ]) if @held_agreement %>
+<% if @valuation || notes.any? %>
+  <%# Padrões de interface, revisão 27: o que a ficha mostrava no detalhe da linha do título. %>
+  <section class="cartao" aria-labelledby="cobranca-do-titulo">
+    <header><h2 id="cobranca-do-titulo">Na cobrança</h2></header>
+    <div>
+      <% notes.each do |note| %><p><%= note %></p><% end %>
+      <% if @valuation && (bill.agreement_id || bill.kind_reversal?) %>
+        <dl class="composicao">
+          <div><dt>Multa</dt><dd><%= money(@valuation.fine_cents) %></dd></div>
+          <div><dt>Juros</dt><dd><%= money(@valuation.interest_cents) %></dd></div>
+          <div><dt>Honorários e correção</dt><dd><%= money(@valuation.fees_cents) %></dd></div>
+          <div><dt>Saldo devedor</dt><dd><strong><%= money(@valuation.total_cents) %></strong></dd></div>
+        </dl>
+        <p><small>Saldo devedor pelos parâmetros congelados no acordo<%= " (só principal e correção têm encargos, sem multa nova)" if bill.kind_reversal? %>.</small></p>
+      <% elsif @valuation %>
+        <dl class="composicao">
+          <div><dt>Principal</dt><dd><%= money(@valuation.principal_cents) %></dd></div>
+          <div><dt>Principal corrigido</dt><dd><%= money(@valuation.corrected_principal_cents) %></dd></div>
+          <div><dt>Multa</dt><dd><%= money(@valuation.fine_cents) %></dd></div>
+          <div><dt>Juros</dt><dd><%= money(@valuation.interest_cents) %></dd></div>
+          <div><dt>Honorários</dt><dd><%= money(@valuation.fees_cents) %></dd></div>
+          <div><dt>Atualizado</dt><dd><strong><%= money(@valuation.total_cents) %></strong></dd></div>
+        </dl>
+      <% end %>
+    </div>
+  </section>
+<% end %>
+
+<% if @memory %><%= render "bills/calculation_memory" %><% end %>
 
 <div class="duas-colunas">
   <section class="cartao" aria-labelledby="versoes">

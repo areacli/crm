@@ -14,7 +14,7 @@ class OperationsScreensTest < ActionDispatch::IntegrationTest
     sign_in_as users(:joana)
     get settings_operations_url
     assert_response :success
-    assert_select "#menu-principal .submenu a", text: "Operações"
+    assert_select "#menu-principal details.submenu[open] a[aria-current=page]", text: "Credenciadas"
     post settings_operations_url, params: { operation: { tenant_id: @alfa.id, cnpj: "11.444.777/0001-61", legal_name: "Recupera Cobranças Ltda", short_name: "Recupera",
                                                           manager_name: "Lia", manager_email: "lia@recupera.com.br" } }
     accreditation = Accreditation.last
@@ -29,7 +29,7 @@ class OperationsScreensTest < ActionDispatch::IntegrationTest
   test "sem a permissão 18, Operações não aparece e o endereço é recusado" do
     sign_in_as users(:carlos)
     get root_url
-    assert_select "#menu-principal .submenu a", text: "Operações", count: 0
+    assert_select "#menu-principal .submenu a", text: "Credenciadas", count: 0
     get settings_operations_url
     assert_response :not_found
   end

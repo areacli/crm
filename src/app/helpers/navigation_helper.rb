@@ -11,13 +11,27 @@ module NavigationHelper
     [ "Enquadramento financeiro", :settings_tiers_path, %w[change_settings change_financial_policies] ],
     [ "Promessas e acordos", :settings_promises_path, "change_financial_policies" ],
     [ "Índices", :settings_indexes_path, %w[change_settings change_financial_policies] ],
-    [ "Resultados de acionamento", :settings_contact_results_path, "manage_contact_results" ],
-    [ "Operações", :settings_operations_path, "manage_operations" ]
+    [ "Resultados de acionamento", :settings_contact_results_path, "manage_contact_results" ]
+  ].freeze
+
+  # Páginas das operações de cobrança (14; padrões de interface, revisão 22): o submenu do item "Operações", cada uma com a própria permissão.
+  OPERATIONS_TABS = [
+    [ "Credenciadas", :settings_operations_path, "manage_operations" ],
+    [ "Enquadramento da distribuição", :settings_distribution_rules_path, "distribute_portfolio" ],
+    [ "Trilha", :settings_operation_trails_path, "view_operation_trail" ]
   ].freeze
 
   # Abas visíveis para o usuário, com o caminho e se é a da página atual.
-  def settings_tabs
-    SETTINGS_TABS.filter_map do |label, route, permission|
+  def settings_tabs = submenu_items(SETTINGS_TABS)
+
+  # As páginas das operações: "Credenciadas" (`/operacoes`) só é a atual nela e nas fichas de credenciamento, não nas outras duas.
+  def operations_tabs
+    others = OPERATIONS_TABS.drop(1).map { |_label, route, _permission| public_send(route) }
+    submenu_items(OPERATIONS_TABS).each { |item| item[:atual] &&= item[:caminho] != settings_operations_path || others.none? { |path| request.path.start_with?(path) } }
+  end
+
+  def submenu_items(tabs)
+    tabs.filter_map do |label, route, permission|
       next unless Array(permission).any? { |name| Current.user.permitted_anywhere?(name) }
 
       path = public_send(route)
@@ -31,40 +45,41 @@ module NavigationHelper
     user = Current.user
     return [] if user.nil? || user.temporary_password?
 
+    # Um grupo por tipo de trabalho (padrões de interface, revisão 22). Sem caminho, o item abre e fecha o submenu da área (os subitens no 6º campo).
     sections = [
       { titulo: nil, itens: [ [ "Resumo", root_path, "view_portfolio", %r{\A/\z} ] ] },
-      { titulo: "Carteira", itens: [ [ "Clientes", customers_path, "view_portfolio", %r{\A/clientes} ],
+      { titulo: "Cobrança", itens: [ [ "Clientes", customers_path, "view_portfolio", %r{\A/clientes} ],
                                      [ "Acionamentos", contact_attempts_path, "view_portfolio", %r{\A/acionamentos} ],
-                                     [ "Importar carteira", new_import_path, "upload_imports", %r{\A/importacoes/nova(?!\?kind=(payments|reversals))} ],
-                                     [ "Importar pagamentos", new_import_path(kind: "payments"), "upload_payments", %r{\A/importacoes/nova\?kind=payments} ],
-                                     [ "Importar estornos", new_import_path(kind: "reversals"), "upload_payments", %r{\A/importacoes/nova\?kind=reversals} ],
-                                     [ "Divergências de valor", value_discrepancies_path, "confirm_payments", %r{\A/divergencias-de-valor}, discrepancies_count ],
-                                     [ "Distribuição", distributions_path, "distribute_portfolio", %r{\A/distribuicao} ],
-                                     [ "Importações", imports_path, ImportPolicy::UPLOAD.values.uniq + ImportPolicy::CONFIRM.values.uniq, %r{\A/importacoes(?!/nova)} ] ] },
-      { titulo: "Cobrança", itens: [ [ "Acordos", agreements_path, "negotiate_agreements", %r{\A/acordos(?!/pendentes)} ],
                                      *pending_promises_items,
+                                     [ "Acordos", agreements_path, "negotiate_agreements", %r{\A/acordos(?!/pendentes)} ],
                                      *pending_agreements_items ] },
+      { titulo: "Financeiro", itens: [ [ "Divergências de valor", value_discrepancies_path, "confirm_payments", %r{\A/divergencias-de-valor}, discrepancies_count ],
+                                       [ "Estornos à espera", reversal_waits_path, "administer_agreements", %r{\A/estornos-a-espera} ] ] },
+      { titulo: "Entrada de dados", itens: [ [ "Importações", imports_path, ImportPolicy::UPLOAD.values.uniq + ImportPolicy::CONFIRM.values.uniq, %r{\A/importacoes} ] ] },
+      { titulo: "Operações de cobrança", itens: [ [ "Distribuição", distributions_path, "distribute_portfolio", %r{\A/distribuicao} ],
+                                                  [ "Operações", nil, OPERATIONS_TABS.map(&:last), %r{\A/operacoes(/|\z)}, nil, operations_tabs ] ] },
       { titulo: "Administração", itens: [ [ "Usuários", memberships_path, "manage_users", %r{\A/usuarios} ],
-                                          [ "Guarda de dados", data_retention_path, "handle_data_subject_rights", %r{\A/guarda-de-dados} ],
                                           [ "Perfis", profiles_path, "manage_profiles", %r{\A/perfis} ],
-                                          [ "Configuração", nil, SETTINGS_TABS.flat_map(&:last), %r{\A/configuracao} ] ] }
+                                          *operation_people_items(user),
+                                          [ "Guarda de dados", data_retention_path, "handle_data_subject_rights", %r{\A/guarda-de-dados} ],
+                                          [ "Configuração", nil, SETTINGS_TABS.flat_map(&:last), %r{\A/configuracao}, nil, settings_tabs ] ] }
     ]
-    # Pessoas da operação (14, R327): para o gestor da operação, no grupo Administração (sem permissão de credor).
-    if user.operation_manager?
-      admin = sections.find { |section| section[:titulo] == "Administração" }
-      admin[:itens].unshift([ "Pessoas da operação", operation_people_path, :operation_manager, %r{\A/operacao/pessoas} ])
-    end
     sections.filter_map do |section|
-      items = section[:itens].filter_map do |label, path, permissions, pattern, count|
+      items = section[:itens].filter_map do |label, path, permissions, pattern, count, subitems|
         next unless permissions == :operation_manager || Array(permissions).any? { |permission| user.permitted_anywhere?(permission) }
 
-        # Sem caminho, o item abre e fecha o submenu das seções da configuração (aberto nas páginas dela).
-        next { rotulo: label, atual: request.fullpath.match?(pattern), subitens: settings_tabs } if path.nil?
+        # Sem caminho, o item abre e fecha o submenu da área (aberto nas páginas dela).
+        next { rotulo: label, atual: request.fullpath.match?(pattern), subitens: subitems } if path.nil?
 
         { rotulo: label, caminho: path, atual: request.fullpath.match?(pattern), contador: (count if count.to_i.positive?) }
       end
       section.merge(itens: items) if items.any?
     end
+  end
+
+  # Pessoas da operação (14, R327): para o gestor da operação, que não tem permissão de credor.
+  def operation_people_items(user)
+    user.operation_manager? ? [ [ "Pessoas da operação", operation_people_path, :operation_manager, %r{\A/operacao/pessoas} ] ] : []
   end
 
   # Contador de "Divergências de valor" (selo do menu): as abertas que a pessoa pode tratar (05, DV3, MT-4), só dos credores em que ela confirma pagamentos.

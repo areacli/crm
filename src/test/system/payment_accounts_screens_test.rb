@@ -25,7 +25,7 @@ class PaymentAccountsScreensSystemTest < ApplicationSystemTestCase
     assert_acessivel
     assert_no_horizontal_scroll
 
-    click_link "Nova conta"
+    click_link "Criar conta"
     assert_selector "h1", text: "Nova conta de pagamento"
     assert_acessivel
     select "Pix", from: "Modalidade"
@@ -47,8 +47,8 @@ class PaymentAccountsScreensSystemTest < ApplicationSystemTestCase
     click_button "Testar conexão"
     assert_text "Conexão com o fornecedor conferida"
     assert_text "Testar conexão"
-    click_link "Gerar o segredo do webhook"
-    within("dialog#painel[open]") { click_button "Gerar segredo" }
+    click_link "Gerar novo segredo do webhook"
+    within("dialog#painel[open]") { click_button "Gerar novo segredo" }
     assert_text "Copie o segredo agora"
     assert_acessivel
     assert_selector "section[aria-labelledby=historico] td", text: "Segredo do webhook gerado"

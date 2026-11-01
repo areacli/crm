@@ -1,8 +1,7 @@
 <% content_for :title, "Acordos" %>
 <% content_for :cable_channels, @cable %>
 <%= pagina "Acordos", subtitulo: "Propostas e acordos dos credores em que você negocia. A proposta nasce da simulação, na ficha do cliente." do %>
-  <% if policy(AgreementExport).index? %><%= link_to "Arquivo de acordos", agreement_exports_path, class: "botao", data: { variant: "secondary" } %><% end %>
-  <% if policy(ReversalWait).index? %><%= link_to "Estornos à espera", reversal_waits_path, class: "botao", data: { variant: "secondary" } %><% end %>
+  <% if policy(AgreementExport).index? %><%= link_to "Ver o arquivo de acordos", agreement_exports_path, class: "botao", data: { variant: "secondary" } %><% end %>
 <% end %>
 
 <form class="filtros" role="search" action="<%= agreements_path %>" method="get"

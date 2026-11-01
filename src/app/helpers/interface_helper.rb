@@ -6,6 +6,7 @@ module InterfaceHelper
     "bars-3" => "M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5",
     "chevron-down" => "m19.5 8.25-7.5 7.5-7.5-7.5",
     "chevron-up" => "m4.5 15.75 7.5-7.5 7.5 7.5",
+    "chevron-right" => "m8.25 4.5 7.5 7.5-7.5 7.5",
     "check-circle" => "M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z",
     "exclamation-circle" => "M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z",
     "exclamation-triangle" => "M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z",
@@ -91,6 +92,27 @@ module InterfaceHelper
     safe_join([ tag.button("⋯", type: "button", class: "menu-de-linha", popovertarget: id, "aria-label": rotulo, data: { acao_de_linha: true }),
                 tag.div(capture(&itens), id: id, popover: "auto", class: "menu") ])
   end
+
+  # Linha com detalhe (padrões de interface, revisão 25, P26; design system, revisão 10): cada registro ocupa uma linha, e o resto vai numa faixa logo abaixo,
+  # fechada, que abre pela seta antes do conteúdo da primeira coluna. A tabela leva `data-detalhes`; sem JavaScript, os detalhes ficam abertos (`noscript` no layout).
+  def alternar_detalhe(id, objeto)
+    tag.button(icone("chevron-right"), type: "button", class: "alternar-detalhe", data: { alternar_detalhe: true, objeto: objeto },
+               "aria-expanded": "false", "aria-controls": id, "aria-label": "Mostrar detalhes de #{objeto}")
+  end
+
+  # O botão do cabeçalho da tabela que abre e fecha todos os detalhes dela.
+  def alternar_todos_os_detalhes
+    tag.button(icone("chevron-right"), type: "button", class: "alternar-detalhe", data: { alternar_todos: true }, "aria-expanded": "false",
+               "aria-label": "Mostrar os detalhes de todas as linhas")
+  end
+
+  # A faixa do detalhe: uma linha da tabela, na largura dela, escondida até a seta abrir.
+  def detalhe_da_linha(id, colunas, &conteudo)
+    tag.tr(id: id, class: "detalhe-da-linha", hidden: true) { tag.td(capture(&conteudo), colspan: colunas) }
+  end
+
+  # Texto livre longo numa célula (P26): cortado com reticências na linha, inteiro no detalhe.
+  def cortado(texto) = tag.span(texto, class: "cortado", title: texto)
 
   # Abas da ficha: cada aba é um endereço; `itens` são [rótulo, caminho, contagem (ou nil), atual?].
   def abas_da_pagina(rotulo, itens)

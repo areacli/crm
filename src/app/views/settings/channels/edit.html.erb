@@ -1,9 +1,9 @@
 <% content_for :title, "Configuração · Canal #{@channel.code_was || @channel.code}" %>
 <%= pagina "Canal #{@channel.code_was || @channel.code}", subtitulo: safe_join([ @channel.tenant.name, " · ", link_to("Voltar para os canais", settings_channels_path) ]) do %>
-  <%= confirmar_no_painel (@channel.webhook_enabled? ? "Trocar o segredo" : "Gerar o segredo"), titulo: "Gerar um novo segredo?", mensagem: "O segredo atual, se houver, deixa de valer na hora: o provedor precisa ser atualizado com o novo.",
-                          acao: "Gerar segredo", url: settings_channel_webhook_secret_path(@channel), perigoso: false, variante: "secondary" %>
+  <%= confirmar_no_painel "Gerar novo segredo", titulo: "Gerar um novo segredo?", mensagem: "O segredo atual, se houver, deixa de valer na hora: o provedor precisa ser atualizado com o novo.",
+                          acao: "Gerar novo segredo", url: settings_channel_webhook_secret_path(@channel), perigoso: false, variante: "secondary" %>
   <% unless @channel.used? %>
-    <%= confirmar_no_painel "Apagar", titulo: "Apagar o canal?", mensagem: "O canal #{@channel.code} deixa de existir. Isto fica registrado.", acao: "Apagar canal", url: settings_channel_path(@channel), metodo: :delete %>
+    <%= confirmar_no_painel "Excluir", titulo: "Excluir o canal?", mensagem: "O canal #{@channel.code} deixa de existir. Isto fica registrado.", acao: "Excluir canal", url: settings_channel_path(@channel), metodo: :delete %>
   <% end %>
 <% end %>
 <%= render "settings/modelo" %>

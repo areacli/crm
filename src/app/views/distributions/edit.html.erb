@@ -1,4 +1,4 @@
-<%= formulario_de_painel(titulo: "Mudar a distribuição de #{@distribution.target_label}", url: distribution_path(@distribution), metodo: :patch, enviar: "Salvar", escopo: :distribution,
+<%= formulario_de_painel(titulo: "Editar a distribuição de #{@distribution.target_label}", url: distribution_path(@distribution), metodo: :patch, enviar: "Salvar", escopo: :distribution,
                          variante: :modal, tamanho: :small, erro: @error, voltar: distributions_path, descricao: "Com a #{@distribution.operation.short_name}. Prorrogar passa de novo pela exclusividade.") do |form| %>
   <div class="campo">
     <%= form.label :exposure, "Exposição" %>

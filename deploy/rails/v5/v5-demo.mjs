@@ -263,7 +263,7 @@ await passo('política de pagamento: mudar e desfazer', async () => {
     await pagina.getByText(/salvas|salvos|atualizad/i).first().waitFor();
 });
 
-await passo('canal de recebimento: criar e apagar', async () => {
+await passo('canal de recebimento: criar e excluir', async () => {
     await abrir('/configuracao/canais-de-recebimento/novo');
     await pagina.locator('#payment_channel_kind').selectOption({ label: 'Conta bancária' });
     await pagina.locator('#payment_channel_code').fill('V5-TESTE');
@@ -274,7 +274,7 @@ await passo('canal de recebimento: criar e apagar', async () => {
     await linha.waitFor();
     await linha.getByRole('link').first().click();
     await pagina.waitForURL(/\/editar/);
-    await confirmar('Apagar', 'Apagar canal');
+    await confirmar('Excluir', 'Excluir canal');
     await pagina.waitForURL(/canais-de-recebimento$/);
     await abrir('/configuracao/canais-de-recebimento?q=V5-TESTE');
     if ((await pagina.locator('tbody tr', { hasText: 'V5-TESTE' }).count()) > 0) throw new Error('o canal continua na lista');
@@ -329,7 +329,7 @@ await passo('a operação vê o nome dela no cabeçalho, só o que foi distribu�
     await op.click('button[type=submit]');
     await op.waitForURL(BASE + '/');
     await op.locator('body > header').getByText('Recupera').first().waitFor();
-    for (const rota of ['/distribuicao', '/configuracao/operacoes', '/configuracao/canais-de-recebimento']) {
+    for (const rota of ['/distribuicao', '/operacoes', '/configuracao/canais-de-recebimento']) {
         const r = await op.goto(BASE + rota);
         if (r.status() !== 404) throw new Error(`${rota} respondeu ${r.status()}`);
     }

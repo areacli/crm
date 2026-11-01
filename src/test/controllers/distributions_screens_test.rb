@@ -21,7 +21,9 @@ class DistributionsScreensTest < ActionDispatch::IntegrationTest
     get distributions_url
     assert_select "tbody tr", text: /Ana Lima.*Recupera/m
     get customer_url(@ana)
-    assert_includes response.body, "com a Recupera desde"
+    # Revisão 23: na tabela só a etiqueta; o período e a origem vão para a linha do tempo da lateral.
+    assert_select "ul.operacoes-do-contrato li", text: /\ARecupera, Recupera Cobranças/
+    assert_select "ol.linha-do-tempo li[data-evento=entrada]", text: /#{Regexp.escape(Date.current.strftime('%d/%m/%Y'))}.*Entrada.*Recupera.*Cliente · vencidas · à mão/m
 
     patch distribution_url(distribution), params: { distribution: { exposure: "all", ends_on: (Date.current + 10).iso8601 } }
     assert_equal "all", distribution.reload.exposure
@@ -29,6 +31,10 @@ class DistributionsScreensTest < ActionDispatch::IntegrationTest
     assert_response :unprocessable_content
     post distribution_recall_url(distribution), params: { recall: { reason: "performance", note: "" } }
     assert_equal "performance", distribution.reload.end_reason
+    get customer_url(@ana)
+    assert_select "ol.linha-do-tempo li", 2
+    assert_select "ol.linha-do-tempo li:first-child[data-evento=saida]", text: /Saída.*Recupera.*Desempenho/m
+    assert_select "ul.operacoes-do-contrato", count: 0
   end
 
   test "documento que não existe no credor é recusado" do

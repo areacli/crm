@@ -78,8 +78,8 @@ class SegmentsSystemScreensTest < ApplicationSystemTestCase
   test "a aba Índices passa no axe e se refaz sozinha pelo WebSocket quando a busca termina" do
     visit settings_indexes_path
     assert_selector "h1", text: "Índices do Banco Central"
-    assert_text "corrigido: 1,52%"
-    click_link "Corrigir índice", match: :first
+    assert_selector "td", text: /Corrigido\s+1,52%/
+    click_link "Editar índice", match: :first
     assert_selector "dialog#painel[open][data-variant=drawer]"
     assert_acessivel
     find("dialog#painel button", text: "Cancelar").click

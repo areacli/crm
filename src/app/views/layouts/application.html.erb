@@ -11,10 +11,16 @@
     <meta name="cable-channels" content="<%= cable_channels %>">
     <link rel="icon" href="<%= image_path("simbolo.svg") %>" type="image/svg+xml">
     <%= stylesheet_link_tag :app %>
+    <%# Sem JavaScript, os detalhes das linhas aparecem abertos e as setas somem (padrões de interface, revisão 25). %>
+    <noscript><style>tr.detalhe-da-linha[hidden] { display: table-row; } .alternar-detalhe { display: none; }</style></noscript>
     <%= javascript_importmap_tags %>
   </head>
 
-  <body hx-boost="true">
+  <%# Design system, revisão 7: o menu escondido pelo botão do cabeçalho fica escondido nas próximas páginas (cookie, lido aqui para a página já nascer assim). %>
+  <%# A ficha do cliente lembra a escolha à parte e começa com o menu recolhido (design system, revisão 9); as outras páginas, como antes. %>
+  <% menu_cookie = content_for(:menu_memoria) == "ficha" ? "menu_ficha" : "menu" %>
+  <% menu_escondido = menu_cookie == "menu_ficha" ? cookies[:menu_ficha] != "aberto" : cookies[:menu] == "recolhido" %>
+  <body hx-boost="true" <%= tag.attributes(data: { menu: ("recolhido" if menu_escondido) }) %>>
     <a href="#conteudo" class="pular-para-o-conteudo">Ir para o conteúdo</a>
     <% if Demo.enabled? %>
       <aside class="demonstracao" aria-label="Aviso da demonstração">
@@ -26,6 +32,7 @@
         <%# Tela estreita: o menu fica fechado e abre por este botão (popover nativo: Esc e clique fora fecham). %>
         <% if authenticated? && menu_sections.present? %>
           <button type="button" class="botao-menu" command="toggle-popover" commandfor="menu-principal" aria-label="Menu"><%= icone "bars-3" %></button>
+          <button type="button" class="alternar-menu" data-alternar-menu data-menu-cookie="<%= menu_cookie %>" aria-controls="menu-principal" aria-expanded="<%= !menu_escondido %>" aria-label="<%= menu_escondido ? "Mostrar o menu" : "Esconder o menu" %>"><%= icone "bars-3" %></button>
         <% end %>
         <a href="<%= root_path %>" class="marca">
           <%= image_tag "logotipo-negativo.svg", alt: "AreaCli" %>

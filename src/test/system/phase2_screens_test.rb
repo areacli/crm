@@ -56,7 +56,7 @@ class Phase2ScreensSystemTest < ApplicationSystemTestCase
     assert_no_selector "dialog#painel[open]"
 
     visit memberships_path
-    click_link "Novo usuário"
+    click_link "Criar usuário"
     assert_selector "dialog#painel[open][data-variant=drawer]", text: "Novo usuário"
     assert_acessivel
     fill_in "E-mail", with: "novo@exemplo.com.br"

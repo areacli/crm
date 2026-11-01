@@ -134,6 +134,12 @@
   .cabecalho-da-pagina .acoes { margin-left: auto; }
   .acoes { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espaco-2); }
 
+  /* Menu escondido pelo botão do cabeçalho (design system, revisão 7): o conteúdo ocupa a largura toda. */
+  @media (min-width: 48.0625rem) {
+    body[data-menu="recolhido"]:has(> nav) { grid-template-columns: minmax(0, 1fr); grid-template-areas: "demonstracao" "cabecalho" "conteudo"; }
+    body[data-menu="recolhido"] > nav { display: none; }
+  }
+
   /* Tela estreita: o menu vira um popover aberto pelo botão do cabeçalho; a busca some (o menu leva à lista de clientes). */
   @media (max-width: 48rem) {
     body { grid-template-columns: minmax(0, 1fr); grid-template-areas: "demonstracao" "cabecalho" "conteudo"; }

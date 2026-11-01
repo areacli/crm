@@ -22,7 +22,7 @@ class IndexesScreensTest < ActionDispatch::IntegrationTest
     assert_select "th", text: %w[IPCA INPC IGP-M Selic].first
     assert_select "td", text: /0,42%/
     assert_select "td", text: /0,61% \(parcial\)/
-    assert_select "td small", text: /Banco Central, /
+    assert_select "tr.detalhe-da-linha p", text: /Banco Central, buscado em /
     assert_select "p", text: /Última busca com sucesso:/
     assert_select "button", "Buscar índices agora"
   end
@@ -53,7 +53,8 @@ class IndexesScreensTest < ActionDispatch::IntegrationTest
     assert_redirected_to settings_indexes_path
     get settings_indexes_path
     assert_select "h2", text: "Escola Alfa"
-    assert_select "td", text: /corrigido: 1,52% · Banco Central: 0,62%/
+    assert_select "td", text: /Corrigido\s+1,52%/
+    assert_select "tr.detalhe-da-linha p", text: /corrigido para 1,52% \(Banco Central: 0,62%\)/
     adjustment = IndexAdjustment.find_by!(tenant: @alfa)
     assert_equal 0, IndexAdjustment.where(tenant: @beta).count
 
@@ -70,7 +71,7 @@ class IndexesScreensTest < ActionDispatch::IntegrationTest
     get settings_indexes_path
     assert_response :success
     assert_select "button", text: "Buscar índices agora", count: 0
-    assert_select "summary", text: "Corrigir índice", count: 0
+    assert_select "summary", text: "Editar índice", count: 0
     assert_difference -> { AccessEvent.where(event: "access_denied", user_id: reader.id).count }, 2 do
       post settings_index_adjustments_path, params: { tenant_id: @alfa.id, adjustment: { series: "igpm", month: @month.strftime("%m/%Y"), value: "1", reason: "x" } }
       assert_response :not_found

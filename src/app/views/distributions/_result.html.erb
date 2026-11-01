@@ -4,11 +4,11 @@
     <p class="vazio">Nenhuma distribuição. Use "Distribuir" para entregar um cliente ou um contrato a uma operação credenciada.</p>
   <% else %>
     <div class="tabela" tabindex="0" data-fixa>
-      <table>
+      <table data-detalhes>
         <caption class="apenas-leitor-de-tela">Distribuições</caption>
         <thead>
           <tr>
-            <th scope="col">Cliente ou contrato</th>
+            <th scope="col"><%= alternar_todos_os_detalhes %>Cliente ou contrato</th>
             <th scope="col">Operação</th>
             <% if @several_tenants %><th scope="col">Credor</th><% end %>
             <th scope="col">Exposição</th>
@@ -20,8 +20,9 @@
         </thead>
         <tbody>
           <% @distributions.each do |distribution| %>
+            <% detail_id = "detalhe-distribuicao-#{distribution.id}" %>
             <tr>
-              <th scope="row"><%= distribution.customer ? link_to(distribution.customer.name, customer_path(distribution.customer)) : "Contrato #{distribution.contract.code}" %></th>
+              <th scope="row"><% if distribution.ended_at %><%= alternar_detalhe(detail_id, "distribuição de #{distribution.target_label}") %><% end %><%= distribution.customer ? link_to(distribution.customer.name, customer_path(distribution.customer)) : "Contrato #{distribution.contract.code}" %></th>
               <td><%= distribution.operation.short_name %></td>
               <% if @several_tenants %><td><%= distribution.tenant.name %></td><% end %>
               <td><%= t("distributions.exposures.#{distribution.exposure}") %></td>
@@ -29,17 +30,19 @@
               <td><%= t("distributions.sources.#{distribution.source}") %></td>
               <td>
                 <%= situacao t("distributions.statuses.#{distribution.status_key}"), tom: { "in_force" => :success, "scheduled" => :info, "ended" => :neutral }[distribution.status_key] %>
-                <% if distribution.ended_at %><small><%= t("distributions.end_reasons.#{distribution.end_reason}", default: distribution.end_reason) %></small><% end %>
               </td>
               <td data-acoes>
                 <% unless distribution.ended_at %>
                   <%= menu_de_linha("distribuicao-#{distribution.id}", "Ações da distribuição de #{distribution.target_label}") do %>
-                    <%= abrir_painel "Mudar", edit_distribution_path(distribution), variante: "modal", tamanho: "small" %>
+                    <%= abrir_painel "Editar", edit_distribution_path(distribution), variante: "modal", tamanho: "small" %>
                     <%= abrir_painel "Recolher", new_distribution_recall_path(distribution), variante: "modal", tamanho: "small" %>
                   <% end %>
                 <% end %>
               </td>
             </tr>
+            <% if distribution.ended_at %>
+              <%= detalhe_da_linha(detail_id, @several_tenants ? 8 : 7) { tag.p("Encerrada em #{datetime_br(distribution.ended_at)}: #{t("distributions.end_reasons.#{distribution.end_reason}", default: distribution.end_reason)}.") } %>
+            <% end %>
           <% end %>
         </tbody>
       </table>

@@ -49,14 +49,18 @@ class AgreementTitlesScreensSystemTest < ApplicationSystemTestCase
 
   test "a ficha marca o título de acordo e o renegociado e a lista de acordos leva ao arquivo" do
     visit customer_path(@customer)
-    assert_selector "th small", text: /Título de acordo ACD-000001/
-    assert_selector "th small", text: /Renegociado no acordo ACD-000001/
     assert_selector "td .situacao", text: "Renegociado"
     assert_acessivel
     sem_rolagem_horizontal
+    # Padrões de interface, revisão 27: a origem do título fica na página dele, aberta pelo número.
+    click_link Bill.where(customer: @customer).where.not(agreement_id: nil).order(:due_date).first.number
+    assert_selector "section[aria-labelledby=cobranca-do-titulo] p", text: /Título de acordo ACD-000001/
+    assert_acessivel
+    visit bill_path(Bill.where(customer: @customer).detect(&:renegotiated?))
+    assert_selector "section[aria-labelledby=cobranca-do-titulo] p", text: /Renegociado no acordo ACD-000001/
 
     visit agreements_path
-    click_link "Arquivo de acordos"
+    click_link "Ver o arquivo de acordos"
     assert_selector "h1", text: "Arquivo de acordos"
     click_link "Exportar"
     select "Completo", from: "Forma"

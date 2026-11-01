@@ -33,9 +33,13 @@ class CustomersController < ApplicationController
     Operations::Trail.record("record_opened", user: Current.user, customer: @customer)
     @setting = @customer.tenant.setting
     @brackets = Portfolio::AgingBrackets.from_stored(@setting.aging_brackets)
+    # Padrões de interface, revisão 21: o contrato escolhido (`?contrato=`) recorta a ficha inteira. Consulta: `contract_customers (customer_id)`.
+    @all_contracts = @customer.contracts.order(:code, :id).to_a
+    @contract = @all_contracts.find { |contract| contract.id == params[:contrato].to_i } if params[:contrato].present?
+    @contract_bill_counts = Bill.where(customer: @customer).group(:contract_id).count
     @bills = Bill.where(customer: @customer).includes(:contract, :agreement).order(:due_date)
-    # Aviso do valor mudado (R100): título com mais de uma versão ou com divergência aberta leva ao histórico.
-    @version_counts = BillValueVersion.where(bill_id: @bills.map(&:id)).group(:bill_id).count
+    @bills = @bills.where(contract_id: @contract.id) if @contract
+    # Divergência aberta (R99): selo no título, que leva à página dele.
     @open_discrepancies = ValueDiscrepancy.where(bill_id: @bills.map(&:id), status: "open").distinct.pluck(:bill_id)
     @today = Date.current
     @tab = params[:aba].presence_in(TABS) || "titulos"
@@ -60,6 +64,7 @@ class CustomersController < ApplicationController
     # `payment_promises (contract_id)` e o índice único parcial dos títulos presos.
     def load_promises
       @promises = Customers::PromisesController.holding_for(@customer)
+      @promises = @promises.select { |promise| promise.contract_id == @contract.id } if @contract
       @held_bills = PaymentPromiseBill.where(bill_id: @bills.map(&:id), held: true).includes(:promise).index_by(&:bill_id)
     end
 
@@ -72,10 +77,11 @@ class CustomersController < ApplicationController
       return unless AgreementPolicy.new(Current.user, Agreement.new(tenant: @customer.tenant)).show?
 
       @agreements = Customers::AgreementsController.running_for(@customer)
+      @agreements = @agreements.select { |agreement| agreement.agreement_bills.any? { |row| row.bill.contract_id == @contract.id } } if @contract
       @held_by_agreement = AgreementBill.where(bill_id: @bills.map(&:id), held: true).includes(:agreement).to_h { |row| [ row.bill_id, row.agreement ] }
-      @renegotiated_by = AgreementBill.joins(:agreement).where(bill_id: @bills.select(&:renegotiated?).map(&:id), agreements: { state: %w[active_on_time active_late broken settled renegotiated] })
-                                      .includes(:agreement).to_h { |row| [ row.bill_id, row.agreement ] }
-      @agreement_events = AgreementEvent.joins(:agreement).where(agreements: { customer_id: @customer.id }).includes(:agreement, :user).order(occurred_at: :desc, id: :desc).limit(30).to_a
+      events = AgreementEvent.joins(:agreement).where(agreements: { customer_id: @customer.id })
+      events = events.where(agreement_id: AgreementBill.joins(:bill).where(bills: { contract_id: @contract.id }).select(:agreement_id)) if @contract
+      @agreement_events = events.includes(:agreement, :user).order(occurred_at: :desc, id: :desc).limit(30).to_a
       @city_unrecognized = policy(@customer).edit_registry? && Agreements::Square.unrecognized?(@customer)
     end
 
@@ -93,21 +99,22 @@ class CustomersController < ApplicationController
       @can_edit_registry = policy(@customer).edit_registry?
       @registry_history = Change.where("(subject_type = 'customer' and subject_id = ? and field = 'name') or (subject_type = 'customer_contact' and subject_id in (?))",
                                        @customer.id, @contacts.map(&:id).presence || [ 0 ]).includes(:user).order(occurred_at: :desc, id: :desc).limit(50).to_a
-      @contract_members = ContractCustomer.where(contract_id: @contracts.map(&:id)).includes(:customer).group_by(&:contract_id)
+      @contract_members = ContractCustomer.where(contract_id: @all_contracts.map(&:id)).includes(:customer).group_by(&:contract_id)
     end
 
     # Acionamentos (04): o histórico de 20 em 20 (R74) e o formulário, só para quem registra no credor do cliente (R76).
     def load_contact_attempts
-      @contact_history = ContactAttempt.history_for(@customer, page: params[:page])
+      @contact_history = ContactAttempt.history_for(@customer, page: params[:page], contract: @contract)
       @contact_form = Contacts::Form.new(@customer) if !@customer.anonymized? && policy(ContactAttempt.new(tenant: @customer.tenant)).create?
     end
 
     # Enquadramento financeiro de cada contrato (13, R297): ao lado da faixa de atraso, desde quando e por quê, com o histórico de mudanças. Consultas: `bills (contract_id)` e
     # `contract_tiers (contract_id, since)`.
     def load_tiers
-      ids = @contracts.map(&:id)
+      # O cartão Contratos, acima das abas, mostra todos os contratos (padrões de interface, revisão 28), mesmo com um escolhido.
+      ids = @all_contracts.map(&:id)
       @contract_overdue = Bill.overdue(@today).where(contract_id: ids).group(:contract_id).minimum(:due_date).transform_values { |due| (@today - due).to_i }
-      @contract_tiers = Tier.where(id: @contracts.filter_map(&:tier_id)).includes(:segment).index_by(&:id)
+      @contract_tiers = Tier.where(id: @all_contracts.filter_map(&:tier_id)).includes(:segment).index_by(&:id)
       @tier_history = ContractTier.where(contract_id: ids).includes(tier: :segment).order(since: :desc, id: :desc).limit(100).group_by(&:contract_id)
       @tier_since = @tier_history.transform_values { |entries| entries.first&.since }
     end
@@ -115,12 +122,13 @@ class CustomersController < ApplicationController
     # Pagos (R54) e crédito por contrato (R55b): o crédito é do contrato, visível a todos os clientes dele, sem total por cliente.
     def load_payments_and_credits
       # Pagamentos de promessa não têm título (10, R194): aparecem pelo número da promessa, nas promessas dos contratos do cliente.
-      promise_ids = PaymentPromise.where(contract_id: ContractCustomer.where(customer_id: @customer.id).select(:contract_id)).select(:id)
+      promise_ids = PaymentPromise.where(contract_id: @contract ? @contract.id : ContractCustomer.where(customer_id: @customer.id).select(:contract_id)).select(:id)
       @payments = Payment.where(bill_id: @bills.map(&:id)).or(Payment.where(promise_id: promise_ids)).applied.includes(:channel, :bill).order(paid_on: :desc, id: :desc)
-      @contracts = @customer.contracts.order(:code, :id).to_a
-      @contract_operations = Operations::Context.operation? ? {} : Distributions::Holders.for_contracts(@contracts.map(&:id))
+      @contracts = @contract ? [ @contract ] : @all_contracts
+      @contract_operations = Operations::Context.operation? ? {} : Distributions::Holders.for_contracts(@all_contracts.map(&:id))
+      @timeline = CustomerTimeline.new(@customer, contract: @contract, kind: params[:linha], page: params[:linha_pagina], distributions: !Operations::Context.operation?)
       # O crédito por estado (11, R233, R239): o disponível, o que aguarda alocação (reversão) e o bloqueado (estorno à espera do gestor).
-      by_bucket = Credit.where(contract_id: @contracts.map(&:id)).group(:contract_id, :bucket).sum(:amount_cents)
+      by_bucket = Credit.where(contract_id: @all_contracts.map(&:id)).group(:contract_id, :bucket).sum(:amount_cents)
       @credit_totals = by_bucket.select { |(_, bucket), _| bucket == "available" }.to_h { |(contract_id, _), cents| [ contract_id, cents ] }
       @credit_awaiting = by_bucket.select { |(_, bucket), _| bucket == "awaiting" }.to_h { |(contract_id, _), cents| [ contract_id, cents ] }
       @credit_blocked = by_bucket.select { |(_, bucket), _| bucket == "blocked" }.to_h { |(contract_id, _), cents| [ contract_id, cents ] }

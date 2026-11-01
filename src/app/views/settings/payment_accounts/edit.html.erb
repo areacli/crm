@@ -8,10 +8,10 @@
     <%= button_to "Ativar conta", settings_payment_account_activation_path(@account), method: :post %>
   <% end %>
   <% if @account.provider_available? && @account.manifest.field("webhook_secret") %>
-    <%= confirmar_no_painel (@account.secret_set?("webhook_secret") ? "Trocar o segredo do webhook" : "Gerar o segredo do webhook"), titulo: "Gerar um novo segredo?", mensagem: "O segredo atual, se houver, continua valendo por 24 horas; depois só o novo vale.", acao: "Gerar segredo", url: settings_payment_account_webhook_secret_path(@account), perigoso: false, variante: "secondary" %>
+    <%= confirmar_no_painel "Gerar novo segredo do webhook", titulo: "Gerar um novo segredo?", mensagem: "O segredo atual, se houver, continua valendo por 24 horas; depois só o novo vale.", acao: "Gerar novo segredo", url: settings_payment_account_webhook_secret_path(@account), perigoso: false, variante: "secondary" %>
   <% end %>
   <% unless @account.used? %>
-    <%= confirmar_no_painel "Apagar", titulo: "Apagar a conta?", mensagem: "A conta #{@account.nickname} deixa de existir, com os segredos e o certificado. Isto fica registrado.", acao: "Apagar conta", url: settings_payment_account_path(@account), metodo: :delete %>
+    <%= confirmar_no_painel "Excluir", titulo: "Excluir a conta?", mensagem: "A conta #{@account.nickname} deixa de existir, com os segredos e o certificado. Isto fica registrado.", acao: "Excluir conta", url: settings_payment_account_path(@account), metodo: :delete %>
   <% end %>
 <% end %>
 <%= render "settings/modelo" %>

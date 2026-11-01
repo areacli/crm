@@ -35,13 +35,13 @@ class PaymentsScreensSystemTest < ApplicationSystemTestCase
     assert_selector "h1", text: "Políticas de pagamento"
     assert_acessivel
     click_link "Canais de recebimento"
-    click_link "Novo canal"
+    click_link "Criar canal"
     assert_selector "dialog#painel[open][data-variant=drawer]", text: "Novo canal de recebimento"
     assert_acessivel
     within("dialog#painel[open]") { click_button "Cancelar" }
     visit edit_settings_channel_path(@channel)
     assert_acessivel
-    click_link "Trocar o segredo"
+    click_link "Gerar novo segredo"
     assert_selector "dialog#painel[open]", text: "Gerar um novo segredo?"
     assert_acessivel
     within("dialog#painel[open]") { click_button "Cancelar" }
