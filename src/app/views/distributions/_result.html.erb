@@ -1,0 +1,49 @@
+<%# Trecho que o htmx refaz a cada filtro: tabela, contagem e paginação. %>
+<div id="resultado" aria-live="polite">
+  <% if @distributions.empty? %>
+    <p class="vazio">Nenhuma distribuição. Use "Distribuir" para entregar um cliente ou um contrato a uma operação credenciada.</p>
+  <% else %>
+    <div class="tabela" tabindex="0" data-fixa>
+      <table>
+        <caption class="apenas-leitor-de-tela">Distribuições</caption>
+        <thead>
+          <tr>
+            <th scope="col">Cliente ou contrato</th>
+            <th scope="col">Operação</th>
+            <% if @several_tenants %><th scope="col">Credor</th><% end %>
+            <th scope="col">Exposição</th>
+            <th scope="col">Período</th>
+            <th scope="col">Origem</th>
+            <th scope="col">Situação</th>
+            <th scope="col"><span class="apenas-leitor-de-tela">Ações</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @distributions.each do |distribution| %>
+            <tr>
+              <th scope="row"><%= distribution.customer ? link_to(distribution.customer.name, customer_path(distribution.customer)) : "Contrato #{distribution.contract.code}" %></th>
+              <td><%= distribution.operation.short_name %></td>
+              <% if @several_tenants %><td><%= distribution.tenant.name %></td><% end %>
+              <td><%= t("distributions.exposures.#{distribution.exposure}") %></td>
+              <td><%= date_br(distribution.starts_on) %> a <%= distribution.ends_on ? date_br(distribution.ends_on) : "sem fim" %></td>
+              <td><%= t("distributions.sources.#{distribution.source}") %></td>
+              <td>
+                <%= situacao t("distributions.statuses.#{distribution.status_key}"), tom: { "in_force" => :success, "scheduled" => :info, "ended" => :neutral }[distribution.status_key] %>
+                <% if distribution.ended_at %><small><%= t("distributions.end_reasons.#{distribution.end_reason}", default: distribution.end_reason) %></small><% end %>
+              </td>
+              <td data-acoes>
+                <% unless distribution.ended_at %>
+                  <%= menu_de_linha("distribuicao-#{distribution.id}", "Ações da distribuição de #{distribution.target_label}") do %>
+                    <%= abrir_painel "Mudar", edit_distribution_path(distribution), variante: "modal", tamanho: "small" %>
+                    <%= abrir_painel "Recolher", new_distribution_recall_path(distribution), variante: "modal", tamanho: "small" %>
+                  <% end %>
+                <% end %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+    <%= render "shared/paginacao", pagination: @pagination, unit: "distribuições", path: ->(page) { distributions_path(request.query_parameters.merge("page" => page)) } %>
+  <% end %>
+</div>

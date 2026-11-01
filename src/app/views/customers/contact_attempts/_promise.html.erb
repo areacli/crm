@@ -28,7 +28,7 @@
           <label for="contact_attempt_promise_on">Data prometida</label>
           <input type="date" id="contact_attempt_promise_on" name="contact_attempt[promise_on]" value="<%= form.value(:promise_on) %>" aria-describedby="ajuda-data-prometida">
           <% if form.promise_last_day %>
-            <small id="ajuda-data-prometida">Até <%= date_br(form.promise_last_day) %>, o prazo máximo do segmento. Até <%= form.promise_own_days %> dias depois do contato, a promessa nasce aberta; depois, aguarda aprovação.</small>
+            <small id="ajuda-data-prometida">Até <%= date_br(form.promise_last_day) %>, o prazo máximo do item do enquadramento. Até <%= form.promise_own_days %> dias depois do contato, a promessa nasce aberta; depois, aguarda aprovação.</small>
           <% else %>
             <small id="ajuda-data-prometida">Escolha o contrato para ver o prazo máximo.</small>
           <% end %>

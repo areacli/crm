@@ -8,8 +8,8 @@ module Access
     end
 
     # Devolve o perfil; se for inválido (nome repetido, PD6, AC7), ele volta sem gravar e com os erros.
-    def create(tenant:, name:, permissions:)
-      profile = tenant.profiles.new(name: name.to_s.strip, permissions: normalize(permissions))
+    def create(tenant:, name:, permissions:, available_to_operations: false)
+      profile = tenant.profiles.new(name: name.to_s.strip, permissions: normalize(permissions), available_to_operations: available_to_operations)
       return profile unless profile.valid?
 
       Guard.protect(tenant.id) do
@@ -20,16 +20,16 @@ module Access
     end
 
     # Devolve o perfil; mudar as permissões do próprio perfil é proibido (PD7), e a R41 vale depois da mudança.
-    def update(profile, name:, permissions:)
+    def update(profile, name:, permissions:, available_to_operations: profile.available_to_operations)
       permissions = normalize(permissions)
       Guard.refuse_own_profile_change!(@actor, profile) if permissions != profile.permissions
-      before = { name: profile.name, permissions: profile.permissions }
-      profile.assign_attributes(name: name.to_s.strip, permissions: permissions)
+      before = { name: profile.name, permissions: profile.permissions, available_to_operations: profile.available_to_operations }
+      profile.assign_attributes(name: name.to_s.strip, permissions: permissions, available_to_operations: available_to_operations)
       return profile unless profile.valid?
 
       Guard.protect(profile.tenant_id) do
         profile.save!
-        log("profile_updated", profile.tenant, profile: profile.name, before: before, after: { name: profile.name, permissions: profile.permissions })
+        log("profile_updated", profile.tenant, profile: profile.name, before: before, after: { name: profile.name, permissions: profile.permissions, available_to_operations: profile.available_to_operations })
       end
       profile
     end

@@ -180,7 +180,7 @@
       <div>
         <dl class="dados">
           <dt>Forma</dt><dd><%= agreement_mode(agreement) %></dd>
-          <dt>Segmento</dt><dd><%= agreement.terms.dig("segment", "name") %></dd>
+          <dt>Enquadramento</dt><dd><%= agreement.terms.dig("tier", "name") %></dd>
           <dt>Base</dt><dd><%= money(agreement.base_cents) %></dd>
           <dt>Desconto</dt><dd><%= money(agreement.discount_cents) %> <small>(<%= discounts_text(agreement.discounts) %>)</small></dd>
           <dt>Valor do acordo</dt><dd><%= money(agreement.value_cents) %></dd>

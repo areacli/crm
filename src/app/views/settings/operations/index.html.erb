@@ -1,0 +1,42 @@
+<% content_for :title, "Configuração · Operações" %>
+<%= pagina "Operações", subtitulo: "Parceiros de cobrança que atendem este credor: escritórios, call centers e cobrança digital." do %>
+  <% if Current.user.permitted_anywhere?("view_operation_trail") %><%= link_to "Trilha das operações", settings_operation_trails_path, class: "botao", data: { variant: "secondary" } %><% end %>
+  <% if Current.user.permitted_anywhere?("distribute_portfolio") %><%= link_to "Enquadramento da distribuição", settings_distribution_rules_path, class: "botao", data: { variant: "secondary" } %><% end %>
+  <%= abrir_painel "Credenciar operação", new_settings_operation_path %>
+<% end %>
+<%= render "settings/modelo" %>
+<% if flash[:temporary_password] %><%= render "memberships/temporary_password", data: flash[:temporary_password] %><% end %>
+
+<div id="resultado">
+  <% if @accreditations.empty? %>
+    <p class="vazio">Nenhuma operação credenciada. Use "Credenciar operação" para ligar um parceiro pelo CNPJ.</p>
+  <% else %>
+    <div class="tabela" tabindex="0" data-fixa>
+      <table>
+        <caption class="apenas-leitor-de-tela">Operações credenciadas</caption>
+        <thead>
+          <tr>
+            <th scope="col">Operação</th>
+            <th scope="col">CNPJ</th>
+            <% if @several_tenants %><th scope="col">Credor</th><% end %>
+            <th scope="col">Situação</th>
+            <th scope="col" data-numerico>Pessoas com vínculo</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @accreditations.each do |accreditation| %>
+            <tr>
+              <th scope="row"><%= link_to accreditation.operation.short_name, settings_operation_path(accreditation) %></th>
+              <td><%= Document.format(accreditation.operation.cnpj) %></td>
+              <% if @several_tenants %><td><%= accreditation.tenant.name %></td><% end %>
+              <td><%= situacao t("operations.statuses.#{accreditation.status}"), tom: { "active" => :success, "suspended" => :warning, "ended" => :neutral }[accreditation.status] %></td>
+              <td data-numerico><%= @linked[[ accreditation.tenant_id, accreditation.operation_id ]].to_i %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+    <%= render "shared/paginacao", pagination: @pagination, unit: "operações", path: ->(page) { settings_operations_path(request.query_parameters.merge("page" => page)) } %>
+  <% end %>
+</div>
+<% @tenants.each do |tenant| %><%= render "settings/operation_policies/form", tenant: tenant %><% end %>

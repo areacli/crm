@@ -121,3 +121,18 @@
     <%= confirmar_no_painel "Apagar o exemplo", titulo: "Apagar o exemplo", mensagem: "O exemplo é apagado e não volta.", acao: "Apagar", url: design_system_path, metodo: :get %>
   </div>
 </section>
+
+<section class="cartao" aria-labelledby="segmentos-exemplo">
+  <header><h2 id="segmentos-exemplo">Editor de segmentos: texto, ajuda, leitura por linha e "Como fica"</h2></header>
+  <div class="campo campo-largo"><label for="ds-texto">Texto do segmento</label><textarea id="ds-texto" class="editor-de-segmento" rows="5" spellcheck="false">contratos
+  atraso &gt; 90
+  titulos vencidos 3</textarea></div>
+  <section class="ajuda-de-escrita" aria-label="Como escrever (exemplo)"><h3>Como escrever</h3><ul><li>Primeira linha: <code>contratos</code> ou <code>clientes</code>.</li></ul></section>
+  <aside class="como-fica" aria-label="Como fica (exemplo)">
+    <ol class="linhas-do-segmento">
+      <li value="2"><code>atraso &gt; 90</code><p class="leitura">O contrato tem atraso maior que 90 dias.</p></li>
+      <li value="3" data-erro><code>titulos vencidos 3</code><p class="erro">Linha 3: vem uma comparação: =, ≠, &gt;, &gt;=, &lt;, &lt;=, entre ou em.</p></li>
+    </ol>
+    <p><span class="carregando" aria-hidden="true"></span> Contando…</p>
+  </aside>
+</section>

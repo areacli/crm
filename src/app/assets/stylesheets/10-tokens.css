@@ -74,11 +74,13 @@
 
     /* Medidas da estrutura */
     --altura-cabecalho: 3.5rem;
+    /* Faixa da demonstração: zero fora dela; com ela, uma linha fixa acima do cabeçalho (30-layout.css). */
+    --altura-faixa: 0rem;
+    --altura-topo: calc(var(--altura-faixa) + var(--altura-cabecalho));
     --altura-barra: 3rem;
     --altura-logotipo: 2.5rem;
-    --largura-menu: 13rem;
+    --largura-menu: 16rem;
     --largura-lateral: 20rem;
-    --largura-secoes: 12.5rem;
     --largura-painel: 30rem;
     --largura-modal: 25rem;
     --largura-busca: 28rem;

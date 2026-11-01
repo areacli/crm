@@ -15,10 +15,10 @@ module Agreements
         setting.assign_attributes(parse_params(values, required: true))
         log_changes(tenant, setting, SUBJECT, tenant.id)
         setting.save!
-        Segment.where(tenant_id: tenant.id, id: overrides.keys).find_each do |segment|
-          segment.assign_attributes(parse_params(overrides.fetch(segment.id), required: false))
-          log_changes(tenant, segment, "agreement_segment", segment.id)
-          segment.save!
+        Tier.where(tenant_id: tenant.id, id: overrides.keys).find_each do |tier|
+          tier.assign_attributes(parse_params(overrides.fetch(tier.id), required: false))
+          log_changes(tenant, tier, "agreement_tier", tier.id)
+          tier.save!
         end
       end
     end
@@ -45,42 +45,60 @@ module Agreements
       setting
     end
 
-    # Variáveis de acordo dos segmentos do credor (R207): `segments` é { id do segmento => { max_installments:, ..., caps: { "installment" => {...}, "cash" => {...} } } }.
+    # Variáveis de acordo dos segmentos do credor (R207): `tiers` é { id do segmento => { max_installments:, ..., caps: { "installment" => {...}, "cash" => {...} } } }.
     # Baixar um máximo baixa os limites dos perfis que passavam dele; subir a entrada mínima sobe as dos perfis que ficavam abaixo; quem altera políticas
     # financeiras acompanha o segmento também quando um máximo sobe (R209). Tudo com registro.
-    def update_variables(tenant, segments)
-      ApplicationRecord.transaction do
-        Segment.where(tenant_id: tenant.id, id: segments.keys).find_each do |segment|
-          values = segments.fetch(segment.id)
-          before_caps = Caps.normalize(segment.agreement_caps)
-          segment.assign_attributes(agreement_max_installments: int(values[:max_installments]), agreement_min_installment_cents: cents(values[:min_installment]),
-                                    agreement_min_down_payment_pct: int(values[:min_down_payment_pct]), agreement_down_payment_days: int(values[:down_payment_days]),
-                                    agreement_validity_days: int(values[:validity_days]), agreement_tolerance_days: int(values[:tolerance_days]), agreement_break_days: int(values[:break_days]),
-                                    agreement_caps: parse_caps(values[:caps], before_caps))
-          raise Refused.new(I18n.t("agreements.settings.invalid_variables", segment: segment.name)) unless segment.valid?
+    # Variáveis de acordo de cada item (11, R207), lidas e validadas sem gravar: { id do item => atributos }. A gravação passa pela conferência do
+    # impacto (13, R272) e pela confirmação (`Tiers::Applier`), que segue os limites dos perfis (R209).
+    def variables_changes(tenant, tiers)
+      Tier.where(tenant_id: tenant.id, id: tiers.keys).to_h do |tier|
+        values = tiers.fetch(tier.id)
+        tier.assign_attributes(agreement_max_installments: int(values[:max_installments]), agreement_min_installment_cents: cents(values[:min_installment]),
+                               agreement_min_down_payment_pct: int(values[:min_down_payment_pct]), agreement_down_payment_days: int(values[:down_payment_days]),
+                               agreement_validity_days: int(values[:validity_days]), agreement_tolerance_days: int(values[:tolerance_days]), agreement_break_days: int(values[:break_days]),
+                               agreement_caps: parse_caps(values[:caps], Caps.normalize(tier.agreement_caps)))
+        raise Refused.new(I18n.t("agreements.settings.invalid_variables", tier: tier.name)) unless tier.valid?
 
-          log_changes(tenant, segment, "agreement_segment", segment.id, extra: { agreement_caps: before_caps })
-          follow_limits(segment, before_caps)
-          segment.save!
-        end
+        [ tier.id, tier.attributes.symbolize_keys.slice(*Tier::AGREEMENT_VARIABLE_FIELDS, :agreement_caps) ]
+      end
+    end
+
+    # Baixar um máximo baixa os limites dos perfis que passavam dele; subir só sobe o de quem altera políticas financeiras (R209). Chamado com o item
+    # ainda sujo, antes de gravar.
+    def follow_limits(tier, before_caps)
+      AgreementLimit.where(tier_id: tier.id).includes(:profile).find_each do |limit|
+        follows = limit.profile.permitted?("change_financial_policies")
+        caps = Caps.normalize(limit.caps)
+        new_caps = Caps.clamp(caps, tier.agreement_caps)
+        Caps::KINDS.each { |kind| Caps::COMPONENTS.each { |component| new_caps[kind][component] = Caps.get(tier.agreement_caps, kind, component) if follows && Caps.get(tier.agreement_caps, kind, component) > Caps.get(before_caps, kind, component) } }
+        installments = limit.max_installments
+        installments = [ installments, tier.agreement_max_installments ].min
+        installments = tier.agreement_max_installments if follows && tier.agreement_max_installments > tier.agreement_max_installments_was
+        down = [ limit.min_down_payment_pct, tier.agreement_min_down_payment_pct ].max
+        next if new_caps == caps && installments == limit.max_installments && down == limit.min_down_payment_pct
+
+        before = describe_limit(limit)
+        limit.assign_attributes(caps: new_caps, max_installments: installments, min_down_payment_pct: down)
+        Change.record!(tenant_id: tier.tenant_id, user: @actor, subject_type: "agreement_limit", subject_id: tier.id, event: "limit_followed", field: "profile:#{limit.profile_id}", before: before, after: describe_limit(limit))
+        limit.save!
       end
     end
 
     # Limites dos perfis (R209, N23): `limits` é { id do segmento => { id do perfil => { max_installments:, min_down_payment_pct:, ceiling_discount:, ceiling_value:, caps: } } }.
     def update_limits(tenant, limits)
       ApplicationRecord.transaction do
-        Segment.where(tenant_id: tenant.id, id: limits.keys).find_each do |segment|
-          Profile.where(tenant_id: tenant.id, id: limits.fetch(segment.id).keys).find_each do |profile|
-            values = limits.fetch(segment.id).fetch(profile.id)
-            limit = AgreementLimit.for(profile, segment)
+        Tier.where(tenant_id: tenant.id, id: limits.keys).find_each do |tier|
+          Profile.where(tenant_id: tenant.id, id: limits.fetch(tier.id).keys).find_each do |profile|
+            values = limits.fetch(tier.id).fetch(profile.id)
+            limit = AgreementLimit.for(profile, tier)
             before = describe_limit(limit)
             limit.assign_attributes(max_installments: int(values[:max_installments]), min_down_payment_pct: int(values[:min_down_payment_pct]),
                                     ceiling_discount_cents: optional_cents(values[:ceiling_discount]), ceiling_value_cents: optional_cents(values[:ceiling_value]),
                                     caps: parse_caps(values[:caps], limit.caps))
-            check_within_segment!(limit, segment, profile)
+            check_within_tier!(limit, tier, profile)
             next if describe_limit(limit) == before && limit.persisted?
 
-            Change.record!(tenant: tenant, user: @actor, subject_type: "agreement_limit", subject_id: segment.id, event: "limit_changed", field: "profile:#{profile.id}", before: before, after: describe_limit(limit))
+            Change.record!(tenant: tenant, user: @actor, subject_type: "agreement_limit", subject_id: tier.id, event: "limit_changed", field: "profile:#{profile.id}", before: before, after: describe_limit(limit))
             limit.save!
           end
         end
@@ -99,7 +117,7 @@ module Agreements
 
             [ field, nil ]
           elsif field == "installment_rate_pct"
-            number = Segments::Params.percent(raw)
+            number = Tiers::RuleParams.percent(raw)
             raise Refused.new(I18n.t("agreements.settings.invalid_params"), field: field) if number.nil? || number == :invalid || number > 100
 
             [ field, number ]
@@ -112,11 +130,11 @@ module Agreements
       end
 
       def valid_option?(field, raw)
-        { "installment_method" => Segment::INSTALLMENT_METHODS, "agreement_days_convention" => Segment::DAYS_CONVENTIONS, "agreement_fine_base" => Segment::FINE_BASES }.fetch(field).include?(raw)
+        { "installment_method" => Tier::INSTALLMENT_METHODS, "agreement_days_convention" => Tier::DAYS_CONVENTIONS, "agreement_fine_base" => Tier::FINE_BASES }.fetch(field).include?(raw)
       end
 
       def log_changes(tenant, record, subject_type, subject_id, extra: {})
-        record.changes.slice(*PARAM_FIELDS, *Segment::AGREEMENT_VARIABLE_FIELDS.map(&:to_s)).each do |field, (before, after)|
+        record.changes.slice(*PARAM_FIELDS, *Tier::AGREEMENT_VARIABLE_FIELDS.map(&:to_s)).each do |field, (before, after)|
           Change.record!(tenant: tenant, user: @actor, subject_type: subject_type, subject_id: subject_id, event: "#{field}_changed", field: field, before: before.to_s, after: after.to_s)
         end
         if extra.key?(:agreement_caps) && Caps.normalize(record.agreement_caps) != extra[:agreement_caps]
@@ -126,32 +144,13 @@ module Agreements
       end
 
       # R209: o que muda nos limites quando o segmento muda.
-      def follow_limits(segment, before_caps)
-        AgreementLimit.where(segment_id: segment.id).includes(:profile).find_each do |limit|
-          follows = limit.profile.permitted?("change_financial_policies")
-          caps = Caps.normalize(limit.caps)
-          new_caps = Caps.clamp(caps, segment.agreement_caps)
-          Caps::KINDS.each { |kind| Caps::COMPONENTS.each { |component| new_caps[kind][component] = Caps.get(segment.agreement_caps, kind, component) if follows && Caps.get(segment.agreement_caps, kind, component) > Caps.get(before_caps, kind, component) } }
-          installments = limit.max_installments
-          installments = [ installments, segment.agreement_max_installments ].min
-          installments = segment.agreement_max_installments if follows && segment.agreement_max_installments > segment.agreement_max_installments_was
-          down = [ limit.min_down_payment_pct, segment.agreement_min_down_payment_pct ].max
-          next if new_caps == caps && installments == limit.max_installments && down == limit.min_down_payment_pct
-
-          before = describe_limit(limit)
-          limit.assign_attributes(caps: new_caps, max_installments: installments, min_down_payment_pct: down)
-          Change.record!(tenant_id: segment.tenant_id, user: @actor, subject_type: "agreement_limit", subject_id: segment.id, event: "limit_followed", field: "profile:#{limit.profile_id}", before: before, after: describe_limit(limit))
-          limit.save!
-        end
-      end
-
       # Um limite nunca passa das variáveis do segmento (R209): desconto até o teto, parcelas até o máximo e entrada de, no mínimo, a do segmento.
-      def check_within_segment!(limit, segment, profile)
-        name = "#{profile.name} em #{segment.name}"
+      def check_within_tier!(limit, tier, profile)
+        name = "#{profile.name} em #{tier.name}"
         raise Refused.new(I18n.t("agreements.settings.invalid_limit", name: name)) unless limit.valid?
-        raise Refused.new(I18n.t("agreements.settings.limit_above_segment", name: name)) if limit.max_installments > segment.agreement_max_installments ||
-                                                                                          limit.min_down_payment_pct < segment.agreement_min_down_payment_pct ||
-                                                                                          Caps::KINDS.any? { |kind| Caps::COMPONENTS.any? { |component| Caps.get(limit.caps, kind, component) > Caps.get(segment.agreement_caps, kind, component) } }
+        raise Refused.new(I18n.t("agreements.settings.limit_above_tier", name: name)) if limit.max_installments > tier.agreement_max_installments ||
+                                                                                          limit.min_down_payment_pct < tier.agreement_min_down_payment_pct ||
+                                                                                          Caps::KINDS.any? { |kind| Caps::COMPONENTS.any? { |component| Caps.get(limit.caps, kind, component) > Caps.get(tier.agreement_caps, kind, component) } }
       end
 
       def parse_caps(raw, fallback)
@@ -191,7 +190,7 @@ module Agreements
         return { "kind" => kind, "value" => 0 } if kind == "tolerance"
 
         if kind == "percent"
-          number = Segments::Params.percent(raw[:value].to_s.presence || "0")
+          number = Tiers::RuleParams.percent(raw[:value].to_s.presence || "0")
           raise Refused.new(I18n.t("agreements.settings.invalid_policy", name: I18n.t("agreements.policies.#{entry.key}.title")), field: entry.key) if number.nil? || number == :invalid || number > 100
 
           { "kind" => kind, "value" => (number * 100).round.to_i }

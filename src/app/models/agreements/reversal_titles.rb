@@ -16,7 +16,7 @@ module Agreements
 
       index = Bill.where(origin_agreement_id: agreement.id).count + 1
       from = [ action_on, processed_on ].max
-      due = Charges::BusinessDays.next_business(from + agreement.terms.dig("segment", "down_payment_days").to_i)
+      due = Charges::BusinessDays.next_business(from + agreement.terms.dig("tier", "down_payment_days").to_i)
       composition = { "items" => items, "installment_interest" => 0, "period_days" => 0, "accrues_from" => due.iso8601, "fine" => false, "number" => "E#{index}", "reason" => reason }
       bill = Bill.create!(tenant_id: agreement.tenant_id, contract_id: contract.id, customer_id: agreement.customer_id, number: number_of(agreement, index), due_date: due,
                           amount_cents: items.sum { |item| item["cents"] }, status: "active", kind: "reversal", origin_agreement_id: agreement.id, product: product || contract.bills.first&.product,

@@ -88,6 +88,17 @@
   <% end %>
 </section>
 
+<section class="cartao" aria-labelledby="operacoes">
+  <header><h2 id="operacoes">Operações de cobrança</h2></header>
+  <% if d[:operacoes].empty? %><p class="vazio">Nenhuma distribuição a operação.</p><% else %>
+    <div class="tabela" tabindex="0"><table>
+      <caption class="apenas-leitor-de-tela">Operações de cobrança</caption>
+      <thead><tr><th scope="col">Cliente ou contrato</th><th scope="col">Operação</th><th scope="col">Período</th></tr></thead>
+      <tbody><% d[:operacoes].each do |o| %><tr><th scope="row"><%= o[:cliente_ou_contrato] %></th><td><%= o[:operacao] %></td><td><%= date_br(Date.iso8601(o[:inicio])) %> a <%= o[:fim] ? date_br(Date.iso8601(o[:fim])) : "sem fim" %></td></tr><% end %></tbody>
+    </table></div>
+  <% end %>
+</section>
+
 <section class="cartao" aria-labelledby="acionamentos">
   <header><h2 id="acionamentos">Acionamentos</h2></header>
   <% if d[:acionamentos].empty? %><p class="vazio">Nenhum acionamento.</p><% else %>

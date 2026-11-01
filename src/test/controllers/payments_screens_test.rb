@@ -118,13 +118,16 @@ class PaymentsScreensTest < ActionDispatch::IntegrationTest
     assert_predicate @beta.setting.reload, :partial_payment_policy_partial?
   end
 
-  test "o menu abre a primeira aba de configuração que o usuário vê" do
+  test "o item Configuração do menu abre e fecha as seções que o usuário vê; aberto só nas páginas da configuração" do
     entrar(make_user(@alfa, %w[change_financial_policies]))
     get root_path
-    assert_select "nav[aria-label=Menu] a[href='#{settings_payment_policy_path}']", text: "Configuração"
+    assert_select "#menu-principal details.submenu:not([open]) summary", text: "Configuração"
+    assert_select "#menu-principal .submenu a[href='#{settings_payment_policy_path}']", text: "Políticas de pagamento"
     get settings_payment_policy_path
-    # Com a 14 também aparecem as abas Contas de pagamento (12), Segmentos, Promessas (10, R206) e Índices (08, R158).
-    assert_select "nav.secoes a", count: 5
+    assert_select "#menu-principal details.submenu[open] a[aria-current=page]", text: "Políticas de pagamento"
+    assert_select "main[data-modelo=configuracao]"
+    # Com a 14 também aparecem as abas Contas de pagamento (12), Segmentos e Enquadramento financeiro (13), Promessas (10, R206) e Índices (08, R158).
+    assert_select "#menu-principal .submenu a", count: 6
   end
 
   test "importar pagamentos exige a permissão 5; confirmar, a 6, também por link direto (R47)" do

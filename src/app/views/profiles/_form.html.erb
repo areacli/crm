@@ -1,4 +1,4 @@
-<%# Formulário de perfil (no painel): nome e as 16 permissões (R30). Locais: profile, tenants (só na criação), url, method, titulo. %>
+<%# Formulário de perfil (no painel): nome, a marca de perfil disponível para operações (14, R310) e as permissões (R30). Locais: profile, tenants (só na criação), url, method, titulo. %>
 <%= formulario_de_painel(titulo: titulo, url: url, metodo: method, enviar: "Salvar o perfil", escopo: :profile, erro: @error || (profile.errors.full_messages.to_sentence.presence), voltar: profiles_path) do |form| %>
   <% if local_assigns[:tenants] && tenants.size > 1 %>
     <div class="campo">
@@ -12,6 +12,14 @@
   <div class="campo">
     <%= form.label :name, "Nome do perfil" %>
     <%= form.text_field :name, value: profile.name, required: true, maxlength: 100 %>
+  </div>
+  <div class="campo">
+    <label>
+      <%= hidden_field_tag "profile[available_to_operations]", "0", id: nil %>
+      <%= check_box_tag "profile[available_to_operations]", "1", profile.available_to_operations?, id: "perfil-de-operacao", "aria-describedby": "ajuda-perfil-de-operacao" %>
+      Disponível para operações
+    </label>
+    <small id="ajuda-perfil-de-operacao">Pode ser dado a pessoas de operações credenciadas (14). Elas fazem o que o perfil permite, só sobre o que está distribuído à operação.</small>
   </div>
   <fieldset>
     <legend>Permissões</legend>

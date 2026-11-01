@@ -20,8 +20,6 @@ class TenantSetting < ApplicationRecord
   # Prazo de guarda dos dados do cliente, em anos (07, R136): mínimo 1, padrão 5 (PG1).
   validates :retention_years, numericality: { only_integer: true, greater_than_or_equal_to: 1, less_than_or_equal_to: 50 }
 
-  # Produto do contrato no segmento (R150, R151, DS1): pelo título mais atrasado (padrão), pelo maior saldo ou por qualquer título.
-  enum :segment_product_policy, { most_overdue: "most_overdue", largest_balance: "largest_balance", any_bill: "any_bill" }, prefix: true, validate: true
 
   # Encargos do credor (09): parâmetros que os segmentos herdam (R160, R207a) e as políticas que mudam o cálculo (R165, R180 a R182).
   enum :charge_index, { none: "none", ipca: "ipca", inpc: "inpc", igpm: "igpm" }, prefix: true, validate: true

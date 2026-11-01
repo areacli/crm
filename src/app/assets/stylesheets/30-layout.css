@@ -1,6 +1,6 @@
 /*
  * Estrutura da página (revisão 4): cabeçalho marinho de 56 px (marca, busca global, sino e usuário), barra de página de 48 px (título, indicadores e ações),
- * menu lateral de 208 px, conteúdo. Quatro modelos de página: lista, ficha, configuração e entrada.
+ * menu lateral de 256 px (revisão 6), conteúdo. Quatro modelos de página: lista, ficha, configuração e entrada.
  */
 @layer layout {
   body {
@@ -18,13 +18,15 @@
   body:not(:has(> header)) { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr; grid-template-areas: "demonstracao" "conteudo"; }
 
   /* Faixa da demonstração pública (CRM_DEMO=1): uma linha a mais no alto da página, discreta. */
-  .demonstracao { grid-area: demonstracao; padding: var(--espaco-1) var(--espaco-4); background: var(--cor-amarelo); color: var(--cor-marinho); text-align: center; font-size: var(--texto-legenda); }
-  .demonstracao p { margin: 0; }
+  /* Na tela larga ela fica fixa no alto, numa linha, junto com o cabeçalho: assim o menu fixo tem sempre a mesma altura e o último item não sai da janela. */
+  :root:has(body > .demonstracao) { --altura-faixa: 1.75rem; }
+  .demonstracao { grid-area: demonstracao; position: sticky; top: 0; z-index: 41; height: var(--altura-faixa); display: flex; align-items: center; justify-content: center; padding: 0 var(--espaco-4); background: var(--cor-amarelo); color: var(--cor-marinho); font-size: var(--texto-legenda); }
+  .demonstracao p { margin: 0; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   body > header {
     grid-area: cabecalho;
     position: sticky;
-    top: 0;
+    top: var(--altura-faixa);
     z-index: 40;
     height: var(--altura-cabecalho);
     display: grid;
@@ -48,6 +50,8 @@
   .busca input { padding-right: calc(var(--altura-controle) + var(--espaco-1)); }
 
   .conta { grid-column: 3; justify-self: end; display: flex; align-items: center; gap: var(--espaco-2); }
+  /* Operação do usuário de operação (14, R324): selo claro sobre o marinho do cabeçalho. */
+  .operacao-atual { padding: 0 var(--espaco-2); border: 1px solid var(--cor-amarelo); border-radius: var(--raio-controle); color: var(--cor-amarelo); font-size: var(--texto-tabela); font-weight: 600; white-space: nowrap; }
   .usuario, .avisos > details { position: relative; }
   .usuario summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: var(--espaco-2); padding: var(--espaco-1); border-radius: var(--raio-controle); }
   .usuario summary::-webkit-details-marker { display: none; }
@@ -58,12 +62,18 @@
     grid-area: menu;
     /* O menu é um popover: na tela larga fica sempre à mostra, na estreita abre pelo botão do cabeçalho. */
     display: block;
-    position: static;
+    /* Fixo abaixo do cabeçalho, com rolagem própria: a página rola e o menu fica; menu mais alto que a janela rola sozinho (pedido do Paulo, 31/10/2026). */
+    /* `inset` vem antes de `top`: o atalho zera os quatro lados, e depois dele o `top` do sticky valeria `auto` (o menu rolaria com a página). */
     inset: auto;
+    position: sticky;
+    top: var(--altura-topo);
+    align-self: start;
     width: auto;
-    height: auto;
+    height: calc(100vh - var(--altura-topo));
+    height: calc(100dvh - var(--altura-topo));
     margin: 0;
-    overflow: visible;
+    overflow-y: auto;
+    overscroll-behavior: contain;
     color: inherit;
     background: var(--cor-branco);
     border: 0;
@@ -75,6 +85,14 @@
   body > nav a { display: flex; align-items: center; justify-content: space-between; gap: var(--espaco-2); min-height: var(--altura-item-menu); padding: 0 var(--espaco-3); border-radius: var(--raio-controle); color: var(--cor-texto); text-decoration: none; font-weight: 600; }
   body > nav a:hover { background: var(--cor-superficie); }
   body > nav a[aria-current="page"] { background: var(--cor-marinho); color: var(--cor-branco); }
+  /* Submenu das seções da configuração (design system, revisão 5): o item abre e fecha; os subitens ficam recuados sob ele. */
+  .submenu summary { list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: var(--espaco-2); min-height: var(--altura-item-menu); padding: 0 var(--espaco-3); border-radius: var(--raio-controle); font-weight: 600; }
+  .submenu summary::-webkit-details-marker { display: none; }
+  .submenu summary:hover { background: var(--cor-superficie); }
+  .submenu summary .icone { transition: transform 0.15s; }
+  .submenu:not([open]) summary .icone { transform: rotate(-90deg); }
+  .submenu ul { margin: 0; padding-left: var(--espaco-3); }
+  .submenu a { font-weight: 400; }
 
   body > main {
     grid-area: conteudo;
@@ -120,10 +138,16 @@
   @media (max-width: 48rem) {
     body { grid-template-columns: minmax(0, 1fr); grid-template-areas: "demonstracao" "cabecalho" "conteudo"; }
     body > header { grid-template-columns: minmax(0, 1fr) auto; }
+    /* Estreita: a faixa volta a rolar com a página e quebra em quantas linhas precisar. */
+    :root:has(body > .demonstracao) { --altura-faixa: 0rem; }
+    .demonstracao { position: static; height: auto; padding: var(--espaco-1) var(--espaco-4); }
+    .demonstracao p { white-space: normal; text-align: center; }
+    /* Com o menu aberto, a faixa sai: o cabeçalho sobe ao topo e o menu, que abre logo abaixo dele, não cobre o botão de fechar. */
+    body:has(> nav:popover-open) > .demonstracao { display: none; }
     .conta { grid-column: 2; }
     /* Fechado até o botão abrir; aberto, cobre a página abaixo do cabeçalho com rolagem própria. */
     body > nav:not(:popover-open) { display: none; }
-    body > nav:popover-open { position: fixed; inset: var(--altura-cabecalho) 0 auto 0; max-height: calc(100dvh - var(--altura-cabecalho)); overflow-y: auto; z-index: 45; border-bottom: 1px solid var(--cor-linha-forte); box-shadow: var(--sombra-menu); }
+    body > nav:popover-open { position: fixed; inset: var(--altura-cabecalho) 0 auto 0; height: auto; max-height: calc(100dvh - var(--altura-cabecalho)); overflow-y: auto; z-index: 45; border-bottom: 1px solid var(--cor-linha-forte); box-shadow: var(--sombra-menu); }
     body > nav::backdrop { background: transparent; }
     /* Cabeçalho estreito: só as iniciais no menu do usuário, para a marca, o sino e o menu caberem. */
     .usuario summary > span:not(.iniciais) { position: absolute; left: 0; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
@@ -160,6 +184,7 @@
   .filtros .campo { margin: 0; }
   .duas-colunas { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 28rem), 1fr)); gap: var(--espaco-4); align-items: start; }
   .duas-colunas > * { min-width: 0; }
+  .duas-colunas.alinhados { align-items: stretch; }
   .paginacao { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--espaco-4); padding: var(--espaco-2) var(--espaco-3); background: var(--cor-branco); border: 1px solid var(--cor-linha); border-top: 0; border-radius: 0 0 var(--raio-cartao) var(--raio-cartao); font-size: var(--texto-tabela); }
   .paginacao [aria-disabled="true"] { color: var(--cor-texto-suave); }
   .paginacao > :first-child { order: 0; }
@@ -175,25 +200,12 @@
   .ficha[data-lateral="esquerda"] { grid-template-columns: minmax(0, 24rem) minmax(0, 1fr); }
   /* Formulário e resultado lado a lado (simulação de acordo): o resultado acompanha a rolagem do formulário. */
   .ficha[data-lateral="formulario"] { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-  .ficha[data-lateral="formulario"] > #simulacao { display: grid; gap: var(--espaco-3); align-content: start; position: sticky; top: calc(var(--altura-cabecalho) + var(--espaco-3)); }
+  .ficha[data-lateral="formulario"] > #simulacao { display: grid; gap: var(--espaco-3); align-content: start; position: sticky; top: calc(var(--altura-topo) + var(--espaco-3)); }
   .ficha-principal { display: grid; gap: var(--espaco-3); align-content: start; }
   .ficha-lateral { display: grid; gap: var(--espaco-3); align-content: start; }
   @media (max-width: 64rem) {
     .ficha, .ficha[data-lateral="esquerda"], .ficha[data-lateral="formulario"] { grid-template-columns: minmax(0, 1fr); }
     .ficha[data-lateral="formulario"] > #simulacao { position: static; }
-  }
-}
-
-/* Modelo Configuração: menu vertical de seções à esquerda (200 px) e o conteúdo à direita. */
-@layer layout {
-  body > main:has(> nav.secoes) { grid-template-columns: var(--largura-secoes) minmax(0, 1fr); column-gap: var(--espaco-4); }
-  body > main:has(> nav.secoes) > .cabecalho-da-pagina { grid-column: 1 / -1; grid-row: 1; }
-  body > main:has(> nav.secoes) > nav.secoes { grid-column: 1; grid-row: 2 / span 2; align-self: start; }
-  body > main:has(> nav.secoes) > :not(nav.secoes, .cabecalho-da-pagina) { grid-column: 2; }
-  @media (max-width: 64rem) {
-    body > main:has(> nav.secoes) { grid-template-columns: minmax(0, 1fr); }
-    body > main:has(> nav.secoes) > nav.secoes { grid-column: 1; grid-row: auto; }
-    body > main:has(> nav.secoes) > :not(nav.secoes, .cabecalho-da-pagina) { grid-column: 1; }
   }
 }
 
@@ -236,4 +248,15 @@
     .nao-imprimir, body > header, body > nav { display: none; }
     body > main { padding: 0; max-width: none; }
   }
+}
+
+/* Páginas de erro (layout `erro`): cabeçalho com a marca e uma mensagem curta no meio, sem menu. */
+@layer layout {
+  body.erro { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: var(--altura-cabecalho) 1fr; grid-template-areas: "cabecalho" "conteudo"; min-height: 100vh; }
+  body.erro > main { grid-area: conteudo; display: grid; place-items: center; padding: var(--espaco-6); }
+  .pagina-de-erro { display: grid; gap: var(--espaco-3); max-width: var(--largura-formulario); justify-items: start; }
+  .pagina-de-erro h1 { margin: 0; font-size: var(--texto-pagina); }
+  .pagina-de-erro p { margin: 0; }
+  .pagina-de-erro .codigo-do-erro { font-size: var(--texto-valor); font-weight: 700; color: var(--cor-azul); }
+  .pagina-de-erro .codigo-do-pedido { color: var(--cor-texto-suave); overflow-wrap: anywhere; }
 }

@@ -1,10 +1,10 @@
 <% content_for :title, "Configuração · Promessas e acordos" %>
 <%= pagina "Promessas e acordos", subtitulo: "Políticas, prazos e alçadas; a mudança vale só para as promessas e propostas novas." %>
-<%= render "settings/abas" %>
+<%= render "settings/modelo" %>
 
 <% @tenants.each do |tenant| %>
   <% setting = tenant.setting %>
-  <% segments = @segments.fetch(tenant.id, []) %>
+  <% tiers = @tiers.fetch(tenant.id, []) %>
   <% profiles = @profiles.fetch(tenant.id, []) %>
   <section class="cartao" aria-labelledby="politicas-<%= tenant.id %>">
     <header><h2 id="politicas-<%= tenant.id %>">Políticas — <%= tenant.name %></h2></header>
@@ -49,26 +49,26 @@
   </section>
 
   <section class="cartao" aria-labelledby="alcada-<%= tenant.id %>">
-    <header><h2 id="alcada-<%= tenant.id %>">Prazo máximo e alçada — <%= tenant.name %></h2><%= informacao "prazo e alçada", "Dias entre o contato e a data prometida. O prazo máximo é do segmento e nenhuma promessa passa dele; a alçada é o que cada perfil dá sozinho, e acima dela a promessa espera aprovação. Baixar o prazo do segmento baixa as alçadas que passavam dele.", "definicao-alcada-#{tenant.id}" %></header>
+    <header><h2 id="alcada-<%= tenant.id %>">Prazo máximo e alçada — <%= tenant.name %></h2><%= informacao "prazo e alçada", "Dias entre o contato e a data prometida. O prazo máximo é do item do enquadramento financeiro e nenhuma promessa passa dele; a alçada é o que cada perfil dá sozinho, e acima dela a promessa espera aprovação. Baixar o prazo do item baixa as alçadas que passavam dele.", "definicao-alcada-#{tenant.id}" %></header>
     <div>
       <%= form_with url: settings_promise_limits_path, method: :patch, html: { "hx-boost": "false" } do |form| %>
         <%= hidden_field_tag :tenant_id, tenant.id %>
         <div class="tabela" tabindex="0">
           <table>
-            <caption class="apenas-leitor-de-tela">Prazo máximo do segmento e alçada de cada perfil em <%= tenant.name %></caption>
+            <caption class="apenas-leitor-de-tela">Prazo máximo do item e alçada de cada perfil em <%= tenant.name %></caption>
             <thead>
               <tr>
-                <th scope="col">Segmento</th><th scope="col" data-numerico>Prazo máximo (dias)</th>
+                <th scope="col">Item do enquadramento</th><th scope="col" data-numerico>Prazo máximo (dias)</th>
                 <% profiles.each do |profile| %><th scope="col" data-numerico>Alçada: <%= profile.name %> (dias)</th><% end %>
               </tr>
             </thead>
             <tbody>
-              <% segments.each do |segment| %>
+              <% tiers.each do |tier| %>
                 <tr>
-                  <th scope="row"><%= segment.name %></th>
-                  <td data-numerico><%= number_field_tag "segments[#{segment.id}][max_days]", segment.promise_max_days, min: 1, max: 365, required: true, id: "prazo-#{segment.id}", "aria-label": "Prazo máximo de #{segment.name} em dias" %></td>
+                  <th scope="row"><%= tier.name %></th>
+                  <td data-numerico><%= number_field_tag "tiers[#{tier.id}][max_days]", tier.promise_max_days, min: 1, max: 365, required: true, id: "prazo-#{tier.id}", "aria-label": "Prazo máximo de #{tier.name} em dias" %></td>
                   <% profiles.each do |profile| %>
-                    <td data-numerico><%= number_field_tag "segments[#{segment.id}][limits][#{profile.id}]", @limits.dig(segment.id, profile.id)&.max_days, min: 0, max: 365, required: true, id: "alcada-#{segment.id}-#{profile.id}", "aria-label": "Alçada de #{profile.name} em #{segment.name}, em dias" %></td>
+                    <td data-numerico><%= number_field_tag "tiers[#{tier.id}][limits][#{profile.id}]", @limits.dig(tier.id, profile.id)&.max_days, min: 0, max: 365, required: true, id: "alcada-#{tier.id}-#{profile.id}", "aria-label": "Alçada de #{profile.name} em #{tier.name}, em dias" %></td>
                   <% end %>
                 </tr>
               <% end %>
@@ -80,7 +80,7 @@
     </div>
   </section>
 
-  <%= render "settings/promises/agreements", tenant: tenant, segments: segments, profiles: profiles, limits: @limits %>
+  <%= render "settings/promises/agreements", tenant: tenant, tiers: tiers, profiles: profiles, limits: @limits %>
 
   <section class="cartao" aria-labelledby="historico-<%= tenant.id %>">
     <header><h2 id="historico-<%= tenant.id %>">Alterações recentes — <%= tenant.name %></h2></header>
@@ -99,12 +99,12 @@
                 <td><%= entry.user&.name || "—" %></td>
                 <td>
                   <% if entry.subject_type == "promise_limit" %>
-                    <%= @segment_names[entry.subject_id]&.name %>:
+                    <%= @tier_names[entry.subject_id]&.name %>:
                     <%= entry.field == "max_days" ? "prazo máximo" : "alçada de #{@profile_names[entry.field.to_s.delete_prefix('profile:').to_i]&.name}" %>
                   <% elsif entry.subject_type == "agreement_limit" %>
-                    Acordos, limite de <%= @profile_names[entry.field.to_s.delete_prefix('profile:').to_i]&.name %> em <%= @segment_names[entry.subject_id]&.name %>
-                  <% elsif entry.subject_type == "agreement_segment" %>
-                    Acordos, <%= @segment_names[entry.subject_id]&.name %>: <%= t("agreements.history_fields.#{entry.field}", default: entry.field) %>
+                    Acordos, limite de <%= @profile_names[entry.field.to_s.delete_prefix('profile:').to_i]&.name %> em <%= @tier_names[entry.subject_id]&.name %>
+                  <% elsif entry.subject_type == "agreement_tier" %>
+                    Acordos, <%= @tier_names[entry.subject_id]&.name %>: <%= t("agreements.history_fields.#{entry.field}", default: entry.field) %>
                   <% elsif entry.subject_type == "agreement_settings" %>
                     Acordos: <%= t("agreements.policies.#{entry.field}.title", default: t("agreements.history_fields.#{entry.field}", default: entry.field)) %>
                   <% else %>

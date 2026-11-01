@@ -95,10 +95,10 @@ pt-BR:
       bill_taken: "Um dos títulos acabou de entrar em outra proposta ou acordo."
       discount_invalid: "Informe o desconto em percentual, com até duas casas (por exemplo, 12,5)."
       discount_range: "O desconto vai de 0% a 100%."
-      discount_none: "O segmento não permite desconto em %{component}."
-      discount_above: "O segmento permite desconto de até %{cap}% em %{component}."
+      discount_none: "O item do enquadramento não permite desconto em %{component}."
+      discount_above: "O item do enquadramento permite desconto de até %{cap}% em %{component}."
       installments_required: "Informe o número de parcelas."
-      installments_above: "O segmento permite até %{max} parcelas."
+      installments_above: "O item do enquadramento permite até %{max} parcelas."
       day_range: "O dia de vencimento das parcelas vai de 1 a 28."
       installment_minimum: "A parcela mínima é R$ %{min}."
       down_minimum: "A entrada mínima é %{pct}% do valor líquido do acordo, R$ %{min}."
@@ -143,9 +143,9 @@ pt-BR:
     settings:
       invalid_params: "Confira a taxa do parcelamento (0 a 100%), o método, a convenção de dias e a base da multa."
       invalid_policy: "Valor inválido para a política %{name}."
-      invalid_variables: "Confira as variáveis de acordo de %{segment}."
+      invalid_variables: "Confira as variáveis de acordo de %{tier}."
       invalid_limit: "Confira o limite de %{name}."
-      limit_above_segment: "O limite de %{name} não passa das variáveis do segmento: desconto até o teto, parcelas até o máximo e entrada de, no mínimo, a do segmento."
+      limit_above_tier: "O limite de %{name} não passa das variáveis do item: desconto até o teto, parcelas até o máximo e entrada de, no mínimo, a do item."
       invalid_number: "Informe números inteiros, sem negativos; o desconto vai até 100."
       invalid_money: "Valor em reais inválido: %{problem}."
     policy_sections:
@@ -405,7 +405,7 @@ pt-BR:
         done: "Políticas dos acordos de %{tenant} salvas."
     agreement_variables:
       update:
-        done: "Variáveis de acordo dos segmentos de %{tenant} salvas."
+        done: "Variáveis de acordo dos itens do enquadramento de %{tenant} salvas."
     agreement_limits:
       update:
         done: "Limites de acordo dos perfis de %{tenant} salvos."

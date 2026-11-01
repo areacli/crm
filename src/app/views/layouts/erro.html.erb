@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <title><%= [ content_for(:title), "CRM AreaCli" ].compact_blank.join(" · ") %></title>
+    <link rel="icon" href="<%= image_path("simbolo.svg") %>" type="image/svg+xml">
+    <%= stylesheet_link_tag :app %>
+  </head>
+
+  <%# Modelo de erro: cabeçalho com a marca e uma mensagem curta; sem menu, sem usuário e sem JavaScript, para funcionar com o sistema quebrado. %>
+  <body class="erro">
+    <header>
+      <a href="<%= root_path %>" class="marca">
+        <%= image_tag "logotipo-negativo.svg", alt: "AreaCli" %>
+        <strong>CRM</strong>
+      </a>
+    </header>
+    <main id="conteudo" tabindex="-1">
+      <%= yield %>
+    </main>
+  </body>
+</html>

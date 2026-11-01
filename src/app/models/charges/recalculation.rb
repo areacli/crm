@@ -13,7 +13,7 @@ module Charges
     # Marca o recálculo como em andamento (a aba Segmentos mostra "valores sendo recalculados", R173) e devolve o registro.
     def self.start(tenant, reason: nil)
       run = TaskRun.create!(tenant: tenant, name: NAME, started_at: Time.current, note: reason)
-      Segments::Broadcast.changed(tenant)
+      Tiers::Broadcast.changed(tenant)
       run
     end
 
@@ -28,7 +28,7 @@ module Charges
       run&.update!(status: :failed, finished_at: Time.current, error_kind: error.class.name.demodulize)
       run
     ensure
-      Segments::Broadcast.changed(@tenant)
+      Tiers::Broadcast.changed(@tenant)
     end
 
     # Devolve quantos títulos foram calculados.

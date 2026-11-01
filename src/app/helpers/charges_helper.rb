@@ -4,8 +4,8 @@ module ChargesHelper
   COMPONENT_LABELS = { "principal" => "Principal", "correction" => "Correção", "fine" => "Multa", "interest" => "Juros", "fees" => "Honorários" }.freeze
 
   # "multa 2% · juros 1% a.m. simples · IPCA · sem honorários" (R177), com o que o segmento herda do credor.
-  def charge_rule_summary(segment, setting)
-    rule = Charges::Rule.build(Charges::RuleSet.segment_values(segment), Charges::RuleSet.params_of(setting))
+  def charge_rule_summary(tier, setting)
+    rule = Charges::Rule.build(Charges::RuleSet.tier_values(tier), Charges::RuleSet.params_of(setting))
     interest = case rule.interest
     when "fixed" then "juros #{charge_pct(rule.rate * 100)} a.m. #{rule.form == 'simple' ? 'simples' : 'compostos'}"
     when "legal" then "juros pela taxa legal"
@@ -22,16 +22,16 @@ module ChargesHelper
   end
 
   # Valor de um campo percentual do formulário: o digitado (se houve erro) ou o gravado, com vírgula; vazio herda.
-  def charge_field_value(segment, raw, column)
+  def charge_field_value(tier, raw, column)
     return raw[column] if raw&.key?(column)
 
-    value = segment[column]
+    value = tier[column]
     return "" if value.nil?
 
     format("%.4f", value.to_f).sub(/0+\z/, "").sub(/\.\z/, "").tr(".", ",")
   end
 
-  def charge_choice(segment, raw, column) = raw&.key?(column) ? raw[column].to_s : segment[column].to_s
+  def charge_choice(tier, raw, column) = raw&.key?(column) ? raw[column].to_s : tier[column].to_s
 
   def charge_label(group, value) = t("charges.#{group}.#{value}")
 

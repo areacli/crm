@@ -1,7 +1,8 @@
 # Modo de demonstração pública (CRM_DEMO=1): a vitrine do blog, não uma funcionalidade do produto. Tudo o que a
 # demonstração precisa fica aqui e em `app/models/demo/`; fora do modo ligado, nada disto tem efeito.
 module Demo
-  WHO = %w[gestor operador].freeze
+  WHO = %w[gestor operador operacao].freeze
+  LABELS = { "gestor" => "Gestor", "operador" => "Operador", "operacao" => "Operação" }.freeze
 
   module_function
 

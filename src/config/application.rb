@@ -34,6 +34,7 @@ module Crm
     config.i18n.available_locales = [ :"pt-BR" ]
 
     # Filas em Valkey com Sidekiq (decisão 0020); nos testes o Active Job usa o adaptador de teste.
+    config.exceptions_app = routes
     config.active_job.queue_adapter = :sidekiq
 
     # Cifragem de atributos (guia Active Record Encryption): as chaves ficam nas credenciais cifradas de cada ambiente
@@ -73,5 +74,9 @@ module Crm
     #
     # config.time_zone = "Central Time (US & Canada)"
     # config.eager_load_paths << Rails.root.join("extras")
+
+    # Papel do banco no console e no `runner` (decisão 0024; as tarefas rake, em lib/tasks/rls.rake).
+    console { Operations::Context.declare_entry_role! }
+    runner { Operations::Context.declare_entry_role! }
   end
 end

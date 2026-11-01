@@ -28,11 +28,11 @@
           <p>Os dados são fictícios. Entre com um dos usuários abaixo.</p>
           <dl>
             <% Demo::WHO.each do |who| %>
-              <dt><%= who.capitalize %></dt>
+              <dt><%= Demo::LABELS.fetch(who) %></dt>
               <dd>E-mail <code><%= Demo.email(who) %></code>, senha <code><%= Demo.password(who) %></code></dd>
             <% end %>
           </dl>
-          <p><small>O gestor tem perfil de gestor na Escola Alfa e de operador na Clínica Beta; o operador só vê a Escola Alfa.</small></p>
+          <p><small>O gestor tem perfil de gestor na Escola Alfa e de operador na Clínica Beta; o operador só vê a Escola Alfa; a operação é a Recupera Cobranças, parceira da Escola Alfa, e só vê o que foi distribuído a ela.</small></p>
         </div>
       </section>
     <% end %>

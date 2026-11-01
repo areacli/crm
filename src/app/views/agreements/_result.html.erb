@@ -33,7 +33,7 @@
             <th scope="col">Número</th><th scope="col">Cliente</th>
             <% if @several_tenants %><th scope="col">Credor</th><% end %>
             <th scope="col">Situação</th><th scope="col">Forma</th><th scope="col" data-numerico>Valor</th><th scope="col" data-numerico>Desconto</th>
-            <th scope="col" data-numerico>Entrada</th><th scope="col" data-numerico>Parcelas</th><th scope="col">Montou</th><th scope="col">Aprovou</th><th scope="col">Vale até</th><th scope="col"><span class="apenas-leitor-de-tela">Ações</span></th>
+            <th scope="col" data-numerico>Entrada</th><th scope="col" data-numerico>Parcelas</th><th scope="col">Montou</th><% if @origins.present? %><th scope="col">Origem</th><% end %><th scope="col">Aprovou</th><th scope="col">Vale até</th><th scope="col"><span class="apenas-leitor-de-tela">Ações</span></th>
           </tr>
         </thead>
         <tbody>
@@ -49,6 +49,7 @@
               <td data-numerico><%= money(agreement.down_payment_cents) %></td>
               <td data-numerico><%= number_br(agreement.installments_count) %></td>
               <td><%= agreement.user&.name || "—" %></td>
+              <% if @origins.present? %><td><%= origin_label(agreement) %></td><% end %>
               <td><%= agreement.decided_by&.name || "—" %></td>
               <td><%= date_br(agreement.valid_until) %></td>
               <td data-acoes>

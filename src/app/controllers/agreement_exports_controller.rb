@@ -30,6 +30,8 @@ class AgreementExportsController < ApplicationController
     return redirect_to(agreement_exports_path, alert: t(".expired"), status: :see_other) unless export.available?
 
     export.update_columns(downloaded_at: Time.current)
+    # 14, R320: a exportação feita por usuário de operação fica na trilha.
+    Operations::Trail.record("export", user: Current.user, query: "arquivo de acordos", results: export.try(:rows_count))
     send_file export.path, filename: "acordos-#{export.tenant.name.parameterize}-#{export.created_at.to_date.iso8601}-#{export.form}.csv", type: "text/csv"
   end
 end

@@ -1,6 +1,6 @@
 <% content_for :title, "Configuração · Dados do credor" %>
 <%= pagina "Dados do credor", subtitulo: "O cadastro que o termo de acordo, as mensagens e os documentos usam." %>
-<%= render "settings/abas" %>
+<%= render "settings/modelo" %>
 
 <% @tenants.each do |registered| %>
   <% tenant = @invalid && @invalid.id == registered.id ? @invalid : registered %>

@@ -30,8 +30,7 @@
   <%= kpi "Desconto concedido no mês", money(agr[:discount_total]), definicao: "Contado na efetivação do acordo; o acordo cancelado depois dela o tira no mês do cancelamento." %>
 </dl>
 
-<div class="duas-colunas">
-  <div class="coluna">
+<div class="duas-colunas alinhados">
     <section class="cartao" aria-labelledby="meio">
       <header><h2 id="meio">Recuperado por meio</h2></header>
       <% methods = summary[:recovered].flat_map { |month| month[:methods].keys }.uniq.sort_by { |method| -summary[:recovered].sum { |month| month[:methods][method].to_i } } %>
@@ -52,6 +51,24 @@
       <% end %>
     </section>
 
+  <section class="cartao" aria-labelledby="acordos">
+    <header><h2 id="acordos">Acordos por mês</h2></header>
+    <div class="tabela" tabindex="0">
+      <table>
+        <caption class="apenas-leitor-de-tela">Acordos, mês a mês</caption>
+        <thead><tr><th scope="col">Situação</th><th scope="col" data-numerico><%= agr[:label] %></th><th scope="col" data-numerico><%= agr[:previous_label] %></th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Aceitos</th><td data-numerico><%= number_br(agr[:accepted]) %></td><td data-numerico><%= number_br(agr[:previous][:accepted]) %></td></tr>
+          <tr><th scope="row">Quebrados</th><td data-numerico><%= number_br(agr[:broken]) %></td><td data-numerico><%= number_br(agr[:previous][:broken]) %></td></tr>
+          <tr><th scope="row">Quitados</th><td data-numerico><%= number_br(agr[:settled]) %></td><td data-numerico><%= number_br(agr[:previous][:settled]) %></td></tr>
+          <tr><th scope="row">Ativos em dia</th><td data-numerico><%= number_br(agr[:on_time]) %></td><td data-numerico>—</td></tr>
+          <tr><th scope="row">Ativos em atraso</th><td data-numerico><%= number_br(agr[:late]) %></td><td data-numerico>—</td></tr>
+          <% if agr[:waiting].positive? %><tr><th scope="row">Estornos à espera do gestor</th><td data-numerico><%= number_br(agr[:waiting]) %></td><td data-numerico>—</td></tr><% end %>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
     <section class="cartao" aria-labelledby="descontos">
       <header><h2 id="descontos">Descontos e abatimentos do mês</h2></header>
       <div class="tabela" tabindex="0">
@@ -60,30 +77,11 @@
           <tbody>
             <tr><th scope="row">Desconto concedido</th><td data-numerico><%= money(agr[:discount_total]) %></td></tr>
             <% agr[:discounts].each do |component, cents| %><tr><th scope="row">Desconto: <%= t("agreements.components.#{component}").downcase %></th><td data-numerico><%= money(cents) %></td></tr><% end %>
-            <% agr[:by_user].each do |name, cents| %><tr><th scope="row">Desconto de quem montou: <%= name %></th><td data-numerico><%= money(cents) %></td></tr><% end %>
-            <% agr[:by_approver].each do |name, cents| %><tr><th scope="row">Desconto de quem aprovou: <%= name %></th><td data-numerico><%= money(cents) %></td></tr><% end %>
             <% agr[:abatements].each do |kind, cents| %><tr><th scope="row">Abatimento: <%= t("agreements.abatement_kinds.#{kind}").downcase %></th><td data-numerico><%= money(cents) %></td></tr><% end %>
           </tbody>
         </table>
       </div>
     </section>
-  </div>
-
-  <section class="cartao" aria-labelledby="acordos">
-    <header><h2 id="acordos">Acordos em <%= agr[:label] %></h2></header>
-    <div class="tabela" tabindex="0">
-      <table>
-        <caption class="apenas-leitor-de-tela">Acordos por situação</caption>
-        <tbody>
-          <tr><th scope="row">Ativos em dia</th><td data-numerico><%= number_br(agr[:on_time]) %></td></tr>
-          <tr><th scope="row">Ativos em atraso</th><td data-numerico><%= number_br(agr[:late]) %></td></tr>
-          <tr><th scope="row">Quebrados no mês</th><td data-numerico><%= number_br(agr[:broken]) %></td></tr>
-          <tr><th scope="row">Quitados no mês</th><td data-numerico><%= number_br(agr[:settled]) %></td></tr>
-          <% if agr[:waiting].positive? %><tr><th scope="row">Estornos à espera do gestor</th><td data-numerico><%= number_br(agr[:waiting]) %></td></tr><% end %>
-        </tbody>
-      </table>
-    </div>
-  </section>
 </div>
 
 <div class="duas-colunas">
@@ -125,39 +123,16 @@
   <section class="cartao" aria-labelledby="promessas">
     <header>
       <h2 id="promessas">Promessas</h2>
-      <%= informacao "Promessas", "Promessas registradas e encerradas no período. Canceladas, recusadas e não aprovadas ficam fora das taxas." %>
+      <%= informacao "Promessas", "Promessas registradas pela data do registro; cumpridas, cumpridas com atraso e quebradas pela data do encerramento. Canceladas, recusadas e não aprovadas ficam fora." %>
     </header>
     <div class="tabela" tabindex="0">
       <table>
         <caption class="apenas-leitor-de-tela">Promessas nos últimos 7 e 30 dias</caption>
         <thead><tr><th scope="col">Indicador</th><% summary[:promises].each do |window| %><th scope="col" data-numerico>Últimos <%= window[:days] %> dias</th><% end %></tr></thead>
         <tbody>
-          <tr>
-            <th scope="row">Prometeram, entre os que falaram com a cobrança</th>
-            <% summary[:promises].each_with_index do |window, index| %>
-              <% spoke = summary[:contacts][index][:kinds][:spoke_with_customer][:customers] %>
-              <td data-numerico><%= number_br(window[:customers]) %> de <%= number_br(spoke) %> <small>(<%= spoke.positive? ? "#{window[:customers] * 100 / spoke}%" : "—" %>)</small></td>
-            <% end %>
-          </tr>
-          <tr>
-            <th scope="row">Promessas registradas</th>
-            <% summary[:promises].each do |window| %><td data-numerico><%= number_br(window[:promises]) %></td><% end %>
-          </tr>
-          <tr>
-            <th scope="row">Cumpridas no prazo, entre as encerradas</th>
-            <% summary[:promises].each do |window| %>
-              <% closed = window[:fulfilled] + window[:late] + window[:broken] %>
-              <td data-numerico><%= number_br(window[:fulfilled]) %> de <%= number_br(closed) %> <small>(<%= closed.positive? ? "#{window[:fulfilled] * 100 / closed}%" : "—" %>)</small></td>
-            <% end %>
-          </tr>
-          <tr>
-            <th scope="row">Cumpridas com atraso</th>
-            <% summary[:promises].each do |window| %><td data-numerico><%= number_br(window[:late]) %></td><% end %>
-          </tr>
-          <tr>
-            <th scope="row">Quebradas</th>
-            <% summary[:promises].each do |window| %><td data-numerico><%= number_br(window[:broken]) %></td><% end %>
-          </tr>
+          <% [ [ "Promessas registradas", :promises ], [ "Promessas cumpridas", :fulfilled ], [ "Cumpridas com atraso", :late ], [ "Quebradas", :broken ] ].each do |label, key| %>
+            <tr><th scope="row"><%= label %></th><% summary[:promises].each do |window| %><td data-numerico><%= number_br(window[key]) %></td><% end %></tr>
+          <% end %>
         </tbody>
       </table>
     </div>
@@ -200,23 +175,4 @@
   </div>
 <% end %>
 
-<% if summary[:updated][:segments].any? %>
-  <section class="cartao" aria-labelledby="segmentos">
-    <header>
-      <h2 id="segmentos">Segmentos</h2>
-      <%= informacao "Segmentos", "Clientes, saldo e valor atualizado dos títulos vencidos de cada segmento de contrato." %>
-    </header>
-    <div class="tabela" tabindex="0">
-      <table>
-        <caption class="apenas-leitor-de-tela">Segmentos</caption>
-        <thead><tr><th scope="col">Segmento</th><th scope="col" data-numerico>Clientes</th><th scope="col" data-numerico>Saldo</th><th scope="col" data-numerico>Atualizado</th></tr></thead>
-        <tbody>
-          <% summary[:updated][:segments].each do |row| %>
-            <tr><th scope="row"><%= row[:name] %></th><td data-numerico><%= number_br(row[:customers]) %></td><td data-numerico><%= money(row[:balance_cents]) %></td><td data-numerico><%= money(row[:updated_cents]) %></td></tr>
-          <% end %>
-        </tbody>
-      </table>
-    </div>
-  </section>
-<% end %>
 <% end %>

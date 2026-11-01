@@ -2,7 +2,7 @@
 <%= pagina "Canais de recebimento", subtitulo: "Por onde o dinheiro entra. O código é o que a planilha de pagamentos traz." do %>
   <%= abrir_painel "Novo canal", new_settings_channel_path %>
 <% end %>
-<%= render "settings/abas" %>
+<%= render "settings/modelo" %>
 
 <form class="filtros" role="search" action="<%= settings_channels_path %>" method="get"
       hx-sync="this:replace" hx-get="<%= settings_channels_path %>" hx-trigger="input changed delay:300ms from:#q, change" hx-target="#resultado" hx-push-url="true" hx-swap="outerHTML">

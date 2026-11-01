@@ -415,7 +415,7 @@ class ContactAttemptsScreensTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "h2", text: "Clínica Beta"
     assert_select "h2", text: "Escola Alfa", count: 0
-    assert_select "nav.secoes a[aria-current=page]", text: "Resultados de acionamento"
+    assert_select "#menu-principal .submenu a[aria-current=page]", text: "Resultados de acionamento"
   end
 
   test "critério de aceite: o gestor cria 'Pediu boleto por e-mail', ele aparece na escolha do registro e a criação fica no histórico" do
@@ -499,6 +499,6 @@ class ContactAttemptsScreensTest < ActionDispatch::IntegrationTest
     delete session_path
     entrar(users(:joana))
     get settings_portfolio_path
-    assert_select "nav.secoes a", text: "Resultados de acionamento"
+    assert_select "#menu-principal .submenu a", text: "Resultados de acionamento"
   end
 end

@@ -72,8 +72,8 @@ class DemoDatasetTest < ActiveSupport::TestCase
     assert_equal ContactResult.where(tenant_id: alpha.id).count, ContactAttempt.where(tenant_id: alpha.id).distinct.count(:result_id)
     assert_operator CustomerContact.where(tenant_id: alpha.id, status: "invalid").count, :>, 0
     assert_operator CustomerContact.where(tenant_id: alpha.id, status: "do_not_disturb").count, :>, 0
-    assert_operator Segment.where(tenant_id: alpha.id).count, :>=, 4
-    assert_operator Contract.where(tenant_id: alpha.id).where.not(segment_id: nil).distinct.count(:segment_id), :>=, 3
+    assert_operator Tier.where(tenant_id: alpha.id).count, :>=, 4
+    assert_operator Contract.where(tenant_id: alpha.id).where.not(tier_id: nil).distinct.count(:tier_id), :>=, 3
     assert_operator IndexRate.count, :>, 300
     assert_operator IndexAdjustment.where(tenant_id: alpha.id).count, :>, 0
     assert_operator BillValuation.where(tenant_id: alpha.id).count, :>, 100

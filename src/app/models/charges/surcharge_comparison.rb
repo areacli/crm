@@ -14,7 +14,7 @@ module Charges
     def before(import, today: Date.current)
       rows = Sql.rows(<<~SQL, import.tenant_id, import.tenant_id, import.tenant_id, import.id)
         select r.line, r.number, r.amount_cents, r.due_date, r.penalty_cents, r.interest_cents, r.correction_cents, r.other_cents,
-               b.id as bill_id, coalesce(c.segment_id, k.segment_id) as segment_id
+               b.id as bill_id, coalesce(c.tier_id, k.tier_id) as tier_id
         from import_rows r
         left join customers cu on cu.tenant_id = ? and cu.document = r.document
         left join bills b on b.tenant_id = ? and b.customer_id = cu.id and b.number = r.number
@@ -28,7 +28,7 @@ module Charges
       valuation = Valuation.new(tables: RuleSet.tables(import.tenant, today), rules: RuleSet.rules(import.tenant), demais_id: RuleSet.demais_id(import.tenant), versions: RuleHistory.lookup(import.tenant))
       lines = rows.map do |row|
         base = existing[row["bill_id"]&.to_i]
-        input = Reader::Input.new(row["bill_id"]&.to_i, 0, 0, row["amount_cents"].to_i, to_date(row["due_date"]), row["segment_id"]&.to_i, base&.payments || [], [], base&.paid || {}, base&.dates || Set.new)
+        input = Reader::Input.new(row["bill_id"]&.to_i, 0, 0, row["amount_cents"].to_i, to_date(row["due_date"]), row["tier_id"]&.to_i, base&.payments || [], [], base&.paid || {}, base&.dates || Set.new)
         result = valuation.call(input)
         entry(row["line"], row["number"], { "fine" => row["penalty_cents"], "interest" => row["interest_cents"], "correction" => row["correction_cents"], "fees" => row["other_cents"] }, result)
       end

@@ -1,6 +1,6 @@
 <%# Comparação dos acréscimos informados pelo credor com os calculados pelo CRM (09, R178, R182). Local: comparison (resumo da importação). %>
 <section class="cartao" aria-labelledby="comparacao-acrescimos">
-  <header><div><h2 id="comparacao-acrescimos">Acréscimos informados e calculados pelo CRM</h2><p><%= comparison[:moment] == "after" ? "Com o valor atualizado já recalculado e o segmento exato." : "Aproximação com o segmento atual do contrato (\"Demais\" para contrato novo): aparece a tempo de desistir da carga." %> Só para conferência: o valor e o saldo dos títulos não mudam.</p></div></header>
+  <header><div><h2 id="comparacao-acrescimos">Acréscimos informados e calculados pelo CRM</h2><p><%= comparison[:moment] == "after" ? "Com o valor atualizado já recalculado e o item exato do enquadramento financeiro." : "Aproximação com o item atual do enquadramento financeiro do contrato (\"Demais\" para contrato novo): aparece a tempo de desistir da carga." %> Só para conferência: o valor e o saldo dos títulos não mudam.</p></div></header>
   <div>
     <div class="tabela" tabindex="0">
       <table>

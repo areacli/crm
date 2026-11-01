@@ -117,6 +117,23 @@ Rails.application.routes.draw do
     resource :reading, path: "leitura", only: :create
   end
 
+  # Distribuição (14, R311, R317, R326): à mão, mudar e recolher; o lote e o enquadramento da distribuição vêm a seguir.
+  resources :distributions, path: "distribuicao", path_names: { new: "nova", edit: "editar" }, only: %i[index new create edit update] do
+    resource :recall, path: "recolher", only: %i[new create], module: :distributions
+  end
+
+  resources :distribution_batches, path: "distribuicao/lotes", path_names: { new: "novo" }, only: %i[new create show] do
+    member do
+      post :confirm, path: "confirmar"
+      delete :discard, path: "descartar"
+    end
+  end
+
+  # Pessoas da operação (14, R310, R310a): o gestor da operação cuida das pessoas dela e, onde o credor deixa, dá vínculos.
+  resources :operation_people, path: "operacao/pessoas", path_names: { new: "nova" }, only: %i[index new create update] do
+    resources :links, path: "vinculos", path_names: { new: "novo" }, only: %i[new create], controller: "operation_links"
+  end
+
   namespace :settings, path: "configuracao" do
     resource :tenant_registry, path: "dados-do-credor", only: %i[show update]
     resource :retention_period, path: "prazo-de-guarda", only: :update
@@ -135,24 +152,51 @@ Rails.application.routes.draw do
     resource :promises, path: "promessas-e-acordos", only: :show
     resource :promise_policy, path: "politicas-de-promessa", only: :update
     resource :promise_limits, path: "alcada-de-promessa", only: :update
-    # Acordos (11, R207, R207a, R209): parâmetros do parcelamento e da mora, variáveis do segmento, limites por perfil e políticas. Gravam sem conferência do impacto.
+    # Acordos (11, R207, R207a, R209): parâmetros do parcelamento e da mora, variáveis do item do enquadramento, limites por perfil e políticas. As variáveis passam pela
+    # conferência do impacto (13, R272); o resto grava direto.
     resource :agreement_parameters, path: "parametros-de-acordo", only: :update
     resource :agreement_policies, path: "politicas-de-acordo", only: :update
     resource :agreement_variables, path: "variaveis-de-acordo", only: :update
     resource :agreement_limits, path: "limites-de-acordo", only: :update
-    # Segmentos do contrato (08): toda mudança passa pela conferência do impacto (R154) antes de valer.
-    resources :segments, path: "segmentos", path_names: { new: "novo", edit: "editar" }, except: %i[show destroy] do
+    # Segmentos (13): filtros nomeados do credor, com o editor em blocos, "Conferir" e o glossário da linguagem. Mudar um segmento usado no
+    # enquadramento passa pela conferência do impacto (R272, R273).
+    get "segmentos/glossario", to: "segment_glossaries#show", as: :segment_glossary
+    resources :segments, path: "segmentos", path_names: { new: "novo", edit: "editar" } do
+      collection do
+        post :draft, path: "rascunho"
+        post :probe, path: "conferir"
+        get "conferir/:probe_id", action: :probe_result, as: :probe_result
+      end
       resource :activation, path: "ativacao", only: %i[create destroy], module: :segments
-      resource :movement, path: "movimento", only: :create, module: :segments
     end
-    resource :segment_policy, path: "produto-do-contrato-no-segmento", only: :update
+    # Enquadramento financeiro (13, R265 a R272): itens em ordem com as regras de encargos, promessa e acordo; toda mudança passa pela
+    # conferência do impacto antes de valer.
+    resources :tiers, path: "enquadramento-financeiro", path_names: { new: "incluir", edit: "regras" }, except: :show do
+      resource :movement, path: "movimento", only: :create, module: :tiers
+    end
     # Parâmetros de encargos do credor e as políticas de encargos (09): também passam pela conferência do impacto.
     resource :charges, path: "encargos", only: :update
-    resource :segment_confirmation, path: "confirmacao-dos-segmentos", only: :create
+    resource :tier_confirmation, path: "confirmacao-do-enquadramento", only: :create
+    resources :tier_reviews, path: "conferencias-do-enquadramento", only: :show
     # Índices do Banco Central (08): valores globais, correções do credor e "Buscar índices agora".
     resource :indexes, path: "indices", only: :show
     resources :index_adjustments, path: "correcoes-de-indices", path_names: { new: "nova" }, only: %i[new create destroy]
     resource :index_search, path: "busca-de-indices", only: :create
+    # Enquadramento da distribuição (14, R342 a R347): itens por posição; cada mudança vai à conferência do impacto antes de valer.
+    resources :distribution_rules, path: "enquadramento-da-distribuicao", path_names: { new: "incluir", edit: "mudar" }, only: %i[index new create edit update destroy] do
+      member { post :move, path: "mover" }
+      collection do
+        get :review, path: "conferencia", action: :review_show
+        post :confirm, path: "confirmar"
+      end
+    end
+    # Operações credenciadas (14, R306, R307, R310): a ficha é a do credenciamento; situação e vínculos no painel.
+    resource :operation_policies, path: "politicas-das-operacoes", only: :update
+    resources :operation_trails, path: "trilha-das-operacoes", only: :index
+    resources :operations, path: "operacoes", path_names: { new: "credenciar" }, only: %i[index new create show] do
+      resource :status, path: "situacao", only: %i[new create], module: :operations
+      resources :links, path: "vinculos", path_names: { new: "novo" }, only: %i[new create destroy], module: :operations
+    end
     resources :contact_results, path: "resultados-de-acionamento", path_names: { new: "novo", edit: "editar" }, except: %i[show destroy] do
       resource :activation, path: "ativacao", only: %i[create destroy], module: :contact_results
       resource :movement, path: "movimento", only: :create, module: :contact_results
@@ -164,6 +208,9 @@ Rails.application.routes.draw do
 
   # Aviso de um fornecedor de instrumentos de pagamento (12, parte D): uma rota por conta de pagamento. O Pix da Efí acrescenta `/pix` à URL registrada.
   post "webhooks/pagamentos/contas/:conta(/pix)", to: "webhooks/payment_accounts#create", as: :payment_account_webhook, format: false, constraints: { conta: /\d+/ }
+
+  # Páginas de erro (config.exceptions_app): o Rails reenvia a requisição para /<código> quando uma exceção ou um status de erro sai.
+  match "/:status", to: "errors#show", via: :all, constraints: { status: /400|403|404|406|422|429|500|503/ }, as: :error
 
   # Referência dos tokens e dos componentes: só onde se desenvolve e se testa.
   get "design-system" => "design_system#show", as: :design_system if Rails.env.local?

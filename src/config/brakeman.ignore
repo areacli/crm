@@ -68,6 +68,98 @@
         22
       ],
       "note": "Falso positivo: o nome do arquivo é montado pelo CRM com os números do credor e da exportação e uma forma de lista fechada (`AgreementExport#default_file_name`), nunca com texto do usuário; o `show` só abre exportação de credor em que o usuário administra acordos."
+    },
+    {
+      "warning_type": "SQL Injection",
+      "warning_code": 0,
+      "fingerprint": "201c9052dabbdbedf773c78b9d3d7af84bf883457cafa74983caa88340caf7be",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "app/models/segments/list_filter.rb",
+      "line": 20,
+      "link": "https://brakemanscanner.org/docs/warning_types/sql_injection/",
+      "code": "ActiveRecord::Base.connection.exec_query(\"insert into #{\"segment_filter_customers\"} (customer_id) #{(\"select m.id from (#{Compiler.new(segment.tenant).matching(segment.expression_object).sql}) m\" or \"select distinct cc.customer_id from contract_customers cc join (#{Compiler.new(segment.tenant).matching(segment.expression_object).sql}) m on m.id = cc.contract_id\")}\", \"Segments\", Compiler.new(segment.tenant).matching(segment.expression_object).binds)",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Segments::ListFilter",
+        "method": "load"
+      },
+      "user_input": "Compiler.new(segment.tenant).matching(segment.expression_object).sql",
+      "confidence": "Medium",
+      "cwe_id": [
+        89
+      ],
+      "note": "Falso positivo: o texto vem do compilador da linguagem dos segmentos (fragmentos do catálogo no código) e de uma tabela temporária de nome fixo; todo valor da árvore vai como parâmetro em binds (decisão 0023)."
+    },
+    {
+      "warning_type": "SQL Injection",
+      "warning_code": 0,
+      "fingerprint": "6cbb4be3728b7f2312b95600cee83ccf77f750b36f463d87d84993884e04c9a8",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "app/models/tiers/recalculation.rb",
+      "line": 36,
+      "link": "https://brakemanscanner.org/docs/warning_types/sql_injection/",
+      "code": "ActiveRecord::Base.connection.exec_query(\"insert into tier_calc #{Segments::Compiler.new(@tenant, :today => today).classify(Proposal.current(@tenant).classified, :default_id => Proposal.current(@tenant).catch_all_id).sql}\", \"Tiers\", Segments::Compiler.new(@tenant, :today => today).classify(Proposal.current(@tenant).classified, :default_id => Proposal.current(@tenant).catch_all_id).binds)",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Tiers::Recalculation",
+        "method": "apply"
+      },
+      "user_input": "Segments::Compiler.new(@tenant, :today => today).classify(Proposal.current(@tenant).classified, :default_id => Proposal.current(@tenant).catch_all_id)",
+      "confidence": "High",
+      "cwe_id": [
+        89
+      ],
+      "note": "Falso positivo: o texto vem do compilador da linguagem dos segmentos, montado só com fragmentos do catálogo escritos no código; todo valor da árvore vai como parâmetro ($n) em binds (decisão 0023, teste em test/models/segments/language_test.rb)."
+    },
+    {
+      "warning_type": "SQL Injection",
+      "warning_code": 0,
+      "fingerprint": "24f57f1589c67fe8077b5dcd7e3fb94d40f2232abf6c8bc209cfd4a5e539a9db",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "app/models/distributions/batch_checker.rb",
+      "line": 36,
+      "link": "https://brakemanscanner.org/docs/warning_types/sql_injection/",
+      "code": "ActiveRecord::Base.connection.exec_query(\"select m.id from (#{Segments::Compiler.new(@batch.tenant).matching(@batch.segment.expression_object).sql}) m\", \"Distributions\", Segments::Compiler.new(@batch.tenant).matching(@batch.segment.expression_object).binds)",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Distributions::BatchChecker",
+        "method": "resolve"
+      },
+      "user_input": "Segments::Compiler.new(@batch.tenant).matching(@batch.segment.expression_object)",
+      "confidence": "High",
+      "cwe_id": [
+        89
+      ],
+      "note": "Lote de distribuição (14, R316): o SQL vem do compilador da linguagem dos segmentos (decisão 0023), com todo valor do usuário como parâmetro ($n); só a estrutura é texto, gerada do catálogo fechado."
+    },
+    {
+      "warning_type": "SQL Injection",
+      "warning_code": 0,
+      "fingerprint": "267a7560a6d98ccea16c5341f99e28db24fa650c9aa6b97fe2864b1859e3feef",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "app/models/distribution_rules/assignment.rb",
+      "line": 17,
+      "link": "https://brakemanscanner.org/docs/warning_types/sql_injection/",
+      "code": "ActiveRecord::Base.connection.exec_query(\"insert into #{:BRAKEMAN_SAFE_LITERAL} select contract_id, tier_id, balance_cents from (#{Segments::Compiler.new(tenant, :today => today).classify(items, :default_id => 0).sql}) q\", \"DistributionRules\", Segments::Compiler.new(tenant, :today => today).classify(items, :default_id => 0).binds)",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "DistributionRules::Assignment",
+        "method": "load"
+      },
+      "user_input": "Segments::Compiler.new(tenant, :today => today).classify(items, :default_id => 0)",
+      "confidence": "High",
+      "cwe_id": [
+        89
+      ],
+      "note": "Enquadramento da distribuição (14, R343): nome de tabela temporária de uma lista fixa (TABLES, conferida antes) e o SQL do compilador dos segmentos, com todo valor como parâmetro (decisão 0023)."
     }
   ],
   "brakeman_version": "8.0.2"

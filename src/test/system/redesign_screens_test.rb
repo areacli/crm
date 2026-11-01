@@ -1,7 +1,7 @@
 require "application_system_test_case"
 
 # Redesenho denso e corporativo (fase 1, decisão 0022): as cinco telas do protótipo no axe, nenhuma tela rola na horizontal a 1440, 1024 e 390 px, e as medidas da
-# revisão 4 (cabeçalho de 56 px, controle de 34 px, linha de 36 px, menu de 208 px).
+# revisão 4 (cabeçalho de 56 px, controle de 34 px, linha de 36 px), com o menu de 256 px da revisão 6.
 class RedesignScreensSystemTest < ApplicationSystemTestCase
   LARGURAS = [ 1440, 1024, 390 ].freeze
 
@@ -57,17 +57,32 @@ class RedesignScreensSystemTest < ApplicationSystemTestCase
     assert_acessivel
   end
 
-  test "as medidas da revisão 4: cabeçalho de 56 px, controle de 34 px, linha de 36 px e menu de 208 px" do
+  test "as medidas da revisão 4: cabeçalho de 56 px, controle de 34 px, linha de 36 px e menu de 256 px (revisão 6)" do
     entrar
     visit customers_path
     assert_selector "#resultado tbody tr"
     assert_equal 56, medida("body > header")
-    assert_equal 208, medida("body > nav", "width")
+    assert_equal 256, medida("body > nav", "width")
     assert_equal 34, medida("form.filtros select")
     assert_equal 36, medida("#resultado tbody tr")
     assert_equal 15, page.evaluate_script("parseFloat(getComputedStyle(document.body).fontSize)")
     visit customer_path(@maria)
     assert_equal 320, medida(".ficha-lateral", "width")
+  end
+
+  # Design system, revisão 6: nenhum rótulo do menu quebra em duas linhas, nem com o selo de contagem, nem no submenu da configuração aberto.
+  test "todo item do menu cabe em uma linha" do
+    bill = @maria.bills.first
+    ValueDiscrepancy.create!(tenant: @alfa, bill: bill, previous_cents: 1, reported_cents: 2, allocated_cents: 1, balance_before_cents: 0, balance_after_cents: 0,
+                             effect: "record_only", policy: "keep", status: "open")
+    entrar
+    visit settings_contact_results_path
+    assert_selector "#menu-principal details.submenu[open]"
+    assert_selector "#menu-principal .selo"
+    altura = page.evaluate_script("parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--altura-item-menu')) * parseFloat(getComputedStyle(document.documentElement).fontSize)")
+    itens = page.evaluate_script("[...document.querySelectorAll('#menu-principal a, #menu-principal summary')].map((el) => [el.textContent.trim().replace(/\\s+/g, ' '), el.getBoundingClientRect().height])")
+    altos = itens.select { |_, h| h > altura + 1 }
+    assert_empty altos, "itens do menu em mais de uma linha: #{altos.map(&:first).join(', ')}"
   end
 
   test "nenhuma tela rola na horizontal a 1440, 1024 e 390 px" do

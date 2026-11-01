@@ -15,11 +15,21 @@ module Demo
     include AgreementSteps
     include TitularSteps
     include InstrumentSteps
+    include OperationSteps
 
     ALPHA = "Escola Alfa".freeze
     BETA = "Clínica Beta".freeze
     CHANNELS = { "pix" => [ "341-1234-56789", :account, "Itaú, conta principal" ], "boleto" => [ "2847193", :agreement, "Convênio de cobrança, Bradesco" ],
                  "cartão de crédito" => [ "1029384756", :card, "Cielo, loja virtual" ], "transferência" => [ "341-1234-56789", :account, nil ] }.freeze
+    # Segmentos da demonstração (13): nome, sujeito, condições e posição no enquadramento financeiro (nil: sem uso, só para a lista).
+    SEGMENTS = [
+      [ "Mensalidade recente", "contracts", [ { "path" => "product", "op" => "eq", "value" => "Mensalidade" }, { "path" => "overdue_days", "op" => "lte", "value" => 90 } ], 1 ],
+      [ "Cartão de crédito", "contracts", [ { "path" => "product", "op" => "eq", "value" => "Cartão de crédito" } ], 2 ],
+      [ "Pessoa jurídica", "contracts", [ { "path" => "person_type", "op" => "eq", "value" => "company" } ], 3 ],
+      [ "Clientes sem contato válido", "customers", [ { "path" => "contacts", "qualifier" => "valid", "quantifier" => "none" } ], nil ],
+      [ "PF com atraso longo", "customers", [ { "path" => "person_type", "op" => "eq", "value" => "person" }, { "path" => "overdue_days", "op" => "gt", "value" => 90 } ], nil ]
+    ].freeze
+
     AGREEMENT_VARIABLES = {
       agreement_caps: { "installment" => { "fine" => 100, "interest" => 100, "fees" => 50 }, "cash" => { "fine" => 100, "interest" => 100, "fees" => 50, "correction" => 30 } },
       agreement_max_installments: 12, agreement_min_installment_cents: 10_000, agreement_min_down_payment_pct: 10, agreement_down_payment_days: 10,
@@ -112,6 +122,7 @@ module Demo
         step("  acionamentos e cadastros") { attempts(tenant) }
         step("  promessas") { promises(tenant) }
         step("  acordos") { agreements(tenant) }
+        step("  operações") { operations(tenant) }
         step("  direitos do titular") { titular(tenant) }
         step("  instrumentos e link de pagamento") { instruments(tenant) }
         step("  importação à espera de confirmação") { pending_import(tenant) }
@@ -126,7 +137,7 @@ module Demo
         link(@manager, tenant, "Operador")
         channel = PaymentChannel.create!(tenant: tenant, kind: :account, code: "001-4455-90210", description: "Banco do Brasil, conta da clínica")
         tenant.setting.update!(charge_fine_pct: 2, charge_interest_pct: 1, charge_index: "ipca")
-        Segment.catch_all_of(tenant).update!(interest_kind: "fixed")
+        Tier.catch_all_of(tenant).update!(interest_kind: "fixed")
         Charges::RuleHistory.record!(tenant, since: Date.new(2020, 1, 1))
         portfolio(tenant, 20_000...20_000 + [ @customers / 16, 40 ].max, name: "carteira-clinica.csv")
         recalc(tenant)
@@ -203,7 +214,7 @@ module Demo
       end
 
       def recalc(tenant)
-        Segments::Recalculation.new(tenant).apply(today: today)
+        Tiers::Recalculation.new(tenant).apply(today: today)
         Charges::Recalculation.new(tenant).apply(today: today)
       end
 
@@ -222,17 +233,18 @@ module Demo
         end
       end
 
-      # Encargos (multa 2%, juros de 1% ao mês, IPCA), segmentos com critérios, variáveis de acordo e as alçadas.
+      # Encargos (multa 2%, juros de 1% ao mês, IPCA), segmentos na linguagem (13), o enquadramento financeiro com três itens e o "Demais",
+      # variáveis de acordo e as alçadas; mais dois segmentos de clientes sem uso, para o filtro da lista.
       def configure(tenant)
         tenant.setting.update!(charge_fine_pct: 2, charge_interest_pct: 1, charge_index: "ipca", installment_rate_pct: 1.5, installment_method: "price")
-        catch_all = Segment.catch_all_of(tenant)
+        catch_all = Tier.catch_all_of(tenant)
         catch_all.update!(interest_kind: "fixed", **AGREEMENT_VARIABLES)
-        [ [ "Mensalidade recente", { products: [ "Mensalidade" ], max_overdue_days: 90 } ], [ "Cartão de crédito", { products: [ "Cartão de crédito" ] } ],
-          [ "Pessoa jurídica", { person_type: "company" } ] ].each_with_index do |(name, criteria), index|
-          Segment.create!(tenant: tenant, name: name, position: index + 1, interest_kind: "fixed", **criteria, **AGREEMENT_VARIABLES)
+        SEGMENTS.each do |name, subject, conditions, position|
+          segment = Segment.create!(tenant: tenant, name: name, subject: subject, expression: { "all" => conditions })
+          Tier.create!(tenant: tenant, kind: "financial", segment: segment, position: position, interest_kind: "fixed", **AGREEMENT_VARIABLES) if position
         end
-        AgreementLimit.where(segment_id: tenant.segments.select(:id)).delete_all
-        tenant.segments.find_each { |segment| AgreementLimit.create_for_segment(segment) }
+        AgreementLimit.where(tier_id: tenant.tiers.select(:id)).delete_all
+        tenant.tiers.find_each { |tier| AgreementLimit.create_for_tier(tier) }
         Charges::RuleHistory.record!(tenant, since: Date.new(2020, 1, 1))
       end
 

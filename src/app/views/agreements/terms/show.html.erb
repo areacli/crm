@@ -10,6 +10,7 @@
   <section aria-labelledby="partes">
     <h2 id="partes">Partes</h2>
     <p><strong>Credor:</strong> <%= term.dig("creditor", "legal_name") %><%= " (#{term.dig('creditor', 'trade_name')})" if term.dig("creditor", "trade_name").present? %>, CNPJ <%= term.dig("creditor", "cnpj") %><%= ", #{term.dig('creditor', 'address')}" if term.dig("creditor", "address").present? %>.</p>
+    <% if term["operation"] %><p><strong>Negociado por</strong> <%= term.dig("operation", "legal_name") %>, CNPJ <%= term.dig("operation", "cnpj") %>, em nome de <%= term.dig("creditor", "legal_name") %>.</p><% end %>
     <p><strong>Cliente:</strong> <%= term.dig("customer", "name") %>, documento <%= term.dig("customer", "document") %>.</p>
     <p><strong>Destinatário<%= "s" if term["addressees"].size > 1 %> do termo (responsável financeiro):</strong> <%= term["addressees"].map { |item| "#{item['name']}, documento #{item['document']}" }.to_sentence %>.</p>
   </section>

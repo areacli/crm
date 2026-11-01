@@ -67,11 +67,11 @@ module MeasureData
     imports = Import.where(tenant_id: tenant_id).select(:id)
     [ PaymentRow, ImportRow, ImportContact, ImportRejection, ImportWarning ].each { |model| model.where(import_id: imports).delete_all }
     ContractCustomer.where(customer_id: Customer.where(tenant_id: tenant_id).select(:id)).delete_all
-    ContractSegment.where(contract_id: Contract.where(tenant_id: tenant_id).select(:id)).delete_all
+    ContractTier.where(contract_id: Contract.where(tenant_id: tenant_id).select(:id)).delete_all
     Bill.where(tenant_id: tenant_id).delete_all
     Customer.where(tenant_id: tenant_id).delete_all
     Contract.where(tenant_id: tenant_id).delete_all
-    ChargeRuleVersion.where(segment_id: Segment.where(tenant_id: tenant_id).select(:id)).delete_all
+    ChargeRuleVersion.where(tier_id: Tier.where(tenant_id: tenant_id).select(:id)).delete_all
     Import.where(tenant_id: tenant_id).destroy_all
   end
 end

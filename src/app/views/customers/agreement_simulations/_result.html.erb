@@ -12,9 +12,9 @@
     <% if quote.error %>
       <%= aviso(tom: :danger) { tag.p "Esta proposta não pode ser criada: #{quote.error}" } %>
     <% elsif quote.pending? %>
-      <%= aviso(tom: :warning) { tag.p "Fora dos seus limites: a proposta nasce pendente de aprovação, e quem pode aprová-la é quem tem os limites que a cobririam. Segmento para negociar: #{quote.segment.name}." } %>
+      <%= aviso(tom: :warning) { tag.p "Fora dos seus limites: a proposta nasce pendente de aprovação, e quem pode aprová-la é quem tem os limites que a cobririam. Item para negociar: #{quote.tier.name}." } %>
     <% else %>
-      <%= aviso(tom: :info) { tag.p "Dentro dos seus limites: a proposta nasce aprovada. Segmento para negociar: #{quote.segment.name}." } %>
+      <%= aviso(tom: :info) { tag.p "Dentro dos seus limites: a proposta nasce aprovada. Item para negociar: #{quote.tier.name}." } %>
     <% end %>
 
     <section class="cartao" aria-labelledby="base-do-acordo">

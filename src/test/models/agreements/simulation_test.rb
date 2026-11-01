@@ -115,7 +115,7 @@ class Agreements::SimulationTest < ActiveSupport::TestCase
 
   test "R215: todos os componentes com 100% de desconto é perdão total" do
     @alfa.setting.update!(installment_method: "none")
-    Segment.catch_all_of(@alfa).update!(agreement_caps: { "installment" => Agreements::Caps::COMPONENTS.to_h { |c| [ c, 100 ] }, "cash" => {} })
+    Tier.catch_all_of(@alfa).update!(agreement_caps: { "installment" => Agreements::Caps::COMPONENTS.to_h { |c| [ c, 100 ] }, "cash" => {} })
     forgiveness = Agreements::Caps::COMPONENTS.to_h { |c| [ c, 10_000 ] }
     quote = simulate_agreement(@customer, [ @nf1, @nf2 ], discounts: forgiveness)
 
@@ -154,14 +154,14 @@ class Agreements::SimulationTest < ActiveSupport::TestCase
   end
 
   test "N23: o teto em reais do valor líquido do perfil leva a proposta à aprovação" do
-    limit = AgreementLimit.for(profiles(:alfa_operator), Segment.catch_all_of(@alfa))
+    limit = AgreementLimit.for(profiles(:alfa_operator), Tier.catch_all_of(@alfa))
     limit.update!(ceiling_value_cents: 100_000)
 
     assert_equal "pending", simulate_agreement(@customer, [ @nf1, @nf2 ]).status
   end
 
   test "DA30: os honorários são recalculados sobre o negociado e depois recebem o desconto" do
-    Segment.catch_all_of(@alfa).update!(fees_pct: 10, fees_in_contract: true)
+    Tier.catch_all_of(@alfa).update!(fees_pct: 10, fees_in_contract: true)
     recalc_values(@alfa, today: AGREEMENT_DAY)
     plain = simulate_agreement(@customer, [ @nf1, @nf2 ], discounts: { "fine" => 5_000, "interest" => 5_000 }).rows.first
     base_fees = plain.base["fees"]

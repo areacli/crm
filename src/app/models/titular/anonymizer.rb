@@ -68,6 +68,7 @@ module Titular
 
       scrub_summaries(t)
       scrub_history(targets)
+      scrub_trail(t)
       Sql.execute("delete from customer_contacts where customer_id in #{targets}")
       # 12: o instrumento de pagamento guarda nome, documento e endereço do pagador no momento da emissão; saem junto com o cadastro.
       Sql.execute("update payment_instruments set payer_name = tg.new_name, payer_document = tg.new_document, payer_address = '{}'::jsonb from anon_targets tg where payment_instruments.customer_id = tg.customer_id")
@@ -148,6 +149,17 @@ module Titular
         Sql.execute("update changes set #{sets} where subject_type = 'contact_attempt' and subject_id in (select id from contact_attempts where customer_id in #{targets})")
         Sql.execute("update changes set #{sets} where subject_type = 'payment_promise' and subject_id in (select id from payment_promises where customer_id in #{targets})")
         Sql.execute("update changes set #{sets} where subject_type = 'bill' and field = 'description' and subject_id in (select id from bills where customer_id in #{targets})")
+      end
+
+      # Trilha das operações (14, R323): a ficha aberta guarda só o identificador do cliente; a busca guarda o texto buscado, que some quando era o
+      # nome ou o documento do cliente anonimizado.
+      def scrub_trail(tenant_id)
+        Sql.run(<<~SQL, tenant_id)
+          update operation_trail_events e set query_text = '#{REMOVED}'
+          from anon_targets tg
+          where e.tenant_id = ? and e.kind = 'search' and e.query_text is not null
+            and (lower(e.query_text) = lower(tg.old_name) or regexp_replace(e.query_text, '\\D', '', 'g') = tg.old_document)
+        SQL
       end
 
       # Resumo das importações (R132, revisão 1): nomes de clientes e valores de contatos nas listas viram o identificador ou o aviso.

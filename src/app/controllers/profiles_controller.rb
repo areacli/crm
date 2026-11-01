@@ -21,11 +21,11 @@ class ProfilesController < ApplicationController
   end
 
   def create
-    attributes = params.expect(profile: [ :tenant_id, :name, permissions: [] ])
+    attributes = params.expect(profile: [ :tenant_id, :name, :available_to_operations, permissions: [] ])
     @tenants = manageable_tenants
     tenant = Tenant.find_by(id: attributes[:tenant_id]) or return head(:not_found)
     authorize Profile.new(tenant: tenant)
-    @profile = manager.create(tenant: tenant, name: attributes[:name], permissions: attributes[:permissions])
+    @profile = manager.create(tenant: tenant, name: attributes[:name], permissions: attributes[:permissions], available_to_operations: attributes[:available_to_operations] == "1")
 
     if @profile.persisted?
       panel_finish(profiles_path, notice: t(".done", name: @profile.name), atualizar: true)
@@ -42,8 +42,8 @@ class ProfilesController < ApplicationController
   end
 
   def update
-    attributes = params.expect(profile: [ :name, permissions: [] ])
-    manager.update(@profile, name: attributes[:name], permissions: attributes[:permissions])
+    attributes = params.expect(profile: [ :name, :available_to_operations, permissions: [] ])
+    manager.update(@profile, name: attributes[:name], permissions: attributes[:permissions], available_to_operations: attributes[:available_to_operations] == "1")
 
     if @profile.errors.empty?
       panel_finish(profiles_path, notice: t(".done", name: @profile.name), atualizar: true)

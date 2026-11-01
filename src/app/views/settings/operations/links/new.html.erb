@@ -1,0 +1,13 @@
+<%= formulario_de_painel(titulo: "Vínculo de #{@member.user.name} em #{@accreditation.tenant.name}", url: settings_operation_links_path(@accreditation), enviar: "Salvar vínculo",
+                         escopo: :link, variante: :modal, tamanho: :small, erro: @error, voltar: settings_operation_path(@accreditation),
+                         descricao: "A pessoa faz neste credor o que o perfil permite, sobre o que está distribuído à operação.") do |form| %>
+  <%= form.hidden_field :member_id, value: @member.id %>
+  <% if @profiles.empty? %>
+    <p class="vazio">Nenhum perfil deste credor está disponível para operações. Marque um em <%= link_to "Perfis", profiles_path %>.</p>
+  <% else %>
+    <div class="campo">
+      <%= form.label :profile_id, "Perfil" %>
+      <%= form.select :profile_id, @profiles.map { |profile| [ profile.name, profile.id ] }, {}, required: true %>
+    </div>
+  <% end %>
+<% end %>

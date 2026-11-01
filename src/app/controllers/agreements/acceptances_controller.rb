@@ -23,7 +23,14 @@ module Agreements
       def set_agreement = @agreement = Agreement.includes(:tenant).find(params[:agreement_id])
 
       # Quem pode aceitar: os clientes do acordo e o papel de cada um (a mesma consulta da página do acordo).
-      def load_acceptors = @acceptors = Agreements::Acceptance.acceptors(@agreement)
+      def load_acceptors
+        @acceptors = Agreements::Acceptance.acceptors(@agreement)
+        # 14, R318: as promessas de uma operação que o aceite vai cancelar (11, R222), para a confirmação dizer.
+        @undone = Operations::Context.system do
+          PaymentPromise.where(id: PaymentPromiseBill.where(bill_id: @agreement.agreement_bills.select(:bill_id), held: true, removed_at: nil).select(:promise_id),
+                               state: PaymentPromise::HOLDING).where.not(operation_id: [ nil, Current.user.operation&.id ]).includes(:operation).to_a
+        end
+      end
 
       # Data e hora do campo `datetime-local` (horário de Brasília).
       def parse_time(text)

@@ -1,0 +1,36 @@
+<% content_for :title, "Pessoas da operação" %>
+<%= pagina "Pessoas da #{@operation.short_name}", subtitulo: "Quem trabalha pela operação. O vínculo em cada credor, com o perfil, é dado pelo credor (ou por você, onde o credor deixar)." do %>
+  <%= abrir_painel "Nova pessoa", new_operation_person_path %>
+<% end %>
+<% if flash[:temporary_password] %><%= render "memberships/temporary_password", data: flash[:temporary_password] %><% end %>
+
+<div class="tabela" tabindex="0" data-fixa>
+  <table>
+    <caption class="apenas-leitor-de-tela">Pessoas da operação</caption>
+    <thead><tr><th scope="col">Pessoa</th><th scope="col">E-mail</th><th scope="col">Situação</th><th scope="col">Vínculos (credor · perfil)</th><th scope="col"><span class="apenas-leitor-de-tela">Ações</span></th></tr></thead>
+    <tbody>
+      <% @members.each do |member| %>
+        <tr>
+          <th scope="row"><%= member.user.name %><%= " (você)" if member.user_id == Current.user.id %></th>
+          <td><%= member.user.email_address %></td>
+          <td><%= member.active? ? situacao(member.manager? ? "Gestor" : "Ativa", tom: :success) : situacao("Desativada", tom: :neutral) %></td>
+          <td><%= safe_join(Array(@memberships[member.user_id]).map { |membership| "#{membership.tenant.name} · #{membership.profile.name}" }, tag.br).presence || "Sem vínculo" %></td>
+          <td data-acoes>
+            <% if member.user_id != Current.user.id %>
+              <%= menu_de_linha("pessoa-#{member.id}", "Ações de #{member.user.name}") do %>
+                <% if member.active? %>
+                  <% if @linkable.any? %><%= abrir_painel "Dar vínculo", new_operation_person_link_path(member), variante: "modal", tamanho: "small" %><% end %>
+                  <%= confirmar_no_painel (member.manager? ? "Tirar de gestor" : "Tornar gestor"), titulo: (member.manager? ? "Tirar #{member.user.name} de gestor?" : "Tornar #{member.user.name} gestor da operação?"),
+                                          mensagem: "O gestor cadastra e desativa as pessoas da operação.", acao: "Confirmar", url: operation_person_path(member, change: member.manager? ? "not_manager" : "manager"), metodo: :patch, perigoso: false %>
+                  <%= confirmar_no_painel "Desativar", titulo: "Desativar #{member.user.name}?", mensagem: "Ela perde o acesso a todos os credores na hora; os vínculos dela se encerram.", acao: "Desativar", url: operation_person_path(member, change: "deactivate"), metodo: :patch %>
+                <% else %>
+                  <%= confirmar_no_painel "Reativar", titulo: "Reativar #{member.user.name}?", mensagem: "Os vínculos encerrados não voltam: o credor (ou você) dá de novo.", acao: "Reativar", url: operation_person_path(member, change: "activate"), metodo: :patch, perigoso: false %>
+                <% end %>
+              <% end %>
+            <% end %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>

@@ -32,7 +32,7 @@ class Promises::RecorderTest < ActiveSupport::TestCase
     assert_equal 3, promise.reload.policies["tolerance_days"]
     assert_equal "promise_only", promise.policies["counting"]
     assert_equal 30, promise.policies["limit_days"]
-    assert_equal Segment.catch_all_of(@alfa), promise.segment
+    assert_equal Tier.catch_all_of(@alfa), promise.tier
   end
 
   test "R184: resultado que não admite promessa recusa o envio direto e nada é gravado" do
@@ -83,8 +83,8 @@ class Promises::RecorderTest < ActiveSupport::TestCase
   end
 
   test "R190 e R191: o prazo acima da alçada do operador nasce pendente, sem número; o gestor dá o prazo do segmento" do
-    Segment.catch_all_of(@alfa).update!(promise_max_days: 60)
-    PromiseLimit.where(segment: Segment.catch_all_of(@alfa), profile: profiles(:alfa_manager)).update_all(max_days: 60)
+    Tier.catch_all_of(@alfa).update!(promise_max_days: 60)
+    PromiseLimit.where(tier: Tier.catch_all_of(@alfa), profile: profiles(:alfa_manager)).update_all(max_days: 60)
     pending = register_promise(@customer, [ @nf1 ], user: users(:carlos), on: TODAY + 45)
     own = register_promise(@customer, [ @nf2 ], user: users(:joana), on: TODAY + 45)
 
@@ -95,7 +95,7 @@ class Promises::RecorderTest < ActiveSupport::TestCase
   end
 
   test "R189 e R191: depois do prazo máximo do segmento a promessa é recusada com o limite" do
-    Segment.catch_all_of(@alfa).update!(promise_max_days: 60)
+    Tier.catch_all_of(@alfa).update!(promise_max_days: 60)
 
     message = refuse_message { register_promise(@customer, [ @nf1 ], on: TODAY + 90) }
 
@@ -143,13 +143,13 @@ class Promises::RecorderTest < ActiveSupport::TestCase
 
   test "R190 (revisão 5): a alçada, o prazo e o segmento são os do credor da promessa" do
     beta = tenants(:beta)
-    Segment.catch_all_of(@alfa).update!(promise_max_days: 60)
-    Segment.catch_all_of(beta).update!(promise_max_days: 90)
-    PromiseLimit.where(segment: Segment.catch_all_of(@alfa), profile: profiles(:alfa_operator)).update_all(max_days: 30)
-    PromiseLimit.where(segment: Segment.catch_all_of(beta), profile: profiles(:beta_operator)).update_all(max_days: 45)
+    Tier.catch_all_of(@alfa).update!(promise_max_days: 60)
+    Tier.catch_all_of(beta).update!(promise_max_days: 90)
+    PromiseLimit.where(tier: Tier.catch_all_of(@alfa), profile: profiles(:alfa_operator)).update_all(max_days: 30)
+    PromiseLimit.where(tier: Tier.catch_all_of(beta), profile: profiles(:beta_operator)).update_all(max_days: 45)
     user = users(:ana) # Ana é operadora na Alfa e gestora na Beta; aqui a alçada do perfil dela em cada credor
     customer_beta, bill_beta, = promise_scenario(beta, charges: false, document: PaymentsHelper::JOAO, contract_code: "CT-B", name: "João")
-    PromiseLimit.where(segment: Segment.catch_all_of(beta), profile: profiles(:beta_manager)).update_all(max_days: 45)
+    PromiseLimit.where(tier: Tier.catch_all_of(beta), profile: profiles(:beta_manager)).update_all(max_days: 45)
 
     alfa_promise = register_promise(@customer, [ @nf1 ], user: user, on: TODAY + 40)
     beta_promise = register_promise(customer_beta, [ bill_beta ], user: user, on: TODAY + 40)

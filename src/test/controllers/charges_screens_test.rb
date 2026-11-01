@@ -70,7 +70,7 @@ class ChargesScreensTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "R176, R176a e critério de aceite: o resumo traz um só conjunto de totais com o atualizado somado, as faixas e os segmentos (25/10/2026)" do
+  test "R176, R176a e critério de aceite: o resumo traz um só conjunto de totais com o atualizado somado e as faixas, sem segmentos (13, SG10)" do
     configure_charges(@beta, fine: 0, interest: 2, index: "none")
     make_bill(@beta, due: DUE, document: PaymentsHelper::JOAO)
     recalc_values(@beta)
@@ -80,18 +80,18 @@ class ChargesScreensTest < ActionDispatch::IntegrationTest
       assert_response :success
       assert_select "h2", text: /Escola Alfa|Clínica Beta/, count: 0
       assert_select "dt", text: /\AAtualizado/, count: 1
-      assert_select "h2", text: "Segmentos"
+      assert_select "h2", text: "Segmentos", count: 0
       assert_select "th", text: "Atualizado", minimum: 1
       assert_select "h2", text: /Faixas de atraso/ # Alfa e Beta têm as mesmas faixas: as tabelas somam os dois (25/10/2026)
       assert_select "dd", text: /R\$ 2.121,43/ # soma dos dois credores
     end
   end
 
-  test "R160 e R177: a aba mostra a regra de cada segmento numa linha, os parâmetros do credor e as cinco políticas" do
+  test "R160 e R292: o enquadramento financeiro mostra as regras de cada item numa linha, os parâmetros do credor e as cinco políticas" do
     entrar(users(:joana))
-    get settings_segments_path
+    get settings_tiers_path
     assert_response :success
-    assert_select "td", text: "multa 2% · juros 1% a.m. simples · IPCA · sem honorários"
+    assert_select "small", text: "Encargos: multa 2% · juros 1% a.m. simples · IPCA · sem honorários"
     assert_select "legend", text: "Parâmetros de encargos do credor"
     %w[Mês\ sem\ índice Forma\ dos\ juros Índice\ negativo Juros\ legais\ antes\ de\ 30/08/2024 Comparação\ dos\ acréscimos\ da\ carga].each { |title| assert_select "legend", text: title }
   end
@@ -100,19 +100,17 @@ class ChargesScreensTest < ActionDispatch::IntegrationTest
     on_the_day do
       entrar(users(:joana))
       patch settings_charges_path, params: { tenant_id: @alfa.id, charges: { charge_interest_pct: "2" } }
-      assert_response :success
-      assert_select "h1", "Conferir mudança nos segmentos"
-      assert_select "h3", text: "Valor atualizado da carteira"
+      follow_review
+      assert_select "h1", "Conferir o impacto"
+      assert_select "h2", text: "Valor atualizado"
       assert_select "th", text: "Demais"
       assert_select "td", text: "R$ 1.057,56"
       assert_select "td", text: "R$ 1.089,66"
       assert_select "td", text: "R$ 32,10"
       assert_equal 1.0, @alfa.setting.reload.charge_interest_pct.to_f
       assert_equal 105_756, total_of(@bill)
-      token = css_select("input[name='confirmation[token]']").first["value"]
-
-      post settings_segment_confirmation_path, params: { tenant_id: @alfa.id, confirmation: { token: token } }
-      assert_redirected_to settings_segments_path
+      confirm_review(@alfa)
+      assert_redirected_to settings_tiers_path
       assert_equal 2.0, @alfa.setting.reload.charge_interest_pct.to_f
       perform_enqueued_jobs(only: ValuesRecalculationJob)
       assert_equal 108_966, total_of(@bill)
@@ -124,61 +122,60 @@ class ChargesScreensTest < ActionDispatch::IntegrationTest
   test "R163: título pago ou retirado não muda de valor com a regra nova (cenários fechados)" do
     paid = make_bill(@alfa, number: "PAGO", due: DUE, status: :paid)
     withdrawn = make_bill(@alfa, number: "RET", due: DUE, status: :withdrawn)
-    token = Segments::Proposal.current(@alfa).with_charges("charge_interest_pct" => "2").token
-    Segments::Applier.new(users(:joana)).confirm(@alfa, token)
+    token = Tiers::Proposal.current(@alfa).with_charges("charge_interest_pct" => "2").token
+    Tiers::Applier.new(users(:joana)).confirm(@alfa, token)
     perform_enqueued_jobs(only: ValuesRecalculationJob)
     assert_nil total_of(paid)
     assert_nil total_of(withdrawn)
   end
 
-  test "R161: multa acima de 2% num segmento de pessoa física mostra o aviso do CDC na conferência e grava depois dela" do
+  test "R161: multa acima de 2% num item que pode pegar pessoa física mostra o aviso do CDC na conferência e grava depois dela" do
+    tier = make_tier(@alfa, "PF", person_type: "person")
     entrar(users(:joana))
-    post settings_segments_path, params: { tenant_id: @alfa.id, segment: { name: "PF", person_type: "person", fine_pct: "10", fees_pct: "0" } }
-    assert_response :success
-    assert_select "aside", text: /Multa acima de 2% em PF.*CDC, art\. 52, § 1º/
-    assert_equal 0, @alfa.segments.where(name: "PF").count
-    token = css_select("input[name='confirmation[token]']").first["value"]
-    post settings_segment_confirmation_path, params: { tenant_id: @alfa.id, confirmation: { token: token } }
-    assert_equal 10, @alfa.segments.find_by!(name: "PF").fine_pct
+    patch settings_tier_path(tier), params: { tier: { fine_pct: "10", fees_pct: "0", interest_kind: "none", promise_max_days: "30" } }
+    follow_review
+    assert_select "p", text: /Multa acima de 2% em PF.*CDC, art\. 52, § 1º/
+    assert_nil tier.reload.fine_pct
+    confirm_review(@alfa)
+    assert_equal 10, tier.reload.fine_pct
   end
 
   test "R160 e R161: honorários sem a marca 'o contrato prevê honorários' são recusados" do
+    tier = make_tier(@alfa, "Com honorários")
     entrar(users(:joana))
-    post settings_segments_path, params: { tenant_id: @alfa.id, segment: { name: "Com honorários", fees_pct: "10" } }
+    patch settings_tier_path(tier), params: { tier: { fees_pct: "10", promise_max_days: "30" } }
     assert_response :unprocessable_content
     assert_select "small[role=alert]", text: "marque se o contrato prevê honorários"
-    post settings_segments_path, params: { tenant_id: @alfa.id, segment: { name: "Com honorários", fees_pct: "10", fees_in_contract: "1" } }
-    assert_response :success
-    assert_select "h1", "Conferir mudança nos segmentos"
+    patch settings_tier_path(tier), params: { tier: { fees_pct: "10", fees_in_contract: "1", promise_max_days: "30" } }
+    follow_review
+    assert_select "h1", "Conferir o impacto"
   end
 
   test "R162: com a taxa legal, a taxa fixa e a forma dos juros não se aplicam e ficam zeradas ao gravar" do
-    segment = Segment.new(tenant: @alfa, name: "Legal", interest_kind: "legal", interest_pct: 3, interest_form: "compound")
-    assert segment.valid?
-    assert_equal [ nil, "simple" ], [ segment.interest_pct, segment.interest_form ]
+    tier = Tier.new(tenant: @alfa, kind: "financial", catch_all: true, interest_kind: "legal", interest_pct: 3, interest_form: "compound")
+    assert tier.valid?
+    assert_equal [ nil, "simple" ], [ tier.interest_pct, tier.interest_form ]
   end
 
   test "R160: percentual inválido volta ao formulário com a mensagem do campo" do
+    tier = make_tier(@alfa, "X")
     entrar(users(:joana))
-    post settings_segments_path, params: { tenant_id: @alfa.id, segment: { name: "X", fine_pct: "dois" } }
+    patch settings_tier_path(tier), params: { tier: { fine_pct: "dois", promise_max_days: "30" } }
     assert_response :unprocessable_content
     assert_select "small[role=alert]", text: /informe o percentual/
   end
 
-  test "R160: o Demais tem regra de encargos e a edita; não tem critérios, e continua sem mover nem desativar" do
-    demais = Segment.catch_all_of(@alfa)
+  test "R160, R265: o Demais tem regras e as edita pela conferência; não sai do enquadramento" do
+    demais = Tier.catch_all_of(@alfa)
     entrar(users(:joana))
-    get edit_settings_segment_path(demais)
+    get edit_settings_tier_path(demais)
     assert_response :success
     assert_select "legend", text: "Encargos"
-    assert_select "legend", text: "Atraso do contrato (dias)", count: 0
-    patch settings_segment_path(demais), params: { tenant_id: @alfa.id, segment: { name: "Qualquer", min_overdue_days: "5", fine_pct: "3", fees_pct: "0", interest_kind: "fixed" } }
-    assert_response :success
-    token = css_select("input[name='confirmation[token]']").first["value"]
-    post settings_segment_confirmation_path, params: { tenant_id: @alfa.id, confirmation: { token: token } }
-    demais.reload
-    assert_equal [ "Demais", nil, 3 ], [ demais.name, demais.min_overdue_days, demais.fine_pct ]
-    post settings_segment_activation_path(demais)
+    patch settings_tier_path(demais), params: { tier: { fine_pct: "3", fees_pct: "0", interest_kind: "fixed", promise_max_days: "30" } }
+    follow_review
+    confirm_review(@alfa)
+    assert_equal [ "Demais", 3 ], [ demais.reload.name, demais.fine_pct ]
+    delete settings_tier_path(demais)
     assert_response :not_found
   end
 
@@ -187,7 +184,7 @@ class ChargesScreensTest < ActionDispatch::IntegrationTest
     Membership.create!(user: marta, tenant: @beta, profile: Profile.create!(tenant: @beta, name: "Consulta", permissions: %w[view_portfolio]))
     entrar(marta)
     patch settings_charges_path, params: { tenant_id: @alfa.id, charges: { charge_interest_pct: "2" } }
-    assert_response :success
+    assert_response :see_other
     assert_difference -> { AccessEvent.where(event: "access_denied", tenant_id: @beta.id, user_id: marta.id).count }, 1 do
       patch settings_charges_path, params: { tenant_id: @beta.id, charges: { charge_interest_pct: "2" } }
       assert_response :not_found
@@ -205,26 +202,26 @@ class ChargesScreensTest < ActionDispatch::IntegrationTest
   test "valores inválidos nos parâmetros voltam à aba com o aviso, sem conferência" do
     entrar(users(:joana))
     patch settings_charges_path, params: { tenant_id: @alfa.id, charges: { charge_fine_pct: "250" } }
-    assert_redirected_to settings_segments_path
+    assert_redirected_to settings_tiers_path
     patch settings_charges_path, params: { tenant_id: @alfa.id, charges: { negative_index_policy: "inventada" } }
-    assert_redirected_to settings_segments_path
+    assert_redirected_to settings_tiers_path
   end
 
   test "R180: mudar a política 'Índice negativo' passa pela conferência da base toda" do
     entrar(users(:joana))
     patch settings_charges_path, params: { tenant_id: @alfa.id, charges: { negative_index_policy: "always" } }
-    assert_response :success
-    assert_select "li", text: /Índice negativo: Aplica, sem ficar abaixo do original → Aplica sempre/
-    assert_select "h3", text: "Valor atualizado da carteira"
+    follow_review
+    assert_select "h3", text: /Encargos do credor/
+    assert_select "h2", text: "Valor atualizado"
     assert_equal "floor", @alfa.setting.reload.negative_index_policy
   end
 
   test "R182: a política da comparação dos acréscimos passa pela conferência sem mudar valores" do
     entrar(users(:joana))
     patch settings_charges_path, params: { tenant_id: @alfa.id, charges: { surcharge_comparison_policy: "after" } }
-    assert_response :success
-    assert_select "h3", text: "Valor atualizado da carteira", count: 0
-    assert_select "p", text: "Nenhum contrato muda de segmento."
+    follow_review
+    assert_select "h2", text: "Valor atualizado", count: 0
+    assert_select "strong", text: "Nenhum contrato muda de item."
   end
 
   test "R178 e R182 (antes de confirmar): a conferência da carga mostra multa informada, calculada e a diferença" do

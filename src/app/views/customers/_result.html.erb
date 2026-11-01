@@ -8,7 +8,14 @@
   end
 %>
 <div id="resultado" aria-live="polite">
-  <% if @customers.empty? %>
+  <% if @segment %>
+    <p class="filtro-ativo"><%= situacao "Segmento: #{@segment.name}", tom: :info %> <code><%= @segment.text.lines.drop(1).map(&:short).join(" · ") %></code>
+      <%= informacao "segmento #{@segment.name}", @segment.text.long_text, "leitura-filtro-segmento" %>
+      <% if policy(@segment).show? %><%= link_to "Ver segmento", settings_segment_path(@segment) %><% end %></p>
+  <% end %>
+  <% if @query.segment_too_slow? %>
+    <%= aviso(tom: :warning) { tag.p t("segments.errors.too_slow") } %>
+  <% elsif @customers.empty? %>
     <p class="vazio">Nenhum cliente encontrado.</p>
   <% else %>
     <% recordable = Current.user.tenant_ids_with("record_contact_attempts") %>
@@ -25,7 +32,7 @@
             <th scope="col" data-numerico>Atualizado</th>
             <th scope="col" data-numerico aria-sort="<%= sort_state.call("upcoming_cents") || "none" %>"><%= sort_link.call("upcoming_cents", "A vencer") %></th>
             <th scope="col" aria-sort="<%= sort_state.call("max_days_overdue") || "none" %>"><%= sort_link.call("max_days_overdue", "Faixa (dias)") %></th>
-            <th scope="col">Segmento</th>
+            <th scope="col">Enquadramento</th>
             <th scope="col"><span class="apenas-leitor-de-tela">Ações</span></th>
           </tr>
         </thead>
@@ -40,7 +47,7 @@
               <td data-numerico><%= @updated_totals.key?(customer.id) ? money(@updated_totals[customer.id]) : "—" %></td>
               <td data-numerico><%= customer.tenant_id && @settings.fetch(customer.tenant_id).upcoming_display == "detail_only" ? "—" : money(customer.upcoming_cents) %></td>
               <td><%= customer.bills_count.to_i.zero? ? "sem títulos em cobrança" : @query.bracket_label(customer.tenant_id, customer.max_days_overdue) %></td>
-              <td><%= @segment_names[customer.id] || t("segments.none") %></td>
+              <td><%= @tier_names[customer.id] || t("tiers.none") %></td>
               <td data-acoes>
                 <%= menu_de_linha("cliente-#{customer.id}", "Ações de #{customer.name}") do %>
                   <%= link_to "Abrir ficha", customer_path(customer), class: "botao" %>

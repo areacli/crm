@@ -37,7 +37,8 @@ class AccessScreensSystemTest < ApplicationSystemTestCase
     assert_acessivel
 
     visit new_profile_path
-    assert_selector "input[type=checkbox]", count: 16
+    # 19 permissões e a marca "disponível para operações" (14, R310).
+    assert_selector "input[type=checkbox]", count: 20
     assert_acessivel
 
     visit edit_password_path

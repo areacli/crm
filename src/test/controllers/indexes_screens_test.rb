@@ -85,7 +85,7 @@ class IndexesScreensTest < ActionDispatch::IntegrationTest
     entrar(consult)
     get settings_indexes_path
     assert_response :success
-    assert_select "nav.secoes a", text: "Índices", count: 0
+    assert_select "#menu-principal .submenu a", text: "Índices", count: 0
     assert_select "button", text: "Buscar índices agora", count: 0
     delete session_path
     entrar(users(:sem_vinculo))
@@ -118,10 +118,11 @@ class IndexesScreensTest < ActionDispatch::IntegrationTest
     assert_select "h2", text: "Clínica Beta"
   end
 
-  test "as abas Segmentos e Índices aparecem para quem tem a 4 ou a 14" do
+  test "as abas Segmentos, Enquadramento financeiro e Índices aparecem para quem tem a 4 ou a 14" do
     entrar(users(:joana))
     get settings_segments_path
-    assert_select "nav.secoes a", text: "Segmentos e encargos"
-    assert_select "nav.secoes a", text: "Índices"
+    assert_select "#menu-principal .submenu a", text: "Segmentos"
+    assert_select "#menu-principal .submenu a", text: "Enquadramento financeiro"
+    assert_select "#menu-principal .submenu a", text: "Índices"
   end
 end

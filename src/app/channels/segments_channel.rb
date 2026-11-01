@@ -1,4 +1,4 @@
-# Aba Segmentos de um credor (08, R153): quem a vê no credor (permissão 4 ou 14) assina; o evento diz que o recálculo terminou.
+# Segmentos e enquadramento de um credor (13): quem os vê no credor (permissão 4 ou 14) assina; os eventos dizem que o recálculo terminou ou que uma conferência ficou pronta.
 class SegmentsChannel < ApplicationCable::Channel
   def subscribed
     tenant = Tenant.find_by(id: params[:tenant_id])

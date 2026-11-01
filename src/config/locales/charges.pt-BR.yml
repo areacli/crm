@@ -26,7 +26,7 @@ pt-BR:
         last_prorated: "Último índice publicado, pro rata dia"
       default_interest_form:
         title: "Forma dos juros"
-        help: "Padrão de cada segmento novo com juros de taxa fixa. A taxa legal é sempre em juros simples."
+        help: "Padrão de cada item novo do enquadramento com juros de taxa fixa. A taxa legal é sempre em juros simples."
         simple: "Simples, pro rata por dia"
         compound: "Compostos, mês a mês"
       negative_index_policy:
@@ -37,15 +37,15 @@ pt-BR:
         ignore: "Ignora meses negativos (contam 0%)"
       old_legal_interest_policy:
         title: "Juros legais antes de 30/08/2024"
-        help: "Para segmentos com juros pela taxa legal, nos dias anteriores à Lei 14.905/2024."
+        help: "Para itens do enquadramento com juros pela taxa legal, nos dias anteriores à Lei 14.905/2024."
         selic: "Selic do mês, sem correção nesse período"
-        one_percent: "1% ao mês, com a correção do segmento"
+        one_percent: "1% ao mês, com a correção do item"
         none: "Sem juros nesse período, só a correção"
       surcharge_comparison_policy:
         title: "Comparação dos acréscimos da carga"
         help: "Quando a carga com acréscimos informados pelo credor é comparada com o que o CRM calcula."
         before: "Antes de confirmar (aproximação, a tempo de desistir)"
-        after: "Depois de confirmar (com o segmento exato, depois do recálculo)"
+        after: "Depois de confirmar (com o enquadramento exato, depois do recálculo)"
     flash:
       invalid: "Valor inválido nos encargos do credor."
     errors:

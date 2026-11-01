@@ -23,6 +23,12 @@
     <label for="user">Quem montou</label>
     <select id="user" name="user"><option value="">Todos</option><%= options_for_select(@operators, @filters[:user]) %></select>
   </div>
+  <% if @origins.present? %>
+    <div class="campo">
+      <label for="origin">Origem</label>
+      <select id="origin" name="origin"><option value="">Todas</option><%= options_for_select([ [ "Equipe do credor", "team" ] ] + @origins, params[:origin]) %></select>
+    </div>
+  <% end %>
   <% if @several_tenants %>
     <div class="campo">
       <label for="tenant">Credor</label>

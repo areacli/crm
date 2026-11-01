@@ -1,7 +1,6 @@
 .git
 .github
 deploy/compose*.yml
-deploy/laravel/.env*
 # Laravel: nada que seja segredo, dependência instalada na máquina, arquivo gerado ou teste vai para a imagem.
 src/.env
 src/.env.*

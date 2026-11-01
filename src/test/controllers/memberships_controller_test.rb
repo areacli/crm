@@ -194,7 +194,7 @@ class MembershipsControllerTest < ActionDispatch::IntegrationTest
     sign_in_as users(:carlos)
     get new_import_url
     assert_response :success
-    assert_select "nav a", text: "Configuração"
+    assert_select "nav summary", text: "Configuração"
   end
 
   test "PD7 e R41: a própria conta não tem as ações, o servidor recusa e a última gestão fica protegida" do

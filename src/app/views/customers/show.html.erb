@@ -74,23 +74,5 @@
         <% end %>
       </div>
     </section>
-
-    <section class="cartao" id="contatos-resumo" aria-labelledby="contatos-titulo">
-      <header>
-        <h2 id="contatos-titulo">Contatos</h2>
-        <% if @listed_contacts.any? %><%= link_to "Ver todos#{' e editar' if @can_edit_registry} (#{number_br(@listed_contacts.size)})", customer_path(@customer, aba: "contatos") %><% end %>
-      </header>
-      <div>
-        <% if @top_contacts.empty? %>
-          <p class="vazio">Nenhum contato válido cadastrado.</p>
-        <% else %>
-          <ul class="contatos">
-            <% @top_contacts.each do |contact| %>
-              <li><strong><%= contact_kind(contact.kind) %>:</strong> <%= contact.value %><% if contact.no_area_code? %> <small>(sem DDD)</small><% end %></li>
-            <% end %>
-          </ul>
-        <% end %>
-      </div>
-    </section>
   </aside>
 </div>

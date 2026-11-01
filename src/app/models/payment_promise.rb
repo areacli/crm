@@ -2,6 +2,7 @@
 # (R183 a R187). Valor, políticas e alçada ficam congelados no registro; não há isenção nem desconto (premissa do Paulo, 21/10/2026).
 class PaymentPromise < ApplicationRecord
   include TenantScoped
+  include OperationOrigin
 
   STATES = %w[pending open fulfilled fulfilled_late broken canceled refused not_approved].freeze
   # Estados em que a promessa prende os títulos (R185).
@@ -14,7 +15,7 @@ class PaymentPromise < ApplicationRecord
   belongs_to :contact_attempt
   belongs_to :user, optional: true
   belongs_to :decided_by, class_name: "User", optional: true
-  belongs_to :segment, optional: true
+  belongs_to :tier, optional: true
   has_many :promise_bills, class_name: "PaymentPromiseBill", foreign_key: :promise_id, inverse_of: :promise, dependent: :delete_all
   has_many :bills, through: :promise_bills
 

@@ -1,0 +1,19 @@
+<%# Histórico do enquadramento financeiro dos contratos do cliente (13, R268, R297). Locais: contracts, history. %>
+<% if history.values.flatten.any? %>
+  <section class="cartao" id="historico-de-enquadramento" aria-labelledby="historico-de-enquadramento-titulo">
+    <header><div><h2 id="historico-de-enquadramento-titulo">Histórico do enquadramento financeiro</h2><p>As mudanças de item de cada contrato, da mais recente para a mais antiga.</p></div></header>
+    <div class="tabela" tabindex="0">
+      <table>
+        <caption class="apenas-leitor-de-tela">Mudanças do enquadramento financeiro dos contratos do cliente</caption>
+        <thead><tr><th scope="col">Contrato</th><th scope="col">Enquadramento</th><th scope="col">Desde</th></tr></thead>
+        <tbody>
+          <% contracts.each do |contract| %>
+            <% history.fetch(contract.id, []).each do |entry| %>
+              <tr><th scope="row"><%= contract.label %></th><td><%= entry.tier&.name || t("tiers.none") %></td><td><%= date_br(entry.since) %></td></tr>
+            <% end %>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </section>
+<% end %>

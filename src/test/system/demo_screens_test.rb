@@ -66,4 +66,22 @@ class DemoScreensSystemTest < ApplicationSystemTestCase
     assert_acessivel
     assert_no_horizontal_scroll
   end
+
+  # Menu fixo com a faixa (padrões de interface, revisões 17 e 18): numa janela baixa, o fim do menu cabe na janela depois de rolar o menu, com a página
+  # parada; na configuração, o submenu vem aberto e a seção atual aparece sem rolar nada à mão.
+  test "o menu fixo cabe na janela com a faixa e mostra a seção atual da configuração" do
+    entrar
+    page.driver.resize(1280, 640)
+    visit settings_promises_path
+    assert_selector "#menu-principal details.submenu[open] a[aria-current=page]", text: "Promessas e acordos"
+    dentro = "(() => { const m = document.getElementById('menu-principal').getBoundingClientRect(); const a = document.querySelector('#menu-principal [aria-current=page]').getBoundingClientRect(); return a.top >= m.top && a.bottom <= m.bottom && m.bottom <= window.innerHeight })()"
+    assert page.evaluate_script(dentro), "a seção atual ficou fora do menu ou o menu saiu da janela"
+    page.execute_script("const m = document.getElementById('menu-principal'); m.scrollTop = m.scrollHeight")
+    fim = "(() => { const itens = document.querySelectorAll('#menu-principal a'); return itens[itens.length - 1].getBoundingClientRect().bottom <= window.innerHeight })()"
+    assert page.evaluate_script(fim), "o último item do menu ficou fora da janela"
+    visit root_path
+    page.execute_script("window.scrollTo(0, 400)")
+    assert_equal page.evaluate_script("document.querySelector('body > header').getBoundingClientRect().bottom"),
+                 page.evaluate_script("document.getElementById('menu-principal').getBoundingClientRect().top"), "o menu rolou com a página"
+  end
 end

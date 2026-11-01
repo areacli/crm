@@ -4,6 +4,7 @@
 # Segurança da página: sem cache; sem indexação (cabeçalho e meta); sem referenciador; Permissions-Policy fechada; política de segurança de conteúdo
 # própria, que libera só o que o fornecedor de cartão declara no manifesto (e mais nada); limite de requisições por IP.
 class CheckoutBaseController < ActionController::Base
+  include SystemDbRole
   layout "pagamento"
 
   before_action :set_security_headers

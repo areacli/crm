@@ -11,19 +11,26 @@ class CustomersController < ApplicationController
                                  page: params[:page], per_page: params[:per_page])
     @customers = @pagination.records.includes(:tenant)
     @query = query
-    @segment_names = query.segment_names(@customers.map(&:id))
+    @tier_names = query.tier_names(@customers.map(&:id))
     @updated_totals = query.updated_totals(@customers.map(&:id))
     @settings = query.settings_by_tenant
     @several_tenants = @settings.size > 1
     @tenants = Tenant.where(id: @settings.keys).order(:name).pluck(:name, :id)
     @brackets = bracket_options(@settings)
-    @segments = query.segment_options.map { |segment| [ @several_tenants ? "#{segment.name} (#{segment.tenant.name})" : segment.name, segment.id ] } + [ [ t("segments.none"), "none" ] ]
+    # 13, R296: os segmentos em dois grupos, de clientes e de contratos, com o credor ao lado quando são mais de um.
+    @segments = query.segment_options.group_by(&:subject).map do |subject, segments|
+      [ "Segmentos de #{t("segments.subjects.#{subject}").downcase}", segments.map { |segment| [ @several_tenants ? "#{segment.name} (#{segment.tenant.name})" : segment.name, segment.id ] } ]
+    end
+    @segment = Segment.find_by(id: params[:segment], tenant_id: @settings.keys) if params[:segment].present?
+    # 14, R320: a busca do usuário de operação fica na trilha (o texto buscado e quantos resultados).
+    Operations::Trail.record("search", user: Current.user, query: params[:q], results: @pagination.total) if params[:q].present?
     render partial: "customers/result" if htmx_fragment?
   end
 
   def show
     @customer = Customer.includes(:tenant).find(params[:id])
     authorize @customer
+    Operations::Trail.record("record_opened", user: Current.user, customer: @customer)
     @setting = @customer.tenant.setting
     @brackets = Portfolio::AgingBrackets.from_stored(@setting.aging_brackets)
     @bills = Bill.where(customer: @customer).includes(:contract, :agreement).order(:due_date)
@@ -34,7 +41,7 @@ class CustomersController < ApplicationController
     @tab = params[:aba].presence_in(TABS) || "titulos"
     load_payments_and_credits
     load_valuations
-    load_segments
+    load_tiers
     load_contact_attempts
     load_promises
     load_agreements
@@ -82,7 +89,6 @@ class CustomersController < ApplicationController
     # contatos: `customer_contacts (customer_id, kind, key)`; do histórico: `changes (subject_type, subject_id)`.
     def load_registry
       @contacts = @customer.contacts.includes(:updated_by).to_a
-      @top_contacts = CustomerContact.top_valid(@customer, @contacts)
       @listed_contacts = CustomerContact.listed(@contacts)
       @can_edit_registry = policy(@customer).edit_registry?
       @registry_history = Change.where("(subject_type = 'customer' and subject_id = ? and field = 'name') or (subject_type = 'customer_contact' and subject_id in (?))",
@@ -96,13 +102,14 @@ class CustomersController < ApplicationController
       @contact_form = Contacts::Form.new(@customer) if !@customer.anonymized? && policy(ContactAttempt.new(tenant: @customer.tenant)).create?
     end
 
-    # Segmento de cada contrato (R159): ao lado da faixa de atraso do contrato, com o histórico de mudanças. Consultas: `bills (contract_id)` e
-    # `contract_segments (contract_id, since)`.
-    def load_segments
+    # Enquadramento financeiro de cada contrato (13, R297): ao lado da faixa de atraso, desde quando e por quê, com o histórico de mudanças. Consultas: `bills (contract_id)` e
+    # `contract_tiers (contract_id, since)`.
+    def load_tiers
       ids = @contracts.map(&:id)
       @contract_overdue = Bill.overdue(@today).where(contract_id: ids).group(:contract_id).minimum(:due_date).transform_values { |due| (@today - due).to_i }
-      @contract_segments = Segment.where(id: @contracts.filter_map(&:segment_id)).index_by(&:id)
-      @segment_history = ContractSegment.where(contract_id: ids).includes(:segment).order(since: :desc, id: :desc).limit(100).group_by(&:contract_id)
+      @contract_tiers = Tier.where(id: @contracts.filter_map(&:tier_id)).includes(:segment).index_by(&:id)
+      @tier_history = ContractTier.where(contract_id: ids).includes(tier: :segment).order(since: :desc, id: :desc).limit(100).group_by(&:contract_id)
+      @tier_since = @tier_history.transform_values { |entries| entries.first&.since }
     end
 
     # Pagos (R54) e crédito por contrato (R55b): o crédito é do contrato, visível a todos os clientes dele, sem total por cliente.
@@ -111,6 +118,7 @@ class CustomersController < ApplicationController
       promise_ids = PaymentPromise.where(contract_id: ContractCustomer.where(customer_id: @customer.id).select(:contract_id)).select(:id)
       @payments = Payment.where(bill_id: @bills.map(&:id)).or(Payment.where(promise_id: promise_ids)).applied.includes(:channel, :bill).order(paid_on: :desc, id: :desc)
       @contracts = @customer.contracts.order(:code, :id).to_a
+      @contract_operations = Operations::Context.operation? ? {} : Distributions::Holders.for_contracts(@contracts.map(&:id))
       # O crédito por estado (11, R233, R239): o disponível, o que aguarda alocação (reversão) e o bloqueado (estorno à espera do gestor).
       by_bucket = Credit.where(contract_id: @contracts.map(&:id)).group(:contract_id, :bucket).sum(:amount_cents)
       @credit_totals = by_bucket.select { |(_, bucket), _| bucket == "available" }.to_h { |(contract_id, _), cents| [ contract_id, cents ] }

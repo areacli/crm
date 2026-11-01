@@ -30,9 +30,9 @@
                 <% end %>
               </td>
               <td><%= attempt.return_at ? datetime_br(attempt.return_at) : "—" %></td>
-              <td><%= attempt.user&.name || "—" %><small>lançado em <%= datetime_br(attempt.created_at) %></small></td>
+              <td><%= attempt.summary_only_for_viewer? ? "Outra origem" : (attempt.user&.name || "—") %><small>lançado em <%= datetime_br(attempt.created_at) %></small></td>
               <td>
-                <% if attempt.text.present? %><p class="texto-do-operador"><%= attempt.text %></p><% end %>
+                <% if attempt.text.present? && !attempt.summary_only_for_viewer? %><p class="texto-do-operador"><%= attempt.text %></p><% end %>
               </td>
             </tr>
           <% end %>

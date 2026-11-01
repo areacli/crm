@@ -9,7 +9,7 @@ module Agreements
     HEADER = %w[tipo acordo titulo contrato documento nome data situacao valor entrada parcelas metodo taxa_mensal taxa_efetiva_anual forma_da_quebra credito_usado valor_liquido
                 vencimento juros_parcelamento amortizacao multa_pct taxa_juros_atraso convencao_juros juros_dia_centavos desconto_antecipacao_dia indice_correcao honorarios_pct
                 base_principal base_correcao base_multa base_juros base_honorarios desconto_principal desconto_correcao desconto_multa desconto_juros desconto_honorarios
-                valor_no_acordo evento detalhe].freeze
+                valor_no_acordo evento detalhe origem].freeze
 
     EVENT_NAMES = { "accepted" => "aceito", "effectuated" => "efetivado", "settlement_calculated" => "quitacao calculada", "settled" => "quitado", "broken" => "quebrado",
                     "reactivated" => "reativado", "canceled" => "cancelado", "reversion_opened" => "em reversao", "reversion_desisted" => "reversao desistida",
@@ -68,7 +68,9 @@ module Agreements
         { acordo: agreement.number, documento: agreement.customer.document, nome: agreement.customer.name, data: agreement.accepted_at&.to_date&.iso8601, situacao: agreement.state,
           valor: agreement.value_cents, entrada: agreement.down_payment_cents, parcelas: agreement.installments_count, metodo: agreement.installment_method, taxa_mensal: agreement.rate_pct.to_s("F"),
           taxa_efetiva_anual: agreement.effective_annual_pct.to_s("F"), forma_da_quebra: agreement.frozen_policy("break_form"), credito_usado: agreement.credit_cents + agreement.credit_down_cents,
-          valor_liquido: agreement.net_cents }
+          valor_liquido: agreement.net_cents,
+          # 14, R318: quem fez o acordo, a equipe do credor ou a operação.
+          origem: agreement.operation&.short_name || "equipe do credor" }
       end
 
       def debt_columns(agreement, item)

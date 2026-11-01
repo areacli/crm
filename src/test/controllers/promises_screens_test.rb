@@ -7,8 +7,8 @@ class PromisesScreensTest < ActionDispatch::IntegrationTest
     @beta = tenants(:beta)
     travel_day(ChargesTestHelper::TODAY)
     @customer, @nf1, @nf2 = promise_scenario(@alfa)
-    Segment.catch_all_of(@alfa).update!(promise_max_days: 60)
-    PromiseLimit.where(segment: Segment.catch_all_of(@alfa), profile: profiles(:alfa_manager)).update_all(max_days: 60)
+    Tier.catch_all_of(@alfa).update!(promise_max_days: 60)
+    PromiseLimit.where(tier: Tier.catch_all_of(@alfa), profile: profiles(:alfa_manager)).update_all(max_days: 60)
   end
 
   teardown { travel_back }
@@ -145,10 +145,10 @@ class PromisesScreensTest < ActionDispatch::IntegrationTest
     pending_promise
     marta = make_user(@alfa, %w[record_contact_attempts])
     PromiseLimit.where(profile: marta.memberships.first.profile).delete_all
-    PromiseLimit.create!(segment: Segment.catch_all_of(@alfa), profile: marta.memberships.first.profile, max_days: 60)
+    PromiseLimit.create!(tier: Tier.catch_all_of(@alfa), profile: marta.memberships.first.profile, max_days: 60)
     Membership.create!(user: marta, tenant: @beta, profile: Profile.create!(tenant: @beta, name: "Consulta", permissions: %w[view_portfolio]))
     customer_b, bill_b, = promise_scenario(@beta, charges: false, document: PaymentsHelper::JOAO, contract_code: "CT-B", name: "João")
-    Segment.catch_all_of(@beta).update!(promise_max_days: 90)
+    Tier.catch_all_of(@beta).update!(promise_max_days: 90)
     beta_promise = register_promise(customer_b, [ bill_b ], user: users(:ana), on: ChargesTestHelper::TODAY + 45)
     assert_predicate beta_promise, :state_pending?
 
@@ -166,12 +166,12 @@ class PromisesScreensTest < ActionDispatch::IntegrationTest
   test "R204: com os dois credores a lista traz a coluna Credor e o filtro reduz a um" do
     pending_promise
     customer_b, bill_b, = promise_scenario(@beta, charges: false, document: PaymentsHelper::JOAO, contract_code: "CT-B", name: "João")
-    Segment.catch_all_of(@beta).update!(promise_max_days: 90)
-    PromiseLimit.where(segment: Segment.catch_all_of(@beta), profile: profiles(:beta_operator)).update_all(max_days: 10)
-    PromiseLimit.where(segment: Segment.catch_all_of(@beta), profile: profiles(:beta_manager)).update_all(max_days: 90)
+    Tier.catch_all_of(@beta).update!(promise_max_days: 90)
+    PromiseLimit.where(tier: Tier.catch_all_of(@beta), profile: profiles(:beta_operator)).update_all(max_days: 10)
+    PromiseLimit.where(tier: Tier.catch_all_of(@beta), profile: profiles(:beta_manager)).update_all(max_days: 90)
     register_promise(customer_b, [ bill_b ], user: users(:marta), on: ChargesTestHelper::TODAY + 45)
 
-    PromiseLimit.where(segment: Segment.catch_all_of(@alfa), profile: profiles(:alfa_operator)).update_all(max_days: 60)
+    PromiseLimit.where(tier: Tier.catch_all_of(@alfa), profile: profiles(:alfa_operator)).update_all(max_days: 60)
     entrar(users(:ana))
     get pending_promises_path
     assert_select "tbody tr", 2
@@ -200,18 +200,18 @@ class PromisesScreensTest < ActionDispatch::IntegrationTest
     get root_path
     assert_select "h2", text: "Promessas"
     assert_select "h2", text: /Promessas — /, count: 0
-    assert_select "section[aria-labelledby=promessas] td", text: /1 de 1/
+    assert_select "section[aria-labelledby=promessas] tr", text: /Promessas registradas\s*1/
   end
 
   test "R206: a aba Promessas mostra políticas, prazo e alçada; mudar vale e fica registrado; baixar o prazo baixa a alçada" do
     entrar(users(:joana))
     get settings_promises_path
     assert_response :success
-    assert_select "nav.secoes a", text: "Promessas e acordos"
-    segment = Segment.catch_all_of(@alfa)
-    patch settings_promise_limits_path, params: { tenant_id: @alfa.id, segments: { segment.id => { max_days: 20, limits: { profiles(:alfa_manager).id => 20, profiles(:alfa_operator).id => 20 } } } }
+    assert_select "#menu-principal .submenu a", text: "Promessas e acordos"
+    segment = Tier.catch_all_of(@alfa)
+    patch settings_promise_limits_path, params: { tenant_id: @alfa.id, tiers: { segment.id => { max_days: 20, limits: { profiles(:alfa_manager).id => 20, profiles(:alfa_operator).id => 20 } } } }
     assert_equal 20, segment.reload.promise_max_days
-    assert_equal [ 20, 20 ], PromiseLimit.where(segment: segment, profile: [ profiles(:alfa_manager), profiles(:alfa_operator) ]).pluck(:max_days)
+    assert_equal [ 20, 20 ], PromiseLimit.where(tier: segment, profile: [ profiles(:alfa_manager), profiles(:alfa_operator) ]).pluck(:max_days)
     assert Change.exists?(subject_type: "promise_limit", subject_id: segment.id, event: "max_days_changed", before: "60", after: "20", user_id: users(:joana).id)
 
     patch settings_promise_policy_path, params: { tenant_id: @alfa.id, tenant_setting: { promise_tolerance_days: 5, promise_counting: "also_direct", promise_min_paid_pct: "95",
@@ -240,8 +240,8 @@ class PromisesScreensTest < ActionDispatch::IntegrationTest
     entrar(users(:joana))
     patch settings_promise_policy_path, params: { tenant_id: @alfa.id, tenant_setting: { promise_tolerance_days: 99, promise_counting: "promise_only", promise_after_break: "fulfilled", promise_grace_days: 0, promise_partial: "prevails" } }
     assert_equal 3, @alfa.setting.reload.promise_tolerance_days
-    segment = Segment.catch_all_of(@alfa)
-    patch settings_promise_limits_path, params: { tenant_id: @alfa.id, segments: { segment.id => { max_days: 0, limits: {} } } }
+    segment = Tier.catch_all_of(@alfa)
+    patch settings_promise_limits_path, params: { tenant_id: @alfa.id, tiers: { segment.id => { max_days: 0, limits: {} } } }
     assert_equal 60, segment.reload.promise_max_days
   end
 

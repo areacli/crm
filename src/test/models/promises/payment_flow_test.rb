@@ -100,7 +100,7 @@ class Promises::PaymentFlowTest < ActiveSupport::TestCase
   test "R193: a pendente cancelada quando os títulos são pagos direto" do
     Promises::Canceller.new(users(:joana)).cancel(@promise, "Reiniciar")
     travel_day(TODAY)
-    Segment.catch_all_of(@alfa).update!(promise_max_days: 60)
+    Tier.catch_all_of(@alfa).update!(promise_max_days: 60)
     pending = register_promise(@customer, [ @nf1, @nf2 ], user: users(:carlos), on: TODAY + 45)
     travel_day(Date.new(2026, 10, 29))
     pay("NF-1", 106_100, method: "boleto", id: "B1")
@@ -128,7 +128,7 @@ class Promises::PaymentFlowTest < ActiveSupport::TestCase
   test "R193: a pendente sem aprovação no prazo termina como não aprovada" do
     Promises::Canceller.new(users(:joana)).cancel(@promise, "Reiniciar")
     travel_day(TODAY)
-    Segment.catch_all_of(@alfa).update!(promise_max_days: 60)
+    Tier.catch_all_of(@alfa).update!(promise_max_days: 60)
     pending = register_promise(@customer, [ @nf1 ], user: users(:carlos), on: TODAY + 45)
     travel_day(TODAY + 49)
     Promises::Daily.new(@alfa).apply

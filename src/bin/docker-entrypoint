@@ -1,8 +1,15 @@
 #!/bin/bash -e
 
-# If running the rails server then create or migrate existing database
+# Ao subir o servidor, prepara o banco (cria ou migra). Com DB_ADMIN_USERNAME (produção, decisão 0024), a preparação roda com a entrada do
+# dono das tabelas e cria ou atualiza o papel de entrada da aplicação com a senha de DB_PASSWORD; o servidor sobe com a entrada sem privilégios.
 if [ "${@: -2:1}" == "./bin/rails" ] && [ "${@: -1:1}" == "server" ]; then
-  ./bin/rails db:prepare
+  if [ -n "$DB_ADMIN_USERNAME" ]; then
+    # A senha do app é lida antes: na mesma linha, o bash já expandiria $DB_PASSWORD com a do dono.
+    app_password="$DB_PASSWORD"
+    DB_USERNAME="$DB_ADMIN_USERNAME" DB_PASSWORD="$DB_ADMIN_PASSWORD" DB_APP_PASSWORD="$app_password" ./bin/rails db:prepare crm:db:app_role
+  else
+    ./bin/rails db:prepare
+  fi
 fi
 
 exec "${@}"

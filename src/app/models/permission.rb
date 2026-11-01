@@ -1,10 +1,11 @@
-# As 16 permissões do sistema (permissoes.md). Cada uma vale por credor e é dada por perfil; o número é o da especificação. A permissão 8
+# As 19 permissões do sistema (permissoes.md; 18 a 20 da especificação 14, Operações). Cada uma vale por credor e é dada por perfil; o número é o da especificação. A permissão 8
 # (anular acionamentos de outros) foi retirada com a anulação (04, revisão 5); as demais mantêm o número.
 module Permission
   ALL = %w[
     view_portfolio upload_imports confirm_imports change_settings upload_payments confirm_payments record_contact_attempts
     manage_contact_results manage_users manage_profiles edit_customer_registry
     handle_data_subject_rights change_financial_policies cancel_payment_promises negotiate_agreements administer_agreements
+    manage_operations distribute_portfolio view_operation_trail
   ].freeze
 
   # O perfil Operador padrão (MT-21): consultar a carteira, registrar acionamentos, editar o cadastro do cliente (06, R113) e negociar acordos (11, R245).

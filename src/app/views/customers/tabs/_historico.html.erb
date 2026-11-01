@@ -1,4 +1,4 @@
-<%# Aba Histórico: o histórico do cadastro (nome e contatos) e o de segmento dos contratos. %>
+<%# Aba Histórico: o histórico do cadastro (nome e contatos) e o do enquadramento financeiro dos contratos. %>
 <section class="cartao" id="historico-do-cadastro" aria-labelledby="historico-do-cadastro-titulo">
   <header><h2 id="historico-do-cadastro-titulo">Histórico do cadastro</h2></header>
   <% if @registry_history.empty? %>
@@ -16,4 +16,4 @@
     </div>
   <% end %>
 </section>
-<%= render "customers/segment_history", contracts: @contracts, history: @segment_history %>
+<%= render "customers/tier_history", contracts: @contracts, history: @tier_history %>

@@ -1,0 +1,32 @@
+<%# Resultado da conferência, refeito quando o WebSocket avisa. Local: result (nil enquanto confere). %>
+<div id="conferencia-distribuicao" <% if result.nil? %>hx-get="<%= request.fullpath %>" hx-trigger="cable:distribution-review-ready from:body" hx-swap="outerHTML" hx-push-url="false"<% end %>>
+  <% if result.nil? %>
+    <p class="carregando" role="status">Conferindo o impacto…</p>
+  <% else %>
+    <section class="cartao" aria-labelledby="impacto">
+      <header><h2 id="impacto">O que muda</h2></header>
+      <div>
+        <% if result["moves"].empty? %>
+          <p>Nenhum contrato muda de operação.</p>
+        <% else %>
+          <div class="tabela" tabindex="0">
+            <table>
+              <caption class="apenas-leitor-de-tela">Contratos que entram e saem de cada operação</caption>
+              <thead><tr><th scope="col">Operação</th><th scope="col" data-numerico>Entram</th><th scope="col" data-numerico>Saldo que entra</th><th scope="col" data-numerico>Saem</th><th scope="col" data-numerico>Saldo que sai</th></tr></thead>
+              <tbody>
+                <% result["moves"].each do |name, move| %>
+                  <tr><th scope="row"><%= name %></th><td data-numerico><%= number_br(move["in"]) %></td><td data-numerico><%= money(move["in_cents"]) %></td><td data-numerico><%= number_br(move["out"]) %></td><td data-numerico><%= money(move["out_cents"]) %></td></tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+        <% end %>
+        <p><small>Contratos com distribuição à mão ou de lote não entram na conta: a regra não os toca.</small></p>
+        <div class="acoes" data-rodape>
+          <%= button_to "Confirmar a mudança", confirm_settings_distribution_rules_path(tenant_id: @tenant.id, token: @token), data: { variant: "primary" } %>
+          <%= link_to "Descartar", settings_distribution_rules_path(tenant_id: @tenant.id), class: "botao", data: { variant: "secondary" } %>
+        </div>
+      </div>
+    </section>
+  <% end %>
+</div>

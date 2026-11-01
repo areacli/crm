@@ -1,0 +1,13 @@
+<% content_for :title, "Conferir o impacto da distribuição" %>
+<% content_for :cable_channels, @cable %>
+<%= pagina "Conferir o impacto", subtitulo: safe_join([ "Enquadramento da distribuição de #{@tenant.name}. Nada muda até você confirmar. ", link_to("Voltar", settings_distribution_rules_path(tenant_id: @tenant.id)) ]) %>
+<section class="cartao" aria-labelledby="proposta">
+  <header><h2 id="proposta">Como fica</h2></header>
+  <div>
+    <ol>
+      <% @proposal.items.each do |item| %><li><%= @segments[item.segment_id] %> → <%= item.operation_ids.map { @operations[_1] }.join(", ") %> (<%= t("distributions.exposures.#{item.exposure}") %>)</li><% end %>
+      <li>Equipe do credor (quem não atende nenhum item)</li>
+    </ol>
+  </div>
+</section>
+<%= render "settings/distribution_rules/review", result: @result %>

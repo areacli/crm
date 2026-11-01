@@ -2,15 +2,18 @@
 # com a coluna Credor quando são mais de um e um filtro opcional, sem estado guardado (MT-4 a MT-6, R245a). Abrir pelo endereço um acordo de credor sem a
 # permissão responde "não encontrado" e fica registrado (R33). A lista se refaz por evento do WebSocket, sem polling.
 class AgreementsController < ApplicationController
+  include OriginFilter
   def index
     authorize Agreement
-    scope = policy_scope(Agreement).includes(:customer, :tenant, :user, :decided_by)
+    scope = policy_scope(Agreement).includes(:customer, :tenant, :user, :decided_by, :operation)
     @tenants = Tenant.where(id: scope.reorder(nil).distinct.pluck(:tenant_id)).order(:name).pluck(:name, :id)
     @several_tenants = @tenants.size > 1
     @filters = filters
     scope = scope.where(tenant_id: @filters[:tenant]) if @filters[:tenant].present?
     scope = scope.where(state: @filters[:state]) if Agreement::STATES.include?(@filters[:state])
     scope = scope.where(user_id: @filters[:user]) if @filters[:user].present?
+    load_origins(@tenants.map(&:last))
+    scope = apply_origin(scope)
     scope = scope.where(built_on: @filters[:from]..) if @filters[:from]
     scope = scope.where(built_on: ..@filters[:to]) if @filters[:to]
     @operators = User.where(id: policy_scope(Agreement).select(:user_id)).order(:name).pluck(:name, :id)
@@ -22,7 +25,7 @@ class AgreementsController < ApplicationController
   end
 
   def show
-    @agreement = Agreement.includes(:tenant, :customer, :segment, :user, :decided_by, :registered_by, agreement_bills: %i[bill contract]).find(params[:id])
+    @agreement = Agreement.includes(:tenant, :customer, :tier, :user, :decided_by, :registered_by, agreement_bills: %i[bill contract]).find(params[:id])
     authorize @agreement
     @term = @agreement.term_snapshot.presence || Agreements::Term.build(@agreement)
     @events = @agreement.events.includes(:user).order(:occurred_at, :id)

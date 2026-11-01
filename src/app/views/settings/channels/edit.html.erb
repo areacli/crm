@@ -6,7 +6,7 @@
     <%= confirmar_no_painel "Apagar", titulo: "Apagar o canal?", mensagem: "O canal #{@channel.code} deixa de existir. Isto fica registrado.", acao: "Apagar canal", url: settings_channel_path(@channel), metodo: :delete %>
   <% end %>
 <% end %>
-<%= render "settings/abas" %>
+<%= render "settings/modelo" %>
 
 <div class="duas-colunas">
   <section class="cartao" aria-labelledby="dados">

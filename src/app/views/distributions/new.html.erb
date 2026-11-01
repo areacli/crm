@@ -1,0 +1,27 @@
+<%= formulario_de_painel(titulo: "Distribuir", url: distributions_path, enviar: "Distribuir", escopo: :distribution, erro: @error, voltar: distributions_path,
+                         descricao: "Cliente ou contrato é só a forma de escolher: o cliente leva os contratos em que é titular ou responsável, inclusive os que chegarem depois.") do |form| %>
+  <% if @accreditations.empty? %>
+    <p class="vazio">Nenhuma operação credenciada e ativa. Credencie em <%= link_to "Configuração › Operações", settings_operations_path %>.</p>
+  <% else %>
+    <div class="campo">
+      <%= form.label :accreditation_id, "Operação" %>
+      <%= form.select :accreditation_id, @accreditations.map { |item| [ @tenants.size > 1 ? "#{item.operation.short_name} (#{item.tenant.name})" : item.operation.short_name, item.id ] }, { selected: params.dig(:distribution, :accreditation_id) }, required: true %>
+    </div>
+    <fieldset>
+      <legend>O que distribuir</legend>
+      <label><%= form.radio_button :target, "customer", checked: params.dig(:distribution, :target) != "contract" %> Cliente (pelo documento)</label>
+      <label><%= form.radio_button :target, "contract", checked: params.dig(:distribution, :target) == "contract" %> Contrato (pelo código)</label>
+    </fieldset>
+    <div class="campo">
+      <%= form.label :value, "Documento ou código" %>
+      <%= form.text_field :value, value: params.dig(:distribution, :value), required: true, maxlength: 100 %>
+    </div>
+    <div class="campo">
+      <%= form.label :exposure, "Exposição" %>
+      <%= form.select :exposure, Distribution::EXPOSURES.map { [ t("distributions.exposures.#{_1}"), _1 ] }, { selected: params.dig(:distribution, :exposure) || @tenants.first&.setting&.operation_default_exposure }, "aria-describedby": "ajuda-exposicao" %>
+      <small id="ajuda-exposicao">Vencidas: só as faturas vencidas há mais dos dias úteis definidos nas políticas das operações.</small>
+    </div>
+    <div class="campo"><%= form.label :starts_on, "Início" %><%= form.date_field :starts_on, value: params.dig(:distribution, :starts_on) || Date.current %></div>
+    <div class="campo"><%= form.label :ends_on, "Fim (opcional)" %><%= form.date_field :ends_on, value: params.dig(:distribution, :ends_on) %></div>
+  <% end %>
+<% end %>

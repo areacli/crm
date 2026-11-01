@@ -10,9 +10,9 @@ module Charges
     end
 
     def call(input, as_of: nil, memory: false)
-      segment = input.segment_id || @demais_id
+      tier = input.tier_id || @demais_id
       periods = input.periods.empty? ? input.periods : input.periods.map { |since, id| [ since, id || @demais_id ] }
-      Calculator.call(@tables, @rules, input.amount, BusinessDays.next_business(input.due), payments: input.payments, periods: periods, segment_today: segment,
+      Calculator.call(@tables, @rules, input.amount, BusinessDays.next_business(input.due), payments: input.payments, periods: periods, tier_today: tier,
                                                                                                memory: memory, as_of: as_of, versions: @versions, consolidated: input.dates.to_a)
                 .minus_paid(input.paid)
     end

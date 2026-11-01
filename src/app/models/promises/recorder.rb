@@ -19,16 +19,16 @@ module Promises
       method = attributes[:promise_payment_method].to_s
       refuse!(:method) unless Payment.payment_methods.key?(method)
       contacted_on = attempt.contacted_at.in_time_zone.to_date
-      segment = Limits.segment_of(contract)
-      promised_on = check_date(attributes[:promise_on], contacted_on, segment)
+      tier = Limits.tier_of(contract)
+      promised_on = check_date(attributes[:promise_on], contacted_on, tier)
 
-      state = (promised_on - contacted_on).to_i <= Limits.days_for(@actor, attempt.tenant_id, segment) ? "open" : "pending"
+      state = (promised_on - contacted_on).to_i <= Limits.days_for(@actor, attempt.tenant_id, tier) ? "open" : "pending"
       quote = Pricing.quote(contract.tenant, bills, promised_on)
       setting = contract.tenant.setting
       promise = PaymentPromise.create!(
-        tenant_id: attempt.tenant_id, customer: customer, contract: contract, contact_attempt: attempt, user: @actor, segment: segment, state: state,
+        tenant_id: attempt.tenant_id, customer: customer, contract: contract, contact_attempt: attempt, user: @actor, tier: tier, state: state,
         number: (Numbering.next_for(attempt.tenant_id) if state == "open"), payment_method: method, promised_on: promised_on, contacted_on: contacted_on,
-        total_cents: quote.total_cents, decided_at: (Time.current if state == "open"), policies: policies_of(setting, segment, Limits.days_for(@actor, attempt.tenant_id, segment))
+        total_cents: quote.total_cents, decided_at: (Time.current if state == "open"), policies: policies_of(setting, tier, Limits.days_for(@actor, attempt.tenant_id, tier))
       )
       quote.rows.each { |row| promise.promise_bills.create!(row_attributes(row)) }
       Change.record!(tenant_id: promise.tenant_id, user: @actor, subject_type: "payment_promise", subject_id: promise.id, event: "created", after: state)
@@ -67,10 +67,10 @@ module Promises
       end
 
       # R189, R191: a data não passa do prazo máximo do segmento, nem com aprovação, e não é anterior ao dia do contato.
-      def check_date(raw, contacted_on, segment)
+      def check_date(raw, contacted_on, tier)
         date = parse_date(raw) or refuse!(:date_invalid)
         refuse!(:date_before_contact) if date < contacted_on
-        limit = contacted_on + Limits.ceiling(segment).days
+        limit = contacted_on + Limits.ceiling(tier).days
         raise Refused, I18n.t("promises.refused.date_too_far", date: I18n.l(limit, format: "%d/%m/%Y")) if date > limit
 
         date
@@ -85,10 +85,10 @@ module Promises
       end
 
       # R187: as políticas e a alçada do momento ficam congeladas na promessa; mudar a política vale só para as promessas novas.
-      def policies_of(setting, segment, limit_days)
+      def policies_of(setting, tier, limit_days)
         { "tolerance_days" => setting.promise_tolerance_days, "counting" => setting.promise_counting, "min_paid_pct" => setting.promise_min_paid_pct,
           "after_break" => setting.promise_after_break, "grace_days" => setting.promise_grace_days, "partial" => setting.promise_partial,
-          "limit_days" => limit_days, "ceiling_days" => segment.promise_max_days }
+          "limit_days" => limit_days, "ceiling_days" => tier.promise_max_days }
       end
 
       def row_attributes(row)

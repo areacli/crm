@@ -15,8 +15,8 @@ module AgreementsTestHelper
   def agreement_scenario(tenant = tenants(:alfa), price: true)
     tenant.update!(cnpj: "11222333000181", legal_name: "Escola Alfa Ltda") if tenant.cnpj.blank?
     customer, nf1, nf2 = promise_scenario(tenant)
-    segment = Segment.catch_all_of(tenant)
-    segment.update!(**EXAMPLE_VARIABLES)
+    tier = Tier.catch_all_of(tenant)
+    tier.update!(**EXAMPLE_VARIABLES)
     tenant.setting.update!(installment_rate_pct: 1.5, installment_method: "price") if price
     rebuild_agreement_limits(tenant)
     [ customer, nf1, nf2 ]
@@ -24,8 +24,8 @@ module AgreementsTestHelper
 
   # Refaz os limites dos perfis do credor pelo padrão da DA4 (as fixtures não rodam os gatilhos).
   def rebuild_agreement_limits(tenant)
-    AgreementLimit.where(segment_id: tenant.segments.select(:id)).delete_all
-    tenant.segments.find_each { |segment| AgreementLimit.create_for_segment(segment) }
+    AgreementLimit.where(tier_id: tenant.tiers.select(:id)).delete_all
+    tenant.tiers.find_each { |tier| AgreementLimit.create_for_tier(tier) }
   end
 
   # A entrada da simulação como o formulário monta (descontos em centésimos de ponto; entrada em centavos).

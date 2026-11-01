@@ -43,6 +43,24 @@ class AnonymizerTest < ActiveSupport::TestCase
     assert_equal [ "removido na anonimização" ] * 2, Change.where(subject_type: "bill", subject_id: @maria.bill.id, field: "description").pick(:before, :after)
   end
 
+  test "R323: a exportação lista as operações com os períodos, e a anonimização tira da trilha a busca pelo nome ou pelo documento" do
+    operation = make_operation(@alfa)
+    caio = make_operation_user(operation, @alfa)
+    contract = @maria.contracts.first
+    Distribution.create!(tenant: @alfa, operation: operation, contract: contract, exposure: "all", starts_on: Date.new(2026, 10, 1), ends_on: Date.new(2026, 10, 30))
+    by_name = OperationTrailEvent.create!(tenant: @alfa, operation: operation, user: caio, kind: "search", query_text: @maria.name.upcase, results: 1, created_at: Time.current)
+    by_document = OperationTrailEvent.create!(tenant: @alfa, operation: operation, user: caio, kind: "search", query_text: @maria.formatted_document, results: 1, created_at: Time.current)
+    other = OperationTrailEvent.create!(tenant: @alfa, operation: operation, user: caio, kind: "search", query_text: "Outra pessoa", results: 0, created_at: Time.current)
+
+    exported = Titular::Exporter.new(@maria).to_h[:operacoes]
+    assert_equal [ { operacao: operation.legal_name, cliente_ou_contrato: "Contrato #{contract.code}", inicio: "2026-10-01", fim: "2026-10-30" } ], exported
+
+    anonymize
+    assert_equal Titular::Anonymizer::REMOVED, by_name.reload.query_text
+    assert_equal Titular::Anonymizer::REMOVED, by_document.reload.query_text
+    assert_equal "Outra pessoa", other.reload.query_text
+  end
+
   test "R134: a anonimização é registrada com quem, quando, motivo, forma e o identificador novo, sem o documento" do
     anonymize
 

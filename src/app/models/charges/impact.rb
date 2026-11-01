@@ -6,7 +6,7 @@ module Charges
   class Impact
     VALUE_POLICIES = %w[missing_index_policy negative_index_policy old_legal_interest_policy].freeze
 
-    Row = Data.define(:segment_id, :name, :customers, :before_cents, :after_cents) do
+    Row = Data.define(:tier_id, :name, :customers, :before_cents, :after_cents) do
       def difference_cents = after_cents - before_cents
     end
 
@@ -29,7 +29,7 @@ module Charges
       @proposal.entries.filter_map do |entry|
         rule = @proposal.rule_of(entry)
         id = entry[:id].to_i
-        next unless rule.fine * 100 > Segment::CDC_FINE_LIMIT && entry[:person_type] != "company"
+        next unless rule.fine * 100 > Tier::CDC_FINE_LIMIT && !entry[:company_only]
         next if id.positive? && current_rules[id] == rule
 
         entry[:name]
@@ -58,12 +58,12 @@ module Charges
         status = Recalculation.status(@tenant)
         stored_today = status[:calculated_on] == @today && !status[:running]
         sums = Hash.new { |hash, key| hash[key] = [ Set.new, 0, 0 ] }
-        Reader.new(@tenant, today: @today, segment_ids: whole_base? ? nil : changed_segment_ids, unsegmented: changed_segment_ids.include?(demais)).each_batch do |batch|
+        Reader.new(@tenant, today: @today, tier_ids: whole_base? ? nil : changed_segment_ids, unsegmented: changed_segment_ids.include?(demais)).each_batch do |batch|
           stored = stored_today ? stored_totals(batch.first.bill_id, batch.last.bill_id) : {}
           batch.each do |input|
             was = stored[input.bill_id] || before.call(input).total
             will = after.call(input).total
-            entry = sums[input.segment_id || demais]
+            entry = sums[input.tier_id || demais]
             entry[0] << input.customer_id if was != will
             entry[1] += was
             entry[2] += will
