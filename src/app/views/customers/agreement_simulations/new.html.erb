@@ -15,31 +15,41 @@
         <p class="vazio">Este cliente não tem título em cobrança.</p>
       <% else %>
         <div class="tabela" tabindex="0">
-          <table>
+          <table data-detalhes>
             <caption class="apenas-leitor-de-tela">Títulos em cobrança do cliente</caption>
-            <thead><tr><th scope="col">Escolher</th><th scope="col">Título</th><th scope="col">Contrato</th><th scope="col">Vencimento</th><th scope="col" data-numerico>Saldo</th><th scope="col">Situação</th></tr></thead>
+            <thead><tr><th scope="col"><%= alternar_todos_os_detalhes %>Escolher</th><th scope="col">Título</th><th scope="col">Contrato</th><th scope="col">Vencimento</th><th scope="col" data-numerico>Saldo</th><th scope="col">Situação</th></tr></thead>
             <tbody>
               <% @bills.each do |bill| %>
                 <% holder = @held[bill.id] %>
                 <% why = @ineligible&.dig(bill.id) %>
                 <% blocked = (holder && !holder.proposal?) || why.present? %>
+                <% detail = why.present? || holder || !bill.kind_common? %>
+                <% detail_id = "detalhe-simulacao-#{bill.id}" %>
                 <tr>
                   <td>
+                    <% if detail %><%= alternar_detalhe(detail_id, "título #{bill.number}") %><% end %>
                     <%= check_box_tag "agreement[bill_ids][]", bill.id, Array(form[:bill_ids]).map(&:to_s).include?(bill.id.to_s), id: "titulo-#{bill.id}", disabled: blocked, "aria-label": "Incluir o título #{bill.number}" %>
                   </td>
-                  <th scope="row"><label for="titulo-<%= bill.id %>"><%= bill.number %></label><%= tag.small(bill.kind_break? ? " (título da quebra)" : (bill.kind_reversal? ? " (título de estorno)" : (bill.kind_agreement? ? " (título de acordo #{bill.agreement.number})" : ""))) unless bill.kind_common? %></th>
+                  <th scope="row"><label for="titulo-<%= bill.id %>"><%= bill.number %></label></th>
                   <td><%= bill.contract.label %></td>
                   <td><%= date_br(bill.due_date) %></td>
                   <td data-numerico><%= money(bill.balance_cents) %></td>
                   <td>
                     <% if why %>
-                      <%= situacao "Não entra", tom: :warning %> <small><%= t("agreements.eligibility.#{why}", number: bill.number) %></small>
+                      <%= situacao "Não entra", tom: :warning %>
                     <% elsif holder %>
-                      <%= situacao holder.proposal? ? "Em proposta" : "Em acordo", tom: :warning %> <small><%= link_to holder.number, agreement_path(holder) %></small>
+                      <%= situacao holder.proposal? ? "Em proposta" : "Em acordo", tom: :warning %>
                     <% elsif bill.due_date < Date.current %><%= situacao "Vencido", tom: :danger %>
                     <% else %><%= situacao "A vencer", tom: :info %><% end %>
                   </td>
                 </tr>
+                <% if detail %>
+                  <%= detalhe_da_linha(detail_id, 6) do %>
+                    <% unless bill.kind_common? %><p><%= bill.kind_break? ? "Título da quebra." : (bill.kind_reversal? ? "Título de estorno." : safe_join([ "Título de acordo ", link_to(bill.agreement.number, agreement_path(bill.agreement)), "." ])) %></p><% end %>
+                    <% if why %><p><%= t("agreements.eligibility.#{why}", number: bill.number) %></p>
+                    <% elsif holder %><p><%= holder.proposal? ? "Em proposta" : "Em acordo" %> <%= link_to holder.number, agreement_path(holder) %>.</p><% end %>
+                  <% end %>
+                <% end %>
               <% end %>
             </tbody>
           </table>

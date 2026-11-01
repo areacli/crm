@@ -21,8 +21,11 @@ class ContactAttempt < ApplicationRecord
   scope :recent, -> { order(contacted_at: :desc, id: :desc) }
 
   # Histórico da ficha (R74): do contato mais recente ao mais antigo, 20 por vez. Consulta: `contact_attempts (customer_id, contacted_at)`.
-  def self.history_for(customer, page:)
-    Pagination.new(where(customer_id: customer.id).includes(:result, :user, :contract, :promise).recent, page: page, per_page: 20)
+  # Com o contrato escolhido na ficha (padrões de interface, revisão 21), só os acionamentos registrados naquele contrato.
+  def self.history_for(customer, page:, contract: nil)
+    scope = where(customer_id: customer.id)
+    scope = scope.where(contract_id: contract.id) if contract
+    Pagination.new(scope.includes(:result, :user, :contract, :promise).recent, page: page, per_page: 20)
   end
 
   after_commit :announce_change, on: :create

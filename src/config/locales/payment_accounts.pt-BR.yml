@@ -32,7 +32,7 @@ pt-BR:
           attributes:
             base:
               "restrict_dependent_destroy":
-                has_many: "O canal tem contas de pagamento e não pode ser apagado."
+                has_many: "O canal tem contas de pagamento e não pode ser excluído."
   payments:
     instruments:
       no_account: "O credor não tem conta de %{kind} ativa neste ambiente."
@@ -89,7 +89,7 @@ pt-BR:
         file_replaced: "Arquivo trocado"
         activated: "Conta ativada"
         deactivated: "Conta desativada"
-        deleted: "Conta apagada"
+        deleted: "Conta excluída"
         tested: "Conexão testada"
         webhook_secret_generated: "Segredo do webhook gerado"
     providers:
@@ -179,7 +179,7 @@ pt-BR:
       update:
         done: "Conta %{nickname} salva."
       destroy:
-        done: "Conta %{nickname} apagada."
+        done: "Conta %{nickname} excluída."
       activations:
         create:
           done: "Conta %{nickname} ativada."

@@ -10,6 +10,7 @@ class CapturasTest < ApplicationSystemTestCase
     skip "defina CAPTURAS=1 para recriar as fotos do README" unless ENV["CAPTURAS"] == "1"
     FileUtils.mkdir_p(Rails.root.join("tmp/capturas"))
     page.driver.resize(1440, 900)
+    Agreements::CalendarImporter.new.municipalities(Municipality::BUNDLED) if Municipality.none?
     @tenant = tenants(:alfa)
     # Carteira fictícia pequena e variada, com a data de hoje como referência.
     contract = Contract.create!(tenant: @tenant, code: "CT-0001")
@@ -17,6 +18,8 @@ class CapturasTest < ApplicationSystemTestCase
       customer = Customer.create!(tenant: @tenant, document: FakeData.cpf(index + 10), name: FakeData.name(index + 10))
       add_contact(customer, "phone", "(11) 98888-00#{index.to_s.rjust(2, '0')}")
       add_contact(customer, "email", "cliente#{index}@exemplo.com.br")
+      # Endereço numa cidade da lista do IBGE (11, revisão 9), como na demonstração: a ficha não mostra o aviso de cidade não reconhecida.
+      add_address(customer, { street: "Avenida Paulista", number: (100 + index).to_s, district: "Bela Vista", city: "São Paulo", state: "SP", zip: "01310100" })
       2.times do |bill|
         Bill.create!(tenant: @tenant, contract: contract, customer: customer, number: "NF-#{index}/#{bill + 1}", due_date: Date.current - (index * 23 + bill * 9) + 40,
                      amount_cents: 15_000 + index * 4_700 + bill * 2_300)
@@ -166,8 +169,7 @@ class CapturasTest < ApplicationSystemTestCase
     Promises::Daily.new(@tenant).apply
     # Incremento 11 (etapas 1 e 2): município e feriado da praça, um cliente com contrato próprio (titular e responsável financeiro), as variáveis do segmento, o limite
     # do Operador e três propostas: uma aprovada, uma pendente de aprovação e uma aceita (aguardando efetivação).
-    sao_paulo = Municipality.create!(ibge_code: "3550308", name: "São Paulo", state: "SP")
-    Municipality.create!(ibge_code: "3304557", name: "Rio de Janeiro", state: "RJ")
+    sao_paulo = Municipality.find_by!(ibge_code: "3550308")
     Holiday.create!(state: "SP", municipality: sao_paulo, date: Date.new(Date.current.year + 1, 1, 25), name: "Aniversário da cidade")
     @tenant.update!(cnpj: "11222333000181", legal_name: "Escola Alfa Ltda")
     Tier.where(tenant: @tenant).find_each { |tier| tier.update!(**AgreementsTestHelper::EXAMPLE_VARIABLES) }
@@ -329,8 +331,8 @@ class CapturasTest < ApplicationSystemTestCase
     # Incremento 9: encargos e valor atualizado.
     "ficha-com-valor-atualizado" => lambda {
       visit customer_path(@contacted_customer)
-      find("summary", text: "Ver memória de cálculo", match: :first).click
-      assert_selector "caption", text: /Memória de cálculo/, visible: :all, wait: 10
+      first("section[aria-labelledby=titulos] tbody th a").click # os componentes e a memória ficam na página do título (padrões de interface, revisão 27)
+      assert_selector "h2", text: "Memória de cálculo"
       :current
     },
     "regra-de-encargos" => -> { edit_settings_tier_path(@varejo) },
@@ -413,14 +415,14 @@ class CapturasTest < ApplicationSystemTestCase
     # Redesenho, fase 2: as ações restantes no painel compartilhado (modal, confirmação e painel lateral).
     "novo-usuario-no-painel" => lambda {
       visit memberships_path
-      click_link "Novo usuário"
+      click_link "Criar usuário"
       assert_selector "dialog#painel[open] form.painel"
       sleep 0.5
       :current
     },
     "perfil-no-painel" => lambda {
       visit profiles_path
-      click_link "Novo perfil"
+      click_link "Criar perfil"
       assert_selector "dialog#painel[open] form.painel"
       sleep 0.5
       :current
@@ -613,7 +615,7 @@ class CapturasTest < ApplicationSystemTestCase
     assert_selector "h1"
     tirar.call("3-ficha-do-cliente")
     visit customer_path(@promise_customer, aba: "promessas")
-    assert_selector "ul.promessas li"
+    assert_selector "#promessas tbody tr"
     tirar.call("3b-ficha-aba-promessas")
     visit customer_path(@contacted_customer, aba: "acionamentos")
     click_link "Registrar acionamento"

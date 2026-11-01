@@ -99,9 +99,9 @@ class ContactAttemptsScreensTest < ActionDispatch::IntegrationTest
     assert_match(/Acionamento registrado/, trigger.dig("painel:concluido", "aviso"))
     assert trigger.key?("cable:contact-attempts-changed")
     get customer_path(@maria, aba: "acionamentos")
+    assert_select "#historico-acionamentos tr.detalhe-da-linha:nth-child(2) p", text: /\(11\) 98765-4321/
     assert_select "#historico-acionamentos tbody tr:first-child" do
       assert_select "td", text: /Telefone/
-      assert_select "td small", text: "(11) 98765-4321"
       assert_select "td", text: /Não atendeu/
       assert_select "td", text: /Joana Souza/
     end
@@ -171,13 +171,13 @@ class ContactAttemptsScreensTest < ActionDispatch::IntegrationTest
     25.times { |index| insert_attempt(@maria, contacted_at: (index + 1).hours.ago, text: "contato #{index + 1}") }
     entrar(users(:joana))
     get customer_path(@maria, aba: "acionamentos")
-    assert_select "#historico-acionamentos tbody tr", 20
+    assert_select "#historico-acionamentos tbody tr:not(.detalhe-da-linha)", 20
     assert_select "#historico-acionamentos tbody tr:first-child", text: /contato 1\b/
     assert_select "#historico-acionamentos", text: /Mostrando 1 a 20 de 25/
     assert_select "#historico-acionamentos a[rel=next][data-hx-get]"
 
     get customer_contact_attempts_path(@maria, page: 2), headers: htmx
-    assert_select "tbody tr", 5
+    assert_select "tbody tr:not(.detalhe-da-linha)", 5
     assert_select "tbody tr:first-child", text: /contato 21\b/
     assert_select "#historico-acionamentos[hx-trigger*='cable:contact-attempts-changed']"
   end
@@ -198,7 +198,7 @@ class ContactAttemptsScreensTest < ActionDispatch::IntegrationTest
     register(pedro, result_of(@alfa, :no_answer), { contract_id: contract.id })
     assert_redirected_to customer_path(pedro, aba: "acionamentos")
     get customer_path(pedro, aba: "acionamentos")
-    assert_select "#historico-acionamentos th small", text: "Contrato CT-1"
+    assert_select "#historico-acionamentos tr.detalhe-da-linha p", text: /Contrato CT-1/
     get customer_path(ana, aba: "acionamentos")
     assert_select "#historico-acionamentos tbody tr", 0
   end

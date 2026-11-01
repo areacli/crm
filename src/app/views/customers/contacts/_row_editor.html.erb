@@ -1,6 +1,7 @@
 <%# Edição na própria linha (telefone e e-mail): a linha do contato é trocada por um campo e os botões Salvar e Cancelar; nenhum formulário fica aberto na tabela.
     Locais: customer, contact, error. O destino do htmx é a linha (`contato-<id>`); Cancelar volta a linha como era. %>
-<tr id="contato-<%= contact.id %>">
+<tbody id="contato-<%= contact.id %>">
+<tr>
   <td colspan="7">
     <%= form_with scope: :contact, url: customer_contact_path(customer, contact), method: :patch, class: "em-linha", html: { "hx-patch": customer_contact_path(customer, contact), "hx-target": "#contato-#{contact.id}", "hx-swap": "outerHTML", "hx-push-url": "false" } do |form| %>
       <div class="campo">
@@ -15,3 +16,4 @@
     <% end %>
   </td>
 </tr>
+</tbody>

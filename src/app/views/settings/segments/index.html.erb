@@ -1,7 +1,7 @@
 <% content_for :title, "Configuração · Segmentos" %>
 <% content_for :cable_channels, @tenants.map { |tenant| { channel: "SegmentsChannel", tenant_id: tenant.id } }.to_json %>
 <%= pagina "Segmentos", subtitulo: "Públicos descritos por condições. Um segmento sozinho não muda nada: ele vale quando um enquadramento o usa." do %>
-  <%= link_to "Glossário", settings_segment_glossary_path, class: "botao", data: { variant: "secondary" } %>
+  <%= link_to "Ver o glossário", settings_segment_glossary_path, class: "botao", data: { variant: "secondary" } %>
 <% end %>
 <%= render "settings/modelo" %>
 
@@ -53,7 +53,7 @@
                             <%= button_to "Reativar", settings_segment_activation_path(segment), form: { "hx-boost": "false" } %>
                           <% end %>
                           <% if uses.empty? %>
-                            <%= confirmar_no_painel "Apagar", titulo: "Apagar o segmento?", mensagem: "O segmento \"#{segment.name}\" será apagado. Ele não está em uso, então nada muda na carteira.", acao: "Apagar", url: settings_segment_path(segment), metodo: :delete %>
+                            <%= confirmar_no_painel "Excluir", titulo: "Excluir o segmento?", mensagem: "O segmento \"#{segment.name}\" será excluído. Ele não está em uso, então nada muda na carteira.", acao: "Excluir", url: settings_segment_path(segment), metodo: :delete %>
                           <% end %>
                         <% end %>
                       <% end %>

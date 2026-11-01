@@ -32,7 +32,7 @@
             <thead><tr><th scope="col">Quando</th><th scope="col">Resultado</th><th scope="col" data-numerico>Meses gravados</th></tr></thead>
             <tbody>
               <% @runs.each do |run| %>
-                <tr><th scope="row"><%= datetime_br(run.started_at) %></th><td><%= t("indexes.run_status.#{run.status}") %><%= " — #{run.note}" if run.note.present? %></td><td data-numerico><%= number_br(run.processed) %></td></tr>
+                <tr><th scope="row"><%= datetime_br(run.started_at) %></th><td><%= run.note.present? ? cortado("#{t("indexes.run_status.#{run.status}")} — #{run.note}") : t("indexes.run_status.#{run.status}") %></td><td data-numerico><%= number_br(run.processed) %></td></tr>
               <% end %>
             </tbody>
           </table>
@@ -49,36 +49,43 @@
     <section class="cartao" aria-labelledby="indices-<%= tenant.id %>">
       <header>
         <h2 id="indices-<%= tenant.id %>"><%= tenant.name %></h2>
-        <% if can_correct %><div class="acoes"><%= abrir_painel "Corrigir índice", new_settings_index_adjustment_path(tenant_id: tenant.id), variante: "secondary", tamanho: "small" %></div><% end %>
+        <% if can_correct %><div class="acoes"><%= abrir_painel "Editar índice", new_settings_index_adjustment_path(tenant_id: tenant.id), variante: "secondary", tamanho: "small" %></div><% end %>
       </header>
       <div>
         <% unless @grid.empty? %>
           <div class="tabela" tabindex="0">
-            <table>
+            <table data-detalhes>
               <caption class="apenas-leitor-de-tela">Índices mensais de <%= tenant.name %></caption>
-              <thead><tr><th scope="col">Mês</th><% IndexRate::SERIES.each do |series| %><th scope="col" data-numerico><%= IndexRate.label(series) %></th><% end %></tr></thead>
+              <thead><tr><th scope="col"><%= alternar_todos_os_detalhes %>Mês</th><% IndexRate::SERIES.each do |series| %><th scope="col" data-numerico><%= IndexRate.label(series) %></th><% end %></tr></thead>
               <tbody>
                 <% @grid.months.each do |month| %>
+                  <% cells = IndexRate::SERIES.map { |series| [ series, @grid.cell(tenant.id, series, month) ] } %>
+                  <% detail_id = "detalhe-indices-#{tenant.id}-#{month.strftime("%Y-%m")}" %>
                   <tr>
-                    <th scope="row"><%= months_label(month) %></th>
-                    <% IndexRate::SERIES.each do |series| %>
-                      <% cell = @grid.cell(tenant.id, series, month) %>
+                    <th scope="row"><%= alternar_detalhe(detail_id, "índices de #{months_label(month)}") %><%= months_label(month) %></th>
+                    <% cells.each do |series, cell| %>
                       <td data-numerico>
                         <% if cell.adjustment %>
-                          <% shown = cell.bank ? " · Banco Central: #{index_percent(cell.bank)}" : " (incluído à mão)" %>
-                          <span>corrigido: <%= index_percent(cell.adjustment.value) %><%= shown %></span><br>
-                          <small>Corrigido em <%= datetime_br(cell.adjustment.adjusted_at) %><%= " por #{cell.adjustment.user.name}" if cell.adjustment.user %>: <%= cell.adjustment.reason %></small>
-                          <% if can_correct %>
-                            <%= abrir_painel "Desfazer", new_settings_index_adjustment_path(desfazer: cell.adjustment.id), variante: "link", tamanho: "small", "aria-label": "Desfazer a correção de #{IndexRate.label(series)} em #{months_label(month)}" %>
-                          <% end %>
+                          <%= situacao "Corrigido", tom: :warning %> <%= index_percent(cell.adjustment.value) %>
                         <% elsif cell.bank %>
-                          <%= index_percent(cell.bank) %><%= " (parcial)" if cell.partial %><br><small>Banco Central, <%= date_br(cell.fetched_at.to_date) %></small>
+                          <%= index_percent(cell.bank) %><%= " (parcial)" if cell.partial %>
                         <% else %>
                           sem valor
                         <% end %>
                       </td>
                     <% end %>
                   </tr>
+                  <%= detalhe_da_linha(detail_id, IndexRate::SERIES.size + 1) do %>
+                    <% cells.each do |series, cell| %>
+                      <% if cell.adjustment %>
+                        <p><strong><%= IndexRate.label(series) %>:</strong> corrigido para <%= index_percent(cell.adjustment.value) %><%= cell.bank ? " (Banco Central: #{index_percent(cell.bank)})" : " (incluído à mão)" %>
+                          em <%= datetime_br(cell.adjustment.adjusted_at) %><%= " por #{cell.adjustment.user.name}" if cell.adjustment.user %>: <%= cell.adjustment.reason %>
+                          <% if can_correct %><%= abrir_painel "Desfazer", new_settings_index_adjustment_path(desfazer: cell.adjustment.id), variante: "link", tamanho: "small", "aria-label": "Desfazer a correção de #{IndexRate.label(series)} em #{months_label(month)}" %><% end %></p>
+                      <% elsif cell.bank %>
+                        <p><strong><%= IndexRate.label(series) %>:</strong> Banco Central, buscado em <%= date_br(cell.fetched_at.to_date) %><%= ", parcial" if cell.partial %>.</p>
+                      <% end %>
+                    <% end %>
+                  <% end %>
                 <% end %>
               </tbody>
             </table>

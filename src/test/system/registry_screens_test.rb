@@ -34,19 +34,19 @@ class RegistryScreensSystemTest < ApplicationSystemTestCase
     visit customer_path(@maria)
     assert_acessivel
     visit customer_path(@maria, aba: "contatos")
-    assert_selector "#contatos tbody tr[id^=contato-]", count: 4
+    assert_selector "#contatos tbody[id^=contato-]", count: 4
     find("#contato-#{@maria.contacts.find_by!(key: '11987654321').id} button.menu-de-linha").click
     assert_acessivel
     sem_rolagem_horizontal
     visit customer_path(@maria, aba: "historico")
-    assert_selector "#historico-do-cadastro li"
+    assert_selector "#historico-do-cadastro tbody tr"
     assert_acessivel
   end
 
   test "corrigir um contato pela ficha: o antigo fica inválido, o novo nasce válido e a tela mostra o aviso" do
     contato = @maria.contacts.find_by!(key: "11987654321")
     visit customer_path(@maria, aba: "contatos")
-    acao_do_contato(contato, "Corrigir")
+    acao_do_contato(contato, "Editar")
     # Edição na própria linha: o campo substitui a linha, sem painel nem formulário aberto na tabela.
     assert_no_selector "dialog[open]"
     within("#contato-#{contato.id}") do
@@ -61,10 +61,10 @@ class RegistryScreensSystemTest < ApplicationSystemTestCase
   test "marcar não perturbe e voltar a válido pela ficha" do
     contact = @maria.contacts.find_by!(key: "11987654321")
     visit customer_path(@maria, aba: "contatos")
-    acao_do_contato(contact, "Marcar não perturbe")
+    acao_do_contato(contact, "Marcar como não perturbe")
     within("#painel") do
-      assert_selector "h2", text: "Marcar não perturbe"
-      click_button "Marcar não perturbe"
+      assert_selector "h2", text: "Marcar como não perturbe"
+      click_button "Marcar como não perturbe"
     end
     assert_text "Situação do contato alterada"
     assert_equal "do_not_disturb", contact.reload.status

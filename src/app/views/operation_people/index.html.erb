@@ -1,6 +1,6 @@
 <% content_for :title, "Pessoas da operação" %>
 <%= pagina "Pessoas da #{@operation.short_name}", subtitulo: "Quem trabalha pela operação. O vínculo em cada credor, com o perfil, é dado pelo credor (ou por você, onde o credor deixar)." do %>
-  <%= abrir_painel "Nova pessoa", new_operation_person_path %>
+  <%= abrir_painel "Criar pessoa", new_operation_person_path %>
 <% end %>
 <% if flash[:temporary_password] %><%= render "memberships/temporary_password", data: flash[:temporary_password] %><% end %>
 
@@ -19,8 +19,8 @@
             <% if member.user_id != Current.user.id %>
               <%= menu_de_linha("pessoa-#{member.id}", "Ações de #{member.user.name}") do %>
                 <% if member.active? %>
-                  <% if @linkable.any? %><%= abrir_painel "Dar vínculo", new_operation_person_link_path(member), variante: "modal", tamanho: "small" %><% end %>
-                  <%= confirmar_no_painel (member.manager? ? "Tirar de gestor" : "Tornar gestor"), titulo: (member.manager? ? "Tirar #{member.user.name} de gestor?" : "Tornar #{member.user.name} gestor da operação?"),
+                  <% if @linkable.any? %><%= abrir_painel "Criar vínculo", new_operation_person_link_path(member), variante: "modal", tamanho: "small" %><% end %>
+                  <%= confirmar_no_painel (member.manager? ? "Desmarcar como gestor" : "Marcar como gestor"), titulo: (member.manager? ? "Desmarcar #{member.user.name} como gestor?" : "Marcar #{member.user.name} como gestor da operação?"),
                                           mensagem: "O gestor cadastra e desativa as pessoas da operação.", acao: "Confirmar", url: operation_person_path(member, change: member.manager? ? "not_manager" : "manager"), metodo: :patch, perigoso: false %>
                   <%= confirmar_no_painel "Desativar", titulo: "Desativar #{member.user.name}?", mensagem: "Ela perde o acesso a todos os credores na hora; os vínculos dela se encerram.", acao: "Desativar", url: operation_person_path(member, change: "deactivate"), metodo: :patch %>
                 <% else %>

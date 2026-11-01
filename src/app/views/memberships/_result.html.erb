@@ -28,7 +28,7 @@
                 <%= menu_de_linha("vinculo-#{membership.id}", "Ações de #{membership.user.name}") do %>
                   <%= link_to "Abrir usuário", membership_path(membership), class: "botao" %>
                   <% unless membership.user_id == Current.user.id %>
-                    <%= abrir_painel "Mudar o perfil", edit_membership_profile_path(membership) %>
+                    <%= abrir_painel "Editar o perfil", edit_membership_profile_path(membership) %>
                     <% if membership.active? %>
                       <%= confirmar_no_painel "Desativar o acesso", titulo: "Desativar o acesso?", acao: "Desativar o acesso", url: membership_activation_path(membership), metodo: :delete,
                                               mensagem: "#{membership.user.name} deixa de operar #{membership.tenant.name} na próxima ação. Os acessos em outros credores não mudam." %>

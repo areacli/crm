@@ -52,13 +52,13 @@
         <% if excess.any? %>
           <div class="tabela" tabindex="0">
             <table>
-              <caption class="apenas-leitor-de-tela">Excedente por valor reduzido do contrato <%= contract.label %></caption>
+              <caption>Excedente por valor reduzido do contrato <%= contract.label %> <small>(calculado: some se o valor voltar a subir ou um estorno reduzir o pago)</small></caption>
               <thead><tr><th scope="col">Título</th><th scope="col">Motivo</th><th scope="col" data-numerico>Valor do título</th><th scope="col" data-numerico>Pago</th><th scope="col" data-numerico>Excedente</th></tr></thead>
               <tbody>
                 <% excess.each do |bill| %>
                   <tr>
                     <th scope="row"><%= link_to bill.number, bill_path(bill) %></th>
-                    <td>Valor do título reduzido <small>(calculado: some se o valor voltar a subir ou um estorno reduzir o pago)</small></td>
+                    <td>Valor do título reduzido</td>
                     <td data-numerico><%= money(bill.amount_cents) %></td>
                     <td data-numerico><%= money(bill.paid_cents) %></td>
                     <td data-numerico><%= money(bill.excess_cents) %></td>

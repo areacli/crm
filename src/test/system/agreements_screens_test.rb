@@ -47,10 +47,10 @@ class AgreementsScreensSystemTest < ApplicationSystemTestCase
     sem_rolagem_horizontal
 
     visit customer_path(@customer, aba: "promessas")
-    assert_selector "ul.promessas li", text: /1 proposta aguardando aceite/
+    assert_selector "#acordos tbody th", text: "ACD-000001"
     assert_acessivel
     visit customer_path(@customer)
-    assert_selector "th small", text: /Em proposta ACD-000001/
+    assert_selector "tbody th .situacao", text: "Em proposta"
     assert_acessivel
     sem_rolagem_horizontal
 

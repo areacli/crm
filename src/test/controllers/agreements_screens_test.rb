@@ -104,10 +104,10 @@ class AgreementsScreensTest < ActionDispatch::IntegrationTest
     assert_select "button", text: "Aprovar proposta", count: 0
 
     get customer_path(@customer)
-    assert_select "small", text: /Em proposta ACD-000001/
+    assert_select "tbody th .situacao", text: "Em proposta"
     get customer_path(@customer, aba: "promessas")
-    assert_select "ul.promessas li", text: /1 proposta aguardando aceite/
-    assert_select "ul.promessas a", text: "ACD-000001"
+    assert_select "#acordos tbody tr:not(.detalhe-da-linha)", 1
+    assert_select "#acordos tbody th a", text: "ACD-000001"
     assert_select "#historico-de-acordos"
     assert_select "td", text: "Proposta montada"
   end
@@ -198,7 +198,7 @@ class AgreementsScreensTest < ActionDispatch::IntegrationTest
     assert_select "a", text: "Registrar aceite", count: 0
 
     get customer_path(@customer, aba: "promessas")
-    assert_select "ul.promessas li", text: /ACD-000001.*NF-1 e NF-2.*aguardando efetivação|Aguardando efetivação/mi
+    assert_select "#acordos tbody", text: /ACD-000001.*Aguardando efetivação.*NF-1 e NF-2/mi
   end
 
   test "R220: o aceite recusado volta à página com a mensagem e nada muda" do
@@ -300,7 +300,8 @@ class AgreementsScreensTest < ActionDispatch::IntegrationTest
     viewer = make_user(@alfa, [])
     entrar(viewer)
     get root_path
-    assert_select "nav h2", text: "Cobrança", count: 0
+    # Revisão 22: Clientes e Acionamentos também são do grupo Cobrança; sem "negociar acordos", o grupo fica sem Acordos.
+    assert_select "nav a", text: "Acordos", count: 0
     get agreements_path
     assert_response :not_found
   end

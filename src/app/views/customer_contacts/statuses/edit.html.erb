@@ -1,6 +1,6 @@
 <% valores = params[:status].respond_to?(:permit) ? params[:status] : {} %>
-<% titulo, enviar, perigoso = { "invalid" => [ "Marcar como inválido", "Marcar como inválido", true ], "do_not_disturb" => [ "Marcar não perturbe", "Marcar não perturbe", false ],
-                                "valid" => [ "Voltar a válido", "Voltar a válido", false ] }.fetch(@status) %>
+<% titulo, enviar, perigoso = { "invalid" => [ "Marcar como inválido", "Marcar como inválido", true ], "do_not_disturb" => [ "Marcar como não perturbe", "Marcar como não perturbe", false ],
+                                "valid" => [ "Marcar como válido", "Marcar como válido", false ] }.fetch(@status) %>
 <%= formulario_de_painel(titulo: titulo, descricao: "Contato: #{@contact.value}", url: customer_contact_status_path(@customer, @contact), metodo: :patch, enviar: enviar, perigoso: perigoso, variante: :modal,
                          escopo: :status, erro: @error, voltar: customer_path(@customer, aba: "contatos")) do |form| %>
   <%= form.hidden_field :status, value: @status %>

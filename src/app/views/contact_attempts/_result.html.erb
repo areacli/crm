@@ -4,20 +4,21 @@
     <p class="vazio">Nenhum acionamento no período.</p>
   <% else %>
     <div class="tabela" tabindex="0" data-fixa>
-      <table>
+      <table data-detalhes>
         <caption class="apenas-leitor-de-tela">Acionamentos</caption>
         <thead>
           <tr>
-            <th scope="col">Contato</th><th scope="col">Cliente</th>
+            <th scope="col"><%= alternar_todos_os_detalhes %>Contato</th><th scope="col">Cliente</th>
             <% if @several_tenants %><th scope="col">Credor</th><% end %>
             <th scope="col">Canal</th><th scope="col">Resultado</th><th scope="col">Tipo</th><th scope="col">Operador</th><% if @origins.present? %><th scope="col">Origem</th><% end %><th scope="col">Retorno</th>
           </tr>
         </thead>
         <tbody>
           <% @attempts.each do |attempt| %>
+            <% detail_id = "detalhe-acionamento-#{attempt.id}" %>
             <tr>
-              <th scope="row"><%= datetime_br(attempt.contacted_at) %></th>
-              <td><%= link_to attempt.customer.name, customer_path(attempt.customer, anchor: "acionamentos") %><% if attempt.contract %><small>Contrato <%= attempt.contract.label %></small><% end %></td>
+              <th scope="row"><% if attempt.contract %><%= alternar_detalhe(detail_id, "acionamento de #{datetime_br(attempt.contacted_at)}") %><% end %><%= datetime_br(attempt.contacted_at) %></th>
+              <td><%= link_to attempt.customer.name, customer_path(attempt.customer, anchor: "acionamentos") %></td>
               <% if @several_tenants %><td><%= attempt.tenant.name %></td><% end %>
               <td><%= t("contacts.channels.#{attempt.channel}") %></td>
               <td><%= attempt.result.name %></td>
@@ -26,6 +27,9 @@
               <% if @origins.present? %><td><%= origin_label(attempt) %></td><% end %>
               <td><%= attempt.return_at ? datetime_br(attempt.return_at) : "—" %></td>
             </tr>
+            <% if attempt.contract %>
+              <%= detalhe_da_linha(detail_id, 7 + (@several_tenants ? 1 : 0) + (@origins.present? ? 1 : 0)) { tag.p("Contrato #{attempt.contract.label}.") } %>
+            <% end %>
           <% end %>
         </tbody>
       </table>

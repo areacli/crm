@@ -80,8 +80,9 @@ class AgreementReversalsScreensSystemTest < ApplicationSystemTestCase
     Agreements::Reversion # carrega o módulo
     extra = Agreements::ReversalTitles.create!(@agreement, items: [ { "bill_id" => @nf1.id, "component" => "principal", "cents" => 4_366 } ], contract: @nf1.contract, action_on: Date.current, processed_on: Date.current)
     Credit.create!(tenant: @alfa, contract: @nf1.contract, kind: :entry, amount_cents: 2_000, reason: :excess, occurred_at: Time.current)
+    visit bill_path(extra)
+    assert_selector "section[aria-labelledby=cobranca-do-titulo] p", text: /Título de estorno do acordo ACD-000001/
     visit customer_path(@customer)
-    assert_selector "th small", text: /Título de estorno do acordo ACD-000001/
     find("button.menu-de-linha[aria-label='Ações do título #{extra.number}']").click
     click_link(text: /Usar crédito/)
     within("#painel") do
@@ -96,7 +97,7 @@ class AgreementReversalsScreensSystemTest < ApplicationSystemTestCase
   test "a simulação aceita o título de um acordo quebrado e mostra os componentes herdados" do
     Agreements::Breaker.manual!(@agreement.reload, users(:joana), reason: "documento falso", fraud: true, today: Date.current)
     visit new_customer_agreement_simulation_path(@customer)
-    assert_selector "th small", text: /título de acordo ACD-000001/
+    assert_selector "tr.detalhe-da-linha p", text: /Título de acordo ACD-000001/, visible: :all
     all("input[type=checkbox][id^=titulo-]:not([disabled])").map { |box| box[:id] }.each { |id| check id } # "só com todos" (M14): todos os títulos em aberto do acordo anterior
     fill_in "Desconto em juros do parcelamento herdados (%)", with: "0" if page.has_field?("Desconto em juros do parcelamento herdados (%)")
     fill_in "Parcelas", with: "3"

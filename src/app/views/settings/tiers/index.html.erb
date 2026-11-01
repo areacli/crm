@@ -23,32 +23,27 @@
           <p><small>O recálculo ainda não rodou para este credor.</small></p>
         <% end %>
         <div class="tabela" tabindex="0">
-          <table>
+          <table data-detalhes>
             <caption class="apenas-leitor-de-tela">Itens do enquadramento financeiro de <%= tenant.name %>, em ordem</caption>
-            <thead><tr><th scope="col" data-numerico>Ordem</th><th scope="col">Segmento</th><th scope="col" data-numerico>Contratos</th><th scope="col" data-numerico>Saldo</th><th scope="col">Regras</th><% if can_change %><th scope="col"><span class="apenas-leitor-de-tela">Ações</span></th><% end %></tr></thead>
+            <thead><tr><th scope="col" data-numerico><%= alternar_todos_os_detalhes %>Ordem</th><th scope="col">Segmento</th><th scope="col" data-numerico>Contratos</th><th scope="col" data-numerico>Saldo</th><th scope="col">Regras</th><% if can_change %><th scope="col"><span class="apenas-leitor-de-tela">Ações</span></th><% end %></tr></thead>
             <tbody>
               <% active = tiers.reject(&:catch_all?) %>
               <% tiers.each do |tier| %>
                 <% count, cents = @totals.fetch(tier.id, [ 0, 0 ]) %>
                 <% index = active.index(tier) %>
+                <% reading = tier.segment.text unless tier.catch_all? %>
                 <tr id="item-<%= tier.id %>">
-                  <td data-numerico><%= tier.catch_all? ? "—" : index + 1 %></td>
+                  <td data-numerico><%= alternar_detalhe("detalhe-item-#{tier.id}", "item #{tier.name}") %><%= tier.catch_all? ? "—" : index + 1 %></td>
                   <th scope="row">
                     <% if tier.catch_all? %>
                       <%= tier.name %> <%= situacao("Trilha padrão", tom: :neutral) %>
                     <% else %>
-                      <%= link_to tier.name, settings_segment_path(tier.segment) %>
-                      <% reading = tier.segment.text %>
-                      <br><small><code><%= reading.lines.drop(1).map(&:short).join(" · ") %></code></small> <%= informacao "condições de #{tier.name}", reading.long_text, "leitura-item-#{tier.id}" %>
+                      <%= link_to tier.name, settings_segment_path(tier.segment) %> <%= informacao "condições de #{tier.name}", reading.long_text, "leitura-item-#{tier.id}" %>
                     <% end %>
                   </th>
                   <td data-numerico><%= number_br(count) %></td>
                   <td data-numerico><%= money(cents) %></td>
-                  <td>
-                    <small>Encargos: <%= charge_rule_summary(tier, setting) %></small><br>
-                    <small>Promessa: até <%= tier.promise_max_days %> dias</small><br>
-                    <small>Acordo: até <%= tier.agreement_max_installments %> parcelas · entrada mínima <%= tier.agreement_min_down_payment_pct %>%</small>
-                  </td>
+                  <td><%= cortado "Promessa até #{tier.promise_max_days} dias · acordo até #{tier.agreement_max_installments} parcelas" %></td>
                   <% if can_change %>
                     <td data-acoes>
                       <%= menu_de_linha("item-menu-#{tier.id}", "Ações de #{tier.name}") do %>
@@ -56,13 +51,18 @@
                         <% unless tier.catch_all? %>
                           <% if index.positive? %><%= button_to "Mover para cima", settings_tier_movement_path(tier), params: { "movement[direction]": "up" }, form: { "hx-boost": "false" } %><% end %>
                           <% if index < active.size - 1 %><%= button_to "Mover para baixo", settings_tier_movement_path(tier), params: { "movement[direction]": "down" }, form: { "hx-boost": "false" } %><% end %>
-                          <%= button_to "Tirar do enquadramento", settings_tier_path(tier), method: :delete, form: { "hx-boost": "false" } %>
+                          <%= button_to "Excluir do enquadramento", settings_tier_path(tier), method: :delete, form: { "hx-boost": "false" } %>
                           <%= link_to "Abrir segmento", settings_segment_path(tier.segment), class: "botao" %>
                         <% end %>
                       <% end %>
                     </td>
                   <% end %>
                 </tr>
+                <%= detalhe_da_linha("detalhe-item-#{tier.id}", can_change ? 6 : 5) do %>
+                  <% if reading %><p>Condições: <code><%= reading.lines.drop(1).map(&:short).join(" · ") %></code></p><% end %>
+                  <p>Encargos: <%= charge_rule_summary(tier, setting) %>.</p>
+                  <p>Promessa: até <%= tier.promise_max_days %> dias. Acordo: até <%= tier.agreement_max_installments %> parcelas, entrada mínima de <%= tier.agreement_min_down_payment_pct %>%.</p>
+                <% end %>
               <% end %>
             </tbody>
           </table>

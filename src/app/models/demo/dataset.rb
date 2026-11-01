@@ -50,6 +50,8 @@ module Demo
       FileUtils.mkdir_p(@tmp)
       with_jobs_discarded do
         users
+        # A lista do IBGE fica entre uma recriação e outra (`Demo::Reset::KEEP`): só entra quando está vazia (11, revisão 9).
+        step("Municípios do IBGE") { Agreements::CalendarImporter.new.municipalities(Municipality::BUNDLED) } if Municipality.none?
         step("Índices") { Indexes::Fetch.new.call(today: today) }
         alpha = step("Credor #{ALPHA}") { build_alpha }
         beta = step("Credor #{BETA}") { build_beta }

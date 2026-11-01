@@ -1,7 +1,7 @@
 <%# Histórico de acionamentos do cliente (R74), do contato mais recente ao mais antigo, 20 por vez. Refeito pelo htmx na paginação e a cada
     evento do WebSocket (cable:contact-attempts-changed). Locais: customer, history, oob. %>
 <% attempts = history.records.to_a %>
-<% wrapper = { id: "historico-acionamentos", "hx-get": customer_contact_attempts_path(customer, page: history.page), "hx-swap": "outerHTML",
+<% wrapper = { id: "historico-acionamentos", "hx-get": customer_contact_attempts_path(customer, page: history.page, contrato: params[:contrato].presence), "hx-swap": "outerHTML",
                "hx-trigger": "cable:contact-attempts-changed from:body, cable:connected from:body" }.merge(local_assigns[:oob] ? { "hx-swap-oob": "true" } : {}) %>
 <%= tag.div(**wrapper) do %>
   <% if attempts.empty? %>
@@ -9,36 +9,43 @@
   <% else %>
     <p><small>Mostrando <%= number_br(history.first_item) %> a <%= number_br(history.last_item) %> de <%= number_br(history.total) %> acionamentos.</small></p>
     <div class="tabela" tabindex="0">
-      <table>
+      <table data-detalhes>
         <caption class="apenas-leitor-de-tela">Acionamentos do cliente</caption>
         <thead>
           <tr>
-            <th scope="col">Contato</th><th scope="col">Canal</th><th scope="col">Resultado</th><th scope="col">Retorno</th>
+            <th scope="col"><%= alternar_todos_os_detalhes %>Contato</th><th scope="col">Canal</th><th scope="col">Resultado</th><th scope="col">Retorno</th>
             <th scope="col">Registrado por</th><th scope="col">Texto</th>
           </tr>
         </thead>
         <tbody>
           <% attempts.each do |attempt| %>
+            <% detail_id = "detalhe-acionamento-#{attempt.id}" %>
+            <% promise = attempt.promise %>
+            <% text = attempt.text.presence unless attempt.summary_only_for_viewer? %>
             <tr>
-              <th scope="row"><%= datetime_br(attempt.contacted_at) %><% if attempt.contract %><small>Contrato <%= attempt.contract.label %></small><% end %></th>
-              <td><%= t("contacts.channels.#{attempt.channel}") %><% if attempt.contact_used.present? %><small><%= attempt.contact_used %></small><% end %></td>
-              <td>
-                <%= attempt.result.name %><small><%= t("contacts.kinds.#{attempt.result_kind}") %></small>
-                <% if (promise = attempt.promise) %>
-                  <small>Promessa <%= promise.label %>, <%= money(promise.total_cents) %> por <%= t("payments.methods.#{promise.payment_method}") %> até <%= date_br(promise.promised_on) %>:
-                    <%= promise_state(promise) %><% if promise.reason.present? %> — <%= promise.reason %><% end %></small>
-                <% end %>
-              </td>
+              <th scope="row"><%= alternar_detalhe(detail_id, "acionamento de #{datetime_br(attempt.contacted_at)}") %><%= datetime_br(attempt.contacted_at) %></th>
+              <td><%= t("contacts.channels.#{attempt.channel}") %></td>
+              <td><%= attempt.result.name %><% if promise %><%= situacao "Promessa", tom: :info %><% end %></td>
               <td><%= attempt.return_at ? datetime_br(attempt.return_at) : "—" %></td>
-              <td><%= attempt.summary_only_for_viewer? ? "Outra origem" : (attempt.user&.name || "—") %><small>lançado em <%= datetime_br(attempt.created_at) %></small></td>
-              <td>
-                <% if attempt.text.present? && !attempt.summary_only_for_viewer? %><p class="texto-do-operador"><%= attempt.text %></p><% end %>
-              </td>
+              <td><%= attempt.summary_only_for_viewer? ? "Outra origem" : (attempt.user&.name || "—") %></td>
+              <td><%= text ? cortado(text) : "—" %></td>
             </tr>
+            <%= detalhe_da_linha(detail_id, 6) do %>
+              <p>
+                <% if attempt.contract %>Contrato <%= attempt.contract.label %> · <% end %>
+                <% if attempt.contact_used.present? %><%= attempt.contact_used %> · <% end %>
+                <%= t("contacts.kinds.#{attempt.result_kind}") %> · lançado em <%= datetime_br(attempt.created_at) %>
+              </p>
+              <% if promise %>
+                <p>Promessa <%= promise.label %>, <%= money(promise.total_cents) %> por <%= t("payments.methods.#{promise.payment_method}") %> até <%= date_br(promise.promised_on) %>:
+                  <%= promise_state(promise) %><% if promise.reason.present? %> — <%= promise.reason %><% end %></p>
+              <% end %>
+              <% if text %><p class="texto-do-operador"><%= text %></p><% end %>
+            <% end %>
           <% end %>
         </tbody>
       </table>
     </div>
-    <%= render "shared/paginacao", pagination: history, path: ->(page) { customer_contact_attempts_path(customer, page: page) }, fragment: "#historico-acionamentos" %>
+    <%= render "shared/paginacao", pagination: history, path: ->(page) { customer_contact_attempts_path(customer, page: page, contrato: params[:contrato].presence) }, fragment: "#historico-acionamentos" %>
   <% end %>
 <% end %>

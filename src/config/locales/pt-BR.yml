@@ -313,7 +313,7 @@ pt-BR:
       update:
         done: "Canal %{code} salvo."
       destroy:
-        done: "Canal %{code} apagado."
+        done: "Canal %{code} excluído."
     payment_policies:
       update:
         done: "Políticas de pagamento de %{tenant} salvas."
@@ -341,7 +341,7 @@ pt-BR:
     update:
       done: "Perfil %{name} alterado."
     destroy:
-      done: "Perfil %{name} apagado."
+      done: "Perfil %{name} excluído."
   notices:
     kinds:
       linked_to_tenant:
@@ -382,7 +382,7 @@ pt-BR:
     password_changed: "Senha trocada pelo próprio usuário"
     profile_created: "Perfil %{profile} criado"
     profile_updated: "Perfil %{profile} alterado"
-    profile_deleted: "Perfil %{profile} apagado"
+    profile_deleted: "Perfil %{profile} excluído"
     admin_user_created: "Usuário criado pelo administrador"
     admin_membership_linked: "Ligado ao credor pelo administrador, com o perfil %{profile}"
     admin_user_renamed: "Nome mudou de %{before} para %{after} (administrador)"

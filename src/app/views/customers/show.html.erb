@@ -1,3 +1,4 @@
+<% content_for :menu_memoria, "ficha" %>
 <% content_for :title, @customer.name %>
 <% content_for :cable_channels, customer_contact_cable_channels(@customer) %>
 <%
@@ -9,6 +10,7 @@
   agreements_count = @agreements&.size.to_i
   indicators = []
   indicators << situacao("Anonimizado", tom: :neutral) if @customer.anonymized?
+  indicators << situacao("Contrato #{@contract.label}", tom: :info) if @contract
   indicators << (worst ? situacao("Atraso de #{@brackets.label(@brackets.index_for(worst))} dias", tom: :danger) : situacao("Sem atraso", tom: :success))
   indicators << situacao(pluralize(promises_count, "promessa em aberto", "promessas em aberto"), tom: :info) if promises_count.positive?
   indicators << situacao(pluralize(agreements_count, "proposta ou acordo", "propostas ou acordos"), tom: :info) if agreements_count.positive?
@@ -22,7 +24,7 @@
   <% if can_more %>
     <%= menu_de_linha("mais-acoes", "Mais ações do cliente") do %>
       <% if @can_edit_registry %>
-        <%= abrir_painel "Corrigir nome", edit_customer_name_path(@customer) %>
+        <%= abrir_painel "Editar nome", edit_customer_name_path(@customer) %>
         <%= abrir_painel "Criar contato", new_customer_contact_path(@customer) %>
       <% end %>
       <% if @can_transfer %><%= abrir_painel "Transferir crédito", new_customer_credit_transfer_path(@customer) %><% end %>
@@ -39,7 +41,11 @@
 
 <div class="ficha">
   <div class="ficha-principal">
-    <%= abas_da_pagina "Seções da ficha", tabs.map { |texto, contagem, chave| [ texto, customer_path(@customer, aba: chave), contagem, @tab == chave ] } %>
+    <%# Padrões de interface, revisões 21 e 28: o cartão Contratos é o filtro da ficha; o contrato escolhido recorta a página inteira e passa de uma aba a outra. %>
+    <%= render "customers/contracts", customer: @customer, contracts: @all_contracts, selected: @contract, tab: @tab, bill_counts: @contract_bill_counts,
+               operations: (Operations::Context.operation? ? nil : @contract_operations), members: @contract_members, credit_totals: @credit_totals,
+               brackets: @brackets, overdue: @contract_overdue, tiers: @contract_tiers, since: @tier_since %>
+    <%= abas_da_pagina "Seções da ficha", tabs.map { |texto, contagem, chave| [ texto, customer_path(@customer, aba: chave, contrato: @contract&.id), contagem, @tab == chave ] } %>
     <%= render "customers/tabs/#{@tab}" %>
   </div>
 
@@ -74,5 +80,6 @@
         <% end %>
       </div>
     </section>
+    <%= render "customers/timeline", customer: @customer, timeline: @timeline, base: { aba: (@tab unless @tab == "titulos"), contrato: @contract&.id }.compact %>
   </aside>
 </div>

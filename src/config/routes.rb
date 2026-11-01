@@ -14,6 +14,8 @@ Rails.application.routes.draw do
   resources :customers, path: "clientes", only: %i[index show] do
     # Cadastro do cliente (06): nome corrigido na tela e contatos com a situação de cada um.
     resource :name, path: "nome", only: %i[edit update], module: :customers
+    # Linha do tempo da lateral (padrões de interface, revisão 24): o trecho que o htmx troca no filtro e na paginação.
+    resource :timeline, path: "linha-do-tempo", only: :show, module: :customers
     resources :contacts, path: "contatos", controller: "customer_contacts", only: %i[new create edit update] do
       resource :status, path: "situacao", only: %i[edit update], controller: "customer_contacts/statuses"
     end
@@ -42,10 +44,7 @@ Rails.application.routes.draw do
   resource :data_retention, path: "guarda-de-dados", only: :show
 
   # Histórico do título (05, R100) e divergências de valor (05, R99).
-  resources :bills, path: "titulos", only: :show do
-    # Memória de cálculo do valor atualizado (09, R174): carregada sob pedido pelo htmx.
-    resource :calculation_memory, path: "memoria-de-calculo", only: :show, module: :bills
-  end
+  resources :bills, path: "titulos", only: :show
   resources :value_discrepancies, path: "divergencias-de-valor", only: %i[index show] do
     resource :handling, path: "tratamento", only: %i[new create], module: :value_discrepancies
   end
@@ -182,24 +181,29 @@ Rails.application.routes.draw do
     resource :indexes, path: "indices", only: :show
     resources :index_adjustments, path: "correcoes-de-indices", path_names: { new: "nova" }, only: %i[new create destroy]
     resource :index_search, path: "busca-de-indices", only: :create
+    resources :contact_results, path: "resultados-de-acionamento", path_names: { new: "novo", edit: "editar" }, except: %i[show destroy] do
+      resource :activation, path: "ativacao", only: %i[create destroy], module: :contact_results
+      resource :movement, path: "movimento", only: :create, module: :contact_results
+    end
+  end
+
+  # Operações de cobrança (14; padrões de interface, revisão 22): área própria do menu, fora da configuração. Os controladores seguem no módulo
+  # Settings; as rotas da trilha e do enquadramento vêm antes das do credenciamento, que usa `/operacoes/:id`.
+  scope "operacoes", module: :settings, as: :settings do
     # Enquadramento da distribuição (14, R342 a R347): itens por posição; cada mudança vai à conferência do impacto antes de valer.
-    resources :distribution_rules, path: "enquadramento-da-distribuicao", path_names: { new: "incluir", edit: "mudar" }, only: %i[index new create edit update destroy] do
+    resources :distribution_rules, path: "enquadramento-da-distribuicao", path_names: { new: "incluir", edit: "editar" }, only: %i[index new create edit update destroy] do
       member { post :move, path: "mover" }
       collection do
         get :review, path: "conferencia", action: :review_show
         post :confirm, path: "confirmar"
       end
     end
+    resource :operation_policies, path: "politicas", only: :update
+    resources :operation_trails, path: "trilha", only: :index
     # Operações credenciadas (14, R306, R307, R310): a ficha é a do credenciamento; situação e vínculos no painel.
-    resource :operation_policies, path: "politicas-das-operacoes", only: :update
-    resources :operation_trails, path: "trilha-das-operacoes", only: :index
-    resources :operations, path: "operacoes", path_names: { new: "credenciar" }, only: %i[index new create show] do
+    resources :operations, path: "", path_names: { new: "credenciar" }, only: %i[index new create show] do
       resource :status, path: "situacao", only: %i[new create], module: :operations
       resources :links, path: "vinculos", path_names: { new: "novo" }, only: %i[new create destroy], module: :operations
-    end
-    resources :contact_results, path: "resultados-de-acionamento", path_names: { new: "novo", edit: "editar" }, except: %i[show destroy] do
-      resource :activation, path: "ativacao", only: %i[create destroy], module: :contact_results
-      resource :movement, path: "movimento", only: :create, module: :contact_results
     end
   end
 

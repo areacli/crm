@@ -34,7 +34,7 @@
                 <%= menu_de_linha("divergencia-#{item.id}", "Ações da divergência do título #{item.bill.number}") do %>
                   <%= link_to "Abrir divergência", value_discrepancy_path(item), class: "botao" %>
                   <% if item.open? && policy(item).create? %><%= abrir_painel "Tratar divergência", new_value_discrepancy_handling_path(item) %><% end %>
-                  <% if @view_customer_tenants.include?(item.tenant_id) %><%= link_to "Histórico do título", bill_path(item.bill), class: "botao" %><% end %>
+                  <% if @view_customer_tenants.include?(item.tenant_id) %><%= link_to "Ver o histórico do título", bill_path(item.bill), class: "botao" %><% end %>
                 <% end %>
               </td>
             </tr>

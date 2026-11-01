@@ -2,6 +2,8 @@
 import htmx from "htmx.org"
 import "cable"
 import "painel"
+import "menu"
+import "detalhes"
 
 window.htmx = htmx
 

@@ -1,4 +1,4 @@
-<%= formulario_de_painel(titulo: "Mudar o perfil", descricao: "#{@membership.user.name} em #{@membership.tenant.name}.", url: membership_profile_path(@membership), metodo: :patch, enviar: "Mudar o perfil", variante: :modal,
+<%= formulario_de_painel(titulo: "Editar o perfil", descricao: "#{@membership.user.name} em #{@membership.tenant.name}.", url: membership_profile_path(@membership), metodo: :patch, enviar: "Salvar o perfil", variante: :modal,
                          escopo: :membership, erro: @error, voltar: membership_path(@membership)) do |form| %>
   <div class="campo">
     <%= form.label :profile_id, "Perfil neste credor" %>

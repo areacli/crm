@@ -6,13 +6,13 @@
     <section class="cartao" aria-labelledby="esperando">
       <header><h2 id="esperando">À espera de decisão</h2><%= informacao "estornos à espera", "O estorno que o CRM não resolve sozinho fica aqui, sem efeito: o título continua pago, o acordo não pode quitar e o crédito que o pagamento gerou fica bloqueado.", "definicao-estornos" %></header>
       <div class="tabela" tabindex="0">
-        <table>
+        <table data-detalhes>
           <caption class="apenas-leitor-de-tela">Estornos à espera do gestor</caption>
-          <thead><tr><th scope="col">Pagamento</th><th scope="col" data-numerico>Valor</th><th scope="col">Credor</th><th scope="col">Motivo</th><th scope="col" data-numerico>Espera há</th><th scope="col">Acordo</th><th scope="col">Cliente</th><th scope="col">Contrato</th><th scope="col"><span class="apenas-leitor-de-tela">Ações</span></th></tr></thead>
+          <thead><tr><th scope="col"><%= alternar_todos_os_detalhes %>Pagamento</th><th scope="col" data-numerico>Valor</th><th scope="col">Credor</th><th scope="col">Motivo</th><th scope="col" data-numerico>Espera há</th><th scope="col">Acordo</th><th scope="col">Cliente</th><th scope="col">Contrato</th><th scope="col"><span class="apenas-leitor-de-tela">Ações</span></th></tr></thead>
           <tbody>
             <% @waits.each do |wait| %>
               <tr>
-                <th scope="row"><%= wait.payment.identifier %><small>estorno de <%= date_br(wait.reversed_on) %>, processado em <%= date_br(wait.processed_on) %></small></th>
+                <th scope="row"><%= alternar_detalhe("detalhe-estorno-#{wait.id}", "estorno do pagamento #{wait.payment.identifier}") %><%= wait.payment.identifier %></th>
                 <td data-numerico><%= money(wait.amount_cents) %></td>
                 <td><%= wait.tenant.name %></td>
                 <td><%= t("reversal_waits.reasons.#{wait.reason}") %></td>
@@ -22,6 +22,7 @@
                 <td><%= wait.contract.label %></td>
                 <td data-acoes><%= abrir_painel "Decidir", edit_reversal_wait_path(wait), variante: "secondary", tamanho: "small", "aria-label": "Decidir o estorno do pagamento #{wait.payment.identifier}" %></td>
               </tr>
+              <%= detalhe_da_linha("detalhe-estorno-#{wait.id}", 9) { tag.p("Estorno de #{date_br(wait.reversed_on)}, processado em #{date_br(wait.processed_on)}.") } %>
             <% end %>
           </tbody>
         </table>

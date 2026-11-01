@@ -1,4 +1,4 @@
-<%= formulario_de_painel(titulo: "Nova pessoa da operação", url: operation_people_path, enviar: "Cadastrar", escopo: :operation_member, erro: @error, voltar: operation_people_path,
+<%= formulario_de_painel(titulo: "Nova pessoa da operação", url: operation_people_path, enviar: "Criar pessoa", escopo: :operation_member, erro: @error, voltar: operation_people_path,
                          descricao: "A pessoa recebe uma senha temporária, mostrada uma vez. Ela só vê um credor depois de receber o vínculo nele.") do |form| %>
   <div class="campo">
     <%= form.label :name, "Nome" %>

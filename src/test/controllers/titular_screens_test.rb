@@ -186,7 +186,7 @@ class TitularScreensTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "h2#prazo", text: /Prazo de guarda vigente/
     assert_select "section[aria-labelledby=prazo] li", text: /Escola Alfa: 5 anos/
-    assert_select "section[aria-labelledby=prazo] li a", text: "Alterar nos dados do credor"
+    assert_select "section[aria-labelledby=prazo] li a", text: "Editar nos dados do credor"
     assert_select "section[aria-labelledby=previstos] th", text: /Maria Souza/
     assert_select "section[aria-labelledby=retidos] td", text: /ação judicial nº 77/
     assert_select "section[aria-labelledby=execucoes] td", text: /Concluída/

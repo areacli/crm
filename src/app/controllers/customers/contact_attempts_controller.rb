@@ -8,9 +8,11 @@ module Customers
     # Trecho do histórico, refeito na paginação e a cada evento do WebSocket.
     def index
       authorize @customer, :show?
-      return redirect_to(customer_path(@customer, aba: "acionamentos", page: params[:page])) unless htmx_fragment?
+      return redirect_to(customer_path(@customer, aba: "acionamentos", page: params[:page], contrato: params[:contrato].presence)) unless htmx_fragment?
 
-      @history = ContactAttempt.history_for(@customer, page: params[:page])
+      # O contrato escolhido na ficha (padrões de interface, revisão 21) continua valendo na paginação e no refazer pelo WebSocket.
+      contract = @customer.contracts.find_by(id: params[:contrato]) if params[:contrato].present?
+      @history = ContactAttempt.history_for(@customer, page: params[:page], contract: contract)
       render partial: "customers/contact_attempts/history", locals: { customer: @customer, history: @history }
     end
 

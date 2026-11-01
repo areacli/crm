@@ -29,7 +29,7 @@
               <td data-acoes>
                 <%= menu_de_linha("canal-#{channel.id}", "Ações do canal #{channel.code}") do %>
                   <%= link_to "Abrir canal", edit_settings_channel_path(channel), class: "botao" %>
-                  <%= confirmar_no_painel "Gerar novo segredo", titulo: "Gerar um novo segredo?", mensagem: "O segredo atual, se houver, deixa de valer na hora: o provedor precisa ser atualizado com o novo.", acao: "Gerar segredo", url: settings_channel_webhook_secret_path(channel), perigoso: false %>
+                  <%= confirmar_no_painel "Gerar novo segredo", titulo: "Gerar um novo segredo?", mensagem: "O segredo atual, se houver, deixa de valer na hora: o provedor precisa ser atualizado com o novo.", acao: "Gerar novo segredo", url: settings_channel_webhook_secret_path(channel), perigoso: false %>
                 <% end %>
               </td>
             </tr>

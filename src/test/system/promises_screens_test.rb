@@ -55,8 +55,9 @@ class PromisesScreensSystemTest < ApplicationSystemTestCase
 
     within("#painel") { click_button "Registrar acionamento" }
     assert_text "Acionamento registrado"
-    assert_selector "ul.promessas li", text: /PRM-000001/
-    assert_selector "ul.promessas li", text: /NF-1 e NF-2/
+    assert_selector "#promessas tbody th", text: "PRM-000001"
+    find("#promessas button[data-alternar-detalhe]").click
+    assert_selector "#promessas tr.detalhe-da-linha", text: /NF-1 e NF-2/
     assert_acessivel
     sem_rolagem_horizontal
   end
@@ -87,10 +88,10 @@ class PromisesScreensSystemTest < ApplicationSystemTestCase
 
   test "a promessa registrada por outro aparece ao vivo na ficha, pelo WebSocket, sem recarregar" do
     visit customer_path(@customer, aba: "promessas")
-    assert_no_selector "ul.promessas"
+    assert_no_selector "#promessas table"
     assert_selector "html[data-cable='conectado']"
     register_promise(@customer, [ @nf1 ], user: users(:carlos))
-    assert_selector "ul.promessas li", text: /PRM-000001/, wait: 10
+    assert_selector "#promessas tbody th", text: "PRM-000001", wait: 10
   end
 
   test "pendentes, aprovação, configuração e painel passam no axe" do
@@ -103,8 +104,8 @@ class PromisesScreensSystemTest < ApplicationSystemTestCase
     click_button "Aprovar", match: :first
     assert_text "Promessa PRM-000001 aprovada."
     visit customer_path(@customer, aba: "promessas")
-    assert_selector "ul.promessas li", text: /Aberta/
-    find("ul.promessas button.menu-de-linha").click
+    assert_selector "#promessas tbody tr", text: /Aberta/
+    find("#promessas button.menu-de-linha").click
     assert_selector "a", text: "Cancelar promessa"
     assert_acessivel
 

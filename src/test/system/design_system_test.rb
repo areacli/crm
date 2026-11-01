@@ -18,15 +18,15 @@ class DesignSystemSystemTest < ApplicationSystemTestCase
     click_button "Entrar"
     assert_selector "h1", text: "Resumo da carteira"
     visit design_system_path
-    click_link "Apagar o exemplo"
+    click_link "Excluir o exemplo"
 
-    assert_selector "dialog#painel[open][data-variant=modal]", text: "O exemplo é apagado e não volta."
+    assert_selector "dialog#painel[open][data-variant=modal]", text: "O exemplo é excluído e não volta."
     assert_acessivel
     within("dialog[open]") { click_button "Cancelar" }
     assert_no_selector "dialog[open]"
 
-    click_link "Apagar o exemplo"
-    within("dialog[open]") { click_button "Apagar" }
+    click_link "Excluir o exemplo"
+    within("dialog[open]") { click_button "Excluir" }
 
     assert_current_path design_system_path
   end

@@ -1,0 +1,39 @@
+<%# Memória de cálculo do título (09, R174, revisão 7; padrões de interface, revisão 26): a tabela dos períodos, um número por coluna, pelos parâmetros do credor
+    do título. Só aparece quando o título tem valor atualizado (@memory). %>
+<section class="cartao" aria-labelledby="memoria-de-calculo">
+  <header><h2 id="memoria-de-calculo">Memória de cálculo</h2><%= informacao "memória de cálculo", "Como o valor atualizado foi calculado hoje, período a período, pelas regras e parâmetros do credor do título.", "definicao-memoria" %></header>
+  <div>
+    <% decimal = ->(value, digits) { format("%.#{digits}f", value).tr(".", ",") } %>
+    <div class="tabela" tabindex="0">
+      <table>
+        <caption>Memória de cálculo do título <%= @bill.number %> <small>pelos parâmetros de <%= @bill.tenant.name %>, em <%= date_br(@today) %><% if @can_see_indexes %> · <%= link_to "Ver índices", settings_indexes_path %><% end %></small></caption>
+        <thead>
+          <tr>
+            <th scope="col">Período</th><th scope="col" data-numerico>Dias</th><th scope="col">Enquadramento</th><th scope="col">Correção</th><th scope="col" data-numerico>Fator</th>
+            <th scope="col">Juros</th><th scope="col" data-numerico>Taxa</th><th scope="col" data-numerico>Meses</th><th scope="col" data-numerico>Base dos juros</th><th scope="col" data-numerico>Juros do período</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @memory.stretches.each do |stretch| %>
+            <tr>
+              <th scope="row"><%= date_br(stretch[:from]) %> a <%= date_br(stretch[:to]) %></th>
+              <td data-numerico><%= number_br(stretch[:days]) %></td>
+              <td><%= stretch[:tier] %></td>
+              <td><%= stretch[:correction] %></td>
+              <td data-numerico><%= decimal.call(stretch[:factor], 6) %></td>
+              <td><%= stretch[:interest_origin] %></td>
+              <td data-numerico><%= decimal.call(stretch[:rate], 6) %>%</td>
+              <td data-numerico><%= decimal.call(stretch[:months], 4) %></td>
+              <td data-numerico><%= money(stretch[:base]) %></td>
+              <td data-numerico><%= money(stretch[:interest]) %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+  </div>
+  <% notes = @memory.stretches.flat_map { |stretch| stretch[:notes].map { |note| "#{date_br(stretch[:from])} a #{date_br(stretch[:to])}: #{note}" } } + @memory.notes %>
+  <% if notes.any? %>
+    <ul class="observacoes-do-calculo"><% notes.each do |note| %><li><%= note %></li><% end %></ul>
+  <% end %>
+  </div>
+</section>

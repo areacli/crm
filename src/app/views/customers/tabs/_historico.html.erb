@@ -4,15 +4,25 @@
   <% if @registry_history.empty? %>
     <p class="vazio">Nenhuma mudança no cadastro.</p>
   <% else %>
-    <div>
-      <ul class="contatos">
-        <% @registry_history.each do |change| %>
-          <li>
-            <%= registry_change_text(change, @contacts.index_by(&:id)) %>
-            <small><%= datetime_br(change.occurred_at) %> · <%= change.user&.name || "sistema" %> · <%= change.origin.present? ? contact_origin(change.origin) : "carga" %></small>
-          </li>
-        <% end %>
-      </ul>
+    <div class="tabela" tabindex="0">
+      <table data-detalhes>
+        <caption class="apenas-leitor-de-tela">Mudanças no cadastro do cliente</caption>
+        <thead><tr><th scope="col"><%= alternar_todos_os_detalhes %>Quando</th><th scope="col">Mudança</th><th scope="col">Quem</th><th scope="col">Origem</th></tr></thead>
+        <tbody>
+          <% contacts_by_id = @contacts.index_by(&:id) %>
+          <% @registry_history.each do |change| %>
+            <% text = registry_change_text(change, contacts_by_id) %>
+            <% long = text.size > 60 %>
+            <tr>
+              <td><% if long %><%= alternar_detalhe("detalhe-mudanca-#{change.id}", "mudança de #{datetime_br(change.occurred_at)}") %><% end %><%= datetime_br(change.occurred_at) %></td>
+              <th scope="row"><%= cortado(text) %></th>
+              <td><%= change.user&.name || "sistema" %></td>
+              <td><%= change.origin.present? ? contact_origin(change.origin) : "carga" %></td>
+            </tr>
+            <% if long %><%= detalhe_da_linha("detalhe-mudanca-#{change.id}", 4) { tag.p(text) } %><% end %>
+          <% end %>
+        </tbody>
+      </table>
     </div>
   <% end %>
 </section>

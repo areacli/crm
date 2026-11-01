@@ -1,6 +1,10 @@
 # Município do IBGE (11, R249, M12): a lista que casa o endereço do cliente com a praça dos feriados. Importada pelo administrador
 # (`bin/rails crm:import_municipalities`). A chave do nome é sem acento e em minúsculas, como a busca do sistema (R7).
 class Municipality < ApplicationRecord
+  # A lista que vem com o sistema (11, revisão 9): a Divisão Territorial Brasileira 2025 do IBGE (data base 31/12/2025, 5.571 municípios), baixada
+  # em 01/11/2026 de geoftp.ibge.gov.br (`DTB_2025.zip`, planilha `RELATORIO_DTB_BRASIL_2025_MUNICIPIOS`).
+  BUNDLED = Rails.root.join("db/data/municipios-ibge.csv")
+
   has_many :holidays, dependent: :delete_all
 
   before_validation { self.name_key = FoldedText.fold(name) }

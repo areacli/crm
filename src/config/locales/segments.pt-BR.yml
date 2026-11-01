@@ -38,7 +38,7 @@ pt-BR:
     flash:
       created: "Segmento \"%{name}\" criado. Ele não muda nada até ser usado num enquadramento."
       updated: "Segmento \"%{name}\" atualizado."
-      destroyed: "Segmento \"%{name}\" apagado."
+      destroyed: "Segmento \"%{name}\" excluído."
       deactivated: "Segmento \"%{name}\" desativado."
       reactivated: "Segmento \"%{name}\" reativado. Para usá-lo de novo no enquadramento, inclua-o."
     errors:

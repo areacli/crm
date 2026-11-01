@@ -1,7 +1,5 @@
-<% content_for :title, "Configuração · Operações" %>
-<%= pagina "Operações", subtitulo: "Parceiros de cobrança que atendem este credor: escritórios, call centers e cobrança digital." do %>
-  <% if Current.user.permitted_anywhere?("view_operation_trail") %><%= link_to "Trilha das operações", settings_operation_trails_path, class: "botao", data: { variant: "secondary" } %><% end %>
-  <% if Current.user.permitted_anywhere?("distribute_portfolio") %><%= link_to "Enquadramento da distribuição", settings_distribution_rules_path, class: "botao", data: { variant: "secondary" } %><% end %>
+<% content_for :title, "Operações credenciadas" %>
+<%= pagina "Operações credenciadas", subtitulo: "Parceiros de cobrança que atendem este credor: escritórios, call centers e cobrança digital." do %>
   <%= abrir_painel "Credenciar operação", new_settings_operation_path %>
 <% end %>
 <%= render "settings/modelo" %>

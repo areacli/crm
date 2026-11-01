@@ -37,10 +37,11 @@ class ChargesSystemScreensTest < ApplicationSystemTestCase
       assert_acessivel
 
       visit customer_path(@bill.customer)
-      assert_selector "td", text: "principal corrigido R$ 1.005,34"
-      find("summary", text: "Ver memória de cálculo").click
-      assert_selector "caption", text: /Memória de cálculo do título NF-1/, visible: :all, wait: 10
-      assert_selector "dd", text: "R$ 1.057,56"
+      assert_no_selector "section[aria-labelledby=titulos] button[data-alternar-detalhe]"
+      click_link "NF-1"
+      assert_selector "dl.composicao dd", text: "R$ 1.005,34"
+      assert_selector "caption", text: /Memória de cálculo do título NF-1/
+      assert_selector "#memoria-de-calculo ~ div td, section[aria-labelledby=memoria-de-calculo] td", text: /IPCA/
       assert_acessivel
       sem_rolagem_horizontal
     end
@@ -51,7 +52,7 @@ class ChargesSystemScreensTest < ApplicationSystemTestCase
       entrar
       visit settings_tiers_path
       assert_selector "h1", text: "Enquadramento financeiro"
-      assert_selector "small", text: "Encargos: multa 2% · juros 1% a.m. simples · IPCA · sem honorários"
+      assert_selector "tr.detalhe-da-linha p", text: "Encargos: multa 2% · juros 1% a.m. simples · IPCA · sem honorários.", visible: :all
       assert_selector "legend", text: "Parâmetros de encargos do credor"
       assert_acessivel
       sem_rolagem_horizontal

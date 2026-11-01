@@ -3,7 +3,7 @@
 <% content_for :title, user.name %>
 <%= pagina user.name, subtitulo: safe_join([ user.email_address, " · ", @membership.tenant.name, " · ", link_to("Voltar para os usuários", memberships_path) ]), indicadores: [ membership_status(@membership) ] do %>
   <% unless self_membership %>
-    <%= abrir_painel "Mudar o perfil", edit_membership_profile_path(@membership) %>
+    <%= abrir_painel "Editar o perfil", edit_membership_profile_path(@membership) %>
     <% if @membership.active? %>
       <%= confirmar_no_painel "Desativar o acesso", titulo: "Desativar o acesso?", acao: "Desativar o acesso", url: membership_activation_path(@membership), metodo: :delete,
                               mensagem: "#{user.name} deixa de operar #{@membership.tenant.name} na próxima ação. Os acessos em outros credores não mudam." %>
@@ -13,7 +13,7 @@
     <% end %>
     <% if @membership.personal_data_editable? %>
       <%= menu_de_linha("mais-acoes", "Mais ações do usuário") do %>
-        <%= abrir_painel "Alterar o nome", edit_membership_path(@membership) %>
+        <%= abrir_painel "Editar o nome", edit_membership_path(@membership) %>
         <%= confirmar_no_painel "Redefinir a senha", titulo: "Redefinir a senha?", acao: "Redefinir a senha", url: membership_password_reset_path(@membership), perigoso: false,
                                 mensagem: "Uma nova senha temporária será gerada e mostrada uma única vez. A senha atual e as sessões abertas de #{user.name} deixam de valer." %>
       <% end %>
