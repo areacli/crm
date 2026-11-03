@@ -82,7 +82,7 @@ class PaymentsScreensTest < ActionDispatch::IntegrationTest
     @channel.reload
     assert_equal [ PaymentsHelper::CHANNEL_CODE, "Nova descrição", false ], [ @channel.code, @channel.description, @channel.active ]
     delete settings_channel_path(@channel)
-    assert_redirected_to root_path
+    assert_redirected_to summary_path
     assert PaymentChannel.exists?(@channel.id)
   end
 
@@ -111,7 +111,7 @@ class PaymentsScreensTest < ActionDispatch::IntegrationTest
                                                                                     withdrawn_reversal_policy: "withdrawn", reversal_month_policy: "payment" } }
     assert_redirected_to settings_payment_policy_path
     setting = @alfa.setting.reload
-    assert_equal %w[credit credit withdrawn payment], setting.values_at(*TenantSetting::PAYMENT_POLICIES).map(&:to_s)
+    assert_equal %w[credit credit withdrawn payment cancel_only deny], setting.values_at(*TenantSetting::PAYMENT_POLICIES).map(&:to_s)
     assert_equal 4, Change.where(subject_type: "settings", event: TenantSetting::PAYMENT_POLICIES.map { |f| "#{f}_changed" }).count
     patch settings_payment_policy_path, params: { tenant_id: @beta.id, tenant_setting: { partial_payment_policy: "credit" } }
     assert_response :not_found
@@ -120,7 +120,7 @@ class PaymentsScreensTest < ActionDispatch::IntegrationTest
 
   test "o item Configuração do menu abre e fecha as seções que o usuário vê; aberto só nas páginas da configuração" do
     entrar(make_user(@alfa, %w[change_financial_policies]))
-    get root_path
+    get summary_path
     assert_select "#menu-principal details.submenu:not([open]) summary", text: "Configuração"
     assert_select "#menu-principal .submenu a[href='#{settings_payment_policy_path}']", text: "Políticas de pagamento"
     get settings_payment_policy_path
@@ -185,7 +185,7 @@ class PaymentsScreensTest < ActionDispatch::IntegrationTest
     entrar(users(:joana))
     get template_imports_path(kind: "payments")
     assert_response :success
-    assert_includes response.body, "canal;identificador;documento;titulo;data_pagamento;valor;meio"
+    assert_includes response.body, "metodo_recebimento;identificador;documento;titulo;data_pagamento;valor;meio"
     get template_imports_path(kind: "reversals")
     assert_includes response.body, "identificador_pagamento;identificador_estorno"
   end
@@ -253,7 +253,7 @@ class PaymentsScreensTest < ActionDispatch::IntegrationTest
     confirm_import(run_payments_import([ payment_line("valor" => "1.050,00"), payment_line("identificador" => "P2", "titulo" => "NF-9", "valor" => "30,00", "meio" => "boleto") ]))
     Membership.create!(user: users(:joana), tenant: @beta, profile: profiles(:beta_operator))
     entrar(users(:joana))
-    get root_path
+    get summary_path
     assert_select "dt", text: /Recuperado em/
     assert_select "h2", text: /Escola Alfa|Clínica Beta|Todos os credores/, count: 0
     assert_includes response.body, "R$ 1.000,00"
@@ -264,7 +264,7 @@ class PaymentsScreensTest < ActionDispatch::IntegrationTest
   test "resumo de quem só consulta a Alfa não mostra nada da Beta (V10)" do
     make_bill(@beta, amount_cents: 20_000)
     entrar(users(:joana))
-    get root_path
+    get summary_path
     assert_select "h2", text: /Beta/, count: 0
   end
 

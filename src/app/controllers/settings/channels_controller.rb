@@ -1,14 +1,17 @@
-# Canais de recebimento do credor (R45): lista, cadastro, edição e exclusão. A permissão 4 vale no credor do canal; quem a tem em mais de
-# um credor vê os canais de todos, com a coluna Credor.
+# Métodos de recebimento do credor (16, R373; antes "canais de recebimento", R45): lista, cadastro, edição e exclusão. A permissão 4 vale no
+# credor do método; a lista abre também para quem só tem a 14, que vê as integrações no detalhe de cada método. Quem tem acesso a mais de um
+# credor vê os métodos de todos, com a coluna Credor.
 module Settings
   class ChannelsController < ApplicationController
     before_action :set_channel, only: %i[edit update destroy]
 
     def index
       authorize PaymentChannel
-      @tenants = manageable_tenants.pluck(:name, :id)
+      @editable_tenant_ids = Current.user.tenant_ids_with("change_settings")
+      @financial_tenant_ids = Current.user.tenant_ids_with("change_financial_policies")
+      @tenants = Tenant.where(id: @editable_tenant_ids + @financial_tenant_ids).order(:name).pluck(:name, :id)
       @several_tenants = @tenants.size > 1
-      scope = policy_scope(PaymentChannel).includes(:tenant).order(:code)
+      scope = policy_scope(PaymentChannel).includes(:tenant, :payment_accounts).order(:code)
       scope = scope.where(tenant_id: params[:tenant]) if params[:tenant].present?
       if params[:q].present?
         term = "%#{PaymentChannel.sanitize_sql_like(params[:q].strip)}%"

@@ -11,7 +11,7 @@ class BatchProcessingArchitectureTest < ActiveSupport::TestCase
   # Quem ainda pode escrever com `Sql.run`/`Sql.execute` (decisão 0021, esclarecimento da parte 2): o recálculo DERIVADO dos segmentos, que regrava a tabela de cálculo
   # (o valor atualizado, que também é derivado, entra por insert_all! do modelo) e a anonimização da 07, reescrita irreversível em conjunto.
   # O recálculo da distribuição (14, R343) é derivado como o do enquadramento financeiro: trava por credor em SQL; as distribuições são gravadas pelo modelo.
-  SET_BASED_WRITERS = %w[app/models/tiers/recalculation.rb app/models/titular/anonymizer.rb app/models/distribution_rules/recalculation.rb].freeze
+  SET_BASED_WRITERS = %w[app/models/tiers/recalculation.rb app/models/titular/anonymizer.rb app/models/distribution_rules/recalculation.rb app/models/queues/recalculation.rb].freeze
 
   def batch_files
     folders = %w[portfolio payments promises agreements].flat_map { |folder| Dir[ROOT.join("app/models/#{folder}/**/*.rb")] }

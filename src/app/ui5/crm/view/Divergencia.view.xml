@@ -1,0 +1,41 @@
+<mvc:View controllerName="crm.controller.Divergencia" xmlns:mvc="sap.ui.core.mvc" xmlns="sap.m" xmlns:f="sap.f" xmlns:card="sap.f.cards" height="100%">
+	<!-- Divergência de um título (05, R99, R100): o que mudou e o tratamento; tratar abre num modal pequeno. -->
+	<f:DynamicPage toggleHeaderOnTitleClick="false">
+		<f:title><f:DynamicPageTitle>
+			<f:heading><HBox alignItems="Center" renderType="Bare"><Title text="{parts: ['i18n>divergencia.titulo', 'dados>/titulo'], formatter: '.formatarTexto'}" level="H2" class="sapUiSmallMarginEnd" />
+				<ObjectStatus text="{dados>/selo/texto}" state="{dados>/selo/estado}" inverted="true" /></HBox></f:heading>
+			<f:expandedContent><Text text="{dados>/credor}" /></f:expandedContent>
+			<f:actions>
+				<Button text="{i18n>divergencias.tratar}" type="Emphasized" visible="{dados>/pode_tratar}" press=".tratar" />
+				<Button text="{i18n>divergencias.historicoDoTitulo}" visible="{= !!${dados>/titulo_endereco} }" press=".abrirTitulo" />
+			</f:actions>
+		</f:DynamicPageTitle></f:title>
+		<f:content>
+			<FlexBox wrap="Wrap" alignItems="Start" renderType="Bare" class="ficha">
+				<f:Card class="ficha-principal">
+					<f:header><card:Header title="{i18n>divergencia.oQueMudou}" subtitle="{i18n>divergencia.oQueMudou.ajuda}" /></f:header>
+					<f:content>
+						<VBox class="pares" width="100%" renderType="Bare">
+							<HBox justifyContent="SpaceBetween" width="100%" class="par"><Label text="{i18n>clientes.coluna.cliente}" /><Link text="{dados>/cliente}" press=".abrirFicha" enabled="{= !!${dados>/cliente_id} }" /></HBox>
+							<VBox items="{path: 'dados>/o_que_mudou', templateShareable: false}" renderType="Bare">
+								<HBox justifyContent="SpaceBetween" width="100%" class="par"><Label text="{dados>rotulo}" /><Text text="{dados>valor}" textAlign="End" /></HBox>
+							</VBox>
+							<Text text="{dados>/nota_do_efeito}" visible="{= !!${dados>/nota_do_efeito} }" class="nota" />
+						</VBox>
+					</f:content>
+				</f:Card>
+				<f:Card class="ficha-principal">
+					<f:header><card:Header title="{i18n>divergencia.tratamento}" /></f:header>
+					<f:content>
+						<VBox class="pares" width="100%" renderType="Bare">
+							<Text text="{i18n>divergencia.naoTratada}" visible="{= ${dados>/tratamento}.length === 0 }" class="vazio" />
+							<VBox items="{path: 'dados>/tratamento', templateShareable: false}" renderType="Bare">
+								<HBox justifyContent="SpaceBetween" width="100%" class="par"><Label text="{dados>rotulo}" /><Text text="{dados>valor}" textAlign="End" /></HBox>
+							</VBox>
+						</VBox>
+					</f:content>
+				</f:Card>
+			</FlexBox>
+		</f:content>
+	</f:DynamicPage>
+</mvc:View>

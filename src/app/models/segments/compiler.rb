@@ -31,14 +31,28 @@ module Segments
       @today = today
     end
 
-    # Enquadramento: `entries` é a lista em ordem [[id do item, Expression], ...]; quem não casa fica com `default_id`. Só contratos com título em
-    # cobrança entram (R267). Colunas: contract_id, tier_id, balance_cents, person_type.
+    # Enquadramento: `entries` é a lista em ordem [[id do item, Expression], ...]; quem não casa fica com `default_id`. Todo contrato do credor
+    # entra, sem regra de entrada (13, revisão 6): quem quer só os contratos em cobrança escreve `em cobrança` no segmento. Colunas: contract_id,
+    # tier_id, balance_cents, person_type.
     def classify(entries, default_id:)
       build("contracts") do |b|
         b.needs_people!
         whens = entries.map { |id, expression| "when #{b.expression(expression)} then #{Integer(id)}" }
         tier = whens.empty? ? Integer(default_id).to_s : "case #{whens.join(' ')} else #{Integer(default_id)} end"
-        b.select("s.contract_id, #{tier} as tier_id, s.balance as balance_cents, s.person_type", where: "s.considered")
+        b.select("s.contract_id, #{tier} as tier_id, s.balance as balance_cents, s.person_type")
+      end
+    end
+
+    # Enquadramento da fila (15, R349, R351): clientes ou contratos, todos os do credor (sem regra de entrada), ou só os de `only_ids` (o
+    # recálculo do sujeito depois de um acionamento e a reavaliação do candidato no "Próximo"). Colunas: subject_id, item_id.
+    def classify_subjects(subject, entries, default_id:, only_ids: nil)
+      build(subject) do |b|
+        restricted = only_ids && b.restrict!(only_ids)
+        whens = entries.map { |id, expression| "when #{b.expression(expression)} then #{Integer(id)}" }
+        item = whens.empty? ? Integer(default_id).to_s : "case #{whens.join(' ')} else #{Integer(default_id)} end"
+        key = subject == "customers" ? "customer_id" : "contract_id"
+        where = restricted ? "s.#{key} = any(#{restricted})" : "true"
+        b.select("s.#{key} as subject_id, #{item} as item_id", where: where)
       end
     end
 
@@ -84,6 +98,10 @@ module Segments
         end
 
         def needs_people! = @needs << :people
+
+        # Só estes sujeitos (o "Próximo" e o recálculo do sujeito, 15, R351): o filtro desce às bases e às coleções do próprio sujeito, para a
+        # consulta não ler a carteira inteira; as que leem os pais do contrato (papéis, outros contratos) continuam completas.
+        def restrict!(ids) = (@only = param("{#{Array(ids).map { Integer(_1) }.join(',')}}", "bigint[]"))
 
         def select(columns, where: "true", group: false)
           @select = columns
@@ -132,11 +150,13 @@ module Segments
               @needs << :customers
               column = Fields.customer(found[:name], "x")
               @needs << :customer_contracts if %w[overdue_days balance].include?(found[:name])
+              @needs << :customer_return if %w[return_days return_user].include?(found[:name])
               return parent_attribute(found[:parent], compare(column, spec, node))
             end
 
             column = @subject == "customers" ? Fields.customer(found[:name], "s") : Fields.contract(found[:name], "s")
             note_contract_needs(found[:name]) if @subject == "contracts"
+            @needs << :customer_return if @subject == "customers" && %w[return_days return_user].include?(found[:name])
             @needs << :customer_contracts if @subject == "customers" && %w[overdue_days balance].include?(found[:name])
             compare(column, spec, node)
           end
@@ -154,7 +174,7 @@ module Segments
             note_collection_needs(name, node)
             return parent_collection(found, node) if found[:parent]
 
-            group = (@groups[[ :collection, name ]] ||= Group.new("g#{@groups.size}", Sources.grouped(name, @subject == "customers" ? :customer : :contract, @tenant_param, @today_param)))
+            group = (@groups[[ :collection, name ]] ||= Group.new("g#{@groups.size}", Sources.grouped(name, @subject == "customers" ? :customer : :contract, @tenant_param, @today_param, only: @only)))
             boolean_over(group, spec, name, node) { |column, default| "coalesce(#{group.alias_name}.#{column}, #{default})" }
           end
 
@@ -236,7 +256,7 @@ module Segments
             case spec[:type]
             when :text then param(FoldedText.fold(value), "text")
             when :option then param(value.to_s, "text")
-            when :reference then param(Integer(value), "bigint")
+            when :reference, :user then param(Integer(value), "bigint")
             else param(Integer(value), "numeric")
             end
           end
@@ -246,6 +266,7 @@ module Segments
             @needs << :product if name == "product"
             @needs << :product_largest if name == "product_largest"
             @needs << :updated if name == "updated_value"
+            @needs << :last_return if %w[return_days return_user].include?(name)
           end
 
           def note_collection_needs(name, node)
@@ -255,9 +276,18 @@ module Segments
             fields.each { |field| note_contract_needs(field) } if %w[contracts other_contracts].include?(name)
           end
 
+          # O filtro de contratos da base: os próprios (sujeito contrato, sem pais) ou os dos clientes dados (sujeito cliente).
+          def contract_restriction
+            return nil unless @only
+            return "in (select contract_id from contract_customers where customer_id = any(#{@only}))" if @subject == "customers"
+
+            "= any(#{@only})" unless @needs.include?(:roles) || @needs.include?(:customers)
+          end
+
           def ctes
-            list = [ "cb as (#{Bases.contracts(@needs, @tenant_param, @today_param, @detail_only)})" ]
-            list << "cu as (#{Bases.customers(@needs, @tenant_param, @today_param)})" if @subject == "customers" || @needs.include?(:customers) || @needs.include?(:roles)
+            list = [ "cb as (#{Bases.contracts(@needs, @tenant_param, @today_param, @detail_only, only: contract_restriction)})" ]
+            customers_only = @only if @subject == "customers"
+            list << "cu as (#{Bases.customers(@needs, @tenant_param, @today_param, only: customers_only)})" if @subject == "customers" || @needs.include?(:customers) || @needs.include?(:roles)
             list << "roles as (#{Bases.roles(@tenant_param)})" if @needs.include?(:roles)
             list
           end
@@ -293,8 +323,8 @@ module Segments
           "case when #{column} is null or btrim(#{column}) = '' then null else regexp_replace(translate(lower(btrim(#{column})), '#{ACCENTED}', '#{PLAIN}'), '\\s+', ' ', 'g') end"
         end
 
-        CONTRACT = %w[overdue_days balance overdue_percent age_days person_type product product_largest broke_agreement in_arrears updated_value].freeze
-        CUSTOMER = %w[person_type customer_days overdue_days balance].freeze
+        CONTRACT = %w[overdue_days balance overdue_percent age_days person_type product product_largest broke_agreement in_arrears in_collection updated_value return_days return_user].freeze
+        CUSTOMER = %w[person_type customer_days overdue_days balance return_days return_user].freeze
 
         def contract(name, table)
           raise ArgumentError, name unless CONTRACT.include?(name.to_s)
@@ -346,8 +376,12 @@ module Segments
       module Sources
         module_function
 
-        def grouped(name, owner, tenant, today, key: "sid")
+        def grouped(name, owner, tenant, today, key: "sid", only: nil)
           from, owner_column = source(name, owner, tenant)
+          if only
+            joiner = from.end_with?(") x") || !from.include?(" where ") ? " where " : " and "
+            from = "#{from}#{joiner}#{owner_column} = any(#{only})"
+          end
           "select #{owner_column} as #{key}, %{columns} #{from} group by 1"
         end
 
@@ -390,7 +424,7 @@ module Segments
             else "x.status = 'active'"
             end
           when "contacts" then Catalog::CONTACT_STATUSES.include?(qualifier) ? "x.status = '#{qualifier}'" : nil
-          when "contracts", "other_contracts" then qualifier == "in_arrears" ? "x.in_arrears" : nil
+          when "contracts", "other_contracts" then %w[in_arrears in_collection].include?(qualifier) ? "x.#{qualifier}" : nil
           end
         end
 
@@ -408,19 +442,21 @@ module Segments
       module Bases
         module_function
 
-        def contracts(needs, tenant, today, detail_only)
-          considered = "b.tenant_id = #{tenant} and b.status = 'active'#{detail_only ? " and b.due_date < #{today}" : ''}"
+        def contracts(needs, tenant, today, detail_only, only: nil)
+          considered = "b.tenant_id = #{tenant} and b.status = 'active'#{detail_only ? " and b.due_date < #{today}" : ''}#{" and b.contract_id #{only}" if only}"
           people = needs.include?(:people)
           <<~SQL
             select c.id as contract_id, c.broke_agreement,
                    coalesce(agg.overdue_days, 0) as overdue_days, coalesce(agg.balance, 0) as balance,
                    case when coalesce(agg.balance, 0) = 0 then 0 else agg.overdue_cents * 100.0 / agg.balance end as overdue_percent,
                    (#{today} - #{BrDate.sql_date('c.created_at')}) as age_days,
-                   agg.contract_id is not null as considered, coalesce(agg.overdue_bills, 0) > 0 as in_arrears,
+                   agg.contract_id is not null as in_collection, coalesce(agg.overdue_bills, 0) > 0 as in_arrears,
                    #{people ? 'p.person_type' : 'null::text as person_type'},
                    #{needs.include?(:product) ? 'old.product_key' : 'null::text'} as product,
                    #{needs.include?(:product_largest) ? 'big.product_key' : 'null::text'} as product_largest,
-                   #{needs.include?(:updated) ? 'coalesce(upd.total, 0)' : '0::bigint'} as updated_value
+                   #{needs.include?(:updated) ? 'coalesce(upd.total, 0)' : '0::bigint'} as updated_value,
+                   #{needs.include?(:last_return) ? "(#{BrDate.sql_date('lr.return_at')} - #{today})" : 'null::integer'} as return_days,
+                   #{needs.include?(:last_return) ? 'case when lr.return_at is not null then lr.user_id end' : 'null::bigint'} as return_user
             from contracts c
             left join (
               select b.contract_id,
@@ -434,7 +470,8 @@ module Segments
             #{needs.include?(:product) ? "left join (#{oldest_sql(considered)}) old on old.contract_id = c.id" : ''}
             #{needs.include?(:product_largest) ? "left join (#{biggest_sql(considered)}) big on big.contract_id = c.id" : ''}
             #{needs.include?(:updated) ? "left join (select b.contract_id, sum(v.total_cents) as total from bill_valuations v join bills b on b.id = v.bill_id where #{considered} group by b.contract_id) upd on upd.contract_id = c.id" : ''}
-            where c.tenant_id = #{tenant}
+            #{needs.include?(:last_return) ? "left join (#{last_return_of_contracts(tenant, only: only)}) lr on lr.contract_id = c.id" : ''}
+            where c.tenant_id = #{tenant}#{" and c.id #{only}" if only}
           SQL
         end
 
@@ -468,17 +505,29 @@ module Segments
           SQL
         end
 
-        def customers(needs, tenant, today)
+        def customers(needs, tenant, today, only: nil)
           contracts = needs.include?(:customer_contracts)
+          returns = needs.include?(:customer_return)
           <<~SQL
             select cu.id as customer_id,
                    case when cu.anonymized_at is not null then null when length(cu.document) = 11 then 'person' else 'company' end as person_type,
                    (#{today} - #{BrDate.sql_date('cu.created_at')}) as customer_days,
-                   #{contracts ? 'coalesce(k.overdue_days, 0)' : '0'} as overdue_days, #{contracts ? 'coalesce(k.balance, 0)' : '0'} as balance
+                   #{contracts ? 'coalesce(k.overdue_days, 0)' : '0'} as overdue_days, #{contracts ? 'coalesce(k.balance, 0)' : '0'} as balance,
+                   #{returns ? "(#{BrDate.sql_date('lr.return_at')} - #{today})" : 'null::integer'} as return_days,
+                   #{returns ? 'case when lr.return_at is not null then lr.user_id end' : 'null::bigint'} as return_user
             from customers cu
+            #{returns ? "left join (select distinct on (a.customer_id) a.customer_id, a.return_at, a.user_id from contact_attempts a where a.tenant_id = #{tenant}#{" and a.customer_id = any(#{only})" if only} order by a.customer_id, a.contacted_at desc, a.id desc) lr on lr.customer_id = cu.id" : ''}
             #{contracts ? 'left join (select cc.customer_id, max(cb.overdue_days) as overdue_days, sum(cb.balance) as balance from contract_customers cc join cb on cb.contract_id = cc.contract_id group by 1) k on k.customer_id = cu.id' : ''}
-            where cu.tenant_id = #{tenant}
+            where cu.tenant_id = #{tenant}#{" and cu.id = any(#{only})" if only}
           SQL
+        end
+
+        # O último acionamento de cada contrato (15, R352): o registrado nele, ou num cliente dele sem contrato informado (04, R69b).
+        def last_return_of_contracts(tenant, only: nil)
+          "select distinct on (cc.contract_id) cc.contract_id, a.return_at, a.user_id from contact_attempts a " \
+            "join contract_customers cc on cc.customer_id = a.customer_id " \
+            "where a.tenant_id = #{tenant} and (a.contract_id is null or a.contract_id = cc.contract_id)#{" and cc.contract_id #{only}" if only} " \
+            "order by cc.contract_id, a.contacted_at desc, a.id desc"
         end
 
         def roles(tenant)

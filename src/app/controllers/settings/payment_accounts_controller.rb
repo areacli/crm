@@ -1,15 +1,9 @@
-# Contas de pagamento do credor (12, R259 a R269): lista, cadastro, edição e exclusão, numa aba da configuração. A permissão 14 vale no
+# Integrações do credor (12, R259 a R269; antes "contas de pagamento"): cadastro, edição e exclusão. A lista é o detalhe de cada método de
+# recebimento (16, R373), na tela "Métodos de recebimento". A permissão 14 vale no
 # credor da conta. O formulário se monta a partir do manifesto do fornecedor; segredo e arquivo entram e nunca voltam (R261).
 module Settings
   class PaymentAccountsController < ApplicationController
     before_action :set_account, only: %i[edit update destroy]
-
-    def index
-      authorize PaymentAccount
-      @several_tenants = manageable_tenants.size > 1
-      @pagination = Pagination.new(policy_scope(PaymentAccount).includes(:tenant, :channel).order(:nickname), page: params[:page], per_page: params[:per_page])
-      @accounts = @pagination.records
-    end
 
     # Primeiro a escolha (credor, modalidade e fornecedor); com ela feita, o formulário do manifesto.
     def new
@@ -52,7 +46,7 @@ module Settings
     def destroy
       nickname = @account.nickname
       manager.destroy(@account)
-      panel_finish(settings_payment_accounts_path, notice: t(".done", nickname: nickname), navegar: true)
+      panel_finish(settings_channels_path, notice: t(".done", nickname: nickname), navegar: true)
     end
 
     private

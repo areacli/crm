@@ -40,7 +40,8 @@ class DesignSystemArchitectureTest < ActiveSupport::TestCase
       achados = []
       achados << "atributo style" if texto.match?(/\sstyle\s*=/)
       achados << "manipulador de evento embutido" if texto.match?(/\son[a-z]+\s*=\s*["']/)
-      achados << "script embutido" if texto.match?(/<script(?![^>]*\bsrc=)/)
+      # Dado em JSON (a configuração da casca da SPA, decisão 0025) não é script executável.
+      achados << "script embutido" if texto.match?(/<script(?![^>]*\b(src=|type="application\/json"))/)
       texto.scan(/\bclass\s*=\s*["']([^"']+)["']/).flatten.flat_map(&:split).each { |c| achados << "classe utilitária .#{c}" if c.match?(UTILITARIAS) }
       achados.uniq.map { |a| "#{arquivo.delete_prefix("#{Rails.root}/")}: #{a}" }
     end

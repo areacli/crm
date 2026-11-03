@@ -1,0 +1,88 @@
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core" xmlns:f="sap.f">
+	<!-- Registrar acionamento (04 e 10) no painel lateral da ficha (regra de ação: formulário médio): segunda coluna do FlexibleColumnLayout,
+	     na mesma aba. O servidor devolve o estado do formulário a cada escolha (retorno, aviso do responsável, bloco da promessa). -->
+	<Page id="painelDoAcionamento" title="{i18n>ficha.registrarAcionamento}" showNavButton="false" class="painel">
+		<headerContent><Button icon="sap-icon://decline" type="Transparent" tooltip="{i18n>acao.cancelar}" press=".fecharPainel" /></headerContent>
+		<content>
+			<VBox class="sapUiSmallMargin" renderType="Bare">
+				<Text text="{registro>/descricao}" class="nota sapUiSmallMarginBottom" />
+				<MessageStrip text="{registro>/erro}" type="Error" showIcon="true" visible="{= !!${registro>/erro} }" class="sapUiSmallMarginBottom" />
+				<Label text="{i18n>acionamento.canal}" labelFor="canal" required="true" />
+				<Select id="canal" width="100%" forceSelection="false" selectedKey="{registro>/valores/channel}" change=".atualizarRegistro" items="{path: 'registro>/canais', templateShareable: false}">
+					<core:Item key="{registro>id}" text="{registro>nome}" />
+				</Select>
+				<Label text="{i18n>acionamento.resultado}" labelFor="resultado" required="true" class="sapUiSmallMarginTop" />
+				<Select id="resultado" width="100%" forceSelection="false" selectedKey="{registro>/valores/result_id}" change=".atualizarRegistro" items="{path: 'registro>/resultados', templateShareable: false}">
+					<core:Item key="{registro>id}" text="{registro>nome}" />
+				</Select>
+				<Label text="{i18n>acionamento.contrato}" labelFor="contratoDoAcionamento" class="sapUiSmallMarginTop" />
+				<Select id="contratoDoAcionamento" width="100%" selectedKey="{registro>/valores/contract_id}" change=".atualizarRegistro" items="{path: 'registro>/contratosComVazio', templateShareable: false}">
+					<core:Item key="{registro>id}" text="{registro>nome}" />
+				</Select>
+				<MessageStrip text="{registro>/aviso_responsavel}" type="Information" showIcon="true" visible="{= !!${registro>/aviso_responsavel} }" class="sapUiSmallMarginTop" />
+
+				<Panel headerText="{i18n>promessa.titulo}" visible="{= !!${registro>/promessa} }" class="sapUiSmallMarginTop" expandable="false">
+					<Text text="{i18n>promessa.ajuda}" class="nota" />
+					<Label text="{i18n>ficha.contrato}" labelFor="contratoDaPromessa" class="sapUiSmallMarginTop" />
+					<Text text="{registro>/promessa/contrato}" visible="{registro>/promessa/contrato_travado}" />
+					<Select id="contratoDaPromessa" width="100%" forceSelection="false" visible="{= !${registro>/promessa/contrato_travado} }" selectedKey="{registro>/valores/promise_contract_id}"
+						change=".atualizarRegistro" items="{path: 'registro>/contratos', templateShareable: false}">
+						<core:Item key="{registro>id}" text="{registro>nome}" />
+					</Select>
+					<Label text="{i18n>promessa.meio}" labelFor="meio" class="sapUiSmallMarginTop" />
+					<Select id="meio" width="100%" forceSelection="false" selectedKey="{registro>/valores/promise_payment_method}" change=".atualizarRegistro" items="{path: 'registro>/promessa/meios', templateShareable: false}">
+						<core:Item key="{registro>id}" text="{registro>nome}" />
+					</Select>
+					<Label text="{i18n>promessa.data}" labelFor="dataPrometida" class="sapUiSmallMarginTop" />
+					<DatePicker id="dataPrometida" value="{registro>/valores/promise_on}" valueFormat="yyyy-MM-dd" displayFormat="dd/MM/yyyy" change=".atualizarRegistro" />
+					<Text text="{registro>/promessa/prazo}" class="nota" />
+					<Title text="{i18n>promessa.titulos}" level="H4" titleStyle="H6" class="sapUiSmallMarginTop" visible="{= !!${registro>/promessa/titulos} }" />
+					<VBox items="{path: 'registro>/promessa/titulos', templateShareable: false}" renderType="Bare">
+						<VBox renderType="Bare">
+							<CheckBox text="{registro>texto}" selected="{registro>marcado}" enabled="{= !${registro>bloqueio} }" select=".marcarTituloDaPromessa" wrapping="true" />
+							<Text text="{registro>bloqueio}" visible="{= !!${registro>bloqueio} }" class="nota" />
+						</VBox>
+					</VBox>
+					<Table visible="{= !!${registro>/promessa/valor} }" headerText="{registro>/promessa/valor/titulo}" items="{path: 'registro>/promessa/valor/linhas', templateShareable: false}" fixedLayout="false" class="sapUiSmallMarginTop">
+						<columns>
+							<Column><Text text="{i18n>promessa.titulo.coluna}" /></Column><Column hAlign="End"><Text text="{i18n>promessa.principal}" /></Column>
+							<Column hAlign="End"><Text text="{i18n>promessa.correcao}" /></Column><Column hAlign="End"><Text text="{i18n>promessa.multa}" /></Column>
+							<Column hAlign="End"><Text text="{i18n>promessa.juros}" /></Column><Column hAlign="End"><Text text="{i18n>promessa.honorarios}" /></Column>
+							<Column hAlign="End"><Text text="{i18n>promessa.total}" /></Column>
+						</columns>
+						<items><ColumnListItem><cells>
+							<Text text="{registro>titulo}" /><Text text="{registro>principal}" /><Text text="{registro>correction}" /><Text text="{registro>fine}" />
+							<Text text="{registro>interest}" /><Text text="{registro>fees}" /><Text text="{registro>total}" />
+						</cells></ColumnListItem></items>
+					</Table>
+					<Text text="{parts: ['i18n>promessa.totalDaPromessa', 'registro>/promessa/valor/total'], formatter: '.formatarTexto'}" visible="{= !!${registro>/promessa/valor} }" class="sapUiTinyMarginTop" />
+				</Panel>
+
+				<Label text="{i18n>acionamento.contatoUsado}" labelFor="contatoUsado" class="sapUiSmallMarginTop" />
+				<Input id="contatoUsado" value="{registro>/valores/contact_used}" maxLength="300" showSuggestion="true" suggestionItems="{path: 'registro>/contatos_sugeridos', templateShareable: false}" ariaDescribedBy="ajudaDoContato">
+					<suggestionItems><core:Item text="{registro>}" /></suggestionItems>
+				</Input>
+				<Text id="ajudaDoContato" text="{= ${registro>/pode_salvar_contato} ? ${i18n>acionamento.contatoUsado.ajudaComCadastro} : ${i18n>acionamento.contatoUsado.ajuda} }" class="nota" />
+				<CheckBox text="{i18n>acionamento.salvarContato}" visible="{registro>/pode_salvar_contato}" selected="{= ${registro>/valores/save_contact} === '1' }" select=".marcarSalvarContato" />
+				<Label text="{i18n>acionamento.quando}" labelFor="quando" class="sapUiSmallMarginTop" />
+				<DateTimePicker id="quando" value="{registro>/valores/contacted_at}" valueFormat="yyyy-MM-ddTHH:mm" displayFormat="dd/MM/yyyy HH:mm" change=".atualizarRegistro" ariaDescribedBy="ajudaDoQuando" />
+				<Text id="ajudaDoQuando" text="{i18n>acionamento.quando.ajuda}" class="nota" />
+				<VBox visible="{= !!${registro>/retorno} }" renderType="Bare">
+					<Label text="{= ${registro>/retorno/obrigatorio} ? ${i18n>acionamento.retorno} : ${i18n>acionamento.retornoOpcional} }" required="{registro>/retorno/obrigatorio}" labelFor="retorno" class="sapUiSmallMarginTop" />
+					<DateTimePicker id="retorno" value="{registro>/valores/return_at}" valueFormat="yyyy-MM-ddTHH:mm" displayFormat="dd/MM/yyyy HH:mm" ariaDescribedBy="ajudaDoRetorno" />
+					<Text id="ajudaDoRetorno" text="{registro>/retorno/ajuda}" class="nota" />
+				</VBox>
+				<Label text="{i18n>acionamento.texto}" labelFor="textoDoAcionamento" class="sapUiSmallMarginTop" />
+				<TextArea id="textoDoAcionamento" value="{registro>/valores/text}" maxLength="2000" rows="4" width="100%" ariaDescribedBy="ajudaDoTexto" />
+				<Text id="ajudaDoTexto" text="{i18n>acionamento.texto.ajuda}" class="nota" />
+			</VBox>
+		</content>
+		<footer>
+			<OverflowToolbar>
+				<ToolbarSpacer />
+				<Button text="{i18n>acao.cancelar}" press=".fecharPainel" />
+				<Button id="salvarAcionamento" text="{i18n>ficha.registrarAcionamento}" type="Emphasized" press=".salvarAcionamento" />
+			</OverflowToolbar>
+		</footer>
+	</Page>
+</core:FragmentDefinition>

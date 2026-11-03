@@ -1,39 +1,39 @@
-<% content_for :title, "Configuração · Conta #{@account.nickname_was || @account.nickname}" %>
-<%= pagina "Conta #{@account.nickname_was || @account.nickname}", subtitulo: safe_join([ @account.tenant.name, " · ", t("payments.accounts.modalities.#{@account.modality}"), " em ", provider_name(@account.provider), " · ", t("payments.accounts.environments.#{@account.environment}"), " · ", link_to("Voltar para as contas", settings_payment_accounts_path) ]),
+<% content_for :title, "Configuração · Integração #{@account.nickname_was || @account.nickname}" %>
+<%= pagina "Integração #{@account.nickname_was || @account.nickname}", subtitulo: safe_join([ @account.tenant.name, " · ", t("payments.accounts.modalities.#{@account.modality}"), " em ", provider_name(@account.provider), " · ", t("payments.accounts.environments.#{@account.environment}"), " · ", link_to("Voltar para os métodos de recebimento", settings_channels_path) ]),
            indicadores: [ (@account.active? ? situacao("Ativa", tom: :success) : situacao("Desativada", tom: :neutral)) ] do %>
   <% if @account.provider_available? %><%= button_to "Testar conexão", settings_payment_account_connection_test_path(@account), method: :post, data: { variant: "secondary" } %><% end %>
   <% if @account.active? %>
-    <%= confirmar_no_painel "Desativar", titulo: "Desativar a conta?", mensagem: "A conta deixa de ser usada para emitir. O que já foi emitido não muda.", acao: "Desativar conta", url: settings_payment_account_activation_path(@account), metodo: :delete %>
+    <%= confirmar_no_painel "Desativar", titulo: "Desativar a integração?", mensagem: "A integração deixa de ser usada para emitir. O que já foi emitido não muda.", acao: "Desativar integração", url: settings_payment_account_activation_path(@account), metodo: :delete %>
   <% else %>
-    <%= button_to "Ativar conta", settings_payment_account_activation_path(@account), method: :post %>
+    <%= button_to "Ativar integração", settings_payment_account_activation_path(@account), method: :post %>
   <% end %>
   <% if @account.provider_available? && @account.manifest.field("webhook_secret") %>
     <%= confirmar_no_painel "Gerar novo segredo do webhook", titulo: "Gerar um novo segredo?", mensagem: "O segredo atual, se houver, continua valendo por 24 horas; depois só o novo vale.", acao: "Gerar novo segredo", url: settings_payment_account_webhook_secret_path(@account), perigoso: false, variante: "secondary" %>
   <% end %>
   <% unless @account.used? %>
-    <%= confirmar_no_painel "Excluir", titulo: "Excluir a conta?", mensagem: "A conta #{@account.nickname} deixa de existir, com os segredos e o certificado. Isto fica registrado.", acao: "Excluir conta", url: settings_payment_account_path(@account), metodo: :delete %>
+    <%= confirmar_no_painel "Excluir", titulo: "Excluir a integração?", mensagem: "A integração #{@account.nickname} deixa de existir, com os segredos e o certificado. Isto fica registrado.", acao: "Excluir integração", url: settings_payment_account_path(@account), metodo: :delete %>
   <% end %>
 <% end %>
 <%= render "settings/modelo" %>
 
 <div class="ficha">
 <section class="cartao" aria-labelledby="dados">
-  <header><h2 id="dados">Dados da conta</h2></header>
+  <header><h2 id="dados">Dados da integração</h2></header>
   <div>
     <% if @account.errors.any? %><%= aviso(tom: :danger) { tag.p @account.errors.full_messages.to_sentence } %><% end %>
-    <% unless @account.provider_available? %><%= aviso(tom: :warning) { tag.p "O fornecedor desta conta não está mais instalado: ela não emite e pode ser desativada ou apagada." } %><% end %>
+    <% unless @account.provider_available? %><%= aviso(tom: :warning) { tag.p "O fornecedor desta integração não está mais instalado: ela não emite e pode ser desativada ou apagada." } %><% end %>
     <%= form_with model: @account, scope: :payment_account, url: settings_payment_account_path(@account), method: :patch, multipart: true, html: { "hx-boost": "false" } do |form| %>
       <div class="campo">
         <%= label_tag "campo-nickname", "Apelido" %>
         <%= text_field_tag "payment_account[nickname]", @account.nickname, id: "campo-nickname", required: true, maxlength: 100 %>
       </div>
       <div class="campo">
-        <%= label_tag "campo-channel", "Canal de recebimento" %>
+        <%= label_tag "campo-channel", "Método de recebimento" %>
         <%= select_tag "payment_account[channel_id]", options_for_select(PaymentChannel.where(tenant_id: @account.tenant_id).order(:code).map { |channel| [ "#{channel.code} · #{channel.description}", channel.id ] }, @account.channel_id), id: "campo-channel", required: true %>
       </div>
       <% if @account.provider_available? %><%= render "settings/payment_accounts/fields", form: form, account: @account %><% end %>
       <div class="acoes" data-rodape>
-        <%= link_to "Cancelar", settings_payment_accounts_path, class: "botao", data: { variant: "secondary" } %>
+        <%= link_to "Cancelar", settings_channels_path, class: "botao", data: { variant: "secondary" } %>
         <button type="submit">Salvar</button>
       </div>
     <% end %>
@@ -66,7 +66,7 @@
     <% else %>
       <div class="tabela" tabindex="0">
         <table>
-          <caption class="apenas-leitor-de-tela">Histórico da conta</caption>
+          <caption class="apenas-leitor-de-tela">Histórico da integração</caption>
           <thead><tr><th scope="col">Quando</th><th scope="col">Quem</th><th scope="col">Ato</th><th scope="col">Campo</th><th scope="col">Antes</th><th scope="col">Depois</th></tr></thead>
           <tbody>
             <% @history.each do |change| %>

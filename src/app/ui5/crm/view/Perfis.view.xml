@@ -1,0 +1,36 @@
+<mvc:View controllerName="crm.controller.Perfis" xmlns:mvc="sap.ui.core.mvc" xmlns="sap.m" xmlns:f="sap.f" xmlns:core="sap.ui.core" height="100%">
+	<!-- Perfis (R30 a R35; modelo Lista): conjuntos de permissões de cada credor; criar e editar no painel lateral, excluir com confirmação curta. -->
+	<f:FlexibleColumnLayout id="colunas" layout="OneColumn" backgroundDesign="Solid">
+		<f:beginColumnPages>
+			<f:DynamicPage toggleHeaderOnTitleClick="false" fitContent="true">
+				<f:title><f:DynamicPageTitle>
+					<f:heading><Title text="{i18n>perfis.titulo}" level="H2" /></f:heading>
+					<f:expandedContent><Text text="{i18n>perfis.subtitulo}" /></f:expandedContent>
+					<f:actions><Button text="{i18n>perfis.criar}" type="Emphasized" press=".criar" /></f:actions>
+				</f:DynamicPageTitle></f:title>
+				<f:header>
+					<f:DynamicPageHeader pinnable="false" visible="{dados>/varios_credores}">
+						<VBox><Label text="{i18n>clientes.credor}" labelFor="credor" />
+							<Select id="credor" selectedKey="{filtro>/tenant}" change=".buscar" items="{path: 'dados>/credores', templateShareable: false}"><core:Item key="{dados>id}" text="{dados>nome}" /></Select></VBox>
+					</f:DynamicPageHeader>
+				</f:header>
+				<f:content>
+					<VBox renderType="Bare">
+						<Table items="{dados>/linhas}" sticky="ColumnHeaders" fixedLayout="false" noData="{i18n>perfis.vazio}">
+							<columns>
+								<Column><Text text="{i18n>operacao.perfil}" /></Column><Column visible="{dados>/varios_credores}"><Text text="{i18n>clientes.credor}" /></Column>
+								<Column hAlign="End"><Text text="{i18n>perfis.permissoes}" /></Column><Column hAlign="End"><Text text="{i18n>filas.grupos.usuarios}" /></Column>
+								<Column hAlign="End"><Text text="" /></Column>
+							</columns>
+							<items><ColumnListItem><cells>
+								<Link text="{dados>nome}" press=".editarDaLinha" /><Text text="{dados>credor}" /><Text text="{dados>permissoes}" /><Text text="{dados>usuarios}" />
+								<Button icon="sap-icon://overflow" type="Transparent" tooltip="{i18n>lista.acoes}" press=".acoes" />
+							</cells></ColumnListItem></items>
+						</Table>
+						<core:Fragment fragmentName="crm.fragment.Paginacao" type="XML" />
+					</VBox>
+				</f:content>
+			</f:DynamicPage>
+		</f:beginColumnPages>
+	</f:FlexibleColumnLayout>
+</mvc:View>

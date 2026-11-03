@@ -131,7 +131,7 @@ module Segments
         case spec[:type]
         when :days, :count, :money, :percent then value.is_a?(Integer) && !value.negative?
         when :option then spec[:options].include?(value)
-        when :reference then value.is_a?(Integer) && value.positive?
+        when :reference, :user then value.is_a?(Integer) && value.positive?
         when :text then value.is_a?(String) && value.strip.present? && value.size <= 100
         else false
         end

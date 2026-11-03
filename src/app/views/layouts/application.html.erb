@@ -49,6 +49,10 @@
       <% end %>
       <% if authenticated? %>
         <div class="conta">
+          <%# 15, R353: o "Próximo" para quem está num grupo de fila e tem a 7; Alt+P (accesskey) leva a ele. %>
+          <% if !Current.user.temporary_password? && QueueGroupUser.exists?(user_id: Current.user.id) && Current.user.permitted_anywhere?("record_contact_attempts") %>
+            <%= button_to "Próximo", next_delivery_path, form_class: "proximo", data: { variant: "primary", size: "small" }, accesskey: "p", "aria-keyshortcuts": "Alt+P", title: "Próximo cliente ou contrato da sua fila (Alt+P)" %>
+          <% end %>
           <%# 14, R324: o usuário de operação vê de qual operação ele é. %>
           <% if (operation = Current.user.operation) %><span class="operacao-atual" title="<%= operation.legal_name %>"><%= operation.short_name %></span><% end %>
           <%= render "notices/bell" unless Current.user.temporary_password? %>

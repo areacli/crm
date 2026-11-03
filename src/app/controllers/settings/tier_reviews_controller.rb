@@ -4,6 +4,8 @@ module Settings
   class TierReviewsController < ApplicationController
     def show
       @review = ::Tiers::Review.fetch(params[:id])
+      # A SPA pede o JSON: a conferência expirada responde com a mensagem, sem redirecionar para a página do enquadramento.
+      return render(json: { mensagem: t("tiers.errors.invalid_token") }, status: :not_found) if @review.nil? && request.format.json?
       return redirect_to(settings_tiers_path, alert: t("tiers.errors.invalid_token"), status: :see_other) unless @review
 
       @tenant = Tenant.find(@review["tenant_id"])

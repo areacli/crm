@@ -1,0 +1,23 @@
+<mvc:View controllerName="crm.controller.Segmento" xmlns:mvc="sap.ui.core.mvc" xmlns="sap.m" xmlns:f="sap.f" xmlns:card="sap.f.cards" height="100%">
+	<!-- Página do segmento (13, R278): o texto curto e a leitura por extenso, a situação e onde é usado; "Editar" abre o editor numa aba. -->
+	<f:DynamicPage toggleHeaderOnTitleClick="false">
+		<f:title><f:DynamicPageTitle>
+			<f:heading><HBox alignItems="Center" renderType="Bare"><Title text="{dados>/nome}" level="H2" class="sapUiSmallMarginEnd" />
+				<ObjectStatus text="{dados>/situacao/texto}" state="{dados>/situacao/estado}" inverted="true" /></HBox></f:heading>
+			<f:expandedContent><Text text="{dados>/subtitulo}" /></f:expandedContent>
+			<f:actions><Button text="{i18n>acao.editar}" type="Emphasized" press=".editar" visible="{= !!${dados>/pode_editar} }" /></f:actions>
+		</f:DynamicPageTitle></f:title>
+		<f:content>
+			<f:Card>
+				<f:header><card:Header title="{i18n>segmentos.condicoes}" /></f:header>
+				<f:content>
+					<VBox renderType="Bare" class="sapUiSmallMargin">
+						<Text text="{dados>/texto}" class="codigo texto-do-operador sapUiSmallMarginBottom" />
+						<Text text="{dados>/leitura}" class="sapUiSmallMarginBottom" />
+						<Text text="{dados>/uso}" />
+					</VBox>
+				</f:content>
+			</f:Card>
+		</f:content>
+	</f:DynamicPage>
+</mvc:View>

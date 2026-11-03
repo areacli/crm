@@ -14,7 +14,7 @@ class PaymentInstrumentsScreensTest < ActionDispatch::IntegrationTest
 
   def issue(tenant, customer, kind)
     make_account(tenant, modality: kind, environment: "production", config: { "connection_result" => "ok", "pix_key" => "p@a.com" }, nickname: "#{kind} #{tenant.id}") unless tenant.payment_accounts.exists?(modality: kind)
-    instrument = Payments::Issuer.new.request(tenant: tenant, kind: kind, amount_cents: 99_900, customer: customer, due_on: Date.current + 10)
+    instrument = Payments::Issuer.new.request(tenant: tenant, kind: kind, amount_cents: 99_900, customer: customer, due_on: Date.current + 10, object: bill_for(customer))
     perform_enqueued_jobs { IssueInstrumentJob.perform_now(instrument.id) }
     instrument.reload
   end
@@ -24,7 +24,7 @@ class PaymentInstrumentsScreensTest < ActionDispatch::IntegrationTest
   test "sem sessão, nada é servido" do
     get payment_instrument_pdf_path(@boleto)
     assert_response :redirect
-    assert_redirected_to new_session_path
+    assert_redirected_to root_path
   end
 
   test "quem consulta a carteira do credor baixa o PDF com Cache-Control private, no-store e sem redirecionar (R275, R279)" do

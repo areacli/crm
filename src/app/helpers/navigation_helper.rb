@@ -4,9 +4,8 @@ module NavigationHelper
   SETTINGS_TABS = [
     [ "Dados do credor", :settings_tenant_registry_path, "change_settings" ],
     [ "Carteira", :settings_portfolio_path, "change_settings" ],
-    [ "Canais de recebimento", :settings_channels_path, "change_settings" ],
+    [ "Métodos de recebimento", :settings_channels_path, %w[change_settings change_financial_policies] ],
     [ "Políticas de pagamento", :settings_payment_policy_path, "change_financial_policies" ],
-    [ "Contas de pagamento", :settings_payment_accounts_path, "change_financial_policies" ],
     [ "Segmentos", :settings_segments_path, %w[change_settings change_financial_policies] ],
     [ "Enquadramento financeiro", :settings_tiers_path, %w[change_settings change_financial_policies] ],
     [ "Promessas e acordos", :settings_promises_path, "change_financial_policies" ],
@@ -20,6 +19,19 @@ module NavigationHelper
     [ "Enquadramento da distribuição", :settings_distribution_rules_path, "distribute_portfolio" ],
     [ "Trilha", :settings_operation_trails_path, "view_operation_trail" ]
   ].freeze
+
+  # Páginas das filas (15): a visão do gestor, o enquadramento e os grupos, todas da permissão 21.
+  QUEUES_TABS = [
+    [ "Visão das filas", :queues_board_path, "manage_queues" ],
+    [ "Enquadramento das filas", :queues_work_queues_path, "manage_queues" ],
+    [ "Grupos", :queues_queue_groups_path, "manage_queues" ]
+  ].freeze
+
+  # "Visão das filas" (`/filas`) só é a atual nela e nas fichas das filas, não nas outras duas.
+  def queues_tabs
+    others = QUEUES_TABS.drop(1).map { |_label, route, _permission| public_send(route) }
+    submenu_items(QUEUES_TABS).each { |item| item[:atual] &&= item[:caminho] != queues_board_path || others.none? { |path| request.path.start_with?(path) } }
+  end
 
   # Abas visíveis para o usuário, com o caminho e se é a da página atual.
   def settings_tabs = submenu_items(SETTINGS_TABS)
@@ -45,18 +57,20 @@ module NavigationHelper
     user = Current.user
     return [] if user.nil? || user.temporary_password?
 
-    # Um grupo por tipo de trabalho (padrões de interface, revisão 22). Sem caminho, o item abre e fecha o submenu da área (os subitens no 6º campo).
+    # Um grupo por tipo de trabalho (padrões de interface, revisão 22); o que serve a qualquer processo fica no primeiro nível, sem grupo, e o grupo
+    # Cobrança só tem o que só existe na cobrança (revisão 32). Sem caminho, o item abre e fecha o submenu da área (os subitens no 6º campo).
     sections = [
-      { titulo: nil, itens: [ [ "Resumo", root_path, "view_portfolio", %r{\A/\z} ] ] },
-      { titulo: "Cobrança", itens: [ [ "Clientes", customers_path, "view_portfolio", %r{\A/clientes} ],
-                                     [ "Acionamentos", contact_attempts_path, "view_portfolio", %r{\A/acionamentos} ],
-                                     *pending_promises_items,
+      { titulo: nil, itens: [ [ "Resumo", summary_path, "view_portfolio", %r{\A/resumo} ],
+                              [ "Clientes", customers_path, "view_portfolio", %r{\A/clientes} ],
+                              [ "Acionamentos", contact_attempts_path, "view_portfolio", %r{\A/acionamentos} ] ] },
+      { titulo: "Cobrança", itens: [ *pending_promises_items,
                                      [ "Acordos", agreements_path, "negotiate_agreements", %r{\A/acordos(?!/pendentes)} ],
                                      *pending_agreements_items ] },
       { titulo: "Financeiro", itens: [ [ "Divergências de valor", value_discrepancies_path, "confirm_payments", %r{\A/divergencias-de-valor}, discrepancies_count ],
                                        [ "Estornos à espera", reversal_waits_path, "administer_agreements", %r{\A/estornos-a-espera} ] ] },
       { titulo: "Entrada de dados", itens: [ [ "Importações", imports_path, ImportPolicy::UPLOAD.values.uniq + ImportPolicy::CONFIRM.values.uniq, %r{\A/importacoes} ] ] },
-      { titulo: "Operações de cobrança", itens: [ [ "Distribuição", distributions_path, "distribute_portfolio", %r{\A/distribuicao} ],
+      { titulo: "Distribuição do trabalho", itens: [ [ "Distribuição", distributions_path, "distribute_portfolio", %r{\A/distribuicao} ],
+                                                  [ "Filas", nil, "manage_queues", %r{\A/filas(/|\?|\z)}, nil, queues_tabs ],
                                                   [ "Operações", nil, OPERATIONS_TABS.map(&:last), %r{\A/operacoes(/|\z)}, nil, operations_tabs ] ] },
       { titulo: "Administração", itens: [ [ "Usuários", memberships_path, "manage_users", %r{\A/usuarios} ],
                                           [ "Perfis", profiles_path, "manage_profiles", %r{\A/perfis} ],

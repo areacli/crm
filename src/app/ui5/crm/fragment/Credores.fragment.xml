@@ -1,0 +1,7 @@
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core">
+	<!-- O credor da tela, quando a pessoa cuida de mais de um (sem seleção global de credor, MT-5): pílulas que trocam o credor da aba. -->
+	<SegmentedButton selectedKey="{dados>/credor_id}" visible="{= ${dados>/credores}.length > 1 }" selectionChange=".mudarCredor" class="sapUiSmallMarginBottom"
+		items="{path: 'dados>/credores', templateShareable: false}">
+		<items><SegmentedButtonItem key="{dados>id}" text="{dados>nome}" /></items>
+	</SegmentedButton>
+</core:FragmentDefinition>

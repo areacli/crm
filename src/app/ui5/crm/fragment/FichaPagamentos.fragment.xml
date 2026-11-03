@@ -1,0 +1,46 @@
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core">
+	<!-- Aba Pagamentos (R54, R55b): os pagos aplicados aos títulos e o crédito por contrato, com transferir e alocar. -->
+	<VBox renderType="Bare">
+		<Title text="{i18n>ficha.pagos}" level="H3" titleStyle="H5" class="sapUiSmallMargin" />
+		<Table items="{dados>/pagos}" fixedLayout="false" noData="{i18n>ficha.pagos.vazio}">
+			<columns>
+				<Column><Text text="{i18n>ficha.titulo}" /></Column><Column><Text text="{i18n>ficha.data}" /></Column>
+				<Column hAlign="End"><Text text="{i18n>ficha.pagos.valor}" /></Column><Column hAlign="End"><Text text="{i18n>ficha.pagos.aplicado}" /></Column>
+				<Column hAlign="End"><Text text="{i18n>ficha.pagos.estornado}" /></Column><Column><Text text="{i18n>promessa.meio}" /></Column>
+				<Column><Text text="{i18n>ficha.pagos.metodo}" /></Column>
+			</columns>
+			<items><ColumnListItem><cells>
+				<Text text="{dados>titulo}" /><Text text="{dados>data}" /><Text text="{dados>valor}" wrapping="false" /><Text text="{dados>aplicado}" wrapping="false" />
+				<Text text="{dados>estornado}" wrapping="false" /><Text text="{dados>meio}" /><Text text="{dados>metodo}" />
+			</cells></ColumnListItem></items>
+		</Table>
+		<VBox visible="{= ${dados>/credito}.length > 0 }" renderType="Bare">
+			<OverflowToolbar style="Clear" class="sapUiSmallMarginTop">
+				<Title text="{i18n>ficha.credito.titulo}" level="H3" titleStyle="H5" />
+				<ToolbarSpacer />
+				<Button text="{i18n>ficha.transferirCredito}" visible="{dados>/pode/transferir_credito}" press=".transferirCredito" />
+			</OverflowToolbar>
+			<Text text="{i18n>ficha.credito.ajuda}" class="nota sapUiSmallMarginBeginEnd" />
+			<VBox items="{path: 'dados>/credito', templateShareable: false}" renderType="Bare">
+				<VBox renderType="Bare" class="sapUiSmallMarginTop">
+					<OverflowToolbar style="Clear">
+						<Title text="{dados>titulo}" level="H4" titleStyle="H6" />
+						<ToolbarSpacer />
+						<Button text="{i18n>ficha.alocarCredito}" visible="{dados>alocar}" press=".alocarCredito" />
+					</OverflowToolbar>
+					<Text text="{dados>estados}" visible="{= !!${dados>estados} }" class="nota sapUiSmallMarginBeginEnd" />
+					<Table items="{path: 'dados>excedente', templateShareable: false}" visible="{= ${dados>excedente}.length > 0 }" fixedLayout="false" headerText="{i18n>ficha.credito.excedente}">
+						<columns><Column><Text text="{i18n>ficha.titulo}" /></Column><Column hAlign="End"><Text text="{i18n>ficha.credito.valorDoTitulo}" /></Column>
+							<Column hAlign="End"><Text text="{i18n>ficha.pago}" /></Column><Column hAlign="End"><Text text="{i18n>ficha.credito.excedenteColuna}" /></Column></columns>
+						<items><ColumnListItem><cells><Link text="{dados>titulo}" href="{dados>endereco}" /><Text text="{dados>valor}" /><Text text="{dados>pago}" /><Text text="{dados>excedente}" /></cells></ColumnListItem></items>
+					</Table>
+					<Table items="{path: 'dados>lancamentos', templateShareable: false}" visible="{= ${dados>lancamentos}.length > 0 }" fixedLayout="false">
+						<columns><Column><Text text="{i18n>ficha.data}" /></Column><Column><Text text="{i18n>ficha.credito.origem}" /></Column>
+							<Column><Text text="{i18n>ficha.credito.motivo}" /></Column><Column hAlign="End"><Text text="{i18n>ficha.valor}" /></Column></columns>
+						<items><ColumnListItem><cells><Text text="{dados>data}" wrapping="false" /><Text text="{dados>origem}" /><Text text="{dados>motivo}" /><Text text="{dados>valor}" wrapping="false" /></cells></ColumnListItem></items>
+					</Table>
+				</VBox>
+			</VBox>
+		</VBox>
+	</VBox>
+</core:FragmentDefinition>

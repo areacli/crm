@@ -1,0 +1,32 @@
+<% content_for :title, "Fila · #{@queue.name}" %>
+<% content_for :cable_channels, @cable %>
+<%= pagina @queue.name, subtitulo: safe_join([ "#{t("queues.subjects.#{@queue.subject}")} em ordem: #{[ t("queues.orders.#{@queue.order_by}"), (t("queues.orders.#{@queue.order_tiebreak}") if @queue.order_tiebreak) ].compact.join("; empate, ")}. ", link_to("Voltar às filas", queues_board_path(tenant_id: @tenant.id)) ]) %>
+<section class="cartao" aria-labelledby="sujeitos">
+  <header><h2 id="sujeitos"><%= number_br(@placements.total) %> na fila</h2></header>
+  <% if @placements.total.zero? %>
+    <p class="vazio">Ninguém nesta fila hoje.</p>
+  <% else %>
+    <div class="tabela" tabindex="0">
+      <table>
+        <caption class="apenas-leitor-de-tela">Quem está na fila <%= @queue.name %>, em ordem</caption>
+        <thead><tr><th scope="col" data-numerico>Posição</th><th scope="col"><%= t("queues.subject_one.#{@queue.subject}").capitalize %></th><th scope="col">Situação</th><th scope="col"><span class="apenas-leitor-de-tela">Ações</span></th></tr></thead>
+        <tbody>
+          <% @placements.records.each do |placement| %>
+            <% delivery = @open[placement.subject_id] %>
+            <tr>
+              <td data-numerico><%= number_br(placement.rank) %></td>
+              <th scope="row"><%= @names[placement.subject_id] || "—" %></th>
+              <td>
+                <% if delivery %><%= situacao "Com #{delivery.user.name}", tom: :info %>
+                <% elsif placement.available_at&.future? %><%= situacao "Aguardando até #{l(placement.available_at, format: :short)}", tom: :neutral %>
+                <% else %><%= situacao "Disponível", tom: :success %><% end %>
+              </td>
+              <td data-acoes><% if delivery %><%= button_to "Liberar", queues_release_path(delivery), data: { variant: "secondary", size: "small" } %><% end %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+    <%= render "shared/paginacao", pagination: @placements, unit: "na fila", path: ->(page) { queues_board_queue_path(@queue, request.query_parameters.merge("page" => page)) } %>
+  <% end %>
+</section>

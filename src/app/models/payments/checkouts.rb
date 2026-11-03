@@ -14,8 +14,13 @@ module Payments
 
     # `instruments`: boletos e Pix ativos (do mesmo credor e do mesmo valor). `card`: nil = oferece se houver conta de cartão ativa; true exige; false não oferece.
     # `amount_cents` só é obrigatório sem instrumentos. `highlight`: a forma em destaque (padrão: a primeira oferecida, na ordem Pix, boleto, cartão).
-    def create(tenant:, customer:, instruments: [], card: nil, amount_cents: nil, description: nil, highlight: nil, environment: "production", expires_at: nil, reference: nil)
+    # `object`: o título ou a promessa que o link cobra (16, R386); sem ele, o dos instrumentos (todos do mesmo objeto).
+    def create(tenant:, customer:, object: nil, instruments: [], card: nil, amount_cents: nil, description: nil, highlight: nil, environment: "production", expires_at: nil,
+               origin: "service", requested_by: nil, object_snapshot: {})
       instruments = Array(instruments)
+      object ||= instruments.first&.object
+      raise Refused, I18n.t("payments.checkout.errors.object_required") unless object
+      raise Refused, I18n.t("payments.checkout.errors.other_object") if instruments.any? { |instrument| instrument.object != object }
       amount_cents = checkout_amount(tenant, instruments, amount_cents)
       payer = Payer.snapshot_with_contacts(customer)
       modalities = instruments.map(&:kind).uniq
@@ -25,7 +30,8 @@ module Payments
       highlight = highlight.to_s.presence || (%w[pix boleto card] & modalities).first
       expires_at ||= (instruments.map(&:due_on).max&.end_of_day || Time.current) + VALID_AFTER_DUE
       checkout = PaymentCheckout.new(tenant: tenant, customer: customer, amount_cents: amount_cents, description: description.to_s.first(200).presence, environment: environment.to_s,
-                                     modalities: modalities, highlight: highlight, expires_at: expires_at, reference_type: reference&.first&.to_s, reference_id: reference&.last, **payer)
+                                     modalities: modalities, highlight: highlight, expires_at: expires_at, object: object, origin: origin, requested_by: requested_by, object_snapshot: object_snapshot,
+                                     **payer)
       PaymentCheckout.transaction do
         checkout.save!
         instruments.each { |instrument| instrument.update!(checkout: checkout) }

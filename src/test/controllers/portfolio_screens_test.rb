@@ -19,13 +19,13 @@ class PortfolioScreensTest < ActionDispatch::IntegrationTest
   end
 
   test "sem sessão, vai para a entrada" do
-    get root_path
-    assert_redirected_to new_session_path
+    get summary_path
+    assert_redirected_to root_path
   end
 
   test "o resumo, a lista e a ficha respondem para quem consulta a carteira" do
     entrar(@joana)
-    get root_path
+    get summary_path
     assert_response :success
     assert_select "h1", "Resumo da carteira"
     get customers_path
@@ -38,12 +38,12 @@ class PortfolioScreensTest < ActionDispatch::IntegrationTest
 
   test "o resumo é um conjunto só de totais: sem nome de credor e, com faixas diferentes, só a nota das faixas (25/10/2026)" do
     entrar(users(:ana))
-    get root_path
+    get summary_path
     assert_select "h2", text: /Escola Alfa|Clínica Beta/, count: 0
     assert_select "dl.kpis dt", text: /Clientes em cobrança/
     assert_select "h2", text: /Faixas de atraso — /, count: 2 # faixas iguais: duas tabelas, somadas
     tenants(:beta).setting.update!(aging_brackets: [ { from: 1, to: 60 }, { from: 61, to: nil } ])
-    get root_path
+    get summary_path
     assert_select "section h2", text: "Faixas de atraso", count: 1
     assert_select "p", text: /diferem entre os credores/
     assert_select "table caption", text: /Faixas/, count: 0

@@ -3,6 +3,9 @@ module Titular
   module Broadcast
     module_function
 
-    def changed(tenant) = RetentionChannel.broadcast_to(tenant, { event: "retention-changed" })
+    def changed(tenant)
+      RetentionChannel.broadcast_to(tenant, { event: "retention-changed" })
+      Live.publish("credores", tenant.id, tenant_id: tenant.id)
+    end
   end
 end

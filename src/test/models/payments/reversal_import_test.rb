@@ -69,7 +69,7 @@ class Payments::ReversalImportTest < ActiveSupport::TestCase
               reversal_line("identificador_estorno" => "D", "data_estorno" => (Date.current + 2).strftime("%d/%m/%Y")) ]
     reasons = run_payments_import(lines, kind: "reversals").rejections.order(:line).pluck(:line, :reason).to_h
     assert_equal "estorno repetido na linha 2", reasons[3]
-    assert_equal "pagamento não encontrado no canal", reasons[4]
+    assert_equal "pagamento não encontrado no método de recebimento", reasons[4]
     assert_equal "data do estorno anterior ao pagamento", reasons[5]
     assert_equal "data de estorno futura", reasons[6]
   end
@@ -116,7 +116,7 @@ class Payments::ReversalImportTest < ActiveSupport::TestCase
     make_channel(beta)
     pay("400,00")
     import = reverse("100,00", tenant: beta, user: users(:ana), confirm: false)
-    assert_equal "pagamento não encontrado no canal", import.rejections.sole.reason
+    assert_equal "pagamento não encontrado no método de recebimento", import.rejections.sole.reason
     assert_equal 0, Payment.sole.reversed_cents
   end
 

@@ -1,0 +1,39 @@
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core">
+	<!-- Aba Acionamentos (R74): o histórico, 20 por página, do mais recente ao mais antigo; o detalhe da linha escolhida abaixo da tabela (P26). -->
+	<VBox renderType="Bare">
+		<Text text="{i18n>ficha.acionamentos.ajuda}" class="nota sapUiSmallMargin" />
+		<Table items="{acionamentos>/linhas}" itemPress=".mostrarDetalhe" fixedLayout="false" noData="{i18n>ficha.acionamentos.vazio}"
+			customData:detalhe="acionamento" xmlns:customData="http://schemas.sap.com/sapui5/extension/sap.ui.core.CustomData/1">
+			<columns>
+				<Column><Text text="{i18n>ficha.acionamentos.contato}" /></Column><Column><Text text="{i18n>acionamento.canal}" /></Column>
+				<Column><Text text="{i18n>acionamento.resultado}" /></Column><Column><Text text="{i18n>ficha.acionamentos.retorno}" /></Column>
+				<Column><Text text="{i18n>ficha.acionamentos.registradoPor}" /></Column><Column><Text text="{i18n>ficha.acionamentos.texto}" /></Column>
+			</columns>
+			<items>
+				<ColumnListItem type="Active">
+					<cells>
+						<Text text="{acionamentos>quando}" wrapping="false" /><Text text="{acionamentos>canal}" />
+						<HBox alignItems="Center" renderType="Bare"><Text text="{acionamentos>resultado}" class="sapUiTinyMarginEnd" />
+							<ObjectStatus text="{i18n>ficha.acionamentos.promessa}" state="Information" inverted="true" visible="{acionamentos>com_promessa}" /></HBox>
+						<Text text="{acionamentos>retorno}" wrapping="false" /><Text text="{acionamentos>registrado_por}" />
+						<Text text="{acionamentos>texto}" maxLines="1" />
+					</cells>
+				</ColumnListItem>
+			</items>
+		</Table>
+		<Panel visible="{= !!${ui>/detalhes/acionamento} }" class="detalhe-da-linha">
+			<Text text="{ui>/detalhes/acionamento/detalhe}" />
+			<HBox alignItems="Center" visible="{= !!${ui>/detalhes/acionamento/promessa} }" class="sapUiTinyMarginTop" renderType="Bare">
+				<Text text="{ui>/detalhes/acionamento/promessa/texto}" class="sapUiTinyMarginEnd" />
+				<ObjectStatus text="{ui>/detalhes/acionamento/promessa/selo/texto}" state="{ui>/detalhes/acionamento/promessa/selo/estado}" inverted="true" />
+			</HBox>
+			<Text text="{ui>/detalhes/acionamento/texto}" visible="{= ${ui>/detalhes/acionamento/texto} !== '—' }" class="texto-do-operador sapUiTinyMarginTop" />
+		</Panel>
+		<OverflowToolbar style="Clear" visible="{= ${acionamentos>/paginas} > 1 }">
+			<Text text="{parts: ['i18n>lista.contagem', 'acionamentos>/pagina', 'acionamentos>/paginas', 'acionamentos>/total'], formatter: '.formatarTexto'}" />
+			<ToolbarSpacer />
+			<Button text="{i18n>lista.anterior}" enabled="{= ${acionamentos>/pagina} > 1 }" press=".paginaDosAcionamentos(-1)" />
+			<Button text="{i18n>lista.proxima}" enabled="{= ${acionamentos>/pagina} &lt; ${acionamentos>/paginas} }" press=".paginaDosAcionamentos(1)" />
+		</OverflowToolbar>
+	</VBox>
+</core:FragmentDefinition>

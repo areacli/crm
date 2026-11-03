@@ -59,7 +59,7 @@ class PaymentAccountTest < ActiveSupport::TestCase
     beta_channel = make_channel(@beta, code: "BETA-1")
     account = @alfa.payment_accounts.build(channel: beta_channel, modality: "boleto", provider: "inexistente", environment: "sandbox", nickname: "X")
     assert_not account.valid?
-    assert_includes account.errors.full_messages.to_sentence, "Canal é de outro credor"
+    assert_includes account.errors.full_messages.to_sentence, "Método de recebimento é de outro credor"
     assert_includes account.errors.full_messages.to_sentence, "Fornecedor não está instalado neste sistema"
   end
 

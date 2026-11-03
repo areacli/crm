@@ -18,6 +18,7 @@ module Agreements
       message = { event: "agreements-changed" }
       AgreementsChannel.broadcast_to(tenant, message)
       Customer.where(id: customer_ids).find_each { |customer| AgreementsChannel.broadcast_to(customer, message) } if customer_ids.any?
+      Live.publish("clientes", customer_ids, tenant_id: tenant.id)
     end
   end
 end

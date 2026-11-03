@@ -1,19 +1,20 @@
 # Webhooks e conciliação nos testes (12, parte D): instrumentos emitidos pelo fornecedor falso ligados a um título, avisos assinados e o que o
 # fornecedor passa a dizer na consulta. Nenhum teste chama fornecedor real.
 module WebhooksHelper
-  # Credor com o título NF-1 (R$ 1.000,00) e um instrumento ativo ligado a ele. `reference`: "bill" (padrão), "promise", "agreement" ou nil.
-  def paid_scenario(tenant = tenants(:alfa), kind: "boleto", amount_cents: 100_000, reference: :bill, due_on: Date.current + 10)
+  # Credor com o título NF-1 (R$ 1.000,00) e um instrumento ativo ligado a ele (ou ao `object` dado: um título ou uma promessa).
+  def paid_scenario(tenant = tenants(:alfa), kind: "boleto", amount_cents: 100_000, object: nil, due_on: Date.current + 10)
     bill = make_bill(tenant, number: "NF-1", amount_cents: amount_cents)
-    ref = reference == :bill ? [ "bill", bill.id ] : reference
-    instrument = emit(tenant, bill.customer, kind, amount_cents, reference: ref, due_on: due_on)
+    instrument = emit(tenant, bill.customer, kind, amount_cents, object: object || bill, due_on: due_on)
     [ bill, instrument ]
   end
 
-  def emit(tenant, customer, kind, amount_cents, reference: nil, due_on: Date.current + 10, environment: "production")
+  # Sem `object`, o instrumento cobra um título novo do cliente.
+  def emit(tenant, customer, kind, amount_cents, object: nil, due_on: Date.current + 10, environment: "production")
     unless tenant.payment_accounts.exists?(modality: kind, environment: environment)
       make_account(tenant, modality: kind, environment: environment, config: { "connection_result" => "ok", "pix_key" => "p@a.com", "max_installments" => 3 }, nickname: "#{kind} #{tenant.id} #{environment}")
     end
-    instrument = Payments::Issuer.new.request(tenant: tenant, kind: kind, amount_cents: amount_cents, customer: customer, due_on: due_on, environment: environment, reference: reference)
+    instrument = Payments::Issuer.new.request(tenant: tenant, kind: kind, amount_cents: amount_cents, customer: customer, due_on: due_on, environment: environment,
+                                               object: object || bill_for(customer, amount_cents: amount_cents))
     IssueInstrumentJob.perform_now(instrument.id)
     instrument.reload
   end

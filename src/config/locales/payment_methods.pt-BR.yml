@@ -1,0 +1,15 @@
+# Meios de pagamento, métodos de recebimento e emissão de instrumentos (16, camada 20).
+pt-BR:
+  activerecord:
+    errors:
+      models:
+        payment_instrument:
+          attributes:
+            base:
+              one_object: "O instrumento cobra exatamente um título ou uma promessa."
+              other_tenant: "O título ou a promessa é de outro credor."
+        payment_checkout:
+          attributes:
+            base:
+              one_object: "O link cobra exatamente um título ou uma promessa."
+              other_tenant: "O título ou a promessa é de outro credor."

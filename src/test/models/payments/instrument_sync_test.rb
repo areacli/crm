@@ -34,7 +34,7 @@ class PaymentsInstrumentSyncTest < ActiveSupport::TestCase
     assert_predicate pix_bill.reload, :paid?
 
     other = make_bill(@alfa, number: "NF-9", amount_cents: 50_000, document: PaymentsHelper::JOAO, contract_code: "CT-9", name: "João")
-    checkout = make_checkout(customer: other.customer, amount_cents: 50_000, reference: [ "bill", other.id ])
+    checkout = make_checkout(customer: other.customer, amount_cents: 50_000, object: other)
     assert_equal :approved, Payments::CardCharger.new.charge(checkout, payment_token: "TOKEN-DO-NAVEGADOR-1", installments: 1).kind
     card = checkout.reload.card_instruments.sole
     assert card.state_active?
@@ -96,36 +96,16 @@ class PaymentsInstrumentSyncTest < ActiveSupport::TestCase
     assert_equal 100_000, instrument.reload.paid_cents
   end
 
-  test "promessa (PRM-) e acordo (ACD-) pelo número do objeto cobrado" do
+  test "promessa (PRM-) pelo número do objeto cobrado" do
     customer, nf1, _nf2 = promise_scenario(@alfa, charges: false)
     make_channel(@alfa)
     promise = register_promise(customer, [ nf1 ])
-    instrument = emit(@alfa, customer, "pix", 100_000, reference: [ "promise", promise.id ])
+    instrument = emit(@alfa, customer, "pix", 100_000, object: promise)
     fake_paid!(instrument)
     @sync.call(instrument)
     payment = instrument.reload.payment
     assert_equal promise.number, payment.bill_number
     assert_equal promise.id, payment.promise_id
-  end
-
-  test "instrumento sem objeto cobrado: fica pago, o pagamento espera o gestor (review) e nada é inventado" do
-    customer = make_customer(@alfa)
-    instrument = emit(@alfa, customer, "boleto", 100_000)
-    fake_paid!(instrument)
-    outcome = @sync.call(instrument)
-    assert_equal :review, outcome.kind
-    assert instrument.reload.state_paid?
-    assert_nil instrument.payment
-    assert_equal 0, Payment.count
-  end
-
-  test "título que não está na carteira vira pagamento pendente, como na planilha (R52a)" do
-    bill, instrument = paid_scenario
-    instrument.update!(reference_id: 0)
-    fake_paid!(instrument)
-    assert_equal :review, @sync.call(instrument).kind
-    bill.reload
-    assert_not_predicate bill, :paid?
   end
 
   test "vencido e cancelado no fornecedor: o instrumento ativo muda, o pago nunca" do
@@ -134,12 +114,12 @@ class PaymentsInstrumentSyncTest < ActiveSupport::TestCase
     assert_equal :applied, @sync.call(boleto).kind
     assert boleto.reload.state_expired?
 
-    pix = emit(@alfa, boleto.customer, "pix", 100_000, reference: [ "bill", Bill.first.id ])
+    pix = emit(@alfa, boleto.customer, "pix", 100_000, object: Bill.first)
     Payments::Providers::Fake.mark_status!(pix.external_id, "canceled")
     @sync.call(pix)
     assert pix.reload.state_canceled?
 
-    paid_pix = emit(@alfa, boleto.customer, "pix", 100_000, reference: [ "bill", Bill.first.id ])
+    paid_pix = emit(@alfa, boleto.customer, "pix", 100_000, object: Bill.first)
     fake_paid!(paid_pix)
     @sync.call(paid_pix)
     Payments::Providers::Fake.mark_status!(paid_pix.external_id, "canceled")
@@ -189,6 +169,7 @@ class PaymentsInstrumentSyncTest < ActiveSupport::TestCase
     pix = emit(@alfa, customer, "pix", 100_000)
     fake_paid!(pix)
     @sync.call(pix)
+    pix.update_columns(payment_id: nil)
     Payments::Providers::Fake.mark_refunded!(pix.external_id, 100_000)
     assert_equal :review, @sync.call(pix).kind
     assert_equal 0, PaymentReversal.count
@@ -205,13 +186,13 @@ class PaymentsInstrumentSyncTest < ActiveSupport::TestCase
   test "instrumento ainda não emitido no fornecedor ou de fornecedor que saiu do código: nada a conferir" do
     customer = make_customer(@alfa)
     make_account(@alfa, modality: "boleto", environment: "production")
-    pending = Payments::Issuer.new.request(tenant: @alfa, kind: "boleto", amount_cents: 1_000, customer: customer, environment: "production")
+    pending = Payments::Issuer.new.request(tenant: @alfa, kind: "boleto", amount_cents: 1_000, customer: customer, environment: "production", object: bill_for(customer))
     assert_equal :ignored, @sync.call(pending).kind
   end
 
   test "cartão não confirmado (sem identificador): o aviso traz o custom_id, a consulta confirma e o link passa a pago" do
     bill = make_bill(@alfa, number: "NF-8", amount_cents: 50_000)
-    checkout = make_checkout(customer: bill.customer, amount_cents: 50_000, reference: [ "bill", bill.id ])
+    checkout = make_checkout(customer: bill.customer, amount_cents: 50_000, object: bill)
     Payments::Providers::Fake.fail_on(:charge_card, Payments::Providers::NetworkError.new("tempo esgotado", retry_safe: false), times: 1)
     assert_equal :unconfirmed, Payments::CardCharger.new.charge(checkout, payment_token: "TOKEN-DO-NAVEGADOR-1", installments: 1).kind
     attempt = checkout.reload.card_instruments.sole

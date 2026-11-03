@@ -30,6 +30,9 @@
 !/app/assets/builds/.keep
 /public/assets
 
+# OpenUI5 instalado no ambiente de desenvolvimento: a imagem instala o seu, conferido (bin/ui5-instalar).
+/public/ui5
+
 # Ignore development files
 /.devcontainer
 

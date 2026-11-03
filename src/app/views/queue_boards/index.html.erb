@@ -1,0 +1,54 @@
+<% content_for :title, "Filas" %>
+<% content_for :cable_channels, @cable %>
+<%= pagina "Filas", subtitulo: "Quantos estão disponíveis, em atendimento e aguardando em cada fila, e quem está atendendo o quê agora." %>
+<%= render "queue_boards/credores", rota: :queues_board_path %>
+<div id="visao-das-filas" hx-get="<%= queues_board_path(tenant_id: @tenant.id) %>" hx-trigger="cable:queues-changed from:body" hx-select="#visao-das-filas" hx-swap="outerHTML" hx-push-url="false" hx-disinherit="hx-select hx-swap hx-push-url">
+  <section class="cartao" aria-labelledby="por-fila">
+    <header><h2 id="por-fila">Por fila</h2></header>
+    <% if @queues.empty? %>
+      <p class="vazio">Nenhuma fila. <%= link_to "Monte o enquadramento das filas", queues_work_queues_path(tenant_id: @tenant.id) %>.</p>
+    <% else %>
+      <div class="tabela" tabindex="0">
+        <table>
+          <caption class="apenas-leitor-de-tela">Filas de <%= @tenant.name %></caption>
+          <thead><tr><th scope="col">Fila</th><th scope="col">Sujeito</th><th scope="col" data-numerico>Disponíveis</th><th scope="col" data-numerico>Em atendimento</th><th scope="col" data-numerico>Aguardando</th></tr></thead>
+          <tbody>
+            <% @queues.each do |queue| %>
+              <tr>
+                <th scope="row"><%= link_to queue.name, queues_board_queue_path(queue, tenant_id: @tenant.id) %> <% unless @grouped.include?(queue.id) %><%= situacao "Sem grupo", tom: :warning %><% end %></th>
+                <td><%= t("queues.subjects.#{queue.subject}") %></td>
+                <td data-numerico><%= number_br(@available[queue.id].to_i - @in_service[queue.id].to_i) %></td>
+                <td data-numerico><%= number_br(@in_service[queue.id].to_i) %></td>
+                <td data-numerico><%= number_br(@waiting[queue.id].to_i) %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% end %>
+  </section>
+  <section class="cartao" aria-labelledby="por-operador">
+    <header><h2 id="por-operador">Em atendimento agora</h2></header>
+    <% if @open.empty? %>
+      <p class="vazio">Ninguém está com uma entrega aberta.</p>
+    <% else %>
+      <div class="tabela" tabindex="0">
+        <table>
+          <caption class="apenas-leitor-de-tela">Entregas abertas por operador</caption>
+          <thead><tr><th scope="col">Operador</th><th scope="col">Fila</th><th scope="col">Desde</th><th scope="col">Travado até</th><th scope="col"><span class="apenas-leitor-de-tela">Ações</span></th></tr></thead>
+          <tbody>
+            <% @open.each do |delivery| %>
+              <tr>
+                <th scope="row"><%= delivery.user.name %></th>
+                <td><%= delivery.work_queue.name %></td>
+                <td><%= l(delivery.delivered_at, format: :short) %></td>
+                <td><%= l(delivery.locked_until, format: :short) %></td>
+                <td data-acoes><%= button_to "Liberar", queues_release_path(delivery), data: { variant: "secondary", size: "small" } %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% end %>
+  </section>
+</div>

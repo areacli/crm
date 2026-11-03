@@ -20,10 +20,7 @@ class DemoScreensSystemTest < ApplicationSystemTestCase
   end
 
   def entrar
-    visit new_session_path
-    fill_in "E-mail", with: users(:joana).email_address
-    fill_in "Senha", with: "senha-de-teste-1"
-    click_button "Entrar"
+    entrar_pela_spa(users(:joana).email_address, "senha-de-teste-1")
     assert_selector "h1", text: "Resumo da carteira"
   end
 
@@ -33,16 +30,17 @@ class DemoScreensSystemTest < ApplicationSystemTestCase
     larguras.each do |largura|
       page.driver.resize(largura, 900)
       visit current_path
-      assert_selector "aside.demonstracao", text: "Demonstração: os dados são fictícios"
+      # A faixa das páginas do servidor (aside) e a da SPA (decisão 0025, o mesmo texto no topo da casca).
+      assert_selector "aside.demonstracao, .demonstracao", text: "Demonstração: os dados são fictícios", wait: 30
       assert_acessivel if largura >= 1024 || axe_no_celular
       assert_no_horizontal_scroll if sem_rolagem
     end
   end
 
   test "a entrada mostra a faixa e os usuários da demonstração, acessíveis e sem rolagem lateral" do
-    visit new_session_path
-    assert_selector "code", text: Demo.email("gestor")
-    assert_selector "code", text: Demo.password("operador")
+    visit root_path
+    assert_text Demo.email("gestor"), wait: 30
+    assert_text Demo.password("operador")
     conferir(1440, 390, axe_no_celular: true)
   end
 
@@ -79,7 +77,7 @@ class DemoScreensSystemTest < ApplicationSystemTestCase
     page.execute_script("const m = document.getElementById('menu-principal'); m.scrollTop = m.scrollHeight")
     fim = "(() => { const itens = document.querySelectorAll('#menu-principal a'); return itens[itens.length - 1].getBoundingClientRect().bottom <= window.innerHeight })()"
     assert page.evaluate_script(fim), "o último item do menu ficou fora da janela"
-    visit root_path
+    visit summary_path
     page.execute_script("window.scrollTo(0, 400)")
     assert_equal page.evaluate_script("document.querySelector('body > header').getBoundingClientRect().bottom"),
                  page.evaluate_script("document.getElementById('menu-principal').getBoundingClientRect().top"), "o menu rolou com a página"

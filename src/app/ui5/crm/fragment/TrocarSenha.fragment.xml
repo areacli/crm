@@ -1,0 +1,17 @@
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core">
+	<Dialog id="dialogoDaSenha" title="{i18n>senha.titulo.troca}" contentWidth="25rem" class="sapUiContentPadding">
+		<VBox renderType="Bare">
+			<Text text="{i18n>senha.subtitulo.troca}" class="sapUiSmallMarginBottom" />
+			<MessageStrip id="mensagemDaSenha" type="Error" showIcon="true" visible="false" class="sapUiSmallMarginBottom" />
+			<Label text="{i18n>senha.atual}" labelFor="atual" required="true" />
+			<Input id="atual" type="Password" maxLength="72" />
+			<Label text="{i18n>senha.nova}" labelFor="nova" required="true" class="sapUiSmallMarginTop" />
+			<Input id="nova" type="Password" maxLength="72" ariaDescribedBy="ajudaDaSenha" />
+			<Text id="ajudaDaSenha" text="{i18n>senha.ajuda}" class="entrada-nota" />
+			<Label text="{i18n>senha.repetir}" labelFor="repetir" required="true" class="sapUiSmallMarginTop" />
+			<Input id="repetir" type="Password" maxLength="72" submit=".salvarSenha" />
+		</VBox>
+		<beginButton><Button text="{i18n>senha.salvar}" type="Emphasized" press=".salvarSenha" /></beginButton>
+		<endButton><Button text="{i18n>acao.cancelar}" press=".fecharSenha" /></endButton>
+	</Dialog>
+</core:FragmentDefinition>

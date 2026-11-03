@@ -21,7 +21,7 @@ class AgreementsController < ApplicationController
     @agreements = @pagination.records.to_a
     @cases = Agreements::ManagerCases.for(Current.user) if params[:page].blank?
     @cable = Current.user.tenant_ids_with("negotiate_agreements").map { |id| { channel: "AgreementsChannel", tenant_id: id } }.to_json
-    render partial: "agreements/result" if htmx_fragment?
+    render partial: "agreements/result" if htmx_fragment? && !request.format.json?
   end
 
   def show

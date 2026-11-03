@@ -17,10 +17,7 @@ class PaymentsScreensSystemTest < ApplicationSystemTestCase
                               summary: { lines: 3, valid: 2, rejected: 1, ignored: 0, amount_formatted: "500,00",
                                          effect: { settled: 1, partial: 1, credits: 0, credit_cents: 0, pending_new: 0, applied_cents: 50_000 } })
     @checked.rejections.create!(line: 4, reason: "título não informado")
-    visit new_session_path
-    fill_in "E-mail", with: users(:joana).email_address
-    fill_in "Senha", with: "senha-de-teste-1"
-    click_button "Entrar"
+    entrar_pela_spa(users(:joana).email_address, "senha-de-teste-1")
     assert_selector "h1", text: "Resumo da carteira"
   end
 
@@ -29,14 +26,14 @@ class PaymentsScreensSystemTest < ApplicationSystemTestCase
     assert_acessivel
 
     visit settings_channels_path
-    assert_selector "h1", text: "Canais de recebimento"
+    assert_selector "h1", text: "Métodos de recebimento"
     assert_acessivel
     click_link "Políticas de pagamento"
     assert_selector "h1", text: "Políticas de pagamento"
     assert_acessivel
-    click_link "Canais de recebimento"
-    click_link "Criar canal"
-    assert_selector "dialog#painel[open][data-variant=drawer]", text: "Novo canal de recebimento"
+    click_link "Métodos de recebimento"
+    click_link "Criar método de recebimento"
+    assert_selector "dialog#painel[open][data-variant=drawer]", text: "Novo método de recebimento"
     assert_acessivel
     within("dialog#painel[open]") { click_button "Cancelar" }
     visit edit_settings_channel_path(@channel)

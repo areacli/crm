@@ -10,7 +10,7 @@ module Agreements
       scope = scope.where(tenant_id: params[:tenant]) if params[:tenant].present?
       @agreements = scope.includes(:customer, :tenant, :user).order(:valid_until, :id).to_a
       @cable = Current.user.tenant_ids_with("negotiate_agreements").map { |id| { channel: "AgreementsChannel", tenant_id: id } }.to_json
-      render partial: "agreements/pendings/result" if htmx_fragment?
+      render partial: "agreements/pendings/result" if htmx_fragment? && !request.format.json?
     end
   end
 end

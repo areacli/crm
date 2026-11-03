@@ -1,0 +1,44 @@
+<mvc:View controllerName="crm.controller.EnquadramentoDasFilas" xmlns:mvc="sap.ui.core.mvc" xmlns="sap.m" xmlns:f="sap.f" xmlns:card="sap.f.cards" xmlns:core="sap.ui.core" height="100%">
+	<!-- Enquadramento das filas (15, R349, R357; modelo Configuração): por sujeito, os itens em ordem; incluir, editar, mover e excluir passam pela
+	     conferência do impacto, que abre numa aba; ordem e tempos de uma fila valem na hora (painel lateral). -->
+	<f:FlexibleColumnLayout id="colunas" layout="OneColumn" backgroundDesign="Solid">
+		<f:beginColumnPages>
+			<f:DynamicPage toggleHeaderOnTitleClick="false">
+				<f:title><f:DynamicPageTitle>
+					<f:heading><Title text="{i18n>filas.enquadramento.titulo}" level="H2" /></f:heading>
+					<f:expandedContent><Text text="{i18n>filas.enquadramento.subtitulo}" /></f:expandedContent>
+				</f:DynamicPageTitle></f:title>
+				<f:content>
+					<VBox renderType="Bare">
+						<core:Fragment fragmentName="crm.fragment.Credores" type="XML" />
+						<VBox items="{path: 'dados>/enquadramentos', templateShareable: false}" renderType="Bare">
+							<f:Card class="sapUiSmallMarginBottom">
+								<f:header><card:Header title="{dados>nome}">
+									<card:toolbar><Button text="{i18n>enquadramento.incluir}" press=".incluir" /></card:toolbar>
+								</card:Header></f:header>
+								<f:content>
+									<Table items="{path: 'dados>itens', templateShareable: false}" fixedLayout="false">
+										<columns>
+											<Column hAlign="End" width="4rem"><Text text="{i18n>enquadramento.ordem}" /></Column><Column><Text text="{i18n>enquadramento.item}" /></Column>
+											<Column><Text text="{i18n>enquadramento.segmento}" /></Column><Column><Text text="{i18n>filas.ordemDaFila}" /></Column>
+											<Column><Text text="{i18n>filas.travaEIntervalos}" /></Column><Column hAlign="End"><Text text="{i18n>filas.naFila}" /></Column><Column hAlign="End"><Text text="" /></Column>
+										</columns>
+										<items><ColumnListItem><cells>
+											<Text text="{dados>ordem}" />
+											<HBox alignItems="Center" renderType="Bare"><Text text="{dados>nome}" wrapping="false" class="sapUiTinyMarginEnd" />
+												<ObjectStatus text="{i18n>enquadramento.trilhaPadrao}" inverted="true" visible="{dados>trilha_padrao}" class="sapUiTinyMarginEnd" />
+												<ObjectStatus text="{i18n>filas.semFila}" inverted="true" visible="{dados>sem_fila}" /></HBox>
+											<Text text="{dados>segmento}" /><Text text="{dados>ordem_da_fila}" /><Text text="{dados>tempos}" wrapping="false" /><Text text="{dados>na_fila}" />
+											<Button icon="sap-icon://overflow" type="Transparent" tooltip="{i18n>lista.acoes}" press=".acoes" visible="{= ${dados>entrega} || !${dados>trilha_padrao} }" />
+										</cells></ColumnListItem></items>
+									</Table>
+								</f:content>
+							</f:Card>
+						</VBox>
+						<Text text="{i18n>filas.enquadramento.nota}" class="nota" />
+					</VBox>
+				</f:content>
+			</f:DynamicPage>
+		</f:beginColumnPages>
+	</f:FlexibleColumnLayout>
+</mvc:View>

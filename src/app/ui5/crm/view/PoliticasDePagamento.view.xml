@@ -1,0 +1,53 @@
+<mvc:View controllerName="crm.controller.PoliticasDePagamento" xmlns:mvc="sap.ui.core.mvc" xmlns="sap.m" xmlns:f="sap.f" xmlns:card="sap.f.cards" xmlns:core="sap.ui.core" height="100%">
+	<!-- Políticas de pagamento (R46, R46a, R62a, R64; 16; 11, R243; modelo Configuração): por credor, as políticas de pagamento lado a lado e as de crédito,
+	     pagamento e tolerância dos acordos; cada cartão grava com o botão do cabeçalho. -->
+	<f:DynamicPage toggleHeaderOnTitleClick="false">
+		<f:title><f:DynamicPageTitle>
+			<f:heading><Title text="{i18n>pagamento.titulo}" level="H2" /></f:heading>
+			<f:expandedContent><Text text="{i18n>pagamento.subtitulo}" /></f:expandedContent>
+		</f:DynamicPageTitle></f:title>
+		<f:content>
+			<VBox items="{path: 'dados>/credores', templateShareable: false}" renderType="Bare">
+				<VBox renderType="Bare">
+					<f:Card class="sapUiSmallMarginBottom">
+						<f:header><card:Header title="{dados>nome}">
+							<card:toolbar><Button text="{i18n>operacoes.salvarPoliticas}" type="Emphasized" press=".salvarPagamento" /></card:toolbar>
+						</card:Header></f:header>
+						<f:content>
+							<FlexBox wrap="Wrap" alignItems="Start" renderType="Bare" class="sapUiSmallMargin" items="{path: 'dados>pagamento', templateShareable: false}">
+								<VBox renderType="Bare" class="bloco-de-politica sapUiSmallMarginBottom">
+									<Title text="{dados>titulo}" level="H3" wrapping="true" />
+									<VBox items="{path: 'dados>opcoes', templateShareable: false}" renderType="Bare">
+										<RadioButton groupName="{dados>grupo}" text="{dados>nome}" selected="{dados>marcada}" select=".escolher" wrapping="true" />
+									</VBox>
+								</VBox>
+							</FlexBox>
+						</f:content>
+					</f:Card>
+					<f:Card class="sapUiSmallMarginBottom">
+						<f:header><card:Header title="{parts: ['i18n>pagamento.acordos', 'dados>nome'], formatter: '.formatarTexto'}" subtitle="{i18n>pagamento.acordos.ajuda}">
+							<card:toolbar><Button text="{i18n>pagamento.salvarAcordos}" type="Emphasized" press=".salvarAcordos" /></card:toolbar>
+						</card:Header></f:header>
+						<f:content>
+							<FlexBox wrap="Wrap" alignItems="Start" renderType="Bare" class="sapUiSmallMargin" items="{path: 'dados>acordos', templateShareable: false}">
+								<VBox renderType="Bare" class="bloco-de-politica sapUiSmallMarginBottom">
+									<HBox alignItems="Center" renderType="Bare"><Title text="{dados>titulo}" level="H3" wrapping="true" />
+										<Button icon="sap-icon://hint" type="Transparent" tooltip="{dados>titulo}" press=".mostrarAjuda" /></HBox>
+									<VBox items="{path: 'dados>opcoes', templateShareable: false}" renderType="Bare" visible="{dados>escolha}">
+										<RadioButton groupName="{dados>grupo}" text="{dados>nome}" selected="{dados>marcada}" select=".escolher" wrapping="true" />
+									</VBox>
+									<HBox renderType="Bare" visible="{= !${dados>escolha} }" alignItems="End">
+										<VBox renderType="Bare" class="sapUiSmallMarginEnd"><Label text="{i18n>pagamento.em}" />
+											<Select selectedKey="{dados>tipo}" items="{path: 'dados>tipos', templateShareable: false}"><core:Item key="{dados>id}" text="{dados>nome}" /></Select></VBox>
+										<VBox renderType="Bare"><Label text="{i18n>pagamento.valor}" /><Input value="{dados>quantia}" width="9rem" /></VBox>
+									</HBox>
+									<Text text="{dados>ultima}" visible="{= !!${dados>ultima} }" class="nota" />
+								</VBox>
+							</FlexBox>
+						</f:content>
+					</f:Card>
+				</VBox>
+			</VBox>
+		</f:content>
+	</f:DynamicPage>
+</mvc:View>

@@ -24,7 +24,7 @@ class CustomersController < ApplicationController
     @segment = Segment.find_by(id: params[:segment], tenant_id: @settings.keys) if params[:segment].present?
     # 14, R320: a busca do usuário de operação fica na trilha (o texto buscado e quantos resultados).
     Operations::Trail.record("search", user: Current.user, query: params[:q], results: @pagination.total) if params[:q].present?
-    render partial: "customers/result" if htmx_fragment?
+    render partial: "customers/result" if htmx_fragment? && !request.format.json?
   end
 
   def show

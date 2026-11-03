@@ -10,7 +10,7 @@ module Payments
 
     # `data`: identifier, document, bill_number, paid_on (Date ou ISO 8601), amount_cents, payment_method.
     def pay(channel, data, label:)
-      return Result.new(:rejected, "canal desativado") unless channel.active?
+      return Result.new(:rejected, "método de recebimento desativado") unless channel.active?
 
       row, reason = validate(channel, data)
       return Result.new(:rejected, reason) unless row
@@ -31,7 +31,7 @@ module Payments
     # Estorno de um pagamento já registrado (devolução de Pix, reembolso de cartão): reduz do crédito e do título pelas regras de estorno (R60 a R63).
     # `payment_identifier`: o identificador do pagamento no canal; `identifier`: o do estorno (único por canal).
     def reverse(channel, payment_identifier:, identifier:, reversed_on:, amount_cents:, reason:, label:)
-      return Result.new(:rejected, "canal desativado") unless channel.active?
+      return Result.new(:rejected, "método de recebimento desativado") unless channel.active?
       return Result.new(:rejected, "pagamento não encontrado") unless Payment.exists?(tenant_id: channel.tenant_id, channel_id: channel.id, identifier: payment_identifier)
       return Result.new(:rejected, "valor inválido") unless amount_cents.is_a?(Integer) && amount_cents.positive?
       return Result.new(:ignored, "estorno já registrado") if PaymentReversal.exists?(tenant_id: channel.tenant_id, channel_id: channel.id, identifier: identifier)
@@ -55,7 +55,7 @@ module Payments
         paid_on = data[:paid_on].is_a?(Date) ? data[:paid_on] : (Date.iso8601(data[:paid_on].to_s) rescue nil)
         return [ nil, "data inválida" ] unless paid_on && data[:amount_cents].is_a?(Integer) && data[:amount_cents].positive?
 
-        values = { "canal" => channel.code, "identificador" => data[:identifier], "documento" => data[:document], "titulo" => data[:bill_number],
+        values = { "metodo_recebimento" => channel.code, "identificador" => data[:identifier], "documento" => data[:document], "titulo" => data[:bill_number],
                    "data_pagamento" => paid_on.strftime("%d/%m/%Y"), "valor" => Money.format(data[:amount_cents]), "meio" => data[:payment_method] }
         PaymentRowValidator.new.validate(Portfolio::CsvFile::Row.new(line: 1, values: values, extra: false, short: false))
       end

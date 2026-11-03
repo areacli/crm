@@ -12,10 +12,7 @@ class AgreementReversalsScreensSystemTest < ApplicationSystemTestCase
     travel_day(Date.new(2026, 11, 4))
     pay_lines([ pay_line("ACD-000001-00", Date.new(2026, 11, 4), 34_366, id: "PIX-ENTRADA") ])
     travel_back
-    visit new_session_path
-    fill_in "E-mail", with: users(:joana).email_address
-    fill_in "Senha", with: "senha-de-teste-1"
-    click_button "Entrar"
+    entrar_pela_spa(users(:joana).email_address, "senha-de-teste-1")
     assert_selector "h1", text: "Resumo da carteira"
   end
 
@@ -69,7 +66,7 @@ class AgreementReversalsScreensSystemTest < ApplicationSystemTestCase
   end
 
   test "o painel traz o cartão de acordos do credor" do
-    visit root_path
+    visit summary_path
     assert_selector "h2", text: /\AAcordos/
     assert_selector "dt", text: /Dos quais em acordo/
     assert_acessivel

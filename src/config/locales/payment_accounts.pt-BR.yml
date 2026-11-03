@@ -5,8 +5,8 @@ pt-BR:
       payment_account:
         nickname: "Apelido"
         provider: "Fornecedor"
-        modality: "Modalidade"
-        channel: "Canal"
+        modality: "Meio de pagamento"
+        channel: "Método de recebimento"
     errors:
       models:
         payment_account:
@@ -32,7 +32,7 @@ pt-BR:
           attributes:
             base:
               "restrict_dependent_destroy":
-                has_many: "O canal tem contas de pagamento e não pode ser excluído."
+                has_many: "O método de recebimento tem integrações e não pode ser excluído."
   payments:
     instruments:
       no_account: "O credor não tem conta de %{kind} ativa neste ambiente."
@@ -56,7 +56,7 @@ pt-BR:
       no_private_key: "O arquivo não tem a chave privada."
       expired: "O certificado venceu em %{date}."
     channels:
-      has_accounts: "O canal tem contas de pagamento. Apague-as antes de apagar o canal."
+      has_accounts: "O método de recebimento tem integrações. Exclua-as antes de excluir o método."
     accounts:
       in_use: "A conta já emitiu instrumentos e não se apaga; desative-a."
       modalities:
@@ -79,7 +79,7 @@ pt-BR:
         failed: "Falha: %{message}"
       fields:
         nickname: "Apelido"
-        channel: "Canal"
+        channel: "Método de recebimento"
         active: "Situação"
         connection: "Conexão"
       history:

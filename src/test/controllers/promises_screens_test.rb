@@ -198,7 +198,7 @@ class PromisesScreensTest < ActionDispatch::IntegrationTest
     register_promise(@customer, [ @nf1 ])
     insert_attempt(@customer, result: result_of(@alfa, :promised))
     entrar(users(:ana))
-    get root_path
+    get summary_path
     assert_select "h2", text: "Promessas"
     assert_select "h2", text: /Promessas — /, count: 0
     assert_select "section[aria-labelledby=promessas] tr", text: /Promessas registradas\s*1/

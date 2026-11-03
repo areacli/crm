@@ -23,7 +23,7 @@ module Demo
     def payments(tenant)
       channel = tenant.payment_channels.where(active: true).order(:id).first
       stamp = Time.current.strftime("%Y%m%d%H%M%S")
-      rows = [ "canal;identificador;documento;titulo;data_pagamento;valor;meio" ]
+      rows = [ "metodo_recebimento;identificador;documento;titulo;data_pagamento;valor;meio" ]
       Bill.where(tenant_id: tenant.id, status: "active").where("paid_cents = 0").includes(:customer).order(id: :desc).limit(30).each_with_index do |bill, index|
         cents = case index % 3
         when 0 then bill.amount_cents
@@ -39,7 +39,7 @@ module Demo
     # Estornos parciais de pagamentos já aplicados do credor.
     def reversals(tenant)
       stamp = Time.current.strftime("%Y%m%d%H%M%S")
-      rows = [ "canal;identificador_pagamento;identificador_estorno;data_estorno;valor;motivo" ]
+      rows = [ "metodo_recebimento;identificador_pagamento;identificador_estorno;data_estorno;valor;motivo" ]
       Payment.where(tenant_id: tenant.id, status: "applied").where("reversed_cents < amount_cents").joins(:channel).order(id: :desc).limit(10)
              .pluck("payment_channels.code", :identifier, :amount_cents, :reversed_cents).each_with_index do |(code, identifier, amount, reversed), index|
         rows << [ code, identifier, "R#{stamp}#{index}", Date.current.strftime("%d/%m/%Y"), Money.format([ (amount - reversed) / 3, 1 ].max), "contestação do pagador" ].join(";")

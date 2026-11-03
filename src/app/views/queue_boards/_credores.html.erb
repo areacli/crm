@@ -1,0 +1,8 @@
+<%# Credor da página, quando o usuário gerencia filas em mais de um (sem seleção global de credor, MT-5). Local: rota (o helper do caminho). %>
+<% if @tenants.size > 1 %>
+  <p class="pilulas">Credor:
+    <% @tenants.each do |tenant| %>
+      <%= link_to tenant.name, public_send(rota, tenant_id: tenant.id), "aria-current": (tenant == @tenant ? "page" : nil) %>
+    <% end %>
+  </p>
+<% end %>

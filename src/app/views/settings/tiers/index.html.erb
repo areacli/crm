@@ -1,6 +1,6 @@
 <% content_for :title, "Configuração · Enquadramento financeiro" %>
 <% content_for :cable_channels, @tenants.map { |tenant| { channel: "SegmentsChannel", tenant_id: tenant.id } }.to_json %>
-<%= pagina "Enquadramento financeiro", subtitulo: "Cada contrato em aberto recebe as regras do primeiro item cujo segmento ele atende, de cima para baixo. Quem não atende nenhum fica em Demais." %>
+<%= pagina "Enquadramento financeiro", subtitulo: "Cada contrato recebe as regras do primeiro item cujo segmento ele atende, de cima para baixo. Quem não atende nenhum fica em Demais." %>
 <%= render "settings/modelo" %>
 
 <div id="enquadramento" hx-get="<%= settings_tiers_path %>" hx-trigger="cable:segments-changed from:body" hx-swap="outerHTML" hx-push-url="false" hx-select="#enquadramento" hx-disinherit="hx-select hx-swap hx-push-url">

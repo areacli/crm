@@ -340,7 +340,7 @@ class RegistryScreensTest < ActionDispatch::IntegrationTest
     assert_select "aside", text: /Dados de Escola Alfa salvos/
     assert_select "input[name='tenant[cnpj]'][value='11.222.333/0001-81']"
     assert_select "p", text: /Última alteração: Joana Souza/
-    get root_path
+    get summary_path
     assert_select "section header p", text: /Exemplo/, count: 0 # o resumo só tem totais, sem nome de credor (25/10/2026)
   end
 
@@ -368,7 +368,7 @@ class RegistryScreensTest < ActionDispatch::IntegrationTest
 
     get settings_tenant_registry_path
     assert_response :not_found
-    get root_path
+    get summary_path
     assert_select "#menu-principal .submenu a", text: "Dados do credor", count: 0
   end
 

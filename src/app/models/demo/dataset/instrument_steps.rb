@@ -13,7 +13,7 @@ module Demo
           sources = candidates(tenant, 8, older_than: 5)
           emit = lambda do |source, kind|
             bill = source[:bills].first
-            instrument = issuer.request(tenant: tenant, kind: kind, amount_cents: bill.amount_cents, customer: source[:customer], due_on: today + 5, reference: [ "bill", bill.number ])
+            instrument = issuer.request(tenant: tenant, kind: kind, amount_cents: bill.amount_cents, customer: source[:customer], due_on: today + 5, object: bill)
             issuer.perform(instrument)
             instrument.reload
           end
@@ -28,7 +28,7 @@ module Demo
           bill = example[:bills].first
           boleto = emit.call(example, "boleto")
           pix = emit.call(example, "pix")
-          checkout = Payments::Checkouts.create(tenant: tenant, customer: example[:customer], instruments: [ boleto, pix ], card: true, amount_cents: bill.amount_cents,
+          checkout = Payments::Checkouts.create(tenant: tenant, customer: example[:customer], object: bill, instruments: [ boleto, pix ], card: true, amount_cents: bill.amount_cents,
                                                 description: "#{bill.description} (#{bill.number})")
           checkout.update_column(:token, CHECKOUT_TOKEN)
           Payments::Providers::Fake.reset!

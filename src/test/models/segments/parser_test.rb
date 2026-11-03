@@ -16,6 +16,8 @@ class SegmentsParserTest < ActiveSupport::TestCase
       tree_of("contracts", { "path" => "overdue_days", "op" => "between", "value" => [ 30, 90 ] }, { "path" => "balance", "op" => "lte", "value" => 500_050 }),
       tree_of("contracts", { "path" => "person_type", "op" => "in", "value" => %w[person mixed] }, { "path" => "product", "op" => "eq", "value" => "Mensalidade" }),
       tree_of("contracts", { "path" => "broke_agreement", "op" => "is", "negate" => true }, { "path" => "in_arrears", "op" => "is" }),
+      tree_of("contracts", { "path" => "in_collection", "op" => "is" }, { "path" => "in_arrears", "op" => "is", "negate" => true }),
+      tree_of("customers", { "path" => "contracts", "qualifier" => "in_collection", "aggregate" => "count", "op" => "gte", "value" => 1 }),
       tree_of("contracts", { "path" => "overdue_percent", "op" => "gte", "value" => 80 }, { "path" => "overdue_days", "op" => "gt", "value" => 10, "negate" => true }),
       tree_of("contracts", { "path" => "bills", "qualifier" => "overdue", "aggregate" => "count", "op" => "gte", "value" => 3 },
               { "path" => "bills", "qualifier" => "overdue", "aggregate" => "sum", "field" => "balance", "op" => "gt", "value" => 500_000 }),

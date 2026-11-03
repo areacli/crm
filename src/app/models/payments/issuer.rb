@@ -1,5 +1,5 @@
 module Payments
-  # Emissão de boleto e Pix (12, R271 a R276). Só por serviço (console, testes, o futuro disparador): o back office não tem tela de emissão (R270).
+  # Emissão de boleto e Pix (12, R271 a R276). Os pedidos da ficha, do registro, do lote e da régua (16) chegam aqui pelo `Instruments::Request`.
   #
   # `request` grava o instrumento `emitting` com o nosso `custom_id` (repetir o pedido com o mesmo `custom_id` devolve o mesmo instrumento, R272) e
   # enfileira `IssueInstrumentJob` (fila `default`); `perform` é o trabalho do job: chama o fornecedor da conta ativa, baixa o PDF daqui (ou gera
@@ -16,7 +16,8 @@ module Payments
     # (ou PAYMENTS_ISSUE_PER_MINUTE); o fornecedor pode impor um limite menor no manifesto (`batch_limit`).
     def self.per_minute = Rails.configuration.x.payments.issue_per_minute
 
-    # `customer`: o pagador (nome, documento e endereço são copiados na emissão). `reference`: [tipo, número] opaco do objeto cobrado.
+    # `customer`: o pagador (nome, documento e endereço são copiados na emissão). `object`: o título ou a promessa cobrada (16; obrigatório).
+    # `origin` e `requested_by`: de onde veio o pedido e quem o fez (16, R394).
     def request(**attributes)
       instrument = build(**attributes)
       IssueInstrumentJob.perform_later(instrument.id) if instrument.state_emitting? && instrument.attempts.zero? && instrument.previously_new_record?
@@ -97,7 +98,8 @@ module Payments
 
     private
       # Grava o instrumento `emitting`; com o mesmo `custom_id` devolve o que já existe (R272).
-      def build(tenant:, kind:, amount_cents:, customer:, due_on: nil, custom_id: nil, environment: "production", reference: nil, options: {})
+      def build(tenant:, kind:, amount_cents:, customer:, object:, due_on: nil, custom_id: nil, environment: "production", options: {}, origin: "service",
+                requested_by: nil, approved_by: nil, instrument_batch: nil, object_snapshot: {})
         custom_id ||= SecureRandom.alphanumeric(32)
         existing = PaymentInstrument.find_by(tenant_id: tenant.id, custom_id: custom_id)
         return existing if existing
@@ -106,7 +108,8 @@ module Payments
           raise NoAccount, I18n.t("payments.instruments.no_account", kind: I18n.t("payments.accounts.modalities.#{kind}"))
         due_on ||= Date.current + account.config.fetch("expire_days", 5).to_i
         PaymentInstrument.create!(tenant: tenant, account: account, provider: account.provider, customer: customer, kind: kind.to_s, amount_cents: amount_cents,
-                                  due_on: due_on, custom_id: custom_id, reference_type: reference&.first&.to_s, reference_id: reference&.last,
+                                  due_on: due_on, custom_id: custom_id, object: object, origin: origin, requested_by: requested_by, approved_by: approved_by,
+                                  instrument_batch: instrument_batch, object_snapshot: object_snapshot,
                                   response_summary: { "options" => options.stringify_keys.slice(*ACCOUNT_OPTION_KEYS, "description") }, **Payer.snapshot(customer))
       rescue ActiveRecord::RecordNotUnique
         PaymentInstrument.find_by!(tenant_id: tenant.id, custom_id: custom_id)

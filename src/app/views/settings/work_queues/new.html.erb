@@ -1,0 +1,11 @@
+<%= formulario_de_painel(titulo: "Incluir item no enquadramento de #{t("queues.subjects.#{@subject}").downcase}", url: queues_work_queues_path(tenant_id: @tenant.id, sujeito: @subject),
+                         enviar: "Conferir o impacto", escopo: :queue, variante: :modal, tamanho: :small, erro: @error, voltar: queues_work_queues_path(tenant_id: @tenant.id),
+                         descricao: "Quem o segmento pegar vai para este item, se nenhum item acima o pegar antes.") do |form| %>
+  <%= render "settings/work_queues/form_fields", form: form, item: nil %>
+  <% unless @segments.empty? %>
+    <div class="campo">
+      <%= form.label :position, "Posição" %>
+      <%= form.select :position, @current.each_with_index.map { |item, index| [ "Antes de #{item.name}", index ] } + [ [ "No fim", @current.size ] ], selected: @current.size %>
+    </div>
+  <% end %>
+<% end %>

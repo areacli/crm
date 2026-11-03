@@ -12,51 +12,57 @@ class DemoModeTest < ActionDispatch::IntegrationTest
 
   def entrar(user) = post(session_path, params: { email_address: user.email_address, password: "senha-de-teste-1" })
 
+  # A entrada é uma tela da SPA (decisão 0025): a casca entrega à tela a hora da recriação e os usuários públicos.
+  def configuracao_da_casca = JSON.parse(css_select("#configuracao-da-casca").text)
+
   test "a faixa avisa que os dados são fictícios e a tela de entrada lista os usuários públicos" do
-    get new_session_path
-    assert_select "aside.demonstracao", /fictícios e recriados todo dia às 04:00/
-    assert_select "code", text: Demo.email("gestor")
-    assert_select "code", text: Demo.password("operador")
+    get root_path
+    demonstracao = configuracao_da_casca["demonstracao"]
+    assert_equal "04:00", demonstracao["recriacao"]
+    assert_includes demonstracao["usuarios"].map { |usuario| usuario["email"] }, Demo.email("gestor")
+    assert_includes demonstracao["usuarios"].map { |usuario| usuario["senha"] }, Demo.password("operador")
     Rails.configuration.x.demo.enabled = false
-    get new_session_path
-    assert_select "aside.demonstracao", count: 0
+    get root_path
+    assert_nil configuracao_da_casca["demonstracao"]
   end
 
   test "a faixa aparece nas telas e a troca de senha some do menu do usuário" do
     entrar(users(:joana))
-    get root_path
+    get summary_path
     assert_select "aside.demonstracao"
     assert_select "a", text: "Trocar a senha", count: 0
+    get root_path
+    assert_equal false, configuracao_da_casca["pode_trocar_senha"]
   end
 
   test "usuários, perfis, senha e contas de pagamento recusam alteração com a mensagem da demonstração" do
     entrar(users(:joana))
     post memberships_path, params: { membership: { tenant_id: @alfa.id, email_address: "novo@exemplo.com.br", name: "Novo", profile_id: 1 } }
-    assert_redirected_to root_path
+    assert_redirected_to summary_path
     assert_equal Demo::Restrictions::MESSAGE, flash[:alert]
     assert_not User.exists?(email_address: "novo@exemplo.com.br")
 
     post profiles_path, params: { profile: { tenant_id: @alfa.id, name: "Perfil novo", permissions: [ "view_portfolio" ] } }
-    assert_redirected_to root_path
+    assert_redirected_to summary_path
     assert_not Profile.exists?(name: "Perfil novo")
 
     get edit_password_path
-    assert_redirected_to root_path
+    assert_redirected_to summary_path
     patch password_path, params: { password: { current_password: "senha-de-teste-1", password: "uma-senha-nova-bem-longa", password_confirmation: "uma-senha-nova-bem-longa" } }
-    assert_redirected_to root_path
+    assert_redirected_to summary_path
     assert users(:joana).reload.authenticate("senha-de-teste-1"), "a senha não mudou"
 
     post settings_payment_accounts_path, params: { payment_account: { tenant_id: @alfa.id, modality: "boleto", provider: "fake", nickname: "x" } }
-    assert_redirected_to root_path
+    assert_redirected_to summary_path
     assert_equal 0, PaymentAccount.count
 
     patch settings_tenant_registry_path, params: { tenant: { legal_name: "Outro nome" } }
-    assert_redirected_to root_path
+    assert_redirected_to summary_path
   end
 
-  test "a lista de contas de pagamento continua aberta para leitura" do
+  test "a lista dos métodos de recebimento, com as integrações, continua aberta para leitura (16, R373)" do
     entrar(users(:joana))
-    get settings_payment_accounts_path
+    get settings_channels_path
     assert_response :success
   end
 
@@ -104,7 +110,7 @@ class DemoModeTest < ActionDispatch::IntegrationTest
     bill = make_bill(@alfa, number: "NF-77", amount_cents: 50_000)
     path = Demo::Files.for("payments", @alfa)
     rows = File.readlines(path, chomp: true)
-    assert_equal "canal;identificador;documento;titulo;data_pagamento;valor;meio", rows.first
+    assert_equal "metodo_recebimento;identificador;documento;titulo;data_pagamento;valor;meio", rows.first
     assert(rows.any? { |row| row.include?(";NF-77;") && row.start_with?(channel.code) })
     assert(rows.any? { |row| row.include?("NF-9999/1") }, "uma linha de título que não existe")
     File.delete(path)
@@ -116,8 +122,8 @@ class DemoModeTest < ActionDispatch::IntegrationTest
   test "fora da demonstração nada é fechado nem trocado" do
     Rails.configuration.x.demo.enabled = false
     entrar(users(:joana))
-    get edit_password_path
-    assert_response :success
-    assert_select "aside.demonstracao", count: 0
+    get root_path
+    assert_nil configuracao_da_casca["demonstracao"]
+    assert_equal true, configuracao_da_casca["pode_trocar_senha"]
   end
 end

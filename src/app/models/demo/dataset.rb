@@ -16,6 +16,7 @@ module Demo
     include TitularSteps
     include InstrumentSteps
     include OperationSteps
+    include QueueSteps
 
     ALPHA = "Escola Alfa".freeze
     BETA = "Clínica Beta".freeze
@@ -125,6 +126,7 @@ module Demo
         step("  promessas") { promises(tenant) }
         step("  acordos") { agreements(tenant) }
         step("  operações") { operations(tenant) }
+        step("  filas") { queues(tenant) }
         step("  direitos do titular") { titular(tenant) }
         step("  instrumentos e link de pagamento") { instruments(tenant) }
         step("  importação à espera de confirmação") { pending_import(tenant) }
@@ -256,7 +258,7 @@ module Demo
         # O pagamento baixa primeiro os encargos (baixa por componente, 09): quem quita paga o valor atualizado de hoje, que a tabela de valores guarda.
         bills = Bill.where(tenant_id: tenant.id).joins(:customer).joins("left join bill_valuations on bill_valuations.bill_id = bills.id").where("bills.due_date < ?", today - 15).order(:id)
                     .pluck("customers.document", :number, Arel.sql("coalesce(bill_valuations.total_cents, bills.amount_cents)"), :due_date, :id)
-        lines = [ %w[canal identificador documento titulo data_pagamento valor meio] ]
+        lines = [ %w[metodo_recebimento identificador documento titulo data_pagamento valor meio] ]
         methods = %w[pix boleto cartão\ de\ crédito transferência]
         bills.each do |document, number, cents, due, id|
           roll = Zlib.crc32("pay:#{id}") % 100
@@ -293,7 +295,7 @@ module Demo
 
         applied = Payment.where(tenant_id: tenant.id, status: "applied").where("amount_cents > 3000").joins(:channel).order(:id).limit(2_000)
                          .pluck("payment_channels.code", :identifier, :amount_cents)
-        reversals = [ %w[canal identificador_pagamento identificador_estorno data_estorno valor motivo] ]
+        reversals = [ %w[metodo_recebimento identificador_pagamento identificador_estorno data_estorno valor motivo] ]
         applied.each_with_index do |(code, identifier, cents), index|
           next unless (index % 25).zero?
 

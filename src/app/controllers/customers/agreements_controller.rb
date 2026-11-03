@@ -17,6 +17,9 @@ module Customers
       agreement = Agreements::Proposal.new(Current.user, customer).create(Agreements::FormParams.input(raw))
       redirect_to agreement_path(agreement), notice: t(".done", number: agreement.number), status: :see_other
     rescue Agreements::Refused => error
+      # SPA (decisão 0025): a recusa volta em JSON, com o campo, e a tela marca o campo.
+      return render(json: { mensagem: error.message, campo: error.field }, status: :unprocessable_content) if request.format.json?
+
       # A recusa volta ao formulário, com o que foi digitado e a mensagem junto do campo.
       @customer = customer
       @form = raw

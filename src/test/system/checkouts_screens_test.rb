@@ -106,7 +106,7 @@ class CheckoutsScreensSystemTest < ApplicationSystemTestCase
     installments = [ { "installment" => 1, "has_interest" => false, "value" => 5_000, "currency" => "50,00", "interest_percentage" => 0 },
                      { "installment" => 2, "has_interest" => true, "value" => 2_600, "currency" => "26,00", "interest_percentage" => 400 } ]
     use_efi_client(efi_client.on(:get, "/v1/installments", body: { "code" => 200, "data" => { "rate" => 0, "name" => "visa", "installments" => installments } }))
-    checkout = Payments::Checkouts.create(tenant: beta, customer: customer, amount_cents: 5_000, card: true)
+    checkout = Payments::Checkouts.create(tenant: beta, customer: customer, object: bill_for(customer), amount_cents: 5_000, card: true)
     visit checkout_path(checkout)
     watch_policy_violations
     fill_in "Número do cartão", with: "4111 1111 1111 1111"

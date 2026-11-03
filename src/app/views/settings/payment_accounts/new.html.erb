@@ -1,9 +1,9 @@
-<% content_for :title, "Configuração · Nova conta de pagamento" %>
-<%= pagina "Nova conta de pagamento", subtitulo: link_to("Voltar para as contas", settings_payment_accounts_path) %>
+<% content_for :title, "Configuração · Nova integração" %>
+<%= pagina "Nova integração", subtitulo: link_to("Voltar para os métodos de recebimento", settings_channels_path) %>
 <%= render "settings/modelo" %>
 
 <section class="cartao" aria-labelledby="escolha">
-  <header><h2 id="escolha">Credor, modalidade e fornecedor</h2></header>
+  <header><h2 id="escolha">Credor, meio de pagamento e fornecedor</h2></header>
   <div>
     <%= form_with url: new_settings_payment_account_path, method: :get, html: { "hx-boost": "false" } do |form| %>
       <div class="campo">
@@ -11,7 +11,7 @@
         <%= select_tag :tenant_id, options_for_select(@tenants.map { |tenant| [ tenant.name, tenant.id ] }, @account.tenant_id || @tenants.first&.id), required: true %>
       </div>
       <div class="campo">
-        <%= label_tag :modality, "Modalidade" %>
+        <%= label_tag :modality, "Meio de pagamento" %>
         <%= select_tag :modality, options_for_select(Payments::Providers::MODALITIES.map { |modality| [ t("payments.accounts.modalities.#{modality}"), modality ] }, @account.modality), required: true %>
       </div>
       <div class="campo">
@@ -25,11 +25,11 @@
 
 <% if @chosen %>
   <section class="cartao" aria-labelledby="dados">
-    <header><h2 id="dados">Dados da conta: <%= t("payments.accounts.modalities.#{@account.modality}") %> em <%= provider_name(@account.provider) %></h2></header>
+    <header><h2 id="dados">Dados da integração: <%= t("payments.accounts.modalities.#{@account.modality}") %> em <%= provider_name(@account.provider) %></h2></header>
     <div>
       <% if @account.errors.any? %><%= aviso(tom: :danger) { tag.p @account.errors.full_messages.to_sentence } %><% end %>
       <% if @channels.empty? %>
-        <%= aviso(tom: :warning) { tag.p { safe_join([ "O credor não tem canal de recebimento ativo. ", link_to("Cadastre um canal", new_settings_channel_path), " antes." ]) } } %>
+        <%= aviso(tom: :warning) { tag.p { safe_join([ "O credor não tem método de recebimento ativo. ", link_to("Cadastre um método de recebimento", new_settings_channel_path), " antes." ]) } } %>
       <% end %>
       <%= form_with model: @account, scope: :payment_account, url: settings_payment_accounts_path, multipart: true, html: { "hx-boost": "false" } do |form| %>
         <%= hidden_field_tag "payment_account[tenant_id]", @account.tenant_id %>
@@ -44,12 +44,12 @@
           <%= select_tag "payment_account[environment]", options_for_select(PaymentAccount.environments.keys.map { |environment| [ t("payments.accounts.environments.#{environment}"), environment ] }, @account.environment), id: "campo-environment", required: true %>
         </div>
         <div class="campo">
-          <%= label_tag "campo-channel", "Canal de recebimento" %>
+          <%= label_tag "campo-channel", "Método de recebimento" %>
           <%= select_tag "payment_account[channel_id]", options_for_select(@channels.map { |channel| [ "#{channel.code} · #{channel.description}", channel.id ] }, @account.channel_id), id: "campo-channel", required: true %>
         </div>
         <%= render "settings/payment_accounts/fields", form: form, account: @account %>
         <div class="acoes" data-rodape>
-          <%= link_to "Cancelar", settings_payment_accounts_path, class: "botao", data: { variant: "secondary" } %>
+          <%= link_to "Cancelar", settings_channels_path, class: "botao", data: { variant: "secondary" } %>
           <button type="submit">Salvar</button>
         </div>
       <% end %>

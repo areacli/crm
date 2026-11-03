@@ -1,0 +1,56 @@
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core" xmlns:customData="http://schemas.sap.com/sapui5/extension/sap.ui.core.CustomData/1">
+	<!-- Aba Promessas e acordos (10, R203; 11, R241): promessas abertas e pendentes com as ações, propostas e acordos em andamento e o histórico. -->
+	<VBox renderType="Bare">
+		<Title text="{i18n>ficha.promessas}" level="H3" titleStyle="H5" class="sapUiSmallMargin" />
+		<Table items="{dados>/promessas}" itemPress=".mostrarDetalhe" customData:detalhe="promessa" fixedLayout="false" noData="{i18n>ficha.promessas.vazio}">
+			<columns>
+				<Column><Text text="{i18n>ficha.promessa}" /></Column><Column><Text text="{i18n>ficha.situacao}" /></Column>
+				<Column hAlign="End"><Text text="{i18n>ficha.valor}" /></Column><Column><Text text="{i18n>promessa.meio}" /></Column>
+				<Column><Text text="{i18n>ficha.promessas.ate}" /></Column><Column hAlign="End"><Text text="{i18n>ficha.pago}" /></Column>
+				<Column hAlign="End"><Text text="" /></Column>
+			</columns>
+			<items>
+				<ColumnListItem type="Active">
+					<cells>
+						<Text text="{dados>numero}" /><ObjectStatus text="{dados>selo/texto}" state="{dados>selo/estado}" inverted="true" />
+						<Text text="{dados>valor}" wrapping="false" /><Text text="{dados>meio}" /><Text text="{dados>ate}" /><Text text="{dados>pago}" wrapping="false" />
+						<HBox justifyContent="End" renderType="Bare">
+							<Button text="{i18n>promessa.aprovar}" visible="{dados>pode/aprovar}" press=".aprovarPromessa" class="sapUiTinyMarginEnd" />
+							<Button icon="sap-icon://overflow" type="Transparent" tooltip="{i18n>lista.acoes}" visible="{= ${dados>pode/recusar} || ${dados>pode/cancelar} }" press=".acoesDaPromessa" />
+						</HBox>
+					</cells>
+				</ColumnListItem>
+			</items>
+		</Table>
+		<Panel visible="{= !!${ui>/detalhes/promessa} }" class="detalhe-da-linha"><Text text="{ui>/detalhes/promessa/detalhe}" /></Panel>
+		<VBox visible="{dados>/ve_acordos}" renderType="Bare">
+			<Title text="{i18n>ficha.acordos}" level="H3" titleStyle="H5" class="sapUiSmallMargin" />
+			<Table items="{dados>/acordos}" itemPress=".mostrarDetalhe" customData:detalhe="acordo" fixedLayout="false" noData="{i18n>ficha.acordos.vazio}">
+				<columns>
+					<Column><Text text="{i18n>ficha.acordo}" /></Column><Column><Text text="{i18n>ficha.situacao}" /></Column>
+					<Column hAlign="End"><Text text="{i18n>ficha.valor}" /></Column><Column hAlign="End"><Text text="{i18n>ficha.acordos.entrada}" /></Column>
+					<Column><Text text="{i18n>ficha.acordos.dataDaEntrada}" /></Column><Column hAlign="End"><Text text="{i18n>ficha.acordos.parcelas}" /></Column>
+				</columns>
+				<items>
+					<ColumnListItem type="Active">
+						<cells>
+							<Link text="{dados>numero}" href="{dados>endereco}" />
+							<HBox items="{path: 'dados>selos', templateShareable: false}" renderType="Bare"><ObjectStatus text="{dados>texto}" state="{dados>estado}" inverted="true" class="sapUiTinyMarginEnd" /></HBox>
+							<Text text="{dados>valor}" wrapping="false" /><Text text="{dados>entrada}" wrapping="false" /><Text text="{dados>data_da_entrada}" /><Text text="{dados>parcelas}" />
+						</cells>
+					</ColumnListItem>
+				</items>
+			</Table>
+			<Panel visible="{= !!${ui>/detalhes/acordo} }" class="detalhe-da-linha"><Text text="{ui>/detalhes/acordo/detalhe}" /></Panel>
+			<VBox visible="{= ${dados>/historico_dos_acordos}.length > 0 }" renderType="Bare">
+				<Title text="{i18n>ficha.historicoDosAcordos}" level="H3" titleStyle="H5" class="sapUiSmallMargin" />
+				<Table items="{dados>/historico_dos_acordos}" fixedLayout="false">
+					<columns><Column><Text text="{i18n>ficha.quando}" /></Column><Column><Text text="{i18n>ficha.acordo}" /></Column><Column><Text text="{i18n>ficha.oQueAconteceu}" /></Column><Column><Text text="{i18n>ficha.quem}" /></Column></columns>
+					<items><ColumnListItem type="Active"><cells>
+						<Text text="{dados>quando}" wrapping="false" /><Link text="{dados>acordo}" href="{dados>endereco}" /><Text text="{dados>evento}" /><Text text="{dados>quem}" />
+					</cells></ColumnListItem></items>
+				</Table>
+			</VBox>
+		</VBox>
+	</VBox>
+</core:FragmentDefinition>

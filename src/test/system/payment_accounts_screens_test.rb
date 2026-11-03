@@ -10,35 +10,33 @@ class PaymentAccountsScreensSystemTest < ApplicationSystemTestCase
     @account.save!
     make_account(@alfa, modality: "boleto", nickname: "Boleto Alfa", environment: "production", config: { "connection_result" => "refused" })
     Payments::AccountTester.new.call(PaymentAccount.find_by!(nickname: "Boleto Alfa"))
-    visit new_session_path
-    fill_in "E-mail", with: users(:joana).email_address
-    fill_in "Senha", with: "senha-de-teste-1"
-    click_button "Entrar"
+    entrar_pela_spa(users(:joana).email_address, "senha-de-teste-1")
     assert_selector "h1", text: "Resumo da carteira"
   end
 
   test "lista, escolha, cadastro e edição passam no axe e não rolam na horizontal" do
-    visit settings_payment_accounts_path
-    assert_selector "h1", text: "Contas de pagamento"
+    visit settings_channels_path
+    assert_selector "h1", text: "Métodos de recebimento"
+    find("button[data-alternar-todos]").click
     assert_text "Pix Alfa"
     assert_text "Falhou"
     assert_acessivel
     assert_no_horizontal_scroll
 
-    click_link "Criar conta"
-    assert_selector "h1", text: "Nova conta de pagamento"
+    click_link "Criar integração", match: :first
+    assert_selector "h1", text: "Nova integração"
     assert_acessivel
-    select "Pix", from: "Modalidade"
+    select "Pix", from: "Meio de pagamento"
     select "Efí", from: "Fornecedor"
     click_button "Continuar"
-    assert_selector "h2", text: "Dados da conta: Pix em Efí"
+    assert_selector "h2", text: "Dados da integração: Pix em Efí"
     assert_field "Certificado (.p12)", type: "file"
     assert_field "Client Secret", type: "password"
     assert_acessivel
     assert_no_horizontal_scroll
 
     visit edit_settings_payment_account_path(@account)
-    assert_selector "h1", text: "Conta Pix Alfa"
+    assert_selector "h1", text: "Integração Pix Alfa"
     assert_text "CN=Escola Alfa"
     assert_text "Impressão digital (SHA-256)"
     assert_acessivel

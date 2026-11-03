@@ -1,4 +1,4 @@
-# Pagamento recebido por um canal, sempre de um título (MT-22); pendente se o título ainda não está na carteira (R52a).
+# Pagamento recebido por um método de recebimento (antes "canal", 16, MP1a), sempre de um título (MT-22); pendente se o título ainda não está na carteira (R52a).
 class Payment < ApplicationRecord
   include TenantScoped
 
@@ -14,17 +14,11 @@ class Payment < ApplicationRecord
   # Posse (14, R321): ao ficar aplicado a uma fatura, o pagamento grava as operações com quem o contrato estava na data dele.
   before_save :record_possession, if: -> { applied? && bill_id && (will_save_change_to_status? || will_save_change_to_bill_id?) }
   # `prefix` porque "other" e "cash" colidiriam com nomes comuns de método.
-  enum :payment_method, { pix: "pix", boleto: "boleto", credit_card: "credit_card", debit_card: "debit_card", transfer: "transfer", cash: "cash",
-                          other: "other" }, prefix: :via, validate: true
+  # O meio de pagamento (16, MP1a), do catálogo `PaymentMethod`.
+  enum :payment_method, PaymentMethod::ENUM, prefix: :via, validate: true
 
   # Lê o meio da planilha, sem diferenciar maiúsculas nem acentos (R49); nil quando fora da lista.
-  METHOD_ALIASES = {
-    "pix" => "pix", "boleto" => "boleto", "cartaodecredito" => "credit_card", "cartaocredito" => "credit_card",
-    "cartaododebito" => "debit_card", "cartaodebito" => "debit_card", "cartaodedebito" => "debit_card", "transferencia" => "transfer",
-    "dinheiro" => "cash", "outro" => "other"
-  }.freeze
-
-  def self.method_from_sheet(raw) = METHOD_ALIASES[FoldedText.fold(raw.to_s).delete(" -_")]
+  def self.method_from_sheet(raw) = PaymentMethod.from_sheet(raw)
 
   # O que ainda pode ser estornado (R61).
   def reversible_cents = amount_cents - reversed_cents

@@ -1,0 +1,38 @@
+<mvc:View controllerName="crm.controller.ConferenciaDaDistribuicao" xmlns:mvc="sap.ui.core.mvc" xmlns="sap.m" xmlns:f="sap.f" xmlns:card="sap.f.cards" height="100%">
+	<!-- Conferência do impacto do enquadramento da distribuição (14, R343): como fica e quantos contratos entram e saem de cada operação; nada muda até confirmar. -->
+	<f:DynamicPage toggleHeaderOnTitleClick="false">
+		<f:title><f:DynamicPageTitle>
+			<f:heading><Title text="{i18n>conferencia.titulo}" level="H2" /></f:heading>
+			<f:expandedContent><Text text="{dados>/subtitulo}" /></f:expandedContent>
+			<f:actions>
+				<Button text="{i18n>conferencia.confirmar}" type="Emphasized" enabled="{= !${dados>/conferindo} }" press=".confirmar" />
+				<Button text="{i18n>conferencia.descartar}" press=".descartar" />
+			</f:actions>
+		</f:DynamicPageTitle></f:title>
+		<f:content>
+			<FlexBox wrap="Wrap" alignItems="Start" renderType="Bare" class="ficha">
+				<f:Card class="ficha-lateral">
+					<f:header><card:Header title="{i18n>conferencia.comoFica}" /></f:header>
+					<f:content>
+						<VBox items="{path: 'dados>/como_fica', templateShareable: false}" renderType="Bare" class="sapUiSmallMargin"><Text text="{dados>}" class="sapUiTinyMarginBottom" /></VBox>
+					</f:content>
+				</f:Card>
+				<f:Card class="ficha-principal">
+					<f:header><card:Header title="{i18n>conferencia.oQueMuda}" subtitle="{= ${dados>/conferindo} ? ${i18n>conferencia.conferindo} : (${dados>/linhas}.length ? ${i18n>conferencia.distribuicao.ajuda} : ${i18n>conferencia.distribuicao.ninguem}) }" /></f:header>
+					<f:content>
+						<VBox renderType="Bare" width="100%">
+							<BusyIndicator visible="{dados>/conferindo}" class="sapUiSmallMargin" />
+							<Table items="{path: 'dados>/linhas', templateShareable: false}" fixedLayout="false" visible="{= !${dados>/conferindo} &amp;&amp; ${dados>/linhas}.length > 0 }">
+								<columns><Column><Text text="{i18n>distribuicao.operacao}" /></Column><Column hAlign="End"><Text text="{i18n>conferencia.entram}" /></Column>
+									<Column hAlign="End"><Text text="{i18n>conferencia.saldoQueEntra}" /></Column><Column hAlign="End"><Text text="{i18n>conferencia.saem}" /></Column>
+									<Column hAlign="End"><Text text="{i18n>conferencia.saldoQueSai}" /></Column></columns>
+								<items><ColumnListItem><cells><Text text="{dados>operacao}" /><Text text="{dados>entram}" /><Text text="{dados>saldo_entra}" wrapping="false" /><Text text="{dados>saem}" />
+									<Text text="{dados>saldo_sai}" wrapping="false" /></cells></ColumnListItem></items>
+							</Table>
+						</VBox>
+					</f:content>
+				</f:Card>
+			</FlexBox>
+		</f:content>
+	</f:DynamicPage>
+</mvc:View>

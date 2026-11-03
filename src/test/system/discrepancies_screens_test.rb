@@ -11,10 +11,7 @@ class DiscrepanciesScreensSystemTest < ApplicationSystemTestCase
     @discrepancy = ValueDiscrepancy.sole
     paid_bill(number: "NF-C", document: JOAO, contract_code: "CT-C", name: "João C")
     @checked = run_portfolio_import([ bill_line("NF-C", "300,00", "documento" => JOAO, "nome" => "João C", "contrato" => "CT-C") ])
-    visit new_session_path
-    fill_in "E-mail", with: users(:joana).email_address
-    fill_in "Senha", with: "senha-de-teste-1"
-    click_button "Entrar"
+    entrar_pela_spa(users(:joana).email_address, "senha-de-teste-1")
     assert_selector "h1", text: "Resumo da carteira"
   end
 

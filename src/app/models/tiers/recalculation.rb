@@ -1,7 +1,7 @@
 module Tiers
   # Grava o item do enquadramento financeiro de cada contrato do credor e o histórico (13, R268): só onde mudou, tudo por conjunto, numa
-  # transação com trava por credor para a carga e a tarefa diária não se atropelarem. Contrato que deixou de ter título em cobrança fica sem
-  # enquadramento (R267). O cálculo é o do compilador da linguagem (decisão 0023), com todo valor como parâmetro.
+  # transação com trava por credor para a carga e a tarefa diária não se atropelarem. Todo contrato do credor é
+  # enquadrado, sem regra de entrada (13, revisão 6). O cálculo é o do compilador da linguagem (decisão 0023), com todo valor como parâmetro.
   class Recalculation
     NAME = "segments_recalculation"
 

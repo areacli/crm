@@ -1,0 +1,85 @@
+<mvc:View controllerName="crm.controller.GuardaDeDados" xmlns:mvc="sap.ui.core.mvc" xmlns="sap.m" xmlns:f="sap.f" xmlns:card="sap.f.cards" xmlns:core="sap.ui.core" xmlns:app="http://schemas.sap.com/sapui5/extension/sap.ui.core.CustomData/1" height="100%">
+	<!-- Guarda de dados (07, R138): o prazo vigente de cada credor, a anonimização prevista nos próximos 30 dias (reter, com motivo), os retidos (desfazer,
+	     com motivo) e as últimas execuções da tarefa diária. -->
+	<f:DynamicPage toggleHeaderOnTitleClick="false">
+		<f:title><f:DynamicPageTitle>
+			<f:heading><Title text="{i18n>guarda.titulo}" level="H2" /></f:heading>
+			<f:expandedContent><Text text="{i18n>guarda.subtitulo}" /></f:expandedContent>
+		</f:DynamicPageTitle></f:title>
+		<f:header>
+			<f:DynamicPageHeader pinnable="false" visible="{dados>/varios_credores}">
+				<VBox><Label text="{i18n>clientes.credor}" labelFor="credor" />
+					<Select id="credor" selectedKey="{filtro>/tenant}" change=".buscar" items="{path: 'dados>/credores', templateShareable: false}"><core:Item key="{dados>id}" text="{dados>nome}" /></Select></VBox>
+			</f:DynamicPageHeader>
+		</f:header>
+		<f:content>
+			<VBox renderType="Bare">
+				<f:Card>
+					<f:header><card:Header title="{i18n>guarda.prazo}" /></f:header>
+					<f:content>
+						<VBox items="{path: 'dados>/prazos', templateShareable: false}" renderType="Bare" class="sapUiSmallMargin">
+							<HBox alignItems="Center" wrap="Wrap" renderType="Bare"><Text text="{dados>texto}" class="sapUiTinyMarginEnd" />
+								<Text text="{i18n>guarda.prazo.ajuda}" visible="{= !${dados>pode_mudar} }" class="nota" /></HBox>
+						</VBox>
+					</f:content>
+				</f:Card>
+				<f:Card class="sapUiSmallMarginTop">
+					<f:header><card:Header title="{i18n>guarda.previstos}" subtitle="{i18n>guarda.previstos.ajuda}" /></f:header>
+					<f:content>
+						<VBox renderType="Bare" width="100%">
+							<Table items="{path: 'dados>/previstos/linhas', templateShareable: false}" fixedLayout="false" noData="{i18n>guarda.previstos.vazio}">
+								<columns>
+									<Column visible="{dados>/varios_credores}"><Text text="{i18n>clientes.credor}" /></Column><Column><Text text="{i18n>clientes.coluna.cliente}" /></Column>
+									<Column><Text text="{i18n>guarda.fimDaRelacao}" /></Column><Column><Text text="{i18n>guarda.anonimizacaoEm}" /></Column><Column hAlign="End"><Text text="" /></Column>
+								</columns>
+								<items><ColumnListItem><cells>
+									<Text text="{dados>credor}" /><Link text="{dados>cliente}" enabled="{dados>abre_ficha}" press=".abrirFicha" /><Text text="{dados>fim}" /><Text text="{dados>anonimizacao}" />
+									<Button text="{i18n>guarda.reter}" press=".reter" />
+								</cells></ColumnListItem></items>
+							</Table>
+							<OverflowToolbar style="Clear" visible="{= ${dados>/previstos/paginas} > 1 }">
+								<Text text="{parts: ['i18n>lista.contagem', 'dados>/previstos/pagina', 'dados>/previstos/paginas', 'dados>/previstos/total'], formatter: '.formatarTexto'}" /><ToolbarSpacer />
+								<Button text="{i18n>lista.anterior}" enabled="{= ${dados>/previstos/pagina} > 1 }" press=".paginaDosPrevistos" app:passo="-1" />
+								<Button text="{i18n>lista.proxima}" enabled="{= ${dados>/previstos/pagina} &lt; ${dados>/previstos/paginas} }" press=".paginaDosPrevistos" app:passo="1" />
+							</OverflowToolbar>
+						</VBox>
+					</f:content>
+				</f:Card>
+				<f:Card class="sapUiSmallMarginTop">
+					<f:header><card:Header title="{i18n>guarda.retidos}" subtitle="{i18n>guarda.retidos.ajuda}" /></f:header>
+					<f:content>
+						<VBox renderType="Bare" width="100%">
+							<Table items="{path: 'dados>/retidos/linhas', templateShareable: false}" fixedLayout="false" noData="{i18n>guarda.retidos.vazio}">
+								<columns>
+									<Column visible="{dados>/varios_credores}"><Text text="{i18n>clientes.credor}" /></Column><Column><Text text="{i18n>clientes.coluna.cliente}" /></Column>
+									<Column><Text text="{i18n>estornos.motivo}" /></Column><Column><Text text="{i18n>guarda.retidoPor}" /></Column><Column hAlign="End"><Text text="" /></Column>
+								</columns>
+								<items><ColumnListItem><cells>
+									<Text text="{dados>credor}" /><Link text="{dados>cliente}" enabled="{dados>abre_ficha}" press=".abrirFicha" /><Text text="{dados>motivo}" /><Text text="{dados>por}" />
+									<Button text="{i18n>guarda.desfazer}" press=".desfazer" />
+								</cells></ColumnListItem></items>
+							</Table>
+							<OverflowToolbar style="Clear" visible="{= ${dados>/retidos/paginas} > 1 }">
+								<Text text="{parts: ['i18n>lista.contagem', 'dados>/retidos/pagina', 'dados>/retidos/paginas', 'dados>/retidos/total'], formatter: '.formatarTexto'}" /><ToolbarSpacer />
+								<Button text="{i18n>lista.anterior}" enabled="{= ${dados>/retidos/pagina} > 1 }" press=".paginaDosRetidos" app:passo="-1" />
+								<Button text="{i18n>lista.proxima}" enabled="{= ${dados>/retidos/pagina} &lt; ${dados>/retidos/paginas} }" press=".paginaDosRetidos" app:passo="1" />
+							</OverflowToolbar>
+						</VBox>
+					</f:content>
+				</f:Card>
+				<f:Card class="sapUiSmallMarginTop">
+					<f:header><card:Header title="{i18n>guarda.execucoes}" /></f:header>
+					<f:content>
+						<Table items="{path: 'dados>/execucoes', templateShareable: false}" fixedLayout="false" noData="{i18n>guarda.execucoes.vazio}">
+							<columns>
+								<Column><Text text="{i18n>estornos.quando}" /></Column><Column visible="{dados>/varios_credores}"><Text text="{i18n>clientes.credor}" /></Column>
+								<Column><Text text="{i18n>guarda.resultado}" /></Column><Column hAlign="End"><Text text="{i18n>guarda.anonimizados}" /></Column><Column hAlign="End"><Text text="{i18n>guarda.falhas}" /></Column>
+							</columns>
+							<items><ColumnListItem><cells><Text text="{dados>quando}" wrapping="false" /><Text text="{dados>credor}" /><Text text="{dados>resultado}" /><Text text="{dados>anonimizados}" /><Text text="{dados>falhas}" /></cells></ColumnListItem></items>
+						</Table>
+					</f:content>
+				</f:Card>
+			</VBox>
+		</f:content>
+	</f:DynamicPage>
+</mvc:View>

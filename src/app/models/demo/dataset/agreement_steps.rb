@@ -44,7 +44,7 @@ module Demo
           reverted = accept.call(build.call(ago: 15), 15).tap { |agreement| pays << [ agreement, 0, today - 14 ] }
           reversing = accept.call(build.call(ago: 14), 14).tap { |agreement| pays << [ agreement, 0, today - 13 ] }
 
-          rows = [ %w[canal identificador documento titulo data_pagamento valor meio] ]
+          rows = [ %w[metodo_recebimento identificador documento titulo data_pagamento valor meio] ]
           pays.each do |agreement, number, date|
             title = agreement.titles.find_by(number: Agreements::Titles.number_of(agreement, number)) or next
             rows << [ @channels["341-1234-56789"].code, "AC#{title.id}", agreement.customer.document, title.number, date.strftime("%d/%m/%Y"), Money.format(title.amount_cents), "pix" ]

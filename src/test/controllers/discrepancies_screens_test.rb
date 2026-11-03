@@ -19,7 +19,7 @@ class DiscrepanciesScreensTest < ActionDispatch::IntegrationTest
 
   test "operador não vê a lista nem o item do menu (404 registrado)" do
     entrar(users(:carlos))
-    get root_path
+    get summary_path
     assert_select "nav a", text: /Divergências de valor/, count: 0
     get value_discrepancies_path
     assert_response :not_found
@@ -153,7 +153,43 @@ class DiscrepanciesScreensTest < ActionDispatch::IntegrationTest
 
   test "o menu mostra o número das divergências abertas do gestor" do
     entrar(users(:joana))
-    get root_path
+    get summary_path
     assert_select "nav a", text: /Divergências de valor\s*1/
+  end
+
+  test "SPA (decisão 0025): a lista, a divergência e o título em JSON; tratar responde a mensagem, e a recusa vem em 422" do
+    entrar(users(:joana))
+    get value_discrepancies_path(format: :json)
+    linha = response.parsed_body["linhas"].find { |item| item["id"] == @alfa_discrepancy.id }
+    assert_equal "NF-1024/3", linha["titulo"]
+    assert linha["pode_tratar"]
+
+    get value_discrepancy_path(@alfa_discrepancy, format: :json)
+    divergencia = response.parsed_body
+    assert_equal [ "keep" ], divergencia["escolhas"].map { |escolha| escolha["id"] }
+    assert_equal "Valor informado", divergencia["o_que_mudou"][2]["rotulo"]
+
+    post value_discrepancy_handling_path(@alfa_discrepancy), params: { handling: { note: " ", choice: "keep" } }, as: :json
+    assert_response :unprocessable_content
+    assert_match(/Informe a nota/, response.parsed_body["mensagem"])
+    post value_discrepancy_handling_path(@alfa_discrepancy), params: { handling: { note: "conferido", choice: "keep" } }, as: :json
+    assert_response :success
+    assert_match(/Divergência tratada/, response.parsed_body["mensagem"])
+
+    get bill_path(@bill, format: :json)
+    titulo = response.parsed_body
+    assert_equal "NF-1024/3", titulo["numero"]
+    assert_equal "Pago", titulo["selo"]["texto"]
+    assert_equal [ "Valor vigente", "Pago", "Saldo" ], titulo["indicadores"].first(3).map { |indicador| indicador["rotulo"] }
+    assert_operator titulo["versoes"].size, :>=, 2
+    assert titulo["eventos"].any?
+  end
+
+  test "SPA, V10: o título e a divergência de outro credor respondem 404 em JSON" do
+    entrar(users(:joana))
+    get bill_path(@beta_bill, format: :json)
+    assert_response :not_found
+    get value_discrepancy_path(@beta_discrepancy, format: :json)
+    assert_response :not_found
   end
 end

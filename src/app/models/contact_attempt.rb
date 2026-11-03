@@ -29,6 +29,8 @@ class ContactAttempt < ApplicationRecord
   end
 
   after_commit :announce_change, on: :create
+  # 15, R354 e R356: o acionamento mexe na fila (intervalo, retorno, entrega aberta); a falha da fila não desfaz o registro nem o aviso.
+  after_commit :update_queues, on: :create
 
   # Imutável depois de gravado.
   def readonly? = persisted? || super
@@ -38,10 +40,18 @@ class ContactAttempt < ApplicationRecord
   def summary_only_for_viewer? = Operations::Context.operation? && operation_id != Operations::Context.operation_id
 
   private
+    def update_queues
+      Queues::AfterContact.call(self)
+    rescue StandardError => error
+      Rails.error.report(error, handled: true, context: { contact_attempt_id: id })
+    end
+
     # Evento pequeno de invalidação: quem tem a lista (canal do credor) ou a ficha (canal do cliente) aberta busca o trecho de novo (decisão 0020).
     def announce_change
       message = { event: "contact-attempts-changed", customer_id: customer_id }
       ContactAttemptsChannel.broadcast_to(tenant, message)
       ContactAttemptsChannel.broadcast_to(customer, message)
+      # SPA (decisão 0025): a ficha aberta do cliente se refaz pelo fluxo de cada usuário.
+      Live.publish("clientes", customer_id, tenant_id: tenant_id)
     end
 end

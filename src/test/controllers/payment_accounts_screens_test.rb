@@ -20,24 +20,44 @@ class PaymentAccountsScreensTest < ActionDispatch::IntegrationTest
 
   test "operador não vê a aba nem as contas (404 registrado) (R267)" do
     entrar(users(:carlos))
-    get settings_payment_accounts_path
+    get settings_channels_path
     assert_response :not_found
     get new_settings_payment_account_path
     assert_response :not_found
     assert_operator AccessEvent.where(event: "access_denied").count, :>=, 2
   end
 
-  test "a aba Contas de pagamento aparece para quem tem a permissão 14 e a de canais continua da 4 (R267)" do
+  test "a tela Métodos de recebimento abre para a 4 e para a 14; as integrações só aparecem a quem tem a 14 (16, R373; 12, R267)" do
+    make_account(@alfa, nickname: "Boleto do método")
     entrar(users(:joana))
-    get settings_payment_accounts_path
+    get settings_channels_path
     assert_response :success
-    assert_select "#menu-principal .submenu a", text: "Contas de pagamento"
+    assert_select "#menu-principal .submenu a", text: "Métodos de recebimento"
+    assert_select "#menu-principal .submenu a", text: "Contas de pagamento", count: 0
+    assert_select "th a", text: "Boleto do método"
+    assert_select "a", text: "Criar integração"
     only_settings = make_user(@alfa, %w[view_portfolio change_settings])
     delete session_path
     entrar(only_settings)
     get settings_channels_path
-    assert_select "#menu-principal .submenu a", text: "Contas de pagamento", count: 0
-    get settings_payment_accounts_path
+    assert_response :success
+    assert_select "th a", text: "Boleto do método", count: 0
+    assert_select "a", text: "Criar integração", count: 0
+    only_financial = make_user(@alfa, %w[view_portfolio change_financial_policies], email: "fin@alfa.test")
+    delete session_path
+    entrar(only_financial)
+    get settings_channels_path
+    assert_response :success
+    assert_select "th a", text: "Boleto do método"
+    assert_select "th a", text: @channel.code, count: 0
+    assert_select "button", text: "Criar método de recebimento", count: 0
+  end
+
+  test "a página própria das contas de pagamento não existe mais (16, R373)" do
+    entrar(users(:joana))
+    get "/configuracao/contas-de-pagamento"
+    assert_response :not_found
+    get "/configuracao/canais-de-recebimento"
     assert_response :not_found
   end
 
@@ -45,7 +65,7 @@ class PaymentAccountsScreensTest < ActionDispatch::IntegrationTest
     mine = make_account(@alfa, nickname: "Minha")
     theirs = make_account(@beta, nickname: "Da Beta")
     entrar(users(:joana))
-    get settings_payment_accounts_path
+    get settings_channels_path
     assert_select "th a", text: "Minha"
     assert_select "th a", text: "Da Beta", count: 0
     get edit_settings_payment_account_path(theirs)
@@ -79,7 +99,7 @@ class PaymentAccountsScreensTest < ActionDispatch::IntegrationTest
     make_account(@alfa, nickname: "Alfa 1")
     make_account(@beta, nickname: "Beta 1")
     entrar(user)
-    get settings_payment_accounts_path
+    get settings_channels_path
     assert_select "th a", text: "Beta 1"
     assert_select "th", text: "Credor"
   end
@@ -87,7 +107,7 @@ class PaymentAccountsScreensTest < ActionDispatch::IntegrationTest
   test "o passo de escolha mostra o formulário montado pelo manifesto do fornecedor (R259)" do
     entrar(users(:joana))
     get new_settings_payment_account_path
-    assert_select "h2", text: "Credor, modalidade e fornecedor"
+    assert_select "h2", text: "Credor, meio de pagamento e fornecedor"
     assert_select "form[action='#{settings_payment_accounts_path}']", count: 0
     get new_settings_payment_account_path(tenant_id: @alfa.id, modality: "pix", provider: "efi")
     assert_select "input[type=file][name='payment_account[files][certificate]']"
@@ -246,7 +266,7 @@ class PaymentAccountsScreensTest < ActionDispatch::IntegrationTest
 
   test "a conta que já emitiu instrumento só se desativa: sem botão Apagar e a exclusão é recusada (R269)" do
     account = make_account(@alfa, nickname: "Emitiu")
-    Payments::Issuer.new.request(tenant: @alfa, kind: "boleto", amount_cents: 1_000, customer: make_customer(@alfa), due_on: Date.current + 5, environment: "sandbox")
+    Payments::Issuer.new.request(tenant: @alfa, kind: "boleto", amount_cents: 1_000, customer: (maria = make_customer(@alfa)), object: bill_for(maria), due_on: Date.current + 5, environment: "sandbox")
     entrar(users(:joana))
     get edit_settings_payment_account_path(account)
     assert_select "button", text: /Apagar/, count: 0
@@ -261,7 +281,7 @@ class PaymentAccountsScreensTest < ActionDispatch::IntegrationTest
     delete settings_channel_path(@channel)
     assert PaymentChannel.exists?(@channel.id)
     delete settings_payment_account_path(account)
-    assert_redirected_to settings_payment_accounts_path
+    assert_redirected_to settings_channels_path
     assert_not PaymentAccount.exists?(account.id)
     assert_equal "deleted", Change.where(subject_type: "payment_account", subject_id: account.id).order(:id).last.event
     delete settings_channel_path(@channel)
@@ -283,7 +303,7 @@ class PaymentAccountsScreensTest < ActionDispatch::IntegrationTest
     account = make_account(@alfa, nickname: "Orfã")
     account.update_columns(provider: "extinto")
     entrar(users(:joana))
-    get settings_payment_accounts_path
+    get settings_channels_path
     assert_response :success
     assert_select "td", text: "extinto"
     get edit_settings_payment_account_path(account)

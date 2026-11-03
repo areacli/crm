@@ -1,0 +1,41 @@
+<mvc:View controllerName="crm.controller.NovaIntegracao" xmlns:mvc="sap.ui.core.mvc" xmlns="sap.m" xmlns:f="sap.f" xmlns:card="sap.f.cards" xmlns:core="sap.ui.core"
+	xmlns:form="sap.ui.layout.form" height="100%">
+	<!-- Nova integração (12, R259; modelo Entrada): primeiro credor, meio de pagamento e fornecedor; com a escolha feita, os dados e os campos do manifesto. -->
+	<f:DynamicPage toggleHeaderOnTitleClick="false">
+		<f:title><f:DynamicPageTitle>
+			<f:heading><Title text="{i18n>integracao.nova}" level="H2" /></f:heading>
+		</f:DynamicPageTitle></f:title>
+		<f:content>
+			<VBox renderType="Bare">
+				<f:Card>
+					<f:header><card:Header title="{i18n>integracao.escolha}">
+						<card:toolbar><Button text="{i18n>integracao.continuar}" type="{= ${dados>/escolhida} ? 'Default' : 'Emphasized' }" press=".continuar" /></card:toolbar>
+					</card:Header></f:header>
+					<f:content>
+						<form:SimpleForm editable="true" layout="ColumnLayout" columnsM="3" columnsL="3" columnsXL="3" labelSpanL="12" labelSpanM="12" width="100%">
+							<Label text="{i18n>clientes.credor}" required="true" /><Select selectedKey="{dados>/escolha/credor}" items="{path: 'dados>/credores', templateShareable: false}"><core:Item key="{dados>id}" text="{dados>nome}" /></Select>
+							<Label text="{i18n>integracao.meio}" required="true" /><Select selectedKey="{dados>/escolha/meio}" items="{path: 'dados>/meios', templateShareable: false}"><core:Item key="{dados>id}" text="{dados>nome}" /></Select>
+							<Label text="{i18n>integracao.fornecedor}" required="true" /><Select selectedKey="{dados>/escolha/fornecedor}" items="{path: 'dados>/fornecedores', templateShareable: false}"><core:Item key="{dados>id}" text="{dados>nome}" /></Select>
+						</form:SimpleForm>
+					</f:content>
+				</f:Card>
+				<f:Card class="sapUiSmallMarginTop" visible="{dados>/escolhida}">
+					<f:header><card:Header title="{dados>/titulo_dos_dados}">
+						<card:toolbar><Button text="{i18n>acao.salvar}" type="Emphasized" press=".salvar" busy="{ui>/enviando}" /></card:toolbar>
+					</card:Header></f:header>
+					<f:content>
+						<VBox renderType="Bare" width="100%">
+							<MessageStrip text="{i18n>integracao.semMetodo}" type="Warning" showIcon="true" visible="{= ${dados>/metodos}.length === 0 }" class="sapUiSmallMargin" />
+							<form:SimpleForm editable="true" layout="ColumnLayout" columnsM="2" columnsL="3" columnsXL="3" labelSpanL="12" labelSpanM="12" width="100%">
+								<Label text="{i18n>integracao.apelido}" required="true" /><Input value="{ui>/apelido}" maxLength="100" />
+								<Label text="{i18n>integracao.ambiente}" required="true" /><Select selectedKey="{ui>/ambiente}" items="{path: 'dados>/ambientes', templateShareable: false}"><core:Item key="{dados>id}" text="{dados>nome}" /></Select>
+								<Label text="{i18n>integracao.metodo}" required="true" /><Select selectedKey="{ui>/metodo}" items="{path: 'dados>/metodos', templateShareable: false}"><core:Item key="{dados>id}" text="{dados>nome}" /></Select>
+							</form:SimpleForm>
+							<form:SimpleForm id="campos" editable="true" layout="ColumnLayout" columnsM="2" columnsL="3" columnsXL="3" labelSpanL="12" labelSpanM="12" width="100%" />
+						</VBox>
+					</f:content>
+				</f:Card>
+			</VBox>
+		</f:content>
+	</f:DynamicPage>
+</mvc:View>

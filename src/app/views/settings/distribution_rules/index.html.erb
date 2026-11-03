@@ -1,6 +1,6 @@
 <% content_for :title, "Operações · Enquadramento da distribuição" %>
 <% content_for :cable_channels, @cable %>
-<%= pagina "Enquadramento da distribuição", subtitulo: "Cada contrato com título em cobrança vai para as operações do primeiro item cujo segmento ele atende, de cima para baixo. Quem não atende nenhum fica com a equipe do credor. Distribuição à mão vence a regra." do %>
+<%= pagina "Enquadramento da distribuição", subtitulo: "Cada contrato vai para as operações do primeiro item cujo segmento ele atende, de cima para baixo. Quem não atende nenhum fica com a equipe do credor. Distribuição à mão vence a regra." do %>
   <%= abrir_painel "Incluir segmento", new_settings_distribution_rule_path(tenant_id: @tenant.id), variante: "modal", tamanho: "small" %>
 <% end %>
 <%= render "settings/modelo" %>

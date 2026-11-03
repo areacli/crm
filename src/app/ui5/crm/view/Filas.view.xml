@@ -1,0 +1,45 @@
+<mvc:View controllerName="crm.controller.Filas" xmlns:mvc="sap.ui.core.mvc" xmlns="sap.m" xmlns:f="sap.f" xmlns:card="sap.f.cards" xmlns:core="sap.ui.core" height="100%">
+	<!-- Visão das filas (15, R357): por fila, disponíveis, em atendimento e aguardando; quem está atendendo o quê agora, com "Liberar". -->
+	<f:DynamicPage toggleHeaderOnTitleClick="false">
+		<f:title><f:DynamicPageTitle>
+			<f:heading><Title text="{i18n>filas.titulo}" level="H2" /></f:heading>
+			<f:expandedContent><Text text="{i18n>filas.subtitulo}" /></f:expandedContent>
+		</f:DynamicPageTitle></f:title>
+		<f:content>
+			<VBox renderType="Bare">
+				<core:Fragment fragmentName="crm.fragment.Credores" type="XML" />
+				<f:Card>
+					<f:header><card:Header title="{i18n>filas.porFila}" /></f:header>
+					<f:content>
+						<Table items="{path: 'dados>/filas', templateShareable: false}" fixedLayout="false" noData="{i18n>filas.vazio}">
+							<columns>
+								<Column><Text text="{i18n>filas.fila}" /></Column><Column><Text text="{i18n>filas.sujeito}" /></Column><Column hAlign="End"><Text text="{i18n>filas.disponiveis}" /></Column>
+								<Column hAlign="End"><Text text="{i18n>filas.emAtendimento}" /></Column><Column hAlign="End"><Text text="{i18n>filas.aguardando}" /></Column>
+							</columns>
+							<items><ColumnListItem><cells>
+								<HBox alignItems="Center" renderType="Bare"><Link text="{dados>nome}" press=".abrirFila" class="sapUiTinyMarginEnd" />
+									<ObjectStatus text="{i18n>filas.semGrupo}" state="Warning" inverted="true" visible="{dados>sem_grupo}" /></HBox>
+								<Text text="{dados>sujeito}" /><Text text="{dados>disponiveis}" /><Text text="{dados>em_atendimento}" /><Text text="{dados>aguardando}" />
+							</cells></ColumnListItem></items>
+						</Table>
+					</f:content>
+				</f:Card>
+				<f:Card class="sapUiSmallMarginTop">
+					<f:header><card:Header title="{i18n>filas.emAtendimentoAgora}" /></f:header>
+					<f:content>
+						<Table items="{path: 'dados>/entregas', templateShareable: false}" fixedLayout="false" noData="{i18n>filas.ninguem}">
+							<columns>
+								<Column><Text text="{i18n>acionamentos.operador}" /></Column><Column><Text text="{i18n>filas.fila}" /></Column><Column><Text text="{i18n>filas.desde}" /></Column>
+								<Column><Text text="{i18n>filas.travadoAte}" /></Column><Column hAlign="End"><Text text="" /></Column>
+							</columns>
+							<items><ColumnListItem><cells>
+								<Text text="{dados>operador}" /><Text text="{dados>fila}" /><Text text="{dados>desde}" wrapping="false" /><Text text="{dados>travado_ate}" wrapping="false" />
+								<Button text="{i18n>filas.liberar}" press=".liberar" />
+							</cells></ColumnListItem></items>
+						</Table>
+					</f:content>
+				</f:Card>
+			</VBox>
+		</f:content>
+	</f:DynamicPage>
+</mvc:View>

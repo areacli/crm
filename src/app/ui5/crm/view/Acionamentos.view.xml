@@ -1,0 +1,53 @@
+<mvc:View controllerName="crm.controller.Acionamentos" xmlns:mvc="sap.ui.core.mvc" xmlns="sap.m" xmlns:f="sap.f" xmlns:core="sap.ui.core" height="100%">
+	<!-- Lista de acionamentos (R78; modelo Lista): período de até 92 dias (padrão, os últimos 7), filtros numa linha, o cliente abre a ficha numa aba. -->
+	<f:DynamicPage toggleHeaderOnTitleClick="false" fitContent="true">
+		<f:title><f:DynamicPageTitle>
+			<f:heading><Title text="{i18n>acionamentos.titulo}" level="H2" /></f:heading>
+			<f:expandedContent><Text text="{i18n>acionamentos.subtitulo}" /></f:expandedContent>
+		</f:DynamicPageTitle></f:title>
+		<f:header>
+			<f:DynamicPageHeader pinnable="false">
+				<FlexBox wrap="Wrap" alignItems="End" class="filtros">
+					<VBox><Label text="{i18n>acionamentos.de}" labelFor="de" /><DatePicker id="de" value="{filtro>/from}" valueFormat="yyyy-MM-dd" displayFormat="dd/MM/yyyy" change=".buscar" width="9rem" /></VBox>
+					<VBox><Label text="{i18n>acionamentos.ate}" labelFor="ate" /><DatePicker id="ate" value="{filtro>/to}" valueFormat="yyyy-MM-dd" displayFormat="dd/MM/yyyy" change=".buscar" width="9rem" /></VBox>
+					<VBox><Label text="{i18n>acionamentos.operador}" labelFor="operador" />
+						<Select id="operador" selectedKey="{filtro>/operator}" change=".buscar" items="{path: 'dados>/filtros/operadores', templateShareable: false}"><core:Item key="{dados>id}" text="{dados>nome}" /></Select></VBox>
+					<VBox><Label text="{i18n>acionamento.canal}" labelFor="canalDaLista" />
+						<Select id="canalDaLista" selectedKey="{filtro>/channel}" change=".buscar" items="{path: 'dados>/filtros/canais', templateShareable: false}"><core:Item key="{dados>id}" text="{dados>nome}" /></Select></VBox>
+					<VBox><Label text="{i18n>acionamento.resultado}" labelFor="resultadoDaLista" />
+						<Select id="resultadoDaLista" selectedKey="{filtro>/result}" change=".buscar" width="14rem" items="{path: 'dados>/filtros/resultados', templateShareable: false}"><core:Item key="{dados>id}" text="{dados>nome}" /></Select></VBox>
+					<VBox><Label text="{i18n>acionamentos.tipo}" labelFor="tipo" />
+						<Select id="tipo" selectedKey="{filtro>/kind}" change=".buscar" items="{path: 'dados>/filtros/tipos', templateShareable: false}"><core:Item key="{dados>id}" text="{dados>nome}" /></Select></VBox>
+					<VBox visible="{dados>/com_origem}"><Label text="{i18n>ficha.contatos.origem}" labelFor="origem" />
+						<Select id="origem" selectedKey="{filtro>/origin}" change=".buscar" items="{path: 'dados>/filtros/origens', templateShareable: false}"><core:Item key="{dados>id}" text="{dados>nome}" /></Select></VBox>
+					<VBox visible="{dados>/varios_credores}"><Label text="{i18n>clientes.credor}" labelFor="credorDaLista" />
+						<Select id="credorDaLista" selectedKey="{filtro>/tenant}" change=".buscar" items="{path: 'dados>/filtros/credores', templateShareable: false}"><core:Item key="{dados>id}" text="{dados>nome}" /></Select></VBox>
+				</FlexBox>
+			</f:DynamicPageHeader>
+		</f:header>
+		<f:content>
+			<VBox renderType="Bare">
+				<Table items="{dados>/linhas}" sticky="ColumnHeaders" fixedLayout="false" noData="{i18n>acionamentos.vazio}" itemPress=".mostrarDetalhe">
+					<columns>
+						<Column><Text text="{i18n>ficha.acionamentos.contato}" /></Column><Column><Text text="{i18n>clientes.coluna.cliente}" /></Column>
+						<Column visible="{dados>/varios_credores}"><Text text="{i18n>clientes.credor}" /></Column>
+						<Column><Text text="{i18n>acionamento.canal}" /></Column><Column><Text text="{i18n>acionamento.resultado}" /></Column>
+						<Column><Text text="{i18n>acionamentos.tipo}" /></Column><Column><Text text="{i18n>acionamentos.operador}" /></Column>
+						<Column visible="{dados>/com_origem}"><Text text="{i18n>ficha.contatos.origem}" /></Column><Column><Text text="{i18n>ficha.acionamentos.retorno}" /></Column>
+					</columns>
+					<items>
+						<ColumnListItem type="Active" highlight="{= ${dados>id} === ${ui>/detalhe/id} ? 'Information' : 'None' }">
+							<cells>
+								<Text text="{dados>quando}" wrapping="false" /><Link text="{dados>cliente}" press=".abrirFicha" /><Text text="{dados>credor}" wrapping="false" />
+								<Text text="{dados>canal}" wrapping="false" /><Text text="{dados>resultado}" wrapping="false" /><Text text="{dados>tipo}" wrapping="false" /><Text text="{dados>operador}" wrapping="false" />
+								<Text text="{dados>origem}" wrapping="false" /><Text text="{dados>retorno}" wrapping="false" />
+							</cells>
+						</ColumnListItem>
+					</items>
+				</Table>
+				<Panel visible="{= !!${ui>/detalhe/detalhe} }" class="detalhe-da-linha"><Text text="{ui>/detalhe/detalhe}" /></Panel>
+				<core:Fragment fragmentName="crm.fragment.Paginacao" type="XML" />
+			</VBox>
+		</f:content>
+	</f:DynamicPage>
+</mvc:View>
