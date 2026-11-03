@@ -5,14 +5,14 @@ class ImportsController < ApplicationController
     authorize Import
     @pagination = Pagination.new(policy_scope(Import).includes(:tenant, :user).recent, page: params[:page], per_page: params[:per_page])
     @imports = @pagination.records
-    render partial: "imports/list" if htmx_fragment? && request.format.html?
+    render partial: "imports/list" if htmx_fragment?
   end
 
   def show
     @import = Import.includes(:tenant, :user).find(params[:id])
     authorize @import
     @rejections = @import.rejections.order(:line).limit(50)
-    render partial: "imports/state", locals: { import: @import, rejections: @rejections } if htmx_fragment? && request.format.html?
+    render partial: "imports/state", locals: { import: @import, rejections: @rejections } if htmx_fragment?
   end
 
   def new

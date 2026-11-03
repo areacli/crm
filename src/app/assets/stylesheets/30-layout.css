@@ -1,19 +1,18 @@
 /*
- * Estrutura da página (revisão 4): cabeçalho marinho de 56 px (marca, busca global, sino e usuário), barra de página de 48 px (título, indicadores e ações),
- * menu lateral de 256 px (revisão 6), conteúdo. Quatro modelos de página: lista, ficha, configuração e entrada.
+ * Estrutura da página (revisão 4): cabeçalho marinho de 56 px (marca, menu, busca global, sino e usuário; o menu na barra superior desde a
+ * revisão 34 dos padrões de interface), barra de página de 48 px (título, indicadores e ações), conteúdo com a largura toda. Quatro modelos de
+ * página: lista, ficha, configuração e entrada.
  */
 @layer layout {
   body {
     display: grid;
-    grid-template-columns: var(--largura-menu) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto auto 1fr;
-    grid-template-areas: "demonstracao demonstracao" "cabecalho cabecalho" "menu conteudo";
+    grid-template-areas: "demonstracao" "cabecalho" "conteudo";
     min-height: 100vh;
     min-height: 100dvh;
   }
 
-  /* Sem menu (páginas públicas e senha temporária): o conteúdo ocupa a largura toda. */
-  body:not(:has(> nav)) { grid-template-columns: minmax(0, 1fr); grid-template-areas: "demonstracao" "cabecalho" "conteudo"; }
   /* Sem cabeçalho (entrada): só a faixa da demonstração e o conteúdo. */
   body:not(:has(> header)) { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr; grid-template-areas: "demonstracao" "conteudo"; }
 
@@ -30,7 +29,7 @@
     z-index: 40;
     height: var(--altura-cabecalho);
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, var(--largura-busca)) minmax(0, 1fr);
+    grid-template-columns: auto auto minmax(0, 1fr) auto auto;
     align-items: center;
     gap: var(--espaco-4);
     padding-inline: var(--espaco-4);
@@ -49,7 +48,7 @@
   /* Busca global de cliente (nome ou documento): formulário GET para a lista de clientes, sem regra nova. */
   .busca input { padding-right: calc(var(--altura-controle) + var(--espaco-1)); }
 
-  .conta { grid-column: 3; justify-self: end; display: flex; align-items: center; gap: var(--espaco-2); }
+  .conta { grid-column: 5; justify-self: end; display: flex; align-items: center; gap: var(--espaco-2); }
   /* Operação do usuário de operação (14, R324): selo claro sobre o marinho do cabeçalho. */
   .operacao-atual { padding: 0 var(--espaco-2); border: 1px solid var(--cor-amarelo); border-radius: var(--raio-controle); color: var(--cor-amarelo); font-size: var(--texto-tabela); font-weight: 600; white-space: nowrap; }
   .usuario, .avisos > details { position: relative; }
@@ -58,33 +57,42 @@
   .usuario summary:hover { background: var(--cor-azul-escuro); }
   .iniciais { display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: 50%; background: var(--cor-amarelo); color: var(--cor-marinho); font-weight: 700; font-size: var(--texto-tabela); }
 
-  body > nav {
-    grid-area: menu;
-    /* O menu é um popover: na tela larga fica sempre à mostra, na estreita abre pelo botão do cabeçalho. */
-    display: block;
-    /* Fixo abaixo do cabeçalho, com rolagem própria: a página rola e o menu fica; menu mais alto que a janela rola sozinho (pedido do Paulo, 31/10/2026). */
-    /* `inset` vem antes de `top`: o atalho zera os quatro lados, e depois dele o `top` do sticky valeria `auto` (o menu rolaria com a página). */
-    inset: auto;
-    position: sticky;
-    top: var(--altura-topo);
-    align-self: start;
-    width: auto;
-    height: calc(100vh - var(--altura-topo));
-    height: calc(100dvh - var(--altura-topo));
-    margin: 0;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    color: inherit;
-    background: var(--cor-branco);
-    border: 0;
-    border-right: 1px solid var(--cor-linha);
-    padding: var(--espaco-2);
+  /* Menu na barra superior (padrões de interface, revisão 34, P1): links diretos e grupos (details) com a lista dos itens abaixo do botão; o grupo
+     da página atual leva o sublinhado amarelo de 2 px. O nav é um popover: na tela larga fica sempre à mostra na barra; abaixo de 1.200 px abre
+     pelo botão "Menu", na vertical. */
+  #menu-principal { grid-column: 2; display: block; position: static; inset: auto; width: auto; height: auto; min-width: 0; margin: 0; padding: 0; border: 0; overflow: visible; background: transparent; color: inherit; }
+  .menu-barra { list-style: none; margin: 0; padding: 0; display: flex; align-items: stretch; gap: 0; height: var(--altura-cabecalho); }
+  .menu-barra > li { position: relative; display: flex; }
+  .grupo { display: flex; }
+  .item-do-menu { list-style: none; cursor: pointer; display: flex; align-items: center; gap: var(--espaco-1); padding: 0 var(--espaco-2); color: var(--cor-branco); font-weight: 600; white-space: nowrap; text-decoration: none; }
+  .item-do-menu::-webkit-details-marker { display: none; }
+  .item-do-menu h2 { margin: 0; font: inherit; color: inherit; }
+  .item-do-menu:hover { background: var(--cor-azul-escuro); }
+  .item-do-menu[aria-current="page"], .grupo[data-atual] > .item-do-menu { box-shadow: inset 0 -2px 0 var(--cor-amarelo); }
+  .grupo > summary .icone { width: 1rem; height: 1rem; transition: transform 0.15s; }
+  .grupo[open] > summary .icone { transform: rotate(180deg); }
+  .menu-lista { position: absolute; top: 100%; left: 0; z-index: 50; min-width: 16rem; list-style: none; margin: 0; padding: var(--espaco-2); background: var(--cor-branco); color: var(--cor-texto); border-radius: var(--raio-controle); box-shadow: var(--sombra-menu); }
+  .menu-lista ul { list-style: none; margin: 0; }
+  .menu-lista a { display: flex; align-items: center; justify-content: space-between; gap: var(--espaco-2); min-height: var(--altura-item-menu); padding: 0 var(--espaco-3); border-radius: var(--raio-controle); color: var(--cor-texto); text-decoration: none; font-weight: 600; white-space: nowrap; }
+  .menu-lista a:hover { background: var(--cor-superficie); }
+  .menu-lista a[aria-current="page"] { background: var(--cor-marinho); color: var(--cor-branco); }
+
+  /* Usuário só com as iniciais abaixo de 1.440 px (o nome continua no menu dele): em 1366 px o menu inteiro só cabe assim. */
+  @media (max-width: 89.9375rem) {
+    .usuario summary > span:not(.iniciais) { position: absolute; left: 0; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   }
-  body > nav h2 { padding: var(--espaco-3) var(--espaco-3) var(--espaco-1); font-size: var(--texto-legenda); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--cor-texto-suave); }
-  body > nav ul { list-style: none; margin: 0 0 var(--espaco-1); padding: 0; }
-  body > nav a { display: flex; align-items: center; justify-content: space-between; gap: var(--espaco-2); min-height: var(--altura-item-menu); padding: 0 var(--espaco-3); border-radius: var(--raio-controle); color: var(--cor-texto); text-decoration: none; font-weight: 600; }
-  body > nav a:hover { background: var(--cor-superficie); }
-  body > nav a[aria-current="page"] { background: var(--cor-marinho); color: var(--cor-branco); }
+  /* Abaixo de 1.200 px o menu sai da barra: abre pelo botão "Menu" como painel vertical à direita, logo abaixo do cabeçalho. */
+  @media (max-width: 74.9375rem) {
+    #menu-principal:not(:popover-open) { display: none; }
+    #menu-principal:popover-open { position: fixed; inset: var(--altura-topo) 0 auto auto; width: min(22rem, 100vw); max-height: calc(100dvh - var(--altura-topo)); overflow-y: auto; overscroll-behavior: contain; z-index: 45; padding: var(--espaco-2); background: var(--cor-branco); color: var(--cor-texto); box-shadow: var(--sombra-menu); }
+    #menu-principal::backdrop { background: transparent; }
+    .menu-barra { flex-direction: column; height: auto; gap: 0; }
+    .menu-barra > li, .grupo { display: block; }
+    .item-do-menu { min-height: var(--altura-item-menu); color: var(--cor-texto); border-radius: var(--raio-controle); }
+    .item-do-menu:hover { background: var(--cor-superficie); }
+    .item-do-menu[aria-current="page"], .grupo[data-atual] > .item-do-menu { box-shadow: inset 3px 0 0 var(--cor-amarelo); }
+    .menu-lista { position: static; min-width: 0; padding: 0 0 0 var(--espaco-3); box-shadow: none; }
+  }
   /* Submenu das seções da configuração (design system, revisão 5): o item abre e fecha; os subitens ficam recuados sob ele. */
   .submenu summary { list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: var(--espaco-2); min-height: var(--altura-item-menu); padding: 0 var(--espaco-3); border-radius: var(--raio-controle); font-weight: 600; }
   .submenu summary::-webkit-details-marker { display: none; }
@@ -134,27 +142,18 @@
   .cabecalho-da-pagina .acoes { margin-left: auto; }
   .acoes { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espaco-2); }
 
-  /* Menu escondido pelo botão do cabeçalho (design system, revisão 7): o conteúdo ocupa a largura toda. */
-  @media (min-width: 48.0625rem) {
-    body[data-menu="recolhido"]:has(> nav) { grid-template-columns: minmax(0, 1fr); grid-template-areas: "demonstracao" "cabecalho" "conteudo"; }
-    body[data-menu="recolhido"] > nav { display: none; }
-  }
-
   /* Tela estreita: o menu vira um popover aberto pelo botão do cabeçalho; a busca some (o menu leva à lista de clientes). */
   @media (max-width: 48rem) {
-    body { grid-template-columns: minmax(0, 1fr); grid-template-areas: "demonstracao" "cabecalho" "conteudo"; }
     body > header { grid-template-columns: minmax(0, 1fr) auto; }
     /* Estreita: a faixa volta a rolar com a página e quebra em quantas linhas precisar. */
     :root:has(body > .demonstracao) { --altura-faixa: 0rem; }
     .demonstracao { position: static; height: auto; padding: var(--espaco-1) var(--espaco-4); }
     .demonstracao p { white-space: normal; text-align: center; }
     /* Com o menu aberto, a faixa sai: o cabeçalho sobe ao topo e o menu, que abre logo abaixo dele, não cobre o botão de fechar. */
-    body:has(> nav:popover-open) > .demonstracao { display: none; }
+    body:has(#menu-principal:popover-open) > .demonstracao { display: none; }
     .conta { grid-column: 2; }
-    /* Fechado até o botão abrir; aberto, cobre a página abaixo do cabeçalho com rolagem própria. */
-    body > nav:not(:popover-open) { display: none; }
-    body > nav:popover-open { position: fixed; inset: var(--altura-cabecalho) 0 auto 0; height: auto; max-height: calc(100dvh - var(--altura-cabecalho)); overflow-y: auto; z-index: 45; border-bottom: 1px solid var(--cor-linha-forte); box-shadow: var(--sombra-menu); }
-    body > nav::backdrop { background: transparent; }
+    /* Aberto, o menu cobre a largura toda abaixo do cabeçalho. */
+    #menu-principal:popover-open { inset: var(--altura-cabecalho) 0 auto 0; width: auto; }
     /* Cabeçalho estreito: só as iniciais no menu do usuário, para a marca, o sino e o menu caberem. */
     .usuario summary > span:not(.iniciais) { position: absolute; left: 0; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
     .marca strong { white-space: nowrap; font-size: var(--texto-titulo); }
@@ -251,7 +250,7 @@
   body[data-pagina="pagamento"] > header .marca strong { font-size: var(--texto-titulo); }
   body[data-pagina="pagamento"] .vazio h1 { font-size: var(--texto-titulo); margin-bottom: var(--espaco-3); }
   @media print {
-    .nao-imprimir, body > header, body > nav { display: none; }
+    .nao-imprimir, body > header { display: none; }
     body > main { padding: 0; max-width: none; }
   }
 }

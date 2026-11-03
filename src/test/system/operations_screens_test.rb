@@ -17,7 +17,10 @@ class OperationsScreensSystemTest < ApplicationSystemTestCase
   end
 
   def entrar(user)
-    entrar_pela_spa(user.email_address, "senha-de-teste-1")
+    visit new_session_path
+    fill_in "E-mail", with: user.email_address
+    fill_in "Senha", with: "senha-de-teste-1"
+    click_button "Entrar"
     assert_selector "header .usuario"
   end
 

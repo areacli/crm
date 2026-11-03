@@ -1,5 +1,5 @@
 <%# Promessas pendentes que o usuário pode aprovar (R192, R204). Refeita a cada evento do WebSocket (cable:promises-changed). %>
-<div id="resultado" hx-get="<%= pending_promises_path(tenant: params[:tenant].presence) %>" hx-trigger="cable:promises-changed from:body" hx-swap="outerHTML" hx-target="this">
+<div id="resultado" hx-get="<%= pending_promises_path(request.query_parameters) %>" hx-trigger="cable:promises-changed from:body" hx-swap="outerHTML" hx-target="this">
   <% if @promises.empty? %>
     <p class="vazio">Nenhuma promessa pendente para você aprovar.</p>
   <% else %>
@@ -40,4 +40,5 @@
       </table>
     </div>
   <% end %>
+  <%= render "shared/paginacao", pagination: @pagination, unit: "promessas", path: ->(page) { pending_promises_path(request.query_parameters.merge("page" => page)) } if @pagination.total.positive? %>
 </div>

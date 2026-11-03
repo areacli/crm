@@ -79,7 +79,7 @@ class ProfilesControllerTest < ActionDispatch::IntegrationTest
 
     patch membership_profile_url(memberships(:carlos_alfa)), params: { membership: { profile_id: analista.id } }
     sign_in_as users(:carlos)
-    get summary_url
+    get root_url
     assert_select "nav a", text: "Importações"
     assert_select "nav summary", text: "Configuração", count: 0
     assert_select "nav a", text: "Usuários", count: 0

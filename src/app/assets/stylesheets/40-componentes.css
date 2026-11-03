@@ -36,14 +36,25 @@
   .campo :is(input, textarea)[readonly] { font-family: var(--fonte-codigo); background: var(--cor-superficie); overflow-wrap: anywhere; }
   .campo > button { justify-self: start; }
   /* Busca global (cabeçalho): no desktop ocupa a coluna do meio; no celular some (o menu leva à lista de clientes). Fica nesta camada para vencer o `form` em grade. */
-  .busca { grid-column: 2; position: relative; display: flex; }
+  .busca, .lupa { grid-column: 4; }
+  .busca { position: relative; }
+  /* O formulário da busca é um popover (a lupa o abre abaixo de 1.600 px, ver 30-layout.css); as regras ficam nesta camada para vencer o `form` em grade. */
+  #busca-global-formulario { width: var(--largura-busca); margin: 0; padding: 0; border: 0; overflow: visible; background: transparent; }
+  @media (min-width: 100rem) {
+    #busca-global-formulario { position: relative; inset: auto; display: flex; }
+  }
+  @media (max-width: 99.9375rem) {
+    #busca-global-formulario:not(:popover-open) { display: none; }
+    #busca-global-formulario:popover-open { display: flex; position: fixed; inset: calc(var(--altura-topo) + var(--espaco-1)) var(--espaco-4) auto auto; width: min(28rem, calc(100vw - 2 * var(--espaco-4))); padding: var(--espaco-2); background: var(--cor-marinho); border-radius: var(--raio-controle); box-shadow: var(--sombra-menu); }
+    #busca-global-formulario button { right: var(--espaco-2); top: var(--espaco-2); }
+  }
   @media (max-width: 48rem) { .busca { display: none; } }
   /* Botão da busca global (cabeçalho): ícone sobre o campo branco. */
   .busca button { position: absolute; right: 0; top: 0; width: var(--altura-controle); min-height: var(--altura-controle); padding: 0; background: transparent; color: var(--cor-azul); border: 0; }
   .busca button:hover { background: transparent; color: var(--cor-azul-escuro); }
   /* Busca global dentro do menu aberto (tela estreita): o campo ocupa a largura do menu; fora da tela estreita não existe. */
   .busca-no-menu { display: none; }
-  @media (max-width: 48rem) {
+  @media (max-width: 74.9375rem) {
     .busca-no-menu { display: flex; position: relative; margin: var(--espaco-2) var(--espaco-3); }
     .busca-no-menu button { position: absolute; right: 0; top: 0; width: var(--altura-controle); min-height: var(--altura-controle); padding: 0; background: transparent; color: var(--cor-azul); border: 0; }
   }
@@ -304,14 +315,15 @@
   ul.caixas small { color: var(--cor-texto-suave); }
 }
 
-/* Botão do menu no cabeçalho: só existe na tela estreita (o menu é um popover, ver 30-layout.css). Fica aqui, na camada dos botões, para vencer a regra geral. */
+/* Botão do menu no cabeçalho: só abaixo de 1.200 px (o menu é um popover, ver 30-layout.css). Fica aqui, na camada dos botões, para vencer a regra geral. */
 @layer componentes {
   button.botao-menu { display: none; }
-  /* Tela larga (design system, revisão 7): o botão esconde e mostra o menu lateral; na estreita quem abre o menu é o botão-menu. */
-  button.alternar-menu { display: grid; place-items: center; width: var(--altura-controle); height: var(--altura-controle); padding: 0; background: transparent; color: var(--cor-branco); border: 0; }
-  button.alternar-menu:hover { background: var(--cor-azul-escuro); }
-  @media (max-width: 48rem) { button.alternar-menu { display: none; } }
-  @media (max-width: 48rem) {
+  /* Lupa da busca (padrões de interface, revisão 34): abaixo de 1.600 px abre o formulário da busca global; no celular a busca fica no menu. */
+  button.lupa { display: grid; place-items: center; width: var(--altura-controle); height: var(--altura-controle); padding: 0; background: transparent; color: var(--cor-branco); border: 0; }
+  button.lupa:hover { background: var(--cor-azul-escuro); }
+  @media (min-width: 100rem) { button.lupa { display: none; } }
+  @media (max-width: 48rem) { button.lupa { display: none; } }
+  @media (max-width: 74.9375rem) {
     button.botao-menu { display: grid; place-items: center; width: var(--altura-controle); height: var(--altura-controle); padding: 0; background: transparent; color: var(--cor-branco); border: 0; }
     button.botao-menu:hover { background: var(--cor-azul-escuro); }
   }

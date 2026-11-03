@@ -17,8 +17,8 @@ class OperationReachArchitectureTest < ActiveSupport::TestCase
   end
 
   # Os controladores fora do ApplicationController (página pública de pagamento, webhooks) não têm usuário: declaram o papel do sistema pelo
-  # `SystemDbRole`. As páginas de erro e os módulos da SPA (arquivos, decisão 0025) não tocam no banco.
-  NO_DATABASE = %w[ErrorsController Ui5AppController].freeze
+  # `SystemDbRole`. As páginas de erro não tocam no banco.
+  NO_DATABASE = %w[ErrorsController].freeze
 
   test "todo controlador fora do ApplicationController declara o papel do sistema" do
     Rails.application.eager_load!

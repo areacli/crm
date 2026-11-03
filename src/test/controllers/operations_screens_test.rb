@@ -28,7 +28,7 @@ class OperationsScreensTest < ActionDispatch::IntegrationTest
 
   test "sem a permissão 18, Operações não aparece e o endereço é recusado" do
     sign_in_as users(:carlos)
-    get summary_url
+    get root_url
     assert_select "#menu-principal .submenu a", text: "Credenciadas", count: 0
     get settings_operations_url
     assert_response :not_found
@@ -49,8 +49,8 @@ class OperationsScreensTest < ActionDispatch::IntegrationTest
     delete session_url
 
     entrar(caio)
-    assert_response :created
-    assert_equal I18n.t("operations.sign_in.suspended", operation: "Recupera", tenants: @alfa.name), response.parsed_body["aviso"]
+    assert_redirected_to root_url
+    assert_equal I18n.t("operations.sign_in.suspended", operation: "Recupera", tenants: @alfa.name), flash[:alert]
   end
 
   test "R308: com todos os credenciamentos suspensos, a entrada diz isso em vez de 'inválido'" do
@@ -58,8 +58,8 @@ class OperationsScreensTest < ActionDispatch::IntegrationTest
     caio = make_operation_user(operation, @alfa)
     Accreditation.find_by(tenant: @alfa, operation: operation).update!(status: "suspended")
     entrar(caio)
-    assert_response :unprocessable_content
-    assert_equal I18n.t("operations.sign_in.suspended", operation: "Recupera", tenants: @alfa.name), response.parsed_body["mensagem"]
+    assert_redirected_to new_session_url
+    assert_equal I18n.t("operations.sign_in.suspended", operation: "Recupera", tenants: @alfa.name), flash[:alert]
   end
 
   test "R310: o credor dá vínculo só com perfil disponível para operações" do

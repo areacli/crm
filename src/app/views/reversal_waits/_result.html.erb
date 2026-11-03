@@ -1,5 +1,5 @@
 <%# A lista dos estornos à espera; o htmx a refaz a cada aviso do WebSocket. %>
-<div id="resultado" aria-live="polite" hx-get="<%= reversal_waits_path %>" hx-trigger="cable:agreements-changed from:body, cable:connected from:body" hx-swap="outerHTML" hx-push-url="false">
+<div id="resultado" aria-live="polite" hx-get="<%= reversal_waits_path(request.query_parameters) %>" hx-trigger="cable:agreements-changed from:body, cable:connected from:body" hx-swap="outerHTML" hx-push-url="false">
   <% if @waits.empty? %>
     <p class="vazio">Nenhum estorno à espera do gestor.</p>
   <% else %>
@@ -29,6 +29,7 @@
       </div>
     </section>
   <% end %>
+  <%= render "shared/paginacao", pagination: @pagination, unit: "estornos à espera", path: ->(page) { reversal_waits_path(request.query_parameters.merge("page" => page)) } if @pagination.total.positive? %>
   <% if @decided.any? %>
     <section class="cartao" aria-labelledby="decididos">
       <header><h2 id="decididos">Decididos há pouco</h2></header>

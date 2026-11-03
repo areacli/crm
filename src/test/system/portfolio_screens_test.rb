@@ -14,7 +14,10 @@ class PortfolioScreensSystemTest < ApplicationSystemTestCase
                              progress_percent: 100, checked_at: Time.current,
                              summary: { lines: 2, valid: 2, rejected: 0, customers: 2, customers_new: 0, amount_formatted: "200,00", bills_new: 0, bills_updated: 0,
                                         bills_unchanged: 2, to_withdraw: { count: 1, amount_cents: 5000 } })
-    entrar_pela_spa(users(:joana).email_address, "senha-de-teste-1")
+    visit new_session_path
+    fill_in "E-mail", with: users(:joana).email_address
+    fill_in "Senha", with: "senha-de-teste-1"
+    click_button "Entrar"
     assert_selector "h1", text: "Resumo da carteira"
   end
 

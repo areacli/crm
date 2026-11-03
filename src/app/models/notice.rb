@@ -12,9 +12,5 @@ class Notice < ApplicationRecord
 
   private
     # Evento pequeno de invalidação para o sino do próprio usuário; o navegador busca a lista (decisão 0020, sem polling).
-    # O sino das páginas do servidor (htmx) e o da SPA (decisão 0025: o aviso é do próprio usuário, então vai direto ao fluxo dele).
-    def announce
-      NoticesChannel.broadcast_to(user, { event: "notice-created", notice_id: id })
-      LiveChannel.broadcast_to(user, { recurso: "avisos", acao: "recarregar" })
-    end
+    def announce = NoticesChannel.broadcast_to(user, { event: "notice-created", notice_id: id })
 end

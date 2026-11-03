@@ -183,29 +183,6 @@
         89
       ],
       "note": "Falso positivo: o texto vem do compilador dos segmentos (decisão 0023), que só escreve fragmentos próprios e passa todo valor da árvore como parâmetro ($n), como no recálculo do enquadramento financeiro."
-    },
-    {
-      "warning_type": "File Access",
-      "warning_code": 16,
-      "fingerprint": "1c0225aa9b17c2cc8ae71506ae6e2a9772e488b23fa1ed36b761e6b65b72d2a7",
-      "check_name": "SendFile",
-      "message": "Parameter value used in file name",
-      "file": "app/controllers/ui5_app_controller.rb",
-      "line": 14,
-      "link": "https://brakemanscanner.org/docs/warning_types/file_access/",
-      "code": "send_file(Ui5App.arquivo(params[:caminho]), :type => :BRAKEMAN_SAFE_LITERAL, :disposition => :inline)",
-      "render_path": null,
-      "location": {
-        "type": "method",
-        "class": "Ui5AppController",
-        "method": "show"
-      },
-      "user_input": "params[:caminho]",
-      "confidence": "Weak",
-      "cwe_id": [
-        22
-      ],
-      "note": "Falso positivo: Ui5App.arquivo expande o caminho e só devolve arquivo dentro de app/ui5/crm com extensão conhecida (teste em shell_test.rb); fora disso, 404."
     }
   ],
   "brakeman_version": "8.0.2"

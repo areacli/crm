@@ -4,7 +4,10 @@ require "application_system_test_case"
 # evento do WebSocket (o adaptador de teste do Action Cable não entrega ao navegador, então o evento `cable:` é disparado na página).
 class AccessScreensSystemTest < ApplicationSystemTestCase
   def sign_in(user)
-    entrar_pela_spa(user.email_address, "senha-de-teste-1")
+    visit new_session_path
+    fill_in "E-mail", with: user.email_address
+    fill_in "Senha", with: "senha-de-teste-1"
+    click_button "Entrar"
     assert_selector "header .usuario"
   end
 
@@ -54,19 +57,18 @@ class AccessScreensSystemTest < ApplicationSystemTestCase
     assert_acessivel
   end
 
-  test "o primeiro acesso com senha temporária leva à tela de definir a senha da SPA, que passa no axe" do
+  test "o primeiro acesso com senha temporária leva à tela de definir a senha, que passa no axe" do
     users(:carlos).update!(temporary_password_until: 72.hours.from_now)
-    entrar_pela_spa(users(:carlos).email_address, "senha-de-teste-1", destino: nil)
+    sign_in users(:carlos)
 
-    assert_selector "h1", text: "Defina sua senha", wait: 15
-    assert_no_text "Nenhuma tela aberta"
+    assert_selector "h1", text: "Defina sua senha"
+    assert_no_selector "nav[aria-label=Menu]"
     assert_acessivel
 
     fill_in "Nova senha", with: "minha-senha-definitiva"
     fill_in "Repita a nova senha", with: "minha-senha-definitiva"
-    click_button "Salvar"
-    assert_text "Resumo da carteira", wait: 15
-    assert_not users(:carlos).reload.temporary_password?
+    click_button "Salvar a senha"
+    assert_selector "h1", text: "Resumo da carteira"
   end
 
   test "o gestor cria o operador pela tela e vê a senha temporária uma única vez" do

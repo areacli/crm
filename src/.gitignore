@@ -15,6 +15,3 @@
 
 # Chaves de desenvolvimento e produção ficam fora do repositório; a de teste só decifra chaves de teste, descartáveis, e é versionada.
 !/config/credentials/test.key
-
-# OpenUI5 instalado por bin/ui5-instalar (decisão 0025), fora do repositório.
-/public/ui5

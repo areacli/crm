@@ -12,7 +12,10 @@ class DesignSystemSystemTest < ApplicationSystemTestCase
 
   test "a confirmação abre, cancela sem agir e confirma" do
     # A confirmação é uma rota do aplicativo e pede sessão (a referência em si é aberta).
-    entrar_pela_spa(users(:joana).email_address, "senha-de-teste-1")
+    visit new_session_path
+    fill_in "E-mail", with: users(:joana).email_address
+    fill_in "Senha", with: "senha-de-teste-1"
+    click_button "Entrar"
     assert_selector "h1", text: "Resumo da carteira"
     visit design_system_path
     click_link "Excluir o exemplo"
@@ -43,14 +46,16 @@ class DesignSystemSystemTest < ApplicationSystemTestCase
     assert_not page.evaluate_script("document.documentElement.scrollWidth > document.documentElement.clientWidth")
   end
 
-  test "a entrada e a casca da SPA passam no axe" do
-    visit root_path
-    assert_selector "h1", text: "Entrar no CRM", wait: 30
+  test "a entrada e a página inicial passam no axe" do
+    visit new_session_path
+    assert_selector "h1", text: "Entrar no CRM"
     assert_acessivel
 
-    entrar_pela_spa(users(:joana).email_address, "senha-de-teste-1", destino: nil)
+    fill_in "E-mail", with: users(:joana).email_address
+    fill_in "Senha", with: "senha-de-teste-1"
+    click_button "Entrar"
 
-    assert_text "Resumo da carteira"
+    assert_selector "h1", text: "Resumo da carteira"
     assert_acessivel
   end
 end

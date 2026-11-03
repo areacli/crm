@@ -212,7 +212,7 @@ class TitularScreensTest < ActionDispatch::IntegrationTest
 
     get data_retention_path
     assert_response :not_found
-    get summary_path
+    get root_path
     assert_select "nav a", text: "Guarda de dados", count: 0
   end
 

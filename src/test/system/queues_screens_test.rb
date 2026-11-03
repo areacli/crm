@@ -17,7 +17,10 @@ class QueuesScreensSystemTest < ApplicationSystemTestCase
   end
 
   def entrar(user)
-    entrar_pela_spa(user.email_address, "senha-de-teste-1")
+    visit new_session_path
+    fill_in "E-mail", with: user.email_address
+    fill_in "Senha", with: "senha-de-teste-1"
+    click_button "Entrar"
     assert_selector "header .usuario"
   end
 
@@ -58,9 +61,10 @@ class QueuesScreensSystemTest < ApplicationSystemTestCase
     assert_acessivel
   end
 
+  # O botão "Próximo" saiu do cabeçalho a pedido do Paulo (02/11/2026) até se decidir onde ele fica; o pedido continua o mesmo (POST /fila/proximo).
   test "o operador pede Próximo, vê a faixa e devolve" do
     entrar users(:carlos)
-    click_button "Próximo"
+    pedir_proximo
     assert_selector "h1", text: "Maria da Fila"
     assert_text "Da fila Fila A"
     assert_acessivel
@@ -68,4 +72,23 @@ class QueuesScreensSystemTest < ApplicationSystemTestCase
     click_button "Devolver"
     assert_text "Devolvido à fila."
   end
+
+  private
+    def pedir_proximo
+      page.execute_script(<<~JS, next_delivery_path)
+        const formulario = document.createElement("form")
+        formulario.method = "post"
+        formulario.action = arguments[0]
+        const meta = document.querySelector("meta[name=csrf-token]")
+        if (meta) {
+          const token = document.createElement("input")
+          token.type = "hidden"
+          token.name = "authenticity_token"
+          token.value = meta.content
+          formulario.append(token)
+        }
+        document.body.append(formulario)
+        formulario.submit()
+      JS
+    end
 end

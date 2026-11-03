@@ -16,7 +16,10 @@ class CustomerPageScreensSystemTest < ApplicationSystemTestCase
     @alfa.setting.update!(operation_exclusive: false)
     distributor.distribute(tenant: @alfa, operation: recupera, contract: @first, exposure: "all", starts_on: Date.current - 3)
     distributor.distribute(tenant: @alfa, operation: cobra, contract: @first, exposure: "overdue", starts_on: Date.current - 1)
-    entrar_pela_spa(users(:joana).email_address, "senha-de-teste-1")
+    visit new_session_path
+    fill_in "E-mail", with: users(:joana).email_address
+    fill_in "Senha", with: "senha-de-teste-1"
+    click_button "Entrar"
     assert_selector "header .usuario"
   end
 
@@ -61,31 +64,6 @@ class CustomerPageScreensSystemTest < ApplicationSystemTestCase
     assert_includes page.current_url, "contrato=#{@second.id}"
     click_link "Ver todos os contratos"
     assert_no_selector ".cabecalho-da-pagina .situacao", text: "Contrato CT-SEGUNDO"
-  end
-
-  test "na ficha o menu começa recolhido e lembra a escolha à parte; nas outras páginas vale a escolha delas" do
-    visit customer_path(@maria)
-    assert_no_selector "body > nav", visible: true
-    assert_selector "button[data-alternar-menu][aria-expanded='false']"
-    assert sem_rolagem_horizontal
-    find("button[data-alternar-menu][aria-label='Mostrar o menu']").click
-    assert_selector "body > nav", visible: true
-
-    # Mostrado na ficha, continua mostrado na próxima ficha, também quando se chega a ela pelo hx-boost.
-    visit customers_path
-    assert_selector "body > nav", visible: true
-    find("button[data-alternar-menu][aria-label='Esconder o menu']").click
-    assert_no_selector "body > nav", visible: true
-    click_link "Maria Duas Contas"
-    assert_selector "h1", text: "Maria Duas Contas"
-    assert_selector "body > nav", visible: true
-    find("button[data-alternar-menu][aria-label='Esconder o menu']").click
-    visit customer_path(@maria)
-    assert_no_selector "body > nav", visible: true
-    # A lista continua com a escolha dela (recolhido), e o hx-boost de volta à lista a respeita.
-    visit customers_path
-    assert_no_selector "body > nav", visible: true
-    assert_acessivel
   end
 
   test "a linha do tempo filtra por tipo e pagina sem recarregar a ficha" do

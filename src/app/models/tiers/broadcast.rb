@@ -4,14 +4,8 @@ module Tiers
   module Broadcast
     module_function
 
-    # Cada evento vai também à SPA (decisão 0025), pelo recurso "credores" do tempo real.
-    def changed(tenant) = avisar(tenant, "segments-changed")
-    def review_ready(tenant) = avisar(tenant, "tier-review-ready")
-    def probe_ready(tenant) = avisar(tenant, "segment-probe-ready")
-
-    def avisar(tenant, event)
-      SegmentsChannel.broadcast_to(tenant, { event: event })
-      Live.publish("credores", tenant.id, tenant_id: tenant.id)
-    end
+    def changed(tenant) = SegmentsChannel.broadcast_to(tenant, { event: "segments-changed" })
+    def review_ready(tenant) = SegmentsChannel.broadcast_to(tenant, { event: "tier-review-ready" })
+    def probe_ready(tenant) = SegmentsChannel.broadcast_to(tenant, { event: "segment-probe-ready" })
   end
 end

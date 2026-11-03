@@ -22,44 +22,134 @@ A carteira da Escola Alfa tem 10 mil clientes com títulos desde 2020, pagamento
 
 ## Telas
 
-A interface é uma aplicação de página única em OpenUI5 (decisão de 02/11/2026): cada tela abre numa aba da aplicação, e alternar entre elas não perde o que estava aberto. Fotos tiradas da demonstração publicada pela V5 (`deploy/rails/v5/v5-demo.mjs`) em 02/11/2026.
+Estado atual da aplicação em Rails (fotos recriadas a cada incremento por `deploy/rails/capturas.sh`).
 
 | | |
 |---|---|
 | ![Resumo da carteira](docs/telas/resumo.png) | ![Lista de clientes](docs/telas/clientes.png) |
-| Resumo da carteira: os totais dos credores visíveis, o recuperado por meio de pagamento e os acordos por mês | Lista de clientes, uma aba da aplicação que guarda a busca enquanto se trabalha em outra |
-| ![Ficha do cliente](docs/telas/ficha-do-cliente.png) | ![Acionamentos na ficha](docs/telas/ficha-acionamentos.png) |
-| Ficha do cliente numa aba própria: contratos, títulos, dados, valores em cobrança e linha do tempo | Acionamentos na ficha, com o texto livre trocado por texto fictício na demonstração |
-| ![Lista de acionamentos](docs/telas/acionamentos.png) | ![Importações](docs/telas/importacoes.png) |
-| Lista de acionamentos com período, filtros e o detalhe da linha | Importações de carteira, pagamentos e estornos, com a situação ao vivo |
-| ![Importar carteira](docs/telas/importacoes-nova-portfolio.png) | ![Conferência de pagamentos](docs/telas/pagamentos-conferencia.png) |
-| Envio da planilha de carteira, com as colunas ao lado | Conferência de um arquivo de pagamentos: o efeito antes de confirmar |
-| ![Divergências de valor](docs/telas/divergencias-de-valor.png) | ![Estornos à espera do gestor](docs/telas/estornos-a-espera.png) |
-| Divergências de valor a tratar pelo financeiro | Estornos à espera da decisão do gestor |
-| ![Lista de acordos](docs/telas/acordos.png) | ![Página do acordo](docs/telas/acordo.png) |
-| Propostas e acordos, uma linha por registro | Página do acordo: títulos e base, entrada e parcelas, histórico e condições |
-| ![Acordos pendentes](docs/telas/acordos-pendentes.png) | ![Promessas pendentes](docs/telas/promessas-pendentes.png) |
-| Propostas que pedem aprovação | Promessas pendentes de aprovação |
-| ![Arquivo de acordos](docs/telas/arquivo-de-acordos.png) | ![Guarda de dados](docs/telas/guarda-de-dados.png) |
-| Arquivo de acordos para o credor | Prazo de guarda, anonimização prevista, retidos e as execuções da tarefa diária |
-| ![Distribuição](docs/telas/distribuicao.png) | ![Operações credenciadas](docs/telas/operacoes.png) |
-| Distribuição: o que está com cada operação, desde quando e com qual exposição | Operações credenciadas e as políticas das operações do credor |
-| ![Enquadramento da distribuição](docs/telas/operacoes-enquadramento-da-distribuicao.png) | ![Trilha das operações](docs/telas/operacoes-trilha.png) |
-| Enquadramento da distribuição: segmentos em ordem e as operações de cada um | Trilha do que as operações abriram, buscaram e exportaram |
-| ![Clientes vistos pela operação](docs/telas/operacao-clientes.png) | ![Visão das filas](docs/telas/filas.png) |
-| Lista de clientes vista por uma operação de cobrança: só o que foi distribuído a ela | Visão das filas: disponíveis, em atendimento e aguardando, e quem atende o quê |
-| ![Enquadramento das filas](docs/telas/filas-enquadramento.png) | ![Grupos das filas](docs/telas/filas-grupos.png) |
-| Enquadramento das filas de clientes e de contratos | Grupos de usuários ligados às filas |
-| ![Dados do credor](docs/telas/configuracao-dados-do-credor.png) | ![Configuração da carteira](docs/telas/configuracao-carteira.png) |
-| Dados do credor e o prazo de guarda | Faixas de atraso e as políticas da carteira lado a lado |
-| ![Métodos de recebimento](docs/telas/configuracao-metodos-de-recebimento.png) | ![Políticas de pagamento](docs/telas/configuracao-politicas-de-pagamento.png) |
-| Métodos de recebimento, com as integrações no detalhe | Políticas de pagamento e as de crédito e tolerância dos acordos |
-| ![Segmentos](docs/telas/configuracao-segmentos.png) | ![Enquadramento financeiro](docs/telas/configuracao-enquadramento-financeiro.png) |
-| Segmentos: públicos descritos por condições, com onde cada um é usado | Enquadramento financeiro com as regras de cada item e os parâmetros de encargos |
-| ![Promessas e acordos](docs/telas/configuracao-promessas-e-acordos.png) | ![Índices do Banco Central](docs/telas/configuracao-indices.png) |
-| Políticas das promessas, prazos, alçadas e as dos acordos | Índices do Banco Central e as correções do credor |
-| ![Resultados de acionamento](docs/telas/configuracao-resultados-de-acionamento.png) | ![Página de pagamento](docs/telas/pagar.png) |
-| Resultados de acionamento do credor | Página pública de pagamento de exemplo (sem login), fora da aplicação |
+| Resumo da carteira: totais somados dos credores a que a pessoa tem acesso, faixas de atraso por cliente e por título (quando iguais), valor atualizado | Lista de clientes com busca, filtros e ordenação |
+| ![Ficha do cliente](docs/telas/ficha-do-cliente.png) | ![Conferência da importação da carteira](docs/telas/conferencia-da-carteira.png) |
+| Ficha do cliente: dados, totais e títulos | Conferência antes de confirmar a carga: o que entra, o que sai, as linhas recusadas e os acréscimos informados comparados com os calculados |
+| ![Importações](docs/telas/importacoes.png) | ![Importar carteira](docs/telas/importar-carteira.png) |
+| Importações do credor, com o andamento em tempo real | Envio da planilha, com a tabela de colunas e a planilha-modelo |
+| ![Configuração da carteira](docs/telas/configuracao.png) | ![Usuários do credor](docs/telas/usuarios.png) |
+| Faixas de atraso e tratamento do a vencer, por credor | Usuários e seus perfis em cada credor |
+| ![Perfis de permissões](docs/telas/perfis.png) | ![Importar pagamentos](docs/telas/importar-pagamentos.png) |
+| Perfis com as 16 permissões | Envio da planilha de pagamentos (e a de estornos), com colunas e planilha-modelo |
+| ![Conferência de pagamentos](docs/telas/conferencia-de-pagamentos.png) | ![Canais de recebimento](docs/telas/canais-de-recebimento.png) |
+| Conferência antes de confirmar: quitados, baixas parciais, créditos, pendentes e ignorados | Canais de recebimento do credor, em uma aba da configuração |
+| ![Canal de recebimento](docs/telas/canal-de-recebimento.png) | ![Políticas de pagamento](docs/telas/politicas-de-pagamento.png) |
+| Canal: dados e webhook de pagamento assinado | Políticas de pagamento por credor |
+| ![Ficha com pagos e crédito](docs/telas/ficha-com-pagos-e-credito.png) | ![Ficha com acionamentos](docs/telas/ficha-com-acionamentos.png) |
+| Ficha: pagamentos aplicados e crédito por contrato, com transferência entre contratos | Ficha: formulário de acionamento e histórico |
+| ![Lista de acionamentos](docs/telas/acionamentos.png) | ![Resultados de acionamento](docs/telas/resultados-de-acionamento.png) |
+| Lista de acionamentos dos credores, com filtros e paginação | Resultados de acionamento por credor, em uma aba da configuração |
+| ![Divergências de valor](docs/telas/divergencias-de-valor.png) | ![Divergência de valor](docs/telas/divergencia-de-valor.png) |
+| Divergências de valor: títulos com pagamento cujo valor o credor mudou numa carga, para o financeiro tratar | Detalhe da divergência: o que mudou, o efeito aplicado e o tratamento com nota |
+| ![Histórico do título](docs/telas/historico-do-titulo.png) | ![Ficha com contatos](docs/telas/ficha-com-contatos.png) |
+| Histórico do título: versões do valor, pagamentos, estornos e divergências em ordem de data | Ficha: contatos do cliente com situação e origem, ações de edição, histórico do cadastro e contratos com os papéis |
+| ![Dados do credor](docs/telas/dados-do-credor.png) | ![Política de correção na tela ou carga](docs/telas/politica-de-correcao.png) |
+| Dados do credor (CNPJ, razão social, endereço, contatos) e prazo de guarda, um cartão por credor | Correção na tela ou carga: qual vale, por credor, na aba Carteira |
+
+| | |
+|---|---|
+| ![Guarda de dados](docs/telas/guarda-de-dados.png) | ![Exportação dos dados do cliente](docs/telas/exportacao-de-dados.png) |
+| Guarda de dados: prazo, anonimização prevista nos próximos 30 dias, retidos e execuções da tarefa diária | Dados do cliente para imprimir ou baixar em JSON (direito de acesso) |
+| ![Ficha de cliente anonimizado](docs/telas/ficha-anonimizada.png) | ![Segmentos](docs/telas/segmentos.png) |
+| Ficha de cliente anonimizado: só restam os dados que não identificam a pessoa | Segmentos: públicos descritos por condições, com o texto curto, onde cada um é usado e a situaçãos do credor |
+| ![Editor de segmento](docs/telas/editor-de-segmento.png) | ![Enquadramento financeiro](docs/telas/enquadramento-financeiro.png) |
+| Editor em blocos: cada condição no texto curto e por extenso, "Conferir" com o total e cada condição sozinha | Enquadramento financeiro: itens em ordem com as regras de encargos, promessa e acordo; quem não atende nenhum fica em Demais |
+| ![Conferência do enquadramento](docs/telas/conferencia-do-enquadramento.png) | ![Glossário dos segmentos](docs/telas/glossario-dos-segmentos.png) |
+| Conferência do impacto em segundo plano: o que muda, o que foi alterado, entram e saem por item e de onde para onde | Glossário dos segmentos, gerado do catálogo, com definição e exemplo de cada termo |
+| ![Índices do Banco Central](docs/telas/indices.png) | ![Ficha com segmentos](docs/telas/ficha-com-segmentos.png) |
+| Índices IPCA, INPC, IGP-M, Selic e taxa legal mês a mês, com a correção do credor e a situação da busca | Ficha: faixa de atraso e enquadramento de cada contrato, desde quando e por quê, com o histórico |
+| ![Ficha com valor atualizado](docs/telas/ficha-com-valor-atualizado.png) | ![Regra de encargos do segmento](docs/telas/regra-de-encargos.png) |
+| Ficha: valor atualizado de cada título com os componentes e a memória de cálculo (períodos, segmento, índices, taxas e dias) | Regra de encargos no formulário do segmento: multa, juros, correção, honorários, convenção de dias e base da multa, com o que herda do credor |
+| ![Conferência de encargos](docs/telas/conferencia-de-encargos.png) | ![Ficha com promessas](docs/telas/ficha-com-promessas.png) |
+| Conferência do impacto: o valor atualizado por segmento antes e depois da mudança, e o aviso do CDC para multa acima de 2% | Ficha: uma linha por promessa aberta ou pendente sob o resumo, com as ações de aprovar, recusar e cancelar |
+| ![Registrar promessa](docs/telas/formulario-de-promessa.png) | ![Promessas pendentes](docs/telas/promessas-pendentes.png) |
+| Formulário do acionamento: títulos de um contrato, meio e data prometida, com o valor de cada título na data antes de gravar | Lista de promessas pendentes de aprovação, para quem tem alçada nos credores em que a promessa foi feita |
+| ![Configuração das promessas e dos acordos](docs/telas/configuracao-de-promessas.png) | ![Simulação de acordo](docs/telas/simulacao-de-acordo.png) |
+| Promessas e acordos: políticas do credor, prazo máximo e alçada das promessas; políticas dos acordos, variáveis de cada segmento e limites de cada perfil, com as alterações recentes | Simulação do acordo na ficha: títulos, descontos por componente, entrada e parcelas, com a base, o valor do acordo, a taxa efetiva e a tabela de parcelas antes de gravar |
+| ![Proposta de acordo](docs/telas/proposta-de-acordo.png) | ![Termo do acordo](docs/telas/termo-do-acordo.png) |
+| Proposta aprovada: resumo, títulos com a base e o desconto por componente, parcelas, ações da alçada e o registro do aceite | Termo para imprimir ou salvar em PDF: partes, dívidas renegociadas, parcelas, taxa efetiva anual, soma total e as condições congeladas |
+| ![Acordo aguardando efetivação](docs/telas/acordo-aguardando-efetivacao.png) | ![Lista de acordos](docs/telas/lista-de-acordos.png) |
+| Acordo aceito: quem aceitou e com que papel, o canal, o comprovante e o histórico | Lista de acordos por credor, com filtros de situação, período e quem montou, e os casos que pedem o gestor |
+| ![Acordos pendentes](docs/telas/acordos-pendentes.png) | ![Ficha com acordos](docs/telas/ficha-com-acordos.png) |
+| Propostas pendentes que a pessoa pode aprovar, pelos limites atuais do perfil dela | Ficha: a proposta numa linha sob o resumo, o histórico dos acordos e o título preso à proposta |
+| ![Parâmetros dos acordos](docs/telas/parametros-dos-acordos.png) | ![Acordo efetivado](docs/telas/acordo-efetivado.png) |
+| Segmentos e encargos: juros e método do parcelamento, convenção de dias e base da multa dos títulos de acordo, do credor e de cada segmento | Acordo efetivado: os títulos de acordo com o devido de hoje (com a mora dos parâmetros congelados), o cálculo da quitação e a quebra manual |
+| ![Acordo quebrado](docs/telas/acordo-quebrado.png) | ![Ficha com títulos de acordo](docs/telas/ficha-com-titulos-de-acordo.png) |
+| Acordo quebrado: o motivo, a forma da quebra e os títulos que seguem em cobrança | Ficha: o título de acordo com a marca, o original renegociado e o saldo devedor do acordo |
+| ![Arquivo de acordos](docs/telas/arquivo-de-acordos.png) | ![Acordo em reversão](docs/telas/acordo-em-reversao.png) |
+| Arquivo de acordos: exportar as novidades ou o completo para o credor emitir a entrada e as parcelas, com as exportações dos últimos 30 dias | Acordo em reversão: a marca, as liquidações estornadas e os botões de concluir ou desistir; o crédito vira aguardando alocação |
+| ![Ficha com crédito por estado](docs/telas/ficha-com-credito-por-estado.png) | ![Estornos à espera do gestor](docs/telas/estornos-a-espera.png) |
+| Ficha: o crédito do contrato por estado (disponível, aguardando alocação, bloqueado) e a alocação num título do mesmo contrato | Estornos à espera do gestor: há quanto tempo esperam, as opções que o estado permite e a decisão com motivo |
+| ![Simulação de acordo sobre acordo](docs/telas/simulacao-de-acordo-sobre-acordo.png) | |
+| Acordo sobre acordo: os títulos do acordo quebrado entram pelo saldo devedor, com os juros do parcelamento e os encargos de atraso herdados | |
+
+| | |
+|---|---|
+| ![Contas de pagamento](docs/telas/contas-de-pagamento.png) | ![Nova conta de pagamento](docs/telas/nova-conta-de-pagamento.png) |
+| Contas de pagamento por credor, modalidade e ambiente, em uma aba da configuração | Cadastro montado pelo manifesto do fornecedor: segredos em branco, certificado enviado como arquivo |
+| ![Conta de pagamento](docs/telas/conta-de-pagamento.png) | |
+| Conta com certificado (titular, validade e impressão digital), teste de conexão, segredo do webhook e histórico sem valores | |
+| ![Pagamento do cliente](docs/telas/pagamento-do-cliente.png) | |
+| Página pública de pagamento do cliente (link com token, sem login): Pix com QR Code local, boleto e cartão por checkout transparente; os campos do cartão não são enviados ao servidor | |
+
+### Operações (parceiros de cobrança)
+
+| | |
+|---|---|
+| ![Operações credenciadas](docs/telas/operacoes.png) | ![Credenciamento](docs/telas/credenciamento.png) |
+| Operações credenciadas no credor, com situação, vínculos e as políticas de visibilidade | Credenciamento: as pessoas da operação e o perfil de cada uma neste credor |
+| ![Distribuição](docs/telas/distribuicao.png) | ![Enquadramento da distribuição](docs/telas/enquadramento-da-distribuicao.png) |
+| O que está com cada operação: cliente ou contrato, exposição, período e origem (à mão, lote ou regra) | Enquadramento da distribuição: segmentos de contratos em ordem, cada um com as operações e a exposição, com conferência do impacto |
+| ![Trilha das operações](docs/telas/trilha-das-operacoes.png) | ![Ficha de cliente distribuído](docs/telas/ficha-distribuida.png) |
+| Trilha do que as pessoas da operação abriram e buscaram (12 meses) | Ficha vista pela equipe do credor, com a operação que está com cada contrato |
+| ![Clientes vistos pela operação](docs/telas/clientes-da-operacao.png) | |
+| A lista de clientes vista pela pessoa da operação: o nome da operação no cabeçalho e só o que foi distribuído a ela (Row-Level Security do PostgreSQL) | |
+
+### Filas de trabalho
+
+| | |
+|---|---|
+| ![Enquadramento das filas](docs/telas/enquadramento-das-filas.png) | ![Grupos das filas](docs/telas/grupos-das-filas.png) |
+| Enquadramento das filas de clientes e de contratos: segmentos em ordem, cada um uma fila ou "sem fila", com a ordem, a trava e os intervalos de cada fila | Grupos: usuários e as filas ligadas, em ordem; a estratégia de cada operador entre as filas (em ordem, pesos ou uma de cada vez) |
+| ![Visão das filas](docs/telas/visao-das-filas.png) | ![Fila em ordem](docs/telas/fila-em-ordem.png) |
+| Visão das filas: disponíveis, em atendimento e aguardando em cada fila, e quem está com cada entrega, com "Liberar" | Uma fila em ordem, com a situação de cada contrato |
+| ![Próximo da fila](docs/telas/proximo-da-fila.png) | |
+| O "Próximo" no cabeçalho abre a ficha do cliente ou do contrato entregue, travado para o operador, com "Devolver" | |
+
+### Padrão de interface: denso, corporativo e com ações no painel
+
+Todas as telas seguem a revisão 4 do design system (decisão 0022): texto de 15 px (tabelas de 14 px), controles de 34 px e linhas de 36 px, cabeçalho de 56 px com busca global, barra de página com título, indicadores e ações, menu lateral de 256 px com contadores e a Configuração como submenu que abre e fecha (revisões 5 e 6), e quatro modelos de página (lista, ficha, configuração e entrada). A **regra de ação** diz onde cada ação abre: **sem dados, botão direto** (confirmação curta em modal pequeno só para o que é destrutivo); **um ou dois campos, modal pequeno**; **formulário médio, painel lateral de 480 px**, que mantém a página à vista; **fluxo rico, página própria** com formulário e resultado lado a lado (simular acordo); **edição de um valor, na própria linha**. Nunca há formulário aberto na página nem `<details>` com formulário (teste de arquitetura). Um só `<dialog>` no layout é preenchido pelo htmx e a mesma rota responde como página inteira sem JavaScript.
+
+| | |
+|---|---|
+| ![Novo usuário no painel lateral](docs/telas/novo-usuario-no-painel.png) | ![Perfil no painel lateral](docs/telas/perfil-no-painel.png) |
+| Painel lateral: a lista continua à vista enquanto se preenche o formulário | Perfil com nome e as permissões no painel lateral |
+| ![Registrar aceite no painel](docs/telas/registrar-aceite-no-painel.png) | ![Quebrar o acordo no painel](docs/telas/quebrar-acordo-no-painel.png) |
+| Registrar o aceite do acordo no painel lateral | Quebra manual do acordo em modal pequeno (motivo e marca de fraude) |
+| ![Tratar divergência no painel](docs/telas/tratar-divergencia-no-painel.png) | ![Confirmar o descarte da importação](docs/telas/confirmar-descarte-da-importacao.png) |
+| Tratar a divergência de valor: nota e escolha em modal pequeno | Confirmação curta: o mesmo mecanismo do painel, com o destino num token assinado |
+
+### Demonstração carregada
+
+Fotos da demonstração com os dados fictícios completos (10 mil clientes, pagamentos, promessas e acordos), tiradas pela V5 (`deploy/rails/v5/v5-demo.mjs`) em 25/10/2026.
+
+| | |
+|---|---|
+| ![Resumo com os totais dos dois credores](docs/telas/demonstracao-resumo.png) | ![Lista de clientes](docs/telas/demonstracao-clientes.png) |
+| Resumo da carteira com os totais da Escola Alfa e da Clínica Beta somados, a faixa da demonstração e o recuperado por meio de pagamento | Lista de clientes com a carteira de 10 mil clientes |
+| ![Acionamentos](docs/telas/demonstracao-acionamentos.png) | ![Divergências de valor](docs/telas/demonstracao-divergencias-de-valor.png) |
+| Lista de acionamentos dos últimos 120 dias | Divergências de valor a tratar pelo financeiro |
+| ![Acordos](docs/telas/demonstracao-acordos.png) | ![Promessas pendentes](docs/telas/demonstracao-promessas-pendentes.png) |
+| Propostas e acordos nos estados principais, com os casos que pedem o gestor | Promessas pendentes de aprovação |
+| ![Segmentos e encargos](docs/telas/demonstracao-configuracao-segmentos.png) | ![Importações](docs/telas/demonstracao-importacoes.png) |
+| Segmentos de contratos e as regras de encargos | Importações, com a carga conferida à espera de confirmação |
+| ![Página de pagamento](docs/telas/demonstracao-pagar.png) | |
+| Página pública de pagamento de exemplo, com Pix (QR Code gerado aqui), boleto e cartão | |
 
 ## Incrementos
 
@@ -120,7 +210,5 @@ Os segredos de fornecedor de pagamento (Client Secret, certificado `.p12`, segre
 ## Licença
 
 [GNU Affero General Public License v3.0](LICENSE).
-
-A interface usa o [OpenUI5](https://github.com/UI5/openui5) (Apache 2.0), na versão fixada em `src/config/ui5_versao`. Ele não fica neste repositório: `src/bin/ui5-instalar` baixa o pacote oficial dessa versão, confere o SHA-256 e extrai as bibliotecas usadas em `src/public/ui5/` (o Dockerfile faz isso na construção da imagem).
 
 Os comentários do código citam regras (R1, R2…) e decisões das especificações. As especificações são documentos internos do projeto e não estão neste repositório; a série no blog conta cada uma.

@@ -53,8 +53,9 @@ class QueuesScreensTest < ActionDispatch::IntegrationTest
     contract = make_contract(@alfa, "C-77", bills: [ { overdue: 40 } ])
     Queues::Recalculation.new(@alfa).apply
     entrar(users(:carlos))
-    get summary_path
-    assert_select "form.proximo button", text: "Próximo"
+    get root_path
+    # O botão saiu do cabeçalho a pedido do Paulo (02/11/2026); o pedido continua o mesmo.
+    assert_select "form.proximo", count: 0
     post next_delivery_path
     assert_redirected_to customer_path(contract.customers.first, contrato: contract.id)
     follow_redirect!

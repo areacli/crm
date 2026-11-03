@@ -28,9 +28,6 @@ gem "rqrcode", "~> 3.2"
 # Políticas de autorização, uma por modelo
 gem "pundit"
 
-# Visões JSON da SPA (decisão 0025): a gem padrão do Rails para montar o JSON de cada tela (`*.json.jbuilder`).
-gem "jbuilder", "~> 2.15"
-
 # Textos padrão do Rails em pt-BR
 gem "rails-i18n"
 

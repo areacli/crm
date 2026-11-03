@@ -51,17 +51,3 @@ document.addEventListener("htmx:beforeSwap", (evento) => {
     evento.detail.isError = false
   }
 })
-
-// Menu lateral fixo com rolagem própria (padrões de interface, revisões 17 e 18): ao abrir uma página, o item atual fica à vista dentro do menu, mesmo quando
-// está no fim (as seções da configuração). Só o menu rola; a página fica onde está.
-const mostrarItemAtual = () => {
-  const menu = document.getElementById("menu-principal")
-  const atual = menu?.querySelector("[aria-current=page]")
-  if (!menu || !atual || menu.scrollHeight <= menu.clientHeight) return
-
-  const caixa = menu.getBoundingClientRect()
-  const item = atual.getBoundingClientRect()
-  if (item.top < caixa.top || item.bottom > caixa.bottom) menu.scrollTop += item.top - caixa.top - (caixa.height - item.height) / 2
-}
-document.addEventListener("DOMContentLoaded", mostrarItemAtual)
-document.addEventListener("htmx:afterSettle", (evento) => { if (evento.detail.target === document.body) mostrarItemAtual() })

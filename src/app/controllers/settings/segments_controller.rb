@@ -130,8 +130,6 @@ module Settings
 
       def render_editor(template, status: :ok)
         @show_errors = status != :ok
-        # Na SPA (decisão 0025), a recusa responde só a mensagem (o JSON de 422): os erros de cada linha a tela pede pelo rascunho.
-        @error = "O texto tem erros; corrija o que está marcado em \"Como fica\" para salvar." if @show_errors && @parsed && !@parsed.ok?
         @probe = sync_probe if params[:acao] == "conferir"
         render template, status: status
       end

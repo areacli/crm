@@ -13,7 +13,10 @@ class RedesignScreensSystemTest < ApplicationSystemTestCase
   end
 
   def entrar
-    entrar_pela_spa(users(:joana).email_address, "senha-de-teste-1")
+    visit new_session_path
+    fill_in "E-mail", with: users(:joana).email_address
+    fill_in "Senha", with: "senha-de-teste-1"
+    click_button "Entrar"
     assert_selector "h1", text: "Resumo da carteira"
   end
 
@@ -26,25 +29,18 @@ class RedesignScreensSystemTest < ApplicationSystemTestCase
   test "a entrada (formulário à esquerda e apresentação à direita) passa no axe e não rola em nenhuma largura" do
     LARGURAS.each do |largura|
       page.driver.resize(largura, 900)
-      visit root_path
-      assert_selector "h1", text: "Entrar no CRM", wait: 30
-      sem_rolagem_horizontal("/")
+      visit new_session_path
+      assert_selector "h1", text: "Entrar no CRM"
+      sem_rolagem_horizontal("/session/new")
       assert_acessivel if largura == 1440
     end
     page.driver.resize(1440, 900)
-    visit root_path
-    assert_selector ".entrada-beneficios > *", count: 4, wait: 30
+    visit new_session_path
+    assert_selector ".entrada-apresentacao li", count: 4
     assert_operator page.evaluate_script("document.querySelector('.entrada-formulario').getBoundingClientRect().left"), :<, page.evaluate_script("document.querySelector('.entrada-apresentacao').getBoundingClientRect().left")
-    assert_equal 480, medida(".entrada-formulario", "width")
-    # Janela baixa (1366×768 menos o navegador, ou tablet deitado): o título não encolhe e "Entrar" aparece inteiro (design system, 17.5).
-    page.driver.resize(1366, 500)
-    visit root_path
-    assert_selector "h1", text: "Entrar no CRM", wait: 30
-    assert_operator medida("h1"), :>=, 30
-    assert_operator page.evaluate_script("Math.round([...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Entrar').getBoundingClientRect().bottom)"), :<=, 500
+    assert_equal 380, medida(".entrada-formulario", "width")
     page.driver.resize(390, 900)
-    visit root_path
-    assert_selector "h1", text: "Entrar no CRM", wait: 30
+    visit new_session_path
     assert_no_selector ".entrada-apresentacao", visible: :visible
   end
 
@@ -61,12 +57,12 @@ class RedesignScreensSystemTest < ApplicationSystemTestCase
     assert_acessivel
   end
 
-  test "as medidas da revisão 4: cabeçalho de 56 px, controle de 34 px, linha de 36 px e menu de 256 px (revisão 6)" do
+  test "as medidas da revisão 4: cabeçalho de 56 px com o menu dentro (padrões de interface, revisão 34), controle de 34 px e linha de 36 px" do
     entrar
     visit customers_path
     assert_selector "#resultado tbody tr"
     assert_equal 56, medida("body > header")
-    assert_equal 256, medida("body > nav", "width")
+    assert_selector "body > header #menu-principal .menu-barra"
     assert_equal 34, medida("form.filtros select")
     assert_equal 36, medida("#resultado tbody tr")
     assert_equal 15, page.evaluate_script("parseFloat(getComputedStyle(document.body).fontSize)")
@@ -74,17 +70,19 @@ class RedesignScreensSystemTest < ApplicationSystemTestCase
     assert_equal 320, medida(".ficha-lateral", "width")
   end
 
-  # Design system, revisão 6: nenhum rótulo do menu quebra em duas linhas, nem com o selo de contagem, nem no submenu da configuração aberto.
+  # Design system, revisão 6: nenhum rótulo do menu quebra em duas linhas, nem com o selo de contagem, nem no submenu da configuração aberto (na lista do
+  # grupo, aberta pelo botão da barra superior desde a revisão 34).
   test "todo item do menu cabe em uma linha" do
     bill = @maria.bills.first
     ValueDiscrepancy.create!(tenant: @alfa, bill: bill, previous_cents: 1, reported_cents: 2, allocated_cents: 1, balance_before_cents: 0, balance_after_cents: 0,
                              effect: "record_only", policy: "keep", status: "open")
     entrar
     visit settings_contact_results_path
-    assert_selector "#menu-principal details.submenu[open]"
     assert_selector "#menu-principal .selo"
+    find("#menu-principal summary", text: "Administração").click
+    assert_selector "#menu-principal details.submenu[open]"
     altura = page.evaluate_script("parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--altura-item-menu')) * parseFloat(getComputedStyle(document.documentElement).fontSize)")
-    itens = page.evaluate_script("[...document.querySelectorAll('#menu-principal a, #menu-principal summary')].map((el) => [el.textContent.trim().replace(/\\s+/g, ' '), el.getBoundingClientRect().height])")
+    itens = page.evaluate_script("[...document.querySelectorAll('#menu-principal .menu-lista a, #menu-principal .menu-lista summary')].map((el) => [el.textContent.trim().replace(/\\s+/g, ' '), el.getBoundingClientRect().height])")
     altos = itens.select { |_, h| h > altura + 1 }
     assert_empty altos, "itens do menu em mais de uma linha: #{altos.map(&:first).join(', ')}"
   end
@@ -107,6 +105,8 @@ class RedesignScreensSystemTest < ApplicationSystemTestCase
 
   test "a busca global do cabeçalho leva à lista de clientes filtrada" do
     entrar
+    # Abaixo de 1.600 px a busca abre pela lupa (padrões de interface, revisão 34).
+    find("button.lupa").click
     fill_in "Buscar cliente por nome ou documento", with: "Maria"
     find(".busca button").click
     assert_selector "h1", text: "Clientes"

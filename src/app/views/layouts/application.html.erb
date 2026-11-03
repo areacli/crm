@@ -16,11 +16,7 @@
     <%= javascript_importmap_tags %>
   </head>
 
-  <%# Design system, revisão 7: o menu escondido pelo botão do cabeçalho fica escondido nas próximas páginas (cookie, lido aqui para a página já nascer assim). %>
-  <%# A ficha do cliente lembra a escolha à parte e começa com o menu recolhido (design system, revisão 9); as outras páginas, como antes. %>
-  <% menu_cookie = content_for(:menu_memoria) == "ficha" ? "menu_ficha" : "menu" %>
-  <% menu_escondido = menu_cookie == "menu_ficha" ? cookies[:menu_ficha] != "aberto" : cookies[:menu] == "recolhido" %>
-  <body hx-boost="true" <%= tag.attributes(data: { menu: ("recolhido" if menu_escondido) }) %>>
+  <body hx-boost="true">
     <a href="#conteudo" class="pular-para-o-conteudo">Ir para o conteúdo</a>
     <% if Demo.enabled? %>
       <aside class="demonstracao" aria-label="Aviso da demonstração">
@@ -29,19 +25,21 @@
     <% end %>
     <header>
       <div class="identidade">
-        <%# Tela estreita: o menu fica fechado e abre por este botão (popover nativo: Esc e clique fora fecham). %>
+        <%# Abaixo de 1.200 px o menu sai da barra e abre por este botão (popover nativo: Esc e clique fora fecham). %>
         <% if authenticated? && menu_sections.present? %>
           <button type="button" class="botao-menu" command="toggle-popover" commandfor="menu-principal" aria-label="Menu"><%= icone "bars-3" %></button>
-          <button type="button" class="alternar-menu" data-alternar-menu data-menu-cookie="<%= menu_cookie %>" aria-controls="menu-principal" aria-expanded="<%= !menu_escondido %>" aria-label="<%= menu_escondido ? "Mostrar o menu" : "Esconder o menu" %>"><%= icone "bars-3" %></button>
         <% end %>
         <a href="<%= root_path %>" class="marca">
           <%= image_tag "logotipo-negativo.svg", alt: "AreaCli" %>
           <strong>CRM</strong>
         </a>
       </div>
-      <%# Busca global de cliente por nome ou documento: leva à lista de clientes (mesma consulta do filtro da lista). %>
+      <%= render "layouts/navegacao" if menu_sections.present? %>
+      <%# Busca global de cliente por nome ou documento: leva à lista de clientes (mesma consulta do filtro da lista). Abaixo de 1.600 px vira o
+          botão da lupa, que abre o mesmo formulário (revisão 34). %>
       <% if authenticated? && !Current.user.temporary_password? && Current.user.permitted_anywhere?("view_portfolio") %>
-        <form class="busca" role="search" action="<%= customers_path %>" method="get">
+        <button type="button" class="lupa" popovertarget="busca-global-formulario" aria-label="Buscar cliente"><%= icone "magnifying-glass" %></button>
+        <form class="busca" id="busca-global-formulario" popover role="search" action="<%= customers_path %>" method="get">
           <label class="apenas-leitor-de-tela" for="busca-global">Buscar cliente por nome ou documento</label>
           <input type="search" id="busca-global" name="q" placeholder="Buscar cliente por nome ou documento" autocomplete="off" maxlength="100">
           <button type="submit" aria-label="Buscar"><%= icone "magnifying-glass" %></button>
@@ -49,10 +47,7 @@
       <% end %>
       <% if authenticated? %>
         <div class="conta">
-          <%# 15, R353: o "Próximo" para quem está num grupo de fila e tem a 7; Alt+P (accesskey) leva a ele. %>
-          <% if !Current.user.temporary_password? && QueueGroupUser.exists?(user_id: Current.user.id) && Current.user.permitted_anywhere?("record_contact_attempts") %>
-            <%= button_to "Próximo", next_delivery_path, form_class: "proximo", data: { variant: "primary", size: "small" }, accesskey: "p", "aria-keyshortcuts": "Alt+P", title: "Próximo cliente ou contrato da sua fila (Alt+P)" %>
-          <% end %>
+          <%# O "Próximo" das filas (15, R353) saiu do cabeçalho a pedido do Paulo (02/11/2026) até se decidir onde e como o operador o pede. %>
           <%# 14, R324: o usuário de operação vê de qual operação ele é. %>
           <% if (operation = Current.user.operation) %><span class="operacao-atual" title="<%= operation.legal_name %>"><%= operation.short_name %></span><% end %>
           <%= render "notices/bell" unless Current.user.temporary_password? %>
@@ -68,7 +63,6 @@
       <% end %>
       <%= yield :cabecalho %>
     </header>
-    <%= render "layouts/navegacao" if menu_sections.present? %>
     <main id="conteudo" tabindex="-1" <%= tag.attributes(data: { modelo: content_for(:modelo_da_pagina).presence }) %>>
       <%= yield %>
       <div id="avisos-da-pagina">

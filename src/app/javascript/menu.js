@@ -1,24 +1,24 @@
-// Esconder e mostrar o menu lateral na tela larga (design system, revisões 7 e 9). A escolha vai num cookie, que o servidor lê para a próxima
-// página já nascer no mesmo estado. A ficha do cliente tem o cookie dela (`menu_ficha`, recolhido por padrão); as outras páginas, o `menu`.
-// O botão diz qual cookie e em que estado o servidor desenhou a página: como o hx-boost não troca os atributos do <body>, depois de cada troca
-// o estado do <body> é refeito a partir do botão.
-const aplicar = (recolhido) => {
-  if (recolhido) document.body.dataset.menu = "recolhido"
-  else delete document.body.dataset.menu
-}
+// Menu na barra superior (padrões de interface, revisão 34, P1): cada grupo é um <details> com a lista dos itens. Abrir um fecha os outros;
+// clique fora, Esc e a troca de página pelo hx-boost fecham; Esc devolve o foco ao botão do grupo.
+const grupos = () => document.querySelectorAll("#menu-principal details.grupo[open]")
+
+document.addEventListener("toggle", (evento) => {
+  const grupo = evento.target
+  if (!grupo.matches?.("#menu-principal details.grupo") || !grupo.open) return
+  grupos().forEach((outro) => { if (outro !== grupo) outro.open = false })
+}, true)
 
 document.addEventListener("click", (evento) => {
-  const botao = evento.target.closest?.("[data-alternar-menu]")
-  if (!botao) return
-  const esconder = document.body.dataset.menu !== "recolhido"
-  aplicar(esconder)
-  botao.setAttribute("aria-expanded", String(!esconder))
-  botao.setAttribute("aria-label", esconder ? "Mostrar o menu" : "Esconder o menu")
-  const seguro = window.location.protocol === "https:" ? "; Secure" : ""
-  document.cookie = `${botao.dataset.menuCookie || "menu"}=${esconder ? "recolhido" : "aberto"}; path=/; max-age=31536000; SameSite=Lax${seguro}`
+  grupos().forEach((grupo) => { if (!grupo.contains(evento.target)) grupo.open = false })
 })
 
-document.addEventListener("htmx:afterSettle", () => {
-  const botao = document.querySelector("[data-alternar-menu]")
-  if (botao) aplicar(botao.getAttribute("aria-expanded") === "false")
+document.addEventListener("keydown", (evento) => {
+  if (evento.key !== "Escape") return
+  grupos().forEach((grupo) => {
+    const tinhaFoco = grupo.contains(document.activeElement)
+    grupo.open = false
+    if (tinhaFoco) grupo.querySelector("summary").focus()
+  })
 })
+
+document.addEventListener("htmx:beforeSwap", () => grupos().forEach((grupo) => { grupo.open = false }))
