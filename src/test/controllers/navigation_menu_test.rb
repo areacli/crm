@@ -1,12 +1,12 @@
 require "test_helper"
 
 # Menu lateral por tipo de trabalho (padrões de interface, revisão 22): Resumo, Clientes e Acionamentos no primeiro nível (revisão 32); Cobrança, Financeiro,
-# Entrada de dados, Distribuição do trabalho (revisão 30) e Administração; as cargas são botões da página Importações, e as páginas das operações são o submenu do item "Operações", fora da configuração.
+# Entrada de dados, Distribuição (revisões 30 e 34) e Administração; as cargas são botões da página Importações, e as páginas das operações são o submenu do item "Operações", fora da configuração.
 class NavigationMenuTest < ActionDispatch::IntegrationTest
   test "o gestor vê os grupos na ordem, sem os itens Importar e sem a seção Operações na configuração" do
     sign_in_as users(:joana)
     get summary_url
-    assert_equal [ "Cobrança", "Financeiro", "Entrada de dados", "Distribuição do trabalho", "Administração" ], css_select("#menu-principal h2").map { |h| h.text.strip }
+    assert_equal [ "Cobrança", "Financeiro", "Entrada de dados", "Distribuição", "Administração" ], css_select("#menu-principal h2").map { |h| h.text.strip }
     assert_select "#menu-principal a", text: /\AImportar/, count: 0
     assert_select "#menu-principal a", text: "Importações"
     assert_select "#menu-principal a", text: "Estornos à espera"

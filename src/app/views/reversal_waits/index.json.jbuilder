@@ -1,4 +1,8 @@
 # Estornos à espera do gestor na SPA (11, R233, AH2; decisão 0025): os que esperam, com as decisões possíveis de cada um, e os decididos há pouco.
+json.total @pagination.total
+json.pagina @pagination.page
+json.por_pagina @pagination.per_page
+json.paginas @pagination.pages
 json.esperando @waits do |wait|
   json.id wait.id
   json.pagamento wait.payment.identifier

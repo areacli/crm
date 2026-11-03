@@ -7,7 +7,7 @@ sap.ui.define(["crm/controller/Lista", "sap/ui/model/json/JSONModel", "sap/m/Mes
 
   return Lista.extend("crm.controller.MetodosDeRecebimento", {
     endereco: "/configuracao/metodos-de-recebimento",
-    filtroInicial: { q: "", tenant: "", per_page: 20, page: 1 },
+    filtroInicial: { q: "", tenant: "", per_page: 10, page: 1 },
     opcoesComTodos: [["credores", "filtro.todos"]],
 
     onInit() {

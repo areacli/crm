@@ -6,7 +6,7 @@ sap.ui.define(["crm/controller/Lista", "sap/m/Menu", "sap/m/MenuItem", "crm/serv
 
   return Lista.extend("crm.controller.Importacoes", {
     endereco: "/importacoes",
-    filtroInicial: { per_page: 20, page: 1 },
+    filtroInicial: { per_page: 10, page: 1 },
 
     onInit() {
       Lista.prototype.onInit.apply(this, arguments)

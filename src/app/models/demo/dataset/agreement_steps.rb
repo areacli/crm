@@ -38,8 +38,9 @@ module Demo
           # Aceitos: um aguardando a entrada e os que a entrada efetivou.
           waiting = accept.call(build.call(ago: 2), 2)
           on_time = 3.times.map { |n| accept.call(build.call(ago: 12 + n), 12 + n).tap { |agreement| pays << [ agreement, 0, today - 10 - n ] } }
-          late = accept.call(build.call(ago: 40, day: (today - 10).day), 40).tap { |agreement| pays << [ agreement, 0, today - 39 ] }
-          broken = accept.call(build.call(ago: 75, day: (today - 5).day), 75).tap { |agreement| pays << [ agreement, 0, today - 74 ] }
+          # O dia de vencimento das parcelas vai de 1 a 28 (11): quando a data cai em 29, 30 ou 31, a parcela vence no dia 28, que continua no passado.
+          late = accept.call(build.call(ago: 40, day: [ (today - 10).day, 28 ].min), 40).tap { |agreement| pays << [ agreement, 0, today - 39 ] }
+          broken = accept.call(build.call(ago: 75, day: [ (today - 5).day, 28 ].min), 75).tap { |agreement| pays << [ agreement, 0, today - 74 ] }
           settled = accept.call(build.call(ago: 20, installments: 3), 20).tap { |agreement| (0..3).each { |n| pays << [ agreement, n, today - 19 ] } }
           reverted = accept.call(build.call(ago: 15), 15).tap { |agreement| pays << [ agreement, 0, today - 14 ] }
           reversing = accept.call(build.call(ago: 14), 14).tap { |agreement| pays << [ agreement, 0, today - 13 ] }

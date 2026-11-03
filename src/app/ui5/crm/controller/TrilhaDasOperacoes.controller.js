@@ -4,7 +4,7 @@ sap.ui.define(["crm/controller/Lista"], (Lista) => {
 
   return Lista.extend("crm.controller.TrilhaDasOperacoes", {
     endereco: "/operacoes/trilha",
-    filtroInicial: { operation: "", user: "", kind: "", from: "", to: "", per_page: 20, page: 1 },
+    filtroInicial: { operation: "", user: "", kind: "", from: "", to: "", per_page: 10, page: 1 },
     opcoesComTodos: [["filtros/operacoes", "filtro.todas"], ["filtros/usuarios", "filtro.todos"], ["filtros/tipos", "filtro.todos"]],
 
     abrirFicha(evento) {

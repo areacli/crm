@@ -7,7 +7,7 @@ sap.ui.define(["crm/controller/Lista", "sap/ui/model/json/JSONModel", "sap/m/Mes
 
   return Lista.extend("crm.controller.Operacoes", {
     endereco: "/operacoes",
-    filtroInicial: { per_page: 20, page: 1 },
+    filtroInicial: { per_page: 10, page: 1 },
 
     onInit() {
       this.getView().setModel(new JSONModel({ painelAberto: false }), "ui")

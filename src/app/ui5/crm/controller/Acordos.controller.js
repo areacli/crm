@@ -5,7 +5,7 @@ sap.ui.define(["crm/controller/Lista", "crm/servico/telas", "crm/servico/tempo-r
 
   return Lista.extend("crm.controller.Acordos", {
     endereco: "/acordos",
-    filtroInicial: { state: "", from: "", to: "", user: "", origin: "", tenant: "", per_page: 20, page: 1 },
+    filtroInicial: { state: "", from: "", to: "", user: "", origin: "", tenant: "", per_page: 10, page: 1 },
     opcoesComTodos: [["filtros/situacoes", "filtro.todas"], ["filtros/operadores", "filtro.todos"], ["filtros/origens", "filtro.todas"], ["filtros/credores", "filtro.todos"]],
 
     onInit() {

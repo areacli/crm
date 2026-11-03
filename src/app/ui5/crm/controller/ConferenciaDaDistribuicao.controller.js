@@ -42,6 +42,7 @@ sap.ui.define(["sap/ui/core/mvc/Controller", "sap/ui/model/json/JSONModel", "sap
         const resposta = await http.enviar(`/operacoes/enquadramento-da-distribuicao/confirmar?${this.consulta()}`, {})
         MessageToast.show(resposta.mensagem, { duration: 6000 })
         this.voltar()
+        this.getView().getViewData()?.fechar?.()
       } catch (erro) {
         MessageBox.error(erro.corpo?.mensagem || erro.message)
       }
@@ -49,6 +50,7 @@ sap.ui.define(["sap/ui/core/mvc/Controller", "sap/ui/model/json/JSONModel", "sap
 
     descartar() {
       this.voltar()
+      this.getView().getViewData()?.fechar?.()
     }
   })
 })

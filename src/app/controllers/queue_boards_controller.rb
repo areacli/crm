@@ -17,7 +17,7 @@ class QueueBoardsController < ApplicationController
 
   def show
     @queue = WorkQueue.find_by!(tenant: @tenant, id: params[:id])
-    @placements = Pagination.new(QueuePlacement.where(work_queue_id: @queue.id).order(:rank), page: params[:page], per_page: 20)
+    @placements = Pagination.new(QueuePlacement.where(work_queue_id: @queue.id).order(:rank), page: params[:page], per_page: params[:per_page])
     ids = @placements.records.map(&:subject_id)
     @names = @queue.subject == "customers" ? Customer.where(id: ids).pluck(:id, :name).to_h : Contract.where(id: ids).pluck(:id, :code).to_h
     @open = QueueDelivery.open.where(work_queue_id: @queue.id, subject_id: ids).includes(:user).index_by(&:subject_id)

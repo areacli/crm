@@ -51,6 +51,7 @@ sap.ui.define(["sap/ui/core/mvc/Controller", "sap/ui/model/json/JSONModel", "sap
         const resposta = await http.enviar("/configuracao/confirmacao-do-enquadramento", { tenant_id: dados.credor_id, confirmation: { token: dados.token } })
         MessageToast.show(resposta.mensagem, { duration: 6000 })
         this.voltar()
+        this.getView().getViewData()?.fechar?.()
       } catch (erro) {
         // Conferência velha ou expirada (R284): a mensagem e de volta ao enquadramento, como na página do servidor.
         MessageBox.error(erro.corpo?.mensagem || erro.message, { onClose: () => this.voltar() })
@@ -70,6 +71,7 @@ sap.ui.define(["sap/ui/core/mvc/Controller", "sap/ui/model/json/JSONModel", "sap
 
     descartar() {
       this.voltar()
+      this.getView().getViewData()?.fechar?.()
     }
   })
 })

@@ -4,6 +4,7 @@ sap.ui.define(["crm/controller/Lista", "sap/m/MessageToast", "crm/servico/formul
 
   return Lista.extend("crm.controller.ArquivoDeAcordos", {
     endereco: "/arquivo-de-acordos",
+    filtroInicial: { per_page: 10, page: 1 },
 
     texto(chave) {
       return this.getOwnerComponent().getModel("i18n").getResourceBundle().getText(chave)

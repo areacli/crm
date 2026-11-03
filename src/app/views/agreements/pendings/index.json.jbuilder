@@ -1,4 +1,8 @@
 # Acordos pendentes na SPA (11, R216, R243; decisão 0025): as propostas que a pessoa pode aprovar, com o filtro de credor.
+json.total @pagination.total
+json.pagina @pagination.page
+json.por_pagina @pagination.per_page
+json.paginas @pagination.pages
 json.varios_credores @several_tenants
 json.credores(@tenants.map { |nome, id| { id: id.to_s, nome: nome } })
 json.linhas @agreements do |agreement|

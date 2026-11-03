@@ -32,7 +32,7 @@
 							</columns>
 							<items><ColumnListItem type="{= ${dados>financeiro} ? 'Active' : 'Inactive' }" highlight="{= ${dados>id} === ${ui>/detalhe/id} ? 'Information' : 'None' }"><cells>
 								<Link text="{dados>codigo}" enabled="{dados>editavel}" press=".abrir" wrapping="false" /><Text text="{dados>descricao}" /><Text text="{dados>credor}" />
-								<Text text="{dados>tipo}" /><Text text="{dados>integracoes}" /><Text text="{dados>webhook}" />
+								<Text text="{dados>tipo}" /><Text text="{dados>integracoes}" /><Text text="{dados>webhook}" wrapping="false" />
 								<ObjectStatus text="{dados>situacao/texto}" state="{dados>situacao/estado}" inverted="true" />
 							</cells></ColumnListItem></items>
 						</Table>

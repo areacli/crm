@@ -6,7 +6,7 @@ sap.ui.define(["crm/controller/Lista", "sap/m/Menu", "sap/m/MenuItem", "sap/m/Me
 
   return Lista.extend("crm.controller.PromessasPendentes", {
     endereco: "/promessas/pendentes",
-    filtroInicial: { tenant: "" },
+    filtroInicial: { tenant: "", per_page: 10, page: 1 },
     opcoesComTodos: [["credores", "filtro.todos"]],
 
     onInit() {

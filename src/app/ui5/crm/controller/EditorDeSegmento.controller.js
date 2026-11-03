@@ -176,8 +176,8 @@ sap.ui.define(["sap/ui/core/mvc/Controller", "sap/ui/model/json/JSONModel", "sap
         if (resposta?.mensagem) MessageToast.show(resposta.mensagem, { duration: 6000 })
         if (destino.seguir(this, resposta)) return
         // Gravado: a lista dos segmentos (o destino do servidor); o editor do segmento gravado volta ao texto canônico (R303).
-        if (id) this.carregar()
         this.getOwnerComponent().getRouter().navTo("segmentos", {})
+        this.getView().getViewData()?.fechar?.()
       } catch (erro) {
         ui.setProperty("/erro", erro.corpo?.mensagem || erro.message)
         this.rascunho()
@@ -189,6 +189,7 @@ sap.ui.define(["sap/ui/core/mvc/Controller", "sap/ui/model/json/JSONModel", "sap
     cancelar() {
       this.trabalho = false
       this.getOwnerComponent().getRouter().navTo("segmentos", {})
+      this.getView().getViewData()?.fechar?.()
     },
 
     abrirGlossario() {
