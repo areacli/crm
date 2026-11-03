@@ -77,7 +77,7 @@ class ChargesScreensTest < ActionDispatch::IntegrationTest
     recalc_values(@beta)
     on_the_day do
       entrar(users(:ana))
-      get summary_path
+      get root_path
       assert_response :success
       assert_select "h2", text: /Escola Alfa|Clínica Beta/, count: 0
       assert_select "dt", text: /\AAtualizado/, count: 1

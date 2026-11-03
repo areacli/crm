@@ -15,7 +15,7 @@ class ValueDiscrepanciesController < ApplicationController
     @discrepancies = @pagination.records
     @tenants = Tenant.where(id: @tenant_ids).order(:name).pluck(:name, :id)
     @view_customer_tenants = Current.user.tenant_ids_with("view_portfolio")
-    render partial: "value_discrepancies/result" if htmx_fragment? && !request.format.json?
+    render partial: "value_discrepancies/result" if htmx_fragment?
   end
 
   def show

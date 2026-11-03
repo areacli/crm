@@ -8,6 +8,5 @@ class QueuesJob < ApplicationJob
     token ? Queues::Review.compute(tenant, token) : Queues::Recalculation.new(tenant).call
   ensure
     QueuesChannel.broadcast_to(tenant, { event: token ? "queue-review-ready" : "queues-changed" })
-    Live.publish("credores", tenant.id, tenant_id: tenant.id)
   end
 end

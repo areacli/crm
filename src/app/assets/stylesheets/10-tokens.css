@@ -79,7 +79,6 @@
     --altura-topo: calc(var(--altura-faixa) + var(--altura-cabecalho));
     --altura-barra: 3rem;
     --altura-logotipo: 2.5rem;
-    --largura-menu: 16rem;
     --largura-lateral: 20rem;
     --largura-painel: 30rem;
     --largura-modal: 25rem;

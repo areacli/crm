@@ -1,5 +1,7 @@
-<%# Menu lateral de 256 px (design system, revisão 6), cada rótulo numa linha: só texto, o item atual com aria-current="page" e a contagem (quando há) como selo. `menu_sections` vem do NavigationHelper.
-    O item "Configuração" abre e fecha o submenu das seções (design system, revisão 5): aberto nas páginas da configuração, fechado nas demais. %>
+<%# Menu na barra superior (padrões de interface, revisão 34, P1): Resumo, Clientes e Acionamentos como links diretos; cada grupo é um botão
+    (details) com a lista dos itens, o contador somado no rótulo e o sublinhado amarelo quando a página atual é dele; o grupo de um item só vira
+    link direto com o rótulo do item. Filas, Operações e Configuração são submenus dentro da lista (design system, revisão 5). Abaixo de 1.200 px
+    o menu inteiro vai para o botão "Menu" do cabeçalho (popover nativo), na vertical. `menu_sections` vem do NavigationHelper. %>
 <nav aria-label="Menu" id="menu-principal" popover>
   <%# Tela estreita: a busca global do cabeçalho some e entra aqui, no topo do menu (mesma consulta da lista de clientes). %>
   <% if Current.user&.permitted_anywhere?("view_portfolio") %>
@@ -9,25 +11,39 @@
       <button type="submit" aria-label="Buscar no menu"><%= icone "magnifying-glass" %></button>
     </form>
   <% end %>
-  <% menu_sections.each do |secao| %>
-    <% if secao[:titulo].present? %><h2><%= secao[:titulo] %></h2><% end %>
-    <ul>
-      <% secao[:itens].each do |item| %>
-        <% if item[:subitens] %>
-          <li>
-            <details class="submenu" <%= "open" if item[:atual] %>>
-              <summary><%= item[:rotulo] %> <%= icone "chevron-down" %></summary>
-              <ul>
-                <% item[:subitens].each do |subitem| %>
-                  <li><%= link_to subitem[:rotulo], subitem[:caminho], aria: { current: (subitem[:atual] ? "page" : nil) } %></li>
-                <% end %>
-              </ul>
-            </details>
-          </li>
-        <% else %>
-          <li><%= link_to safe_join([ item[:rotulo], (tag.span(number_br(item[:contador]), class: "selo", data: { destaque: true }) if item[:contador]) ].compact, " "), item[:caminho], aria: { current: (item[:atual] ? "page" : nil) } %></li>
+  <ul class="menu-barra">
+    <% menu_sections.each do |secao| %>
+      <% unico = secao[:titulo].present? && secao[:itens].one? && !secao[:itens].first[:subitens] %>
+      <% if secao[:titulo].blank? || unico %>
+        <% secao[:itens].each do |item| %>
+          <li><%= link_to safe_join([ item[:rotulo], (tag.span(number_br(item[:contador]), class: "selo", data: { destaque: true }) if item[:contador]) ].compact, " "), item[:caminho], class: "item-do-menu", aria: { current: (item[:atual] ? "page" : nil) } %></li>
         <% end %>
+      <% else %>
+        <% contador = secao[:itens].sum { |item| item[:contador].to_i } %>
+        <li>
+          <details class="grupo" <%= tag.attributes(data: { atual: secao[:itens].any? { |item| item[:atual] } || nil }) %>>
+            <summary class="item-do-menu"><h2><%= secao[:titulo] %></h2><% if contador.positive? %> <span class="selo" data-destaque><%= number_br(contador) %></span><% end %> <%= icone "chevron-down" %></summary>
+            <ul class="menu-lista">
+              <% secao[:itens].each do |item| %>
+                <% if item[:subitens] %>
+                  <li>
+                    <details class="submenu" <%= "open" if item[:atual] %>>
+                      <summary><%= item[:rotulo] %> <%= icone "chevron-down" %></summary>
+                      <ul>
+                        <% item[:subitens].each do |subitem| %>
+                          <li><%= link_to subitem[:rotulo], subitem[:caminho], aria: { current: (subitem[:atual] ? "page" : nil) } %></li>
+                        <% end %>
+                      </ul>
+                    </details>
+                  </li>
+                <% else %>
+                  <li><%= link_to safe_join([ item[:rotulo], (tag.span(number_br(item[:contador]), class: "selo", data: { destaque: true }) if item[:contador]) ].compact, " "), item[:caminho], aria: { current: (item[:atual] ? "page" : nil) } %></li>
+                <% end %>
+              <% end %>
+            </ul>
+          </details>
+        </li>
       <% end %>
-    </ul>
-  <% end %>
+    <% end %>
+  </ul>
 </nav>

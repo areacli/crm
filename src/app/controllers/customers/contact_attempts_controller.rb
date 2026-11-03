@@ -8,13 +8,11 @@ module Customers
     # Trecho do histórico, refeito na paginação e a cada evento do WebSocket.
     def index
       authorize @customer, :show?
-      return redirect_to(customer_path(@customer, aba: "acionamentos", page: params[:page], contrato: params[:contrato].presence)) unless htmx_fragment? || request.format.json?
+      return redirect_to(customer_path(@customer, aba: "acionamentos", page: params[:page], contrato: params[:contrato].presence)) unless htmx_fragment?
 
       # O contrato escolhido na ficha (padrões de interface, revisão 21) continua valendo na paginação e no refazer pelo WebSocket.
       contract = @customer.contracts.find_by(id: params[:contrato]) if params[:contrato].present?
       @history = ContactAttempt.history_for(@customer, page: params[:page], contract: contract)
-      return render(:index) if request.format.json?
-
       render partial: "customers/contact_attempts/history", locals: { customer: @customer, history: @history }
     end
 
@@ -22,18 +20,15 @@ module Customers
     def form
       authorize ContactAttempt.new(tenant: @customer.tenant), :create?
       @form = Contacts::Form.new(@customer)
-      render :new if request.format.json?
     end
 
     # Campos que dependem da escolha (retorno, aviso do responsável financeiro): dois trechos trocados fora de banda.
     def new
       authorize ContactAttempt.new(tenant: @customer.tenant), :create?
-      # A SPA (decisão 0025) pede o estado inteiro do formulário em JSON, com os valores escolhidos até agora.
-      @form = Contacts::Form.new(@customer, params.fetch(:contact_attempt, {}).permit(*Contacts::Form::PERMITTED))
-      return render(:new) if request.format.json?
       return redirect_to(form_customer_contact_attempts_path(@customer)) unless htmx_fragment?
 
-      render partial: "customers/contact_attempts/dependents", locals: { form: @form }
+      form = Contacts::Form.new(@customer, params.fetch(:contact_attempt, {}).permit(*Contacts::Form::PERMITTED))
+      render partial: "customers/contact_attempts/dependents", locals: { form: form }
     end
 
     def create
@@ -43,11 +38,8 @@ module Customers
       save_contact = values[:save_contact].to_s == "1" && policy(@customer).edit_registry?
       warning = Contacts::Recorder.contact_warning(@customer, values[:channel], values[:contact_used])
       Contacts::Recorder.new(Current.user).record(@customer, values, save_contact: save_contact)
-      return render(json: { mensagem: [ t(".done"), warning ].compact.join(" "), tom: (warning ? "warning" : "success") }, status: :created) if request.format.json?
-
       panel_finish(customer_path(@customer, aba: "acionamentos"), notice: [ t(".done"), warning ].compact.join(" "), tom: (warning ? "warning" : nil), eventos: %w[cable:contact-attempts-changed cable:promises-changed cable:agreements-changed])
     rescue Contacts::Refused => error
-      return render(json: { mensagem: error.message }, status: :unprocessable_content) if request.format.json?
       return redirect_to(customer_path(@customer, aba: "acionamentos"), alert: error.message, status: :see_other) unless panel_request?
 
       @form = Contacts::Form.new(@customer, values, error: error.message)

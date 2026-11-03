@@ -5,10 +5,12 @@ require "test_helper"
 class NavigationMenuTest < ActionDispatch::IntegrationTest
   test "o gestor vê os grupos na ordem, sem os itens Importar e sem a seção Operações na configuração" do
     sign_in_as users(:joana)
-    get summary_url
-    assert_equal [ "Cobrança", "Financeiro", "Entrada de dados", "Distribuição", "Administração" ], css_select("#menu-principal h2").map { |h| h.text.strip }
+    get root_url
+    # Grupo de um item só vira link direto (revisão 34): o Cobrança do gestor de teste só tem Acordos, e Entrada de dados só tem Importações.
+    assert_equal [ "Financeiro", "Distribuição", "Administração" ], css_select("#menu-principal h2").map { |h| h.text.strip }
+    assert_select "#menu-principal .menu-barra > li > a", text: "Acordos"
     assert_select "#menu-principal a", text: /\AImportar/, count: 0
-    assert_select "#menu-principal a", text: "Importações"
+    assert_select "#menu-principal .menu-barra > li > a", text: "Importações"
     assert_select "#menu-principal a", text: "Estornos à espera"
     assert_select "#menu-principal details.submenu:not([open]) summary", text: "Operações"
     %w[Credenciadas Trilha].each { |label| assert_select "#menu-principal details.submenu a", text: label }
@@ -35,19 +37,18 @@ class NavigationMenuTest < ActionDispatch::IntegrationTest
     %w[carteira pagamentos estornos].each { |kind| assert_select "main a.botao", text: "Importar #{kind}" }
   end
 
-  test "o operador vê só o grupo Cobrança" do
+  test "o operador vê só o que é dele: o grupo Cobrança, com um item só, vira o link Acordos" do
     sign_in_as users(:carlos)
-    get summary_url
-    assert_equal [ "Cobrança" ], css_select("#menu-principal h2").map { |h| h.text.strip }
+    get root_url
+    assert_empty css_select("#menu-principal h2")
+    assert_equal [ "Resumo", "Clientes", "Acionamentos", "Acordos" ], css_select("#menu-principal .menu-barra > li > a").map { |a| a.text.strip }
   end
 
   test "Clientes e Acionamentos ficam no primeiro nível, fora do grupo Cobrança, que só tem o que é da cobrança" do
     sign_in_as users(:joana)
-    get summary_url
-    first = css_select("#menu-principal ul").first
-    assert_equal [ "Resumo", "Clientes", "Acionamentos" ], first.css("a").map { |a| a.text.strip }
-    cobranca = css_select("#menu-principal h2").find { |h| h.text.strip == "Cobrança" }.next_element
-    assert_empty cobranca.css("a").map { |a| a.text.strip } & [ "Clientes", "Acionamentos" ]
-    assert_includes cobranca.css("a").map { |a| a.text.strip }, "Acordos"
+    get root_url
+    diretos = css_select("#menu-principal .menu-barra > li > a").map { |a| a.text.strip }
+    assert_equal [ "Resumo", "Clientes", "Acionamentos" ], diretos.first(3)
+    assert_empty css_select("#menu-principal details.grupo a").map { |a| a.text.strip } & [ "Clientes", "Acionamentos" ]
   end
 end

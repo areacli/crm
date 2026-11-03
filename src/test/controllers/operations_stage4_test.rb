@@ -62,7 +62,7 @@ class OperationsStage4Test < ActionDispatch::IntegrationTest
 
   test "R324: o cabeçalho mostra a operação do usuário" do
     sign_in_as @caio
-    get summary_url
+    get root_url
     assert_select ".operacao-atual", text: "Recupera"
   end
 end

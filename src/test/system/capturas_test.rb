@@ -143,7 +143,10 @@ class CapturasTest < ApplicationSystemTestCase
     Charges::Recalculation.new(@tenant).apply(today: Date.current)
     TaskRun.create!(tenant: @tenant, name: "values_recalculation", status: "succeeded", started_at: Time.current.change(hour: 5, min: 31), finished_at: Time.current.change(hour: 5, min: 32), processed: BillValuation.where(tenant_id: @tenant.id).count)
     TaskRun.where(name: "values_recalculation", status: "running").delete_all # os jobs da carga de fotos não rodam: nada "em andamento" na foto
-    entrar_pela_spa(users(:joana).email_address, "senha-de-teste-1")
+    visit new_session_path
+    fill_in "E-mail", with: users(:joana).email_address
+    fill_in "Senha", with: "senha-de-teste-1"
+    click_button "Entrar"
     assert_selector "h1", text: "Resumo da carteira"
     # Incremento 10: uma promessa aberta, uma pendente de aprovação e uma quebrada, com o credor com encargos e a alçada do Operador de 30 dias.
     @promise_customer = Customer.order(:id).fourth
@@ -464,7 +467,10 @@ class CapturasTest < ApplicationSystemTestCase
     "ficha-distribuida" => -> { customer_path(@distributed_customer) },
     "clientes-da-operacao" => lambda {
       page.driver.clear_cookies
-      entrar_pela_spa(@operation_user.email_address, "senha-de-teste-1")
+      visit new_session_path
+      fill_in "E-mail", with: @operation_user.email_address
+      fill_in "Senha", with: "senha-de-teste-1"
+      click_button "Entrar"
       assert_selector "body > header", text: "Recupera"
       customers_path
     },
@@ -472,7 +478,10 @@ class CapturasTest < ApplicationSystemTestCase
     "enquadramento-das-filas" => lambda {
       page.driver.clear_cookies
       prepare_queues
-      entrar_pela_spa(users(:joana).email_address, "senha-de-teste-1")
+      visit new_session_path
+      fill_in "E-mail", with: users(:joana).email_address
+      fill_in "Senha", with: "senha-de-teste-1"
+      click_button "Entrar"
       assert_selector "header .usuario"
       queues_work_queues_path(tenant_id: @tenant.id)
     },
@@ -481,8 +490,12 @@ class CapturasTest < ApplicationSystemTestCase
     "fila-em-ordem" => -> { queues_board_queue_path(@late_queue, tenant_id: @tenant.id) },
     "proximo-da-fila" => lambda {
       page.driver.clear_cookies
-      entrar_pela_spa(users(:carlos).email_address, "senha-de-teste-1")
-      click_button "Próximo"
+      visit new_session_path
+      fill_in "E-mail", with: users(:carlos).email_address
+      fill_in "Senha", with: "senha-de-teste-1"
+      click_button "Entrar"
+      # Sem o botão no cabeçalho (pedido do Paulo, 02/11/2026), o pedido do Próximo vai pelo mesmo POST.
+      page.execute_script("const f = document.createElement('form'); f.method = 'post'; f.action = arguments[0]; const m = document.querySelector('meta[name=csrf-token]'); if (m) { const t = document.createElement('input'); t.type = 'hidden'; t.name = 'authenticity_token'; t.value = m.content; f.append(t) } document.body.append(f); f.submit()", next_delivery_path)
       assert_text "Da fila"
       :current
     }
@@ -634,7 +647,7 @@ class CapturasTest < ApplicationSystemTestCase
       page.save_screenshot(pasta.join("#{nome}.png").to_s)
     end
     page.driver.resize(1440, 900)
-    visit summary_path
+    visit root_path
     assert_selector "h1", text: "Resumo da carteira"
     assert_selector ".kpi"
     tirar.call("1-resumo")
@@ -661,11 +674,11 @@ class CapturasTest < ApplicationSystemTestCase
     tirar.call("5-configuracao-da-carteira")
     visit customer_path(@promise_customer)
     tirar.call("6-ficha-390", 390, 900)
-    visit summary_path
+    visit root_path
     tirar.call("6b-resumo-390", 390, 900)
     page.driver.clear_cookies
-    visit root_path
-    assert_selector "h1", text: "Entrar no CRM", wait: 30
+    visit new_session_path
+    assert_selector "h1", text: "Entrar no CRM"
     tirar.call("7-entrada")
     tirar.call("8-entrada-390", 390, 900)
   end

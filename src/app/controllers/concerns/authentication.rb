@@ -36,13 +36,9 @@ module Authentication
       nil
     end
 
-    # Pedido de dados da SPA sem sessão: 401, e a casca mostra a entrada (decisão 0025). Página do servidor: a casca, que mostra a entrada e,
-    # depois dela, volta à página pedida.
     def request_authentication
-      return head(:unauthorized) unless request.format.html?
-
       session[:return_to_after_authenticating] = request.url
-      redirect_to root_path
+      redirect_to new_session_path
     end
 
     def after_authentication_url

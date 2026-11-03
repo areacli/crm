@@ -4,4 +4,12 @@
   <%= link_to "Voltar para os acordos", agreements_path, class: "botao", data: { variant: "secondary" } %>
 <% end %>
 
+<form class="filtros" action="<%= reversal_waits_path %>" method="get" hx-sync="this:replace" hx-get="<%= reversal_waits_path %>" hx-trigger="change" hx-target="#resultado" hx-push-url="true" hx-swap="outerHTML">
+  <div class="campo">
+    <label for="per_page">Por página</label>
+    <select id="per_page" name="per_page"><%= options_for_select(Pagination::PER_PAGE_OPTIONS, @pagination.per_page) %></select>
+  </div>
+  <button type="submit" data-variant="secondary">Filtrar</button>
+</form>
+
 <%= render "reversal_waits/result" %>

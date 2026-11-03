@@ -3,7 +3,10 @@ require "application_system_test_case"
 # Menu da aplicação: na tela larga fica sempre à mostra; na estreita fica fechado e abre pelo botão do cabeçalho (popover nativo).
 class NavigationSystemTest < ApplicationSystemTestCase
   setup do
-    entrar_pela_spa(users(:joana).email_address, "senha-de-teste-1")
+    visit new_session_path
+    fill_in "E-mail", with: users(:joana).email_address
+    fill_in "Senha", with: "senha-de-teste-1"
+    click_button "Entrar"
     assert_selector "h1", text: "Resumo da carteira"
   end
 
@@ -15,7 +18,7 @@ class NavigationSystemTest < ApplicationSystemTestCase
 
   test "na tela estreita o menu começa fechado, abre pelo botão, leva ao destino e fecha com Esc" do
     page.driver.resize(390, 800)
-    visit summary_path
+    visit root_path
     assert_no_selector "nav[aria-label=Menu]", visible: :visible
     find("button.botao-menu").click
     assert_selector "nav[aria-label=Menu] a", text: "Clientes"

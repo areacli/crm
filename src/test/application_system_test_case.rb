@@ -17,19 +17,4 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
   include Acessibilidade
 
   driven_by :cuprite_crm
-
-  # Entrada pela SPA (decisão 0025): a tela do OpenUI5 em `/`, os mesmos rótulos "E-mail" e "Senha". Enquanto houver telas no servidor
-  # (porte por fases), o teste segue no resumo em HTML, como antes da SPA.
-  def entrar_pela_spa(email, senha, destino: summary_path)
-    visit root_path
-    find("input[type=email]", wait: 30)
-    fill_in "E-mail", with: email
-    fill_in "Senha", with: senha
-    click_button "Entrar"
-    assert_no_selector "input[type=email]", wait: 30
-    visit destino if destino
-  end
-
-  # A SPA bloqueia o clique enquanto o indicador de carregamento está na tela (o OpenUI5 cobre o controle): espera ele sumir.
-  def esperar_a_spa = assert_no_selector(".sapUiLocalBusyIndicator", wait: 15)
 end

@@ -45,7 +45,7 @@ class DistributionsScreensTest < ActionDispatch::IntegrationTest
 
   test "sem a permissão 19, Distribuição não aparece e o endereço é recusado" do
     sign_in_as users(:carlos)
-    get summary_url
+    get root_url
     assert_select "#menu-principal a", text: "Distribuição", count: 0
     get distributions_url
     assert_response :not_found

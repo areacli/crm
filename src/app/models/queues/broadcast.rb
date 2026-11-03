@@ -3,9 +3,6 @@ module Queues
   module Broadcast
     module_function
 
-    def changed(tenant)
-      QueuesChannel.broadcast_to(tenant, { event: "queues-changed" })
-      Live.publish("credores", tenant.id, tenant_id: tenant.id)
-    end
+    def changed(tenant) = QueuesChannel.broadcast_to(tenant, { event: "queues-changed" })
   end
 end

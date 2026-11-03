@@ -10,7 +10,10 @@ class PaymentAccountsScreensSystemTest < ApplicationSystemTestCase
     @account.save!
     make_account(@alfa, modality: "boleto", nickname: "Boleto Alfa", environment: "production", config: { "connection_result" => "refused" })
     Payments::AccountTester.new.call(PaymentAccount.find_by!(nickname: "Boleto Alfa"))
-    entrar_pela_spa(users(:joana).email_address, "senha-de-teste-1")
+    visit new_session_path
+    fill_in "E-mail", with: users(:joana).email_address
+    fill_in "Senha", with: "senha-de-teste-1"
+    click_button "Entrar"
     assert_selector "h1", text: "Resumo da carteira"
   end
 

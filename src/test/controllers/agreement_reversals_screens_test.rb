@@ -123,7 +123,7 @@ class AgreementReversalsScreensTest < ActionDispatch::IntegrationTest
 
   test "R242: o painel mostra os acordos do credor: em acordo, aceitos, ativos e desconto concedido por componente, sem quebra por usuário" do
     entrar(users(:joana))
-    get summary_path
+    get root_path
     assert_response :success
     assert_select "h2", text: /\AAcordos/
     assert_select "dt", text: /Dos quais em acordo/
@@ -132,40 +132,5 @@ class AgreementReversalsScreensTest < ActionDispatch::IntegrationTest
     assert_select "th", text: /Desconto: multa/
     assert_select "td", text: /R\$ 15,08/
     assert_select "th", text: /Carlos Lima/, count: 0
-  end
-
-  test "SPA (decisão 0025): os estornos à espera em JSON com as escolhas; decidir responde a mensagem e a recusa vem em 422" do
-    Agreements::Reversion.new(users(:joana)).open!(@agreement, "teste")
-    travel_day(Date.new(2026, 11, 20))
-    pay_lines([ pay_line("ACD-000001-01", Date.new(2026, 11, 20), 5_000, id: "PIX-P1") ])
-    travel_day(Date.new(2026, 11, 25))
-    run_payments_import([ reversal_line("identificador_pagamento" => "PIX-P1", "valor" => "50,00", "data_estorno" => "25/11/2026", "identificador_estorno" => "E1") ], kind: "reversals", confirm: true)
-    wait = ReversalWait.sole
-
-    entrar(users(:joana))
-    get reversal_waits_path(format: :json)
-    esperando = response.parsed_body["esperando"].sole
-    assert_equal "PIX-P1", esperando["pagamento"]
-    assert_equal "R$ 50,00", esperando["valor"]
-    assert_includes esperando["escolhas"].map { |escolha| escolha["id"] }, "credit"
-    assert_not_includes esperando["escolhas"].map { |escolha| escolha["id"] }, "reopen"
-
-    patch reversal_wait_path(wait), params: { decision: { choice: "credit", note: " " } }, as: :json
-    assert_response :unprocessable_content
-    assert_equal I18n.t("agreements.waits.note_required"), response.parsed_body["mensagem"]
-    patch reversal_wait_path(wait), params: { decision: { choice: "credit", note: "devolvido" } }, as: :json
-    assert_response :success
-    assert_predicate wait.reload, :state_decided?
-    get reversal_waits_path(format: :json)
-    assert_empty response.parsed_body["esperando"]
-    assert_equal "devolvido", response.parsed_body["decididos"].first["motivo"]
-  end
-
-  test "SPA: o título de acordo traz a nota com o acordo e a composição pelo acordo" do
-    entrar(users(:joana))
-    get bill_path(Bill.find_by!(number: "ACD-000001-01"), format: :json)
-    titulo = response.parsed_body
-    assert_equal @agreement.id, titulo["notas"].first["acordo_id"]
-    assert_equal "Saldo devedor", titulo["composicao"].last["rotulo"] if titulo["composicao"].any?
   end
 end

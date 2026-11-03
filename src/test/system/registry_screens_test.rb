@@ -13,7 +13,10 @@ class RegistryScreensSystemTest < ApplicationSystemTestCase
     add_contact(@maria, "email", "maria@exemplo.com.br", status: "invalid", reason: "caixa cheia")
     add_address(@maria, { street: "Rua das Flores", number: "120", complement: "ap 3", district: "Centro", city: "São Paulo", state: "SP", zip: "01001-000" })
     Registry::ContactEditor.new(users(:joana)).rename(@maria, "Maria da Silva Souza")
-    entrar_pela_spa(users(:joana).email_address, "senha-de-teste-1")
+    visit new_session_path
+    fill_in "E-mail", with: users(:joana).email_address
+    fill_in "Senha", with: "senha-de-teste-1"
+    click_button "Entrar"
     assert_selector "h1", text: "Resumo da carteira"
   end
 

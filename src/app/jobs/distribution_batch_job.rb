@@ -10,6 +10,5 @@ class DistributionBatchJob < ApplicationJob
     raise
   ensure
     DistributionsChannel.broadcast_to(batch.tenant, { event: "distribution-batch-ready" })
-    Live.publish("lotes", batch.id, tenant_id: batch.tenant_id)
   end
 end

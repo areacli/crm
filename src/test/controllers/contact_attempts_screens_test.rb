@@ -381,7 +381,7 @@ class ContactAttemptsScreensTest < ActionDispatch::IntegrationTest
     insert_attempt(mario, result: result_of(@alfa, :no_answer), contacted_at: 20.days.ago)
     entrar(users(:joana))
 
-    get summary_path
+    get root_path
     rows = css_select("section[aria-labelledby='acionamentos'] tbody tr").map { |row| row.css("th, td").map { |cell| cell.text.strip } }
     assert_equal [ [ "Total", "4", "2", "5", "2" ], [ "Falou com o cliente", "1", "1", "1", "1" ], [ "Falou com terceiro", "1", "1", "1", "1" ],
                    [ "Sem contato", "2", "1", "3", "2" ] ], rows
@@ -392,13 +392,13 @@ class ContactAttemptsScreensTest < ActionDispatch::IntegrationTest
     insert_attempt(@beta_customer, user: users(:ana))
     entrar(users(:ana))
 
-    get summary_path
+    get root_path
     assert_select "section[aria-labelledby='acionamentos'] tbody tr:first-child", text: /Total\s*2\s*2/
     assert_select "section", text: /Acionamentos — /, count: 0
 
     delete session_path
     entrar(users(:marta))
-    get summary_path
+    get root_path
     assert_select "section[aria-labelledby='acionamentos'] tbody tr:first-child", text: /Total\s*1\s*1/
   end
 
@@ -490,7 +490,7 @@ class ContactAttemptsScreensTest < ActionDispatch::IntegrationTest
 
   test "o menu mostra Acionamentos a quem consulta a carteira e a aba de resultados a quem tem a permissão 9" do
     entrar(users(:carlos))
-    get summary_path
+    get root_path
     assert_select "nav[aria-label=Menu] a", text: "Acionamentos"
     assert_select "nav[aria-label=Menu] a[href='/configuracao']", count: 0
     get "/configuracao/resultados-de-acionamento"

@@ -5,12 +5,7 @@ Rails.application.routes.draw do
   # Estado de saúde para o balanceador e o monitoramento: 200 se a aplicação sobe sem exceção.
   get "up" => "rails/health#show", as: :rails_health_check
 
-  # A casca da SPA (decisão 0025): o endereço da tela fica no hash (`/#/clientes/123`). Os módulos da aplicação OpenUI5 vêm de /crm/<versão>/.
-  root "shell#show"
-  get "crm/:versao/*caminho" => "ui5_app#show", as: :ui5_app, format: false
-  # O resumo em HTML, até ser portado para a SPA (fase C do plano).
-  get "resumo" => "summaries#show", as: :summary
-  resource :menu, only: :show
+  root "summaries#show"
 
   # Confirmação curta de ações sem dados, no modal do painel (decisão 0022): o token assinado leva o título, a mensagem e o destino.
   get "confirmacao/:token", to: "confirmations#show", as: :confirmation, constraints: { token: %r{[^/]+} }, format: false

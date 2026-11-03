@@ -20,7 +20,10 @@ class DemoScreensSystemTest < ApplicationSystemTestCase
   end
 
   def entrar
-    entrar_pela_spa(users(:joana).email_address, "senha-de-teste-1")
+    visit new_session_path
+    fill_in "E-mail", with: users(:joana).email_address
+    fill_in "Senha", with: "senha-de-teste-1"
+    click_button "Entrar"
     assert_selector "h1", text: "Resumo da carteira"
   end
 
@@ -30,17 +33,16 @@ class DemoScreensSystemTest < ApplicationSystemTestCase
     larguras.each do |largura|
       page.driver.resize(largura, 900)
       visit current_path
-      # A faixa das páginas do servidor (aside) e a da SPA (decisão 0025, o mesmo texto no topo da casca).
-      assert_selector "aside.demonstracao, .demonstracao", text: "Demonstração: os dados são fictícios", wait: 30
+      assert_selector "aside.demonstracao", text: "Demonstração: os dados são fictícios"
       assert_acessivel if largura >= 1024 || axe_no_celular
       assert_no_horizontal_scroll if sem_rolagem
     end
   end
 
   test "a entrada mostra a faixa e os usuários da demonstração, acessíveis e sem rolagem lateral" do
-    visit root_path
-    assert_text Demo.email("gestor"), wait: 30
-    assert_text Demo.password("operador")
+    visit new_session_path
+    assert_selector "code", text: Demo.email("gestor")
+    assert_selector "code", text: Demo.password("operador")
     conferir(1440, 390, axe_no_celular: true)
   end
 
@@ -65,21 +67,19 @@ class DemoScreensSystemTest < ApplicationSystemTestCase
     assert_no_horizontal_scroll
   end
 
-  # Menu fixo com a faixa (padrões de interface, revisões 17 e 18): numa janela baixa, o fim do menu cabe na janela depois de rolar o menu, com a página
-  # parada; na configuração, o submenu vem aberto e a seção atual aparece sem rolar nada à mão.
-  test "o menu fixo cabe na janela com a faixa e mostra a seção atual da configuração" do
+  # Menu na barra superior (padrões de interface, revisão 34) com a faixa: numa janela baixa, a lista do grupo cabe na janela; na configuração, o grupo
+  # Administração aparece como o atual e o submenu vem aberto com a seção atual; o cabeçalho fica no alto quando a página rola.
+  test "o menu da barra superior cabe na janela com a faixa e mostra a seção atual da configuração" do
     entrar
     page.driver.resize(1280, 640)
     visit settings_promises_path
+    assert_selector "#menu-principal details.grupo[data-atual] summary", text: "Administração"
+    find("#menu-principal summary", text: "Administração").click
     assert_selector "#menu-principal details.submenu[open] a[aria-current=page]", text: "Promessas e acordos"
-    dentro = "(() => { const m = document.getElementById('menu-principal').getBoundingClientRect(); const a = document.querySelector('#menu-principal [aria-current=page]').getBoundingClientRect(); return a.top >= m.top && a.bottom <= m.bottom && m.bottom <= window.innerHeight })()"
-    assert page.evaluate_script(dentro), "a seção atual ficou fora do menu ou o menu saiu da janela"
-    page.execute_script("const m = document.getElementById('menu-principal'); m.scrollTop = m.scrollHeight")
-    fim = "(() => { const itens = document.querySelectorAll('#menu-principal a'); return itens[itens.length - 1].getBoundingClientRect().bottom <= window.innerHeight })()"
-    assert page.evaluate_script(fim), "o último item do menu ficou fora da janela"
-    visit summary_path
+    fim = "(() => document.querySelector('#menu-principal details.grupo[open] .menu-lista').getBoundingClientRect().bottom <= window.innerHeight)()"
+    assert page.evaluate_script(fim), "a lista do grupo saiu da janela"
+    visit root_path
     page.execute_script("window.scrollTo(0, 400)")
-    assert_equal page.evaluate_script("document.querySelector('body > header').getBoundingClientRect().bottom"),
-                 page.evaluate_script("document.getElementById('menu-principal').getBoundingClientRect().top"), "o menu rolou com a página"
+    assert_operator page.evaluate_script("document.querySelector('body > header').getBoundingClientRect().top"), :<, 60, "o cabeçalho rolou com a página"
   end
 end

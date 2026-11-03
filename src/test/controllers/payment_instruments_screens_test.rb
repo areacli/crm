@@ -24,7 +24,7 @@ class PaymentInstrumentsScreensTest < ActionDispatch::IntegrationTest
   test "sem sessão, nada é servido" do
     get payment_instrument_pdf_path(@boleto)
     assert_response :redirect
-    assert_redirected_to root_path
+    assert_redirected_to new_session_path
   end
 
   test "quem consulta a carteira do credor baixa o PDF com Cache-Control private, no-store e sem redirecionar (R275, R279)" do

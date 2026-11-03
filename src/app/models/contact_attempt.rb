@@ -51,7 +51,5 @@ class ContactAttempt < ApplicationRecord
       message = { event: "contact-attempts-changed", customer_id: customer_id }
       ContactAttemptsChannel.broadcast_to(tenant, message)
       ContactAttemptsChannel.broadcast_to(customer, message)
-      # SPA (decisão 0025): a ficha aberta do cliente se refaz pelo fluxo de cada usuário.
-      Live.publish("clientes", customer_id, tenant_id: tenant_id)
     end
 end

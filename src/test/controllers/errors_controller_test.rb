@@ -71,7 +71,7 @@ class ErrorsControllerTest < ActionDispatch::IntegrationTest
     original = Portfolio::Summary.method(:new)
     Portfolio::Summary.define_singleton_method(:new) { |*| raise "falha de teste" }
     begin
-      com_erros_de_producao { get summary_path }
+      com_erros_de_producao { get root_path }
     ensure
       Portfolio::Summary.define_singleton_method(:new, original)
     end

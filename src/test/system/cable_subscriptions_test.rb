@@ -6,7 +6,10 @@ class CableSubscriptionsSystemTest < ApplicationSystemTestCase
   def canais = page.evaluate_script("window.cable.canais.map((c) => c.channel)")
 
   test "depois do login o sino assina o canal de avisos, e cada página assina o que pede" do
-    entrar_pela_spa(users(:joana).email_address, "senha-de-teste-1")
+    visit new_session_path
+    fill_in "E-mail", with: users(:joana).email_address
+    fill_in "Senha", with: "senha-de-teste-1"
+    click_button "Entrar"
     assert_selector "h1", text: "Resumo da carteira"
     assert_equal [ "NoticesChannel" ], canais
 

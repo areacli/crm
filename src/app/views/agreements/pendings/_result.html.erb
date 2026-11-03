@@ -1,5 +1,5 @@
 <%# Propostas pendentes que o usuário pode aprovar (R216, R243). Refeita a cada evento do WebSocket (cable:agreements-changed). %>
-<div id="resultado" hx-get="<%= pending_agreements_path(tenant: params[:tenant].presence) %>" hx-trigger="cable:agreements-changed from:body" hx-swap="outerHTML" hx-target="this">
+<div id="resultado" hx-get="<%= pending_agreements_path(request.query_parameters) %>" hx-trigger="cable:agreements-changed from:body" hx-swap="outerHTML" hx-target="this">
   <% if @agreements.empty? %>
     <p class="vazio">Nenhuma proposta pendente para você aprovar.</p>
   <% else %>
@@ -40,4 +40,5 @@
       </table>
     </div>
   <% end %>
+  <%= render "shared/paginacao", pagination: @pagination, unit: "propostas", path: ->(page) { pending_agreements_path(request.query_parameters.merge("page" => page)) } if @pagination.total.positive? %>
 </div>

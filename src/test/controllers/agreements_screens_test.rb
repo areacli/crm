@@ -130,7 +130,7 @@ class AgreementsScreensTest < ActionDispatch::IntegrationTest
 
     delete session_path
     entrar(users(:joana))
-    get summary_path
+    get root_path
     assert_select "nav a", text: /Acordos pendentes\s*1/
     get pending_agreements_path
     assert_select "tbody tr", 1
@@ -290,16 +290,16 @@ class AgreementsScreensTest < ActionDispatch::IntegrationTest
 
   test "P1: o grupo Cobrança do menu traz Acordos e Promessas pendentes; o Operador padrão negocia acordos" do
     entrar(users(:carlos))
-    get summary_path
-    assert_select "nav h2", text: "Cobrança"
-    assert_select "nav a", text: "Acordos"
+    get root_path
+    # O Cobrança do operador só tem Acordos: vira link direto na barra (revisão 34).
+    assert_select "nav .menu-barra > li > a", text: "Acordos"
     assert_select "nav h2", text: "Administração", count: 0
     assert_includes Permission::OPERATOR, "negotiate_agreements"
 
     delete session_path
     viewer = make_user(@alfa, [])
     entrar(viewer)
-    get summary_path
+    get root_path
     # Revisão 32: Clientes e Acionamentos ficam no primeiro nível; sem "negociar acordos" nem pendentes, o grupo Cobrança some.
     assert_select "nav a", text: "Acordos", count: 0
     assert_select "nav h2", text: "Cobrança", count: 0
@@ -425,49 +425,5 @@ class AgreementsScreensTest < ActionDispatch::IntegrationTest
         params: { contact_attempt: { result_id: result_of(@alfa, :promised).id, promise_contract_id: @nf1.contract_id, promise_on: (AGREEMENT_DAY + 3).iso8601 } }
     assert_response :success
     assert_includes response.body, "em proposta ou acordo ACD-000001"
-  end
-
-  test "SPA (decisão 0025): simulação, proposta, página, pendentes, aprovação e lista em JSON" do
-    entrar(users(:carlos))
-    get new_customer_agreement_simulation_path(@customer, format: :json)
-    simulacao = response.parsed_body
-    assert_equal [ @nf1.number, @nf2.number ].sort, simulacao["titulos"].map { |titulo| titulo["numero"] }.sort
-
-    post customer_agreement_simulations_path(@customer, format: :json), params: { agreement: form }
-    resultado = response.parsed_body
-    assert_nil resultado["problema"]
-    assert_equal "Total", resultado.dig("base", "linhas").last["celulas"].first
-
-    post customer_agreements_path(@customer), params: { agreement: form(installments: "0") }, as: :json
-    assert_response :unprocessable_content
-    assert response.parsed_body["mensagem"].present?
-
-    post customer_agreements_path(@customer), params: { agreement: form(discounts: { fine: "100", interest: "50" }) }, as: :json
-    agreement = Agreement.sole
-    assert_equal agreement_path(agreement), URI(response.parsed_body["destino"]).path
-    get agreement_path(agreement, format: :json)
-    acordo = response.parsed_body
-    assert_equal "ACD-000001", acordo["numero"]
-    assert_not acordo.dig("pode", "aprovar")
-    assert_equal "Parcela 4", acordo["parcelas"].last["titulo"]
-
-    delete session_path
-    entrar(users(:joana))
-    get pending_agreements_path(format: :json)
-    assert_equal [ agreement.id ], response.parsed_body["linhas"].map { |linha| linha["id"] }
-    post agreement_approval_path(agreement), as: :json
-    assert_response :success
-    assert_predicate agreement.reload, :state_approved?
-    get agreements_path(format: :json)
-    assert_equal [ "ACD-000001" ], response.parsed_body["linhas"].map { |linha| linha["numero"] }
-  end
-
-  test "SPA, V10: a página de acordo de outro credor responde 404 em JSON" do
-    entrar(users(:carlos))
-    post customer_agreements_path(@customer), params: { agreement: form }
-    delete session_path
-    entrar(users(:marta))
-    get agreement_path(Agreement.sole, format: :json)
-    assert_response :not_found
   end
 end

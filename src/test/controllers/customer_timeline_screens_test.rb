@@ -20,7 +20,6 @@ class CustomerTimelineScreensTest < ActionDispatch::IntegrationTest
     assert_redirected_to customer_url(@customer, linha: "atendimento", linha_pagina: 2)
     get customer_url(@customer, linha: "atendimento")
     assert_select "#linha-do-tempo .filtro-em-pilulas a[aria-current=true]", text: "Atendimento"
-    assert_select "body[data-menu=recolhido]"
   end
 
   test "quem não vê o cliente recebe 404" do

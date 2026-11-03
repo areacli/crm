@@ -5,14 +5,11 @@ module Customers
     def show
       @customer = Customer.includes(:tenant).find(params[:customer_id])
       authorize @customer, :show?
-      return redirect_to(customer_path(@customer, **timeline_params)) unless htmx_fragment? || request.format.json?
+      return redirect_to(customer_path(@customer, **timeline_params)) unless htmx_fragment?
 
       contract = @customer.contracts.find_by(id: params[:contrato]) if params[:contrato].present?
-      @timeline = CustomerTimeline.new(@customer, contract: contract, kind: params[:linha], page: params[:linha_pagina], distributions: !Operations::Context.operation?)
-      # A SPA (decisão 0025) recebe os eventos em JSON; o htmx das páginas do servidor, o trecho.
-      return render(:show) if request.format.json?
-
-      render partial: "customers/timeline", locals: { customer: @customer, timeline: @timeline, base: timeline_params.slice(:aba, :contrato) }
+      timeline = CustomerTimeline.new(@customer, contract: contract, kind: params[:linha], page: params[:linha_pagina], distributions: !Operations::Context.operation?)
+      render partial: "customers/timeline", locals: { customer: @customer, timeline: timeline, base: timeline_params.slice(:aba, :contrato) }
     end
 
     private

@@ -60,7 +60,7 @@ module NavigationHelper
     # Um grupo por tipo de trabalho (padrões de interface, revisão 22); o que serve a qualquer processo fica no primeiro nível, sem grupo, e o grupo
     # Cobrança só tem o que só existe na cobrança (revisão 32). Sem caminho, o item abre e fecha o submenu da área (os subitens no 6º campo).
     sections = [
-      { titulo: nil, itens: [ [ "Resumo", summary_path, "view_portfolio", %r{\A/resumo} ],
+      { titulo: nil, itens: [ [ "Resumo", root_path, "view_portfolio", %r{\A/\z} ],
                               [ "Clientes", customers_path, "view_portfolio", %r{\A/clientes} ],
                               [ "Acionamentos", contact_attempts_path, "view_portfolio", %r{\A/acionamentos} ] ] },
       { titulo: "Cobrança", itens: [ *pending_promises_items,
