@@ -1,0 +1,169 @@
+<mvc:View controllerName="crm.controller.PromessasEAcordos" xmlns:mvc="sap.ui.core.mvc" xmlns="sap.m" xmlns:f="sap.f" xmlns:card="sap.f.cards" xmlns:core="sap.ui.core"
+	xmlns:form="sap.ui.layout.form" height="100%">
+	<!-- Promessas e acordos (10, R189, R190, R206; 11, R207, R209, R243, R246, T6; modelo Configuração): por credor, as políticas das promessas, o prazo
+	     máximo e a alçada, as políticas, as variáveis (passam pela conferência do impacto) e os limites dos acordos, e as alterações recentes. Cada cartão grava
+	     pela rota de sempre, com o botão no cabeçalho; os campos ficam em grade (uma política ou um número por campo). -->
+	<f:DynamicPage toggleHeaderOnTitleClick="false">
+		<f:title><f:DynamicPageTitle>
+			<f:heading><Title text="{i18n>promessasEAcordos.titulo}" level="H2" /></f:heading>
+			<f:expandedContent><Text text="{i18n>promessasEAcordos.subtitulo}" /></f:expandedContent>
+		</f:DynamicPageTitle></f:title>
+		<f:content>
+			<VBox renderType="Bare">
+				<Text text="{i18n>promessasEAcordos.vazio}" visible="{= ${dados>/credores}.length === 0 }" class="nota" />
+				<VBox items="{path: 'dados>/credores', templateShareable: false}" renderType="Bare">
+					<VBox renderType="Bare">
+						<!-- Políticas das promessas. -->
+						<f:Card class="sapUiSmallMarginBottom">
+							<f:header><card:Header title="{parts: ['i18n>promessasEAcordos.politicas', 'dados>nome'], formatter: '.formatarTexto'}">
+								<card:toolbar><Button text="{i18n>promessasEAcordos.salvarPoliticas}" type="Emphasized" press=".salvarPoliticasDaPromessa" /></card:toolbar>
+							</card:Header></f:header>
+							<f:content>
+								<form:SimpleForm editable="true" layout="ColumnLayout" columnsM="2" columnsL="3" columnsXL="3" labelSpanL="12" labelSpanM="12" width="100%">
+									<Label text="{i18n>promessasEAcordos.tolerancia}" required="true" />
+									<Input value="{dados>promessa/tolerancia}" type="Number" required="true"><layoutData><form:ColumnElementData cellsSmall="12" cellsLarge="12" /></layoutData></Input>
+									<Text text="{i18n>promessasEAcordos.tolerancia.ajuda}" class="nota"><layoutData><form:ColumnElementData cellsSmall="12" cellsLarge="12" /></layoutData></Text>
+									<Label text="{i18n>promessasEAcordos.carencia}" required="true" />
+									<Input value="{dados>promessa/carencia}" type="Number" required="true"><layoutData><form:ColumnElementData cellsSmall="12" cellsLarge="12" /></layoutData></Input>
+									<Text text="{i18n>promessasEAcordos.carencia.ajuda}" class="nota"><layoutData><form:ColumnElementData cellsSmall="12" cellsLarge="12" /></layoutData></Text>
+									<Label text="{i18n>promessasEAcordos.minimo}" />
+									<Input value="{dados>promessa/minimo}" type="Number"><layoutData><form:ColumnElementData cellsSmall="12" cellsLarge="12" /></layoutData></Input>
+									<Text text="{i18n>promessasEAcordos.minimo.ajuda}" class="nota"><layoutData><form:ColumnElementData cellsSmall="12" cellsLarge="12" /></layoutData></Text>
+									<Label text="{i18n>promessasEAcordos.contam}" />
+									<Select selectedKey="{dados>promessa/contam}" width="100%" items="{path: 'dados>opcoes_contam', templateShareable: false}"><core:Item key="{dados>id}" text="{dados>nome}" /></Select>
+									<Label text="{i18n>promessasEAcordos.depoisDaQuebra}" />
+									<Select selectedKey="{dados>promessa/depois_da_quebra}" width="100%" items="{path: 'dados>opcoes_depois_da_quebra', templateShareable: false}"><core:Item key="{dados>id}" text="{dados>nome}" /></Select>
+									<Label text="{i18n>promessasEAcordos.parcial}" />
+									<Select selectedKey="{dados>promessa/parcial}" width="100%" items="{path: 'dados>opcoes_parcial', templateShareable: false}"><core:Item key="{dados>id}" text="{dados>nome}" /></Select>
+								</form:SimpleForm>
+							</f:content>
+						</f:Card>
+
+						<!-- Prazo máximo do item do enquadramento e alçada de cada perfil: um grupo por item. -->
+						<f:Card class="sapUiSmallMarginBottom">
+							<f:header><card:Header title="{parts: ['i18n>promessasEAcordos.alcada', 'dados>nome'], formatter: '.formatarTexto'}" subtitle="{i18n>promessasEAcordos.alcada.ajuda}">
+								<card:toolbar><Button text="{i18n>promessasEAcordos.salvarAlcadas}" type="Emphasized" press=".salvarAlcadas" /></card:toolbar>
+							</card:Header></f:header>
+							<f:content>
+								<form:Form editable="true" width="100%" formContainers="{path: 'dados>alcadas', templateShareable: false}">
+									<form:layout><form:ColumnLayout columnsM="2" columnsL="3" columnsXL="3" labelCellsLarge="12" /></form:layout>
+									<form:formContainers>
+										<form:FormContainer title="{dados>nome}" formElements="{path: 'dados>campos', templateShareable: false}">
+											<form:formElements>
+												<form:FormElement label="{dados>rotulo}">
+													<form:fields><Input value="{dados>valor}" type="Number" required="{dados>obrigatorio}" tooltip="{dados>rotulo_acessivel}" /></form:fields>
+												</form:FormElement>
+											</form:formElements>
+										</form:FormContainer>
+									</form:formContainers>
+								</form:Form>
+							</f:content>
+						</f:Card>
+
+						<!-- Políticas dos acordos: cada uma com a ajuda e a última alteração (o histórico dela no texto de dica). -->
+						<f:Card class="sapUiSmallMarginBottom">
+							<f:header><card:Header title="{parts: ['i18n>promessasEAcordos.politicasDosAcordos', 'dados>nome'], formatter: '.formatarTexto'}" subtitle="{i18n>promessasEAcordos.politicasDosAcordos.ajuda}">
+								<card:toolbar><Button text="{i18n>promessasEAcordos.salvarPoliticasDosAcordos}" type="Emphasized" press=".salvarPoliticasDosAcordos" /></card:toolbar>
+							</card:Header></f:header>
+							<f:content>
+								<form:Form editable="true" width="100%">
+									<form:layout><form:ColumnLayout columnsM="2" columnsL="3" columnsXL="3" labelCellsLarge="12" /></form:layout>
+									<form:formContainers>
+										<form:FormContainer formElements="{path: 'dados>politicas_de_acordo', templateShareable: false}">
+											<form:formElements>
+												<form:FormElement label="{dados>titulo}">
+													<form:fields>
+														<Select selectedKey="{dados>escolha}" width="100%" items="{path: 'dados>opcoes', templateShareable: false}">
+															<items><core:Item key="{dados>id}" text="{dados>nome}" /></items>
+															<layoutData><form:ColumnElementData cellsSmall="12" cellsLarge="{= ${dados>de_escolha} || ${dados>escolha} === 'tolerance' ? 12 : 6 }" /></layoutData>
+														</Select>
+														<Input value="{dados>quantia}" tooltip="{dados>rotulo_quantia}" placeholder="{i18n>promessasEAcordos.quantia}"
+															visible="{= !${dados>de_escolha} &amp;&amp; ${dados>escolha} !== 'tolerance' }">
+															<layoutData><form:ColumnElementData cellsSmall="12" cellsLarge="6" /></layoutData>
+														</Input>
+														<Text text="{dados>ajuda}" class="nota"><layoutData><form:ColumnElementData cellsSmall="12" cellsLarge="12" /></layoutData></Text>
+														<Text text="{dados>ultima}" tooltip="{dados>historico}" visible="{= !!${dados>ultima} }" class="nota">
+															<layoutData><form:ColumnElementData cellsSmall="12" cellsLarge="12" /></layoutData>
+														</Text>
+													</form:fields>
+												</form:FormElement>
+											</form:formElements>
+										</form:FormContainer>
+									</form:formContainers>
+								</form:Form>
+							</f:content>
+						</f:Card>
+
+						<!-- Variáveis de acordo de cada item do enquadramento: o envio leva à conferência do impacto (13, R272). -->
+						<f:Card class="sapUiSmallMarginBottom">
+							<f:header><card:Header title="{parts: ['i18n>promessasEAcordos.variaveis', 'dados>nome'], formatter: '.formatarTexto'}" subtitle="{i18n>promessasEAcordos.variaveis.ajuda}">
+								<card:toolbar><Button text="{i18n>promessasEAcordos.conferir}" type="Emphasized" press=".conferirVariaveis" /></card:toolbar>
+							</card:Header></f:header>
+							<f:content>
+								<form:Form editable="true" width="100%" formContainers="{path: 'dados>variaveis', templateShareable: false}">
+									<form:layout><form:ColumnLayout columnsM="1" columnsL="2" columnsXL="3" labelCellsLarge="12" /></form:layout>
+									<form:formContainers>
+										<form:FormContainer title="{dados>resumo}" formElements="{path: 'dados>campos', templateShareable: false}">
+											<form:formElements>
+												<form:FormElement label="{dados>rotulo}">
+													<form:fields>
+														<Input value="{dados>valor}" required="{dados>obrigatorio}" tooltip="{dados>rotulo_acessivel}" />
+														<Input value="{dados>par/valor}" required="true" tooltip="{dados>par/rotulo}" visible="{= !!${dados>par} }" />
+														<Text text="{dados>ajuda}" visible="{= !!${dados>ajuda} }" class="nota"><layoutData><form:ColumnElementData cellsSmall="12" cellsLarge="12" /></layoutData></Text>
+													</form:fields>
+												</form:FormElement>
+											</form:formElements>
+										</form:FormContainer>
+									</form:formContainers>
+								</form:Form>
+							</f:content>
+						</f:Card>
+
+						<!-- Limites de acordo de cada perfil em cada item, dentro das variáveis do item. -->
+						<f:Card class="sapUiSmallMarginBottom">
+							<f:header><card:Header title="{parts: ['i18n>promessasEAcordos.limites', 'dados>nome'], formatter: '.formatarTexto'}" subtitle="{i18n>promessasEAcordos.limites.ajuda}">
+								<card:toolbar><Button text="{i18n>promessasEAcordos.salvarLimites}" type="Emphasized" press=".salvarLimites" /></card:toolbar>
+							</card:Header></f:header>
+							<f:content>
+								<form:Form editable="true" width="100%" formContainers="{path: 'dados>limites', templateShareable: false}">
+									<form:layout><form:ColumnLayout columnsM="1" columnsL="2" columnsXL="3" labelCellsLarge="12" /></form:layout>
+									<form:formContainers>
+										<form:FormContainer title="{dados>resumo}" formElements="{path: 'dados>campos', templateShareable: false}">
+											<form:formElements>
+												<form:FormElement label="{dados>rotulo}">
+													<form:fields>
+														<Input value="{dados>valor}" required="{dados>obrigatorio}" tooltip="{dados>rotulo_acessivel}" />
+														<Input value="{dados>par/valor}" required="true" tooltip="{dados>par/rotulo}" visible="{= !!${dados>par} }" />
+														<Text text="{dados>ajuda}" visible="{= !!${dados>ajuda} }" class="nota"><layoutData><form:ColumnElementData cellsSmall="12" cellsLarge="12" /></layoutData></Text>
+													</form:fields>
+												</form:FormElement>
+											</form:formElements>
+										</form:FormContainer>
+									</form:formContainers>
+								</form:Form>
+							</f:content>
+						</f:Card>
+
+						<!-- Alterações recentes das promessas e dos acordos do credor. -->
+						<f:Card class="sapUiMediumMarginBottom">
+							<f:header><card:Header title="{parts: ['i18n>promessasEAcordos.alteracoes', 'dados>nome'], formatter: '.formatarTexto'}" /></f:header>
+							<f:content>
+								<Table items="{path: 'dados>historico', templateShareable: false}" fixedLayout="false" noData="{i18n>promessasEAcordos.alteracoes.vazio}">
+									<columns>
+										<Column><Text text="{i18n>promessasEAcordos.quando}" /></Column><Column><Text text="{i18n>promessasEAcordos.quem}" /></Column>
+										<Column><Text text="{i18n>promessasEAcordos.oQueMudou}" /></Column><Column><Text text="{i18n>promessasEAcordos.antes}" /></Column>
+										<Column><Text text="{i18n>promessasEAcordos.depois}" /></Column>
+									</columns>
+									<items><ColumnListItem><cells>
+										<Text text="{dados>quando}" wrapping="false" /><Text text="{dados>quem}" wrapping="false" /><Text text="{dados>o_que}" />
+										<Text text="{dados>antes}" /><Text text="{dados>depois}" />
+									</cells></ColumnListItem></items>
+								</Table>
+							</f:content>
+						</f:Card>
+					</VBox>
+				</VBox>
+			</VBox>
+		</f:content>
+	</f:DynamicPage>
+</mvc:View>

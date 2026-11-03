@@ -1,0 +1,30 @@
+<%# Resultado da conferência, refeito quando o WebSocket avisa. Local: result (nil enquanto confere). %>
+<div id="conferencia-filas" <% if result.nil? %>hx-get="<%= request.fullpath %>" hx-trigger="cable:queue-review-ready from:body" hx-swap="outerHTML" hx-push-url="false"<% end %>>
+  <% if result.nil? %>
+    <p class="carregando" role="status">Conferindo o impacto…</p>
+  <% else %>
+    <section class="cartao" aria-labelledby="impacto">
+      <header><h2 id="impacto">O que muda</h2></header>
+      <div>
+        <% if result["rows"].empty? %>
+          <p>Ninguém muda de item.</p>
+        <% else %>
+          <p><%= number_br(result["total"]) %> mudam de item.</p>
+          <div class="tabela" tabindex="0">
+            <table>
+              <caption class="apenas-leitor-de-tela">Quem sai de cada item e para onde vai</caption>
+              <thead><tr><th scope="col">Sai de</th><th scope="col">Vai para</th><th scope="col" data-numerico>Quantos</th></tr></thead>
+              <tbody>
+                <% result["rows"].each do |row| %><tr><td><%= row["from"] || "—" %></td><td><%= row["to"] %></td><td data-numerico><%= number_br(row["count"]) %></td></tr><% end %>
+              </tbody>
+            </table>
+          </div>
+        <% end %>
+        <div class="acoes" data-rodape>
+          <%= button_to "Confirmar a mudança", confirm_queues_work_queues_path(tenant_id: @tenant.id, token: @token), data: { variant: "primary" } %>
+          <%= link_to "Descartar", queues_work_queues_path(tenant_id: @tenant.id), class: "botao", data: { variant: "secondary" } %>
+        </div>
+      </div>
+    </section>
+  <% end %>
+</div>

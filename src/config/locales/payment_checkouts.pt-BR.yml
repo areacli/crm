@@ -42,6 +42,8 @@ pt-BR:
         instrument_not_active: "Só boleto ou Pix ativo entra no link."
         amounts_differ: "Os instrumentos do link têm valores diferentes."
         amount_required: "Informe o valor do link."
+        object_required: "Informe o título ou a promessa que o link cobra."
+        other_object: "O boleto e o Pix do link precisam cobrar o mesmo título ou promessa."
         amount_differs: "O valor informado difere do valor dos instrumentos."
         card_unavailable: "O cartão não está disponível: falta conta de cartão ativa do credor, ou o pagador não tem documento válido."
         not_renewable: "Só se renova link que não foi pago nem cancelado."

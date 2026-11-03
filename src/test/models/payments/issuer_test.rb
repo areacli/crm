@@ -13,18 +13,19 @@ class PaymentsIssuerTest < ActiveSupport::TestCase
   end
 
   def request(kind: "boleto", **overrides)
-    @issuer.request(tenant: @alfa, kind: kind, amount_cents: 125_000, customer: @customer, due_on: Date.new(2026, 11, 30), **overrides)
+    @issuer.request(tenant: @alfa, kind: kind, amount_cents: 125_000, customer: @customer, due_on: Date.new(2026, 11, 30), object: bill_for(@customer), **overrides)
   end
 
   def run_job(instrument) = perform_enqueued_jobs { IssueInstrumentJob.perform_now(instrument.id) }
 
   test "o pedido grava o instrumento emitting com os dados do pagador e enfileira o job na fila default (R271, R272)" do
     instrument = nil
-    assert_enqueued_with(job: IssueInstrumentJob, queue: "default") { instrument = request(reference: [ "agreement", 77 ]) }
+    assert_enqueued_with(job: IssueInstrumentJob, queue: "default") { instrument = request }
     assert instrument.state_emitting?
     assert_equal [ 125_000, Date.new(2026, 11, 30), "fake", @boleto_account.id ], [ instrument.amount_cents, instrument.due_on, instrument.provider, instrument.account_id ]
     assert_equal [ "Maria Souza", "52998224725" ], [ instrument.payer_name, instrument.payer_document ]
-    assert_equal [ "agreement", 77 ], [ instrument.reference_type, instrument.reference_id ]
+    assert_kind_of Bill, instrument.object
+    assert instrument.open?
     assert_match(/\A[a-zA-Z0-9]{26,35}\z/, instrument.custom_id)
   end
 
@@ -78,7 +79,8 @@ class PaymentsIssuerTest < ActiveSupport::TestCase
 
   test "o custom_id é único por credor no banco e tem o formato do txid (R272)" do
     request(custom_id: "B" * 30)
-    other = PaymentInstrument.new(tenant: @alfa, account: @boleto_account, provider: "fake", kind: "boleto", amount_cents: 1, due_on: Date.current, custom_id: "B" * 30)
+    other = PaymentInstrument.new(tenant: @alfa, account: @boleto_account, provider: "fake", kind: "boleto", amount_cents: 1, due_on: Date.current, custom_id: "B" * 30,
+                                 bill: bill_for(@customer))
     assert_not other.valid?
     assert_raises(ActiveRecord::RecordNotUnique) { other.save!(validate: false) }
     assert_not PaymentInstrument.new(custom_id: "curto").valid?
@@ -145,7 +147,7 @@ class PaymentsIssuerTest < ActiveSupport::TestCase
 
   test "o vencimento padrão vem dos dias de validade da conta" do
     @boleto_account.update!(config: @boleto_account.config.merge("expire_days" => 9))
-    instrument = @issuer.request(tenant: @alfa, kind: "boleto", amount_cents: 500, customer: @customer)
+    instrument = @issuer.request(tenant: @alfa, kind: "boleto", amount_cents: 500, customer: @customer, object: bill_for(@customer))
     assert_equal Date.current + 9, instrument.due_on
   end
 
@@ -183,7 +185,7 @@ class PaymentsIssuerTest < ActiveSupport::TestCase
   end
 
   test "lote: um job por instrumento, espaçados pelo limite de taxa, e sem duplicar os já existentes (R272)" do
-    requests = Array.new(3) { |i| { tenant: @alfa, kind: "boleto", amount_cents: 1_000 + i, customer: @customer, due_on: Date.current + 5, custom_id: "L#{i}".ljust(30, "x") } }
+    requests = Array.new(3) { |i| { tenant: @alfa, kind: "boleto", amount_cents: 1_000 + i, customer: @customer, due_on: Date.current + 5, custom_id: "L#{i}".ljust(30, "x"), object: bill_for(@customer) } }
     instruments = nil
     assert_enqueued_jobs(3, only: IssueInstrumentJob) { instruments = @issuer.request_batch(requests, per_minute: 30) }
     times = enqueued_jobs.map { |job| job["scheduled_at"].present? ? Time.zone.parse(job["scheduled_at"].to_s) : Time.current }

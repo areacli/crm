@@ -25,7 +25,7 @@ class PaymentsReconcilerTest < ActiveSupport::TestCase
 
   test "a execução enfileira um job por instrumento, espaçados pelo limite por minuto, e vira TaskRun do credor" do
     @instrument.update_columns(issued_at: 4.days.ago)
-    other = emit(@alfa, @bill.customer, "pix", 100_000, reference: [ "bill", @bill.id ])
+    other = emit(@alfa, @bill.customer, "pix", 100_000)
     other.update_columns(issued_at: 5.days.ago)
     run = nil
     assert_enqueued_jobs(2, only: ReconcileInstrumentJob) { run = @reconciler.call(per_minute: 30) }
@@ -43,7 +43,7 @@ class PaymentsReconcilerTest < ActiveSupport::TestCase
     assert_predicate @bill.reload, :paid?
     assert_not_nil @instrument.reconciled_at
 
-    quiet = emit(@alfa, @bill.customer, "pix", 1_000, reference: nil)
+    quiet = emit(@alfa, @bill.customer, "pix", 1_000)
     quiet.update_columns(issued_at: 4.days.ago)
     perform_enqueued_jobs { @reconciler.call }
     assert quiet.reload.state_active?

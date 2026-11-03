@@ -50,7 +50,13 @@ class TenantSetting < ApplicationRecord
   validates :promise_grace_days, numericality: { only_integer: true, greater_than_or_equal_to: 0, less_than_or_equal_to: 365 }
   validates :promise_min_paid_pct, numericality: { only_integer: true, greater_than_or_equal_to: 1, less_than_or_equal_to: 99 }, allow_nil: true
 
-  PAYMENT_POLICIES = %w[partial_payment_policy withdrawn_payment_policy withdrawn_reversal_policy reversal_month_policy].freeze
+  # Instrumentos de pagamento (16; permissão 14): depois do cancelamento automático, só cancelar (padrão) ou reemitir (R389); e se o usuário
+  # pode emitir todos os títulos de um acordo efetivado de uma vez (R389a; padrão: não).
+  enum :instrument_reissue_policy, { cancel_only: "cancel_only", reissue: "reissue" }, prefix: true, validate: true
+  enum :agreement_issue_all_policy, { deny: "deny", allow: "allow" }, prefix: true, validate: true
+
+  PAYMENT_POLICIES = %w[partial_payment_policy withdrawn_payment_policy withdrawn_reversal_policy reversal_month_policy instrument_reissue_policy
+                        agreement_issue_all_policy].freeze
 
   # Faixas iniciais de atraso, em dias: de 1 a 30, de 31 a 60, de 61 a 90, de 91 a 180, de 181 a 360 e mais de 360.
   DEFAULT_BRACKETS = [

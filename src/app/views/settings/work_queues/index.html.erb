@@ -1,0 +1,48 @@
+<% content_for :title, "Filas · Enquadramento" %>
+<% content_for :cable_channels, @cable %>
+<%= pagina "Enquadramento das filas", subtitulo: "Cada cliente ou contrato vai para o primeiro item cujo segmento ele atende, de cima para baixo. Um item \"sem fila\" não entrega a ninguém. Quem não atende nenhum fica em Demais." %>
+<%= render "settings/modelo" %>
+<%= render "queue_boards/credores", rota: :queues_work_queues_path %>
+
+<div id="enquadramento-das-filas" hx-get="<%= queues_work_queues_path(tenant_id: @tenant.id) %>" hx-trigger="cable:queues-changed from:body" hx-select="#enquadramento-das-filas" hx-swap="outerHTML" hx-push-url="false" hx-disinherit="hx-select hx-swap hx-push-url">
+  <% @framings.each do |subject, framing| %>
+    <section class="cartao" aria-labelledby="enquadramento-<%= subject %>">
+      <header>
+        <h2 id="enquadramento-<%= subject %>"><%= t("queues.subjects.#{subject}") %></h2>
+        <div class="acoes"><%= abrir_painel "Incluir item", new_queues_work_queue_path(tenant_id: @tenant.id, sujeito: subject), variante: "modal", tamanho: "small" %></div>
+      </header>
+      <div class="tabela" tabindex="0">
+        <table>
+          <caption class="apenas-leitor-de-tela">Itens do enquadramento das filas de <%= t("queues.subjects.#{subject}").downcase %></caption>
+          <thead><tr><th scope="col" data-numerico>Ordem</th><th scope="col">Item</th><th scope="col">Segmento</th><th scope="col">Ordem da fila</th><th scope="col">Trava e intervalos</th><th scope="col" data-numerico>Na fila</th><th scope="col"><span class="apenas-leitor-de-tela">Ações</span></th></tr></thead>
+          <tbody>
+            <% items = framing.reject(&:catch_all) %>
+            <% framing.each do |queue| %>
+              <% index = items.index(queue) %>
+              <tr>
+                <td data-numerico><%= queue.catch_all ? "—" : index + 1 %></td>
+                <th scope="row"><%= queue.name %> <% if queue.catch_all %><%= situacao "Trilha padrão", tom: :neutral %><% end %> <% unless queue.delivers %><%= situacao "Sem fila", tom: :neutral %><% end %></th>
+                <td><%= queue.segment ? link_to(queue.segment.name, settings_segment_path(queue.segment)) : "Quem não atende nenhum item" %></td>
+                <td><%= queue.delivers ? [ t("queues.orders.#{queue.order_by}"), (t("queues.orders.#{queue.order_tiebreak}") if queue.order_tiebreak) ].compact.join("; empate, ") : "—" %></td>
+                <td><%= queue.delivers ? "#{queue.lock_minutes} min · #{duracao_curta(queue.interval_no_contact_minutes)} / #{duracao_curta(queue.interval_third_party_minutes)} / #{duracao_curta(queue.interval_customer_minutes)}" : "—" %></td>
+                <td data-numerico><%= queue.delivers ? number_br(@counts[queue.id].to_i) : "—" %></td>
+                <td data-acoes>
+                  <%= menu_de_linha("fila-#{queue.id}", "Ações de #{queue.name}") do %>
+                    <% if queue.delivers %><%= abrir_painel "Editar ordem e tempos", edit_queues_queue_setting_path(queue), tamanho: "small" %><% end %>
+                    <% unless queue.catch_all %>
+                      <%= abrir_painel "Editar item", edit_queues_work_queue_path(index, tenant_id: @tenant.id, sujeito: subject), variante: "modal", tamanho: "small" %>
+                      <% if index.positive? %><%= button_to "Mover para cima", move_queues_work_queue_path(index, tenant_id: @tenant.id, sujeito: subject, offset: -1), data: { variant: "secondary" } %><% end %>
+                      <% if index < items.size - 1 %><%= button_to "Mover para baixo", move_queues_work_queue_path(index, tenant_id: @tenant.id, sujeito: subject, offset: 1), data: { variant: "secondary" } %><% end %>
+                      <%= button_to "Excluir", queues_work_queue_path(index, tenant_id: @tenant.id, sujeito: subject), method: :delete, data: { variant: "danger-outline" } %>
+                    <% end %>
+                  <% end %>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  <% end %>
+  <p><small>Incluir, mudar, mover e tirar itens passam pela conferência do impacto antes de valer. Ordem, trava, intervalos e grupos valem na hora.</small></p>
+</div>

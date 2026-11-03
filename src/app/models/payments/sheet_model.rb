@@ -4,18 +4,18 @@ module Payments
   module SheetModel
     COLUMNS = {
       "payments" => {
-        required: %w[canal identificador documento titulo data_pagamento valor meio], optional: %w[estado_final],
-        example: { "canal" => "341-1234-56789", "identificador" => "E1234567820261019", "documento" => "529.982.247-25", "titulo" => "NF-1024/3",
+        required: %w[metodo_recebimento identificador documento titulo data_pagamento valor meio], optional: %w[estado_final],
+        example: { "metodo_recebimento" => "341-1234-56789", "identificador" => "E1234567820261019", "documento" => "529.982.247-25", "titulo" => "NF-1024/3",
                    "data_pagamento" => "18/10/2026", "valor" => "400,00", "meio" => "pix", "estado_final" => "quitado" }
       },
       "reversals" => {
-        required: %w[canal identificador_pagamento identificador_estorno data_estorno valor], optional: %w[motivo],
-        example: { "canal" => "341-1234-56789", "identificador_pagamento" => "E1234567820261019", "identificador_estorno" => "D9876543",
+        required: %w[metodo_recebimento identificador_pagamento identificador_estorno data_estorno valor], optional: %w[motivo],
+        example: { "metodo_recebimento" => "341-1234-56789", "identificador_pagamento" => "E1234567820261019", "identificador_estorno" => "D9876543",
                    "data_estorno" => "20/10/2026", "valor" => "300,00", "motivo" => "contestação de cartão" }
       }
     }.freeze
 
-    # Linhas fictícias do modelo (cabeçalho + linhas): passam na conferência quando o canal e os títulos existem.
+    # Linhas fictícias do modelo (cabeçalho + linhas): passam na conferência quando o método de recebimento e os títulos existem.
     ROWS = {
       "payments" => [
         [ "341-1234-56789", "E1234567820261019", "529.982.247-25", "NF-1024/3", "18/10/2026", "400,00", "pix", "" ],

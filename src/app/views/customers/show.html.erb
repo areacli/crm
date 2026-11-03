@@ -36,6 +36,10 @@
   <% end %>
 <% end %>
 
+<%# 15, R354: a entrega aberta do usuário, se é este cliente ou um contrato dele. %>
+<% if (delivery = QueueDelivery.open.find_by(user_id: Current.user.id)) && (delivery.subject == "customers" ? delivery.subject_id == @customer.id : @all_contracts.any? { |contract| contract.id == delivery.subject_id }) %>
+  <%= render "queue_deliveries/faixa", delivery: delivery %>
+<% end %>
 <% if @city_unrecognized %><%= aviso(tom: :warning) { tag.p "Cidade não reconhecida: o endereço deste cliente não casa com a lista de municípios do IBGE, e os acordos dele usam só os feriados nacionais. Corrija o endereço no cadastro." } %><% end %>
 <% if @customer.anonymized? %><%= aviso(tom: :info) { tag.p "Cliente anonimizado em #{date_br(@customer.anonymized_at.to_date)}. Só restam os dados que não identificam a pessoa." } %><% end %>
 

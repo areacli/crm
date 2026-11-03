@@ -3,11 +3,14 @@ require "test_helper"
 # Glossário de ações (padrões de interface, P16, revisão 20): um verbo por ação, em todas as telas. O teste lê os rótulos dos botões (button_to,
 # painel, confirmação, envio do formulário de painel, links com cara de botão e <button>) e falha com verbo fora da lista. "Mudar", "Alterar",
 # "Apagar", "Tirar", "Novo", "Cadastrar", "Subir", "Descer" e "Corrigir" saíram: a mesma ação tem um nome só (Editar, Excluir, Criar, Mover).
+# Filas (15; padrões de interface, revisão 29): "Próximo" (pedir a próxima entrega), "Devolver" (a entrega volta à fila) e "Liberar" (o gestor
+# encerra a entrega de um operador) entram no glossário com o sentido da especificação. Meios de pagamento (16; revisão 31): "Emitir" (criar um
+# instrumento de pagamento) e "Reemitir" (cancelar o vigente e emitir outro).
 class ActionGlossaryTest < ActiveSupport::TestCase
   VERBS = %w[
     Abrir Alocar Anonimizar Anular Aprovar Ativar Baixar Buscar Calcular Cancelar Concluir Conferir Confirmar Continuar Credenciar Criar Decidir
-    Desativar Descartar Desfazer Desistir Desmarcar Distribuir Duplicar Editar Entrar Enviar Estornar Excluir Exportar Filtrar Gerar Importar Incluir
-    Marcar Mostrar Esconder Mover Quebrar Reativar Recolher Recusar Redefinir Registrar Reter Reverter Sair Salvar Simular Testar Transferir Tratar Trocar Usar Ver Voltar
+    Desativar Descartar Desfazer Desistir Desmarcar Devolver Distribuir Duplicar Editar Emitir Entrar Enviar Estornar Excluir Exportar Filtrar Gerar Importar Incluir
+    Liberar Marcar Mostrar Esconder Mover Próximo Quebrar Reativar Recolher Recusar Redefinir Reemitir Registrar Reter Reverter Sair Salvar Simular Testar Transferir Tratar Trocar Usar Ver Voltar
   ].freeze
   RETIRED = %w[Mudar Alterar Apagar Tirar Novo Nova Cadastrar Subir Descer Remover Acrescentar Corrigir Dar].freeze
   # A página do design system mostra as variantes de botão pelo nome (Primário, Secundário...).

@@ -22,6 +22,8 @@ module Customers
         @field = error.field
       end
       return render(partial: "customers/agreement_simulations/result") if htmx_fragment?
+      # A SPA (decisão 0025) recebe o resultado da simulação em JSON.
+      return render(:create) if request.format.json?
 
       render :new
     end

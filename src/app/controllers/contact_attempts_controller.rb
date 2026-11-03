@@ -22,7 +22,7 @@ class ContactAttemptsController < ApplicationController
     @pagination = Pagination.new(scope.includes(:customer, :contract, :result, :user, :tenant, :operation).recent, page: params[:page], per_page: params[:per_page])
     @attempts = @pagination.records
     load_filter_options
-    render partial: "contact_attempts/result" if htmx_fragment?
+    render partial: "contact_attempts/result" if htmx_fragment? && !request.format.json?
   end
 
   private

@@ -7,6 +7,8 @@ class User < ApplicationRecord
   has_many :memberships, dependent: :destroy
   has_many :tenants, through: :memberships
   has_many :notices, dependent: :destroy
+  # Filas (15): os grupos do usuário.
+  has_many :queue_group_users, dependent: :delete_all
   # Pessoa de operação (14, R309): pertence a uma operação só.
   has_one :operation_member, dependent: :destroy
 

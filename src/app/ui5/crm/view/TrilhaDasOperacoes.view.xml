@@ -1,0 +1,38 @@
+<mvc:View controllerName="crm.controller.TrilhaDasOperacoes" xmlns:mvc="sap.ui.core.mvc" xmlns="sap.m" xmlns:f="sap.f" xmlns:core="sap.ui.core" height="100%">
+	<!-- Trilha das operações (14, R320, R325; modelo Lista): o que os usuários das operações abriram, buscaram, não encontraram e exportaram. -->
+	<f:DynamicPage toggleHeaderOnTitleClick="false" fitContent="true">
+		<f:title><f:DynamicPageTitle>
+			<f:heading><Title text="{i18n>trilha.titulo}" level="H2" /></f:heading>
+			<f:expandedContent><Text text="{i18n>trilha.subtitulo}" /></f:expandedContent>
+		</f:DynamicPageTitle></f:title>
+		<f:header>
+			<f:DynamicPageHeader pinnable="false">
+				<FlexBox wrap="Wrap" alignItems="End" renderType="Bare" class="filtros">
+					<VBox><Label text="{i18n>distribuicao.operacao}" labelFor="operacao" />
+						<Select id="operacao" selectedKey="{filtro>/operation}" change=".buscar" items="{path: 'dados>/filtros/operacoes', templateShareable: false}"><core:Item key="{dados>id}" text="{dados>nome}" /></Select></VBox>
+					<VBox><Label text="{i18n>trilha.usuario}" labelFor="usuario" />
+						<Select id="usuario" selectedKey="{filtro>/user}" change=".buscar" items="{path: 'dados>/filtros/usuarios', templateShareable: false}"><core:Item key="{dados>id}" text="{dados>nome}" /></Select></VBox>
+					<VBox><Label text="{i18n>importacoes.tipo}" labelFor="tipo" />
+						<Select id="tipo" selectedKey="{filtro>/kind}" change=".buscar" items="{path: 'dados>/filtros/tipos', templateShareable: false}"><core:Item key="{dados>id}" text="{dados>nome}" /></Select></VBox>
+					<VBox><Label text="{i18n>trilha.de}" labelFor="de" /><DatePicker id="de" value="{filtro>/from}" valueFormat="yyyy-MM-dd" displayFormat="dd/MM/yyyy" change=".buscar" width="10rem" /></VBox>
+					<VBox><Label text="{i18n>trilha.ate}" labelFor="ate" /><DatePicker id="ate" value="{filtro>/to}" valueFormat="yyyy-MM-dd" displayFormat="dd/MM/yyyy" change=".buscar" width="10rem" /></VBox>
+				</FlexBox>
+			</f:DynamicPageHeader>
+		</f:header>
+		<f:content>
+			<VBox renderType="Bare">
+				<Table items="{dados>/linhas}" sticky="ColumnHeaders" fixedLayout="false" noData="{i18n>trilha.vazio}">
+					<columns>
+						<Column><Text text="{i18n>estornos.quando}" /></Column><Column><Text text="{i18n>distribuicao.operacao}" /></Column><Column><Text text="{i18n>trilha.usuario}" /></Column>
+						<Column><Text text="{i18n>trilha.oQue}" /></Column><Column><Text text="{i18n>trilha.detalhe}" /></Column>
+					</columns>
+					<items><ColumnListItem><cells>
+						<Text text="{dados>quando}" wrapping="false" /><Text text="{dados>operacao}" /><Text text="{dados>usuario}" /><Text text="{dados>tipo}" />
+						<HBox renderType="Bare"><Link text="{dados>cliente}" visible="{= !!${dados>cliente_id} }" press=".abrirFicha" /><Text text="{dados>detalhe}" visible="{= !${dados>cliente_id} }" /></HBox>
+					</cells></ColumnListItem></items>
+				</Table>
+				<core:Fragment fragmentName="crm.fragment.Paginacao" type="XML" />
+			</VBox>
+		</f:content>
+	</f:DynamicPage>
+</mvc:View>

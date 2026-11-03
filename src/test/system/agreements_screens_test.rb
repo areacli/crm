@@ -7,10 +7,7 @@ class AgreementsScreensSystemTest < ApplicationSystemTestCase
     @alfa = tenants(:alfa)
     @customer, @nf1, @nf2 = agreement_scenario(@alfa)
     @alfa.setting.update!(installment_method: "price", installment_rate_pct: 1.5)
-    visit new_session_path
-    fill_in "E-mail", with: users(:joana).email_address
-    fill_in "Senha", with: "senha-de-teste-1"
-    click_button "Entrar"
+    entrar_pela_spa(users(:joana).email_address, "senha-de-teste-1")
     assert_selector "h1", text: "Resumo da carteira"
   end
 

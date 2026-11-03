@@ -1,0 +1,72 @@
+<mvc:View controllerName="crm.controller.ConfiguracaoDaCarteira" xmlns:mvc="sap.ui.core.mvc" xmlns="sap.m" xmlns:f="sap.f" xmlns:card="sap.f.cards" height="100%">
+	<!-- Configuração da carteira (R18, R20; 05, R104; 06, R117; modelo Configuração): por credor, as faixas de atraso e as políticas da carteira, cada
+	     uma com o efeito de cada opção (P20); sem a permissão 14, a política de divergência aparece sem poder mudar. -->
+	<f:DynamicPage toggleHeaderOnTitleClick="false">
+		<f:title><f:DynamicPageTitle>
+			<f:heading><Title text="{i18n>carteira.titulo}" level="H2" /></f:heading>
+			<f:expandedContent><Text text="{i18n>carteira.subtitulo}" /></f:expandedContent>
+		</f:DynamicPageTitle></f:title>
+		<f:content>
+			<VBox items="{path: 'dados>/credores', templateShareable: false}" renderType="Bare">
+				<f:Card class="sapUiSmallMarginBottom">
+					<f:header><card:Header title="{dados>nome}" /></f:header>
+					<f:content>
+						<VBox renderType="Bare" class="sapUiSmallMargin" width="100%">
+							<Title text="{i18n>carteira.faixas}" level="H3" />
+							<FlexBox wrap="Wrap" alignItems="Start" renderType="Bare">
+								<Table items="{path: 'dados>faixas', templateShareable: false}" width="22rem" class="sapUiSmallMarginEnd">
+									<columns><Column><Text text="{i18n>trilha.de}" /></Column><Column><Text text="{i18n>trilha.ate}" /></Column><Column hAlign="Center"><Text text="{i18n>carteira.remover}" /></Column></columns>
+									<items><ColumnListItem><cells>
+										<Input value="{dados>de}" type="Number" /><Input value="{dados>ate}" type="Number" />
+										<CheckBox selected="{dados>remover}" visible="{= !!(${dados>de} || ${dados>ate}) }" />
+									</cells></ColumnListItem></items>
+								</Table>
+								<VBox renderType="Bare" width="20rem">
+									<Text text="{i18n>carteira.faixas.ajuda}" class="nota" />
+									<Title text="{i18n>carteira.previa}" level="H4" class="sapUiSmallMarginTop" />
+									<VBox items="{path: 'dados>previa', templateShareable: false}" renderType="Bare"><Text text="{dados>}" /></VBox>
+								</VBox>
+							</FlexBox>
+							<HBox justifyContent="End" renderType="Bare"><Button text="{i18n>carteira.salvarFaixas}" type="Emphasized" press=".salvarFaixas" /></HBox>
+
+							<!-- As três políticas lado a lado, cada uma com o efeito de cada opção (P20) e o seu "Salvar". -->
+							<FlexBox wrap="Wrap" alignItems="Start" renderType="Bare">
+								<VBox renderType="Bare" class="bloco-de-politica sapUiMediumMarginTop">
+							<Title text="{i18n>carteira.divergencia}" level="H3" />
+							<Text text="{i18n>carteira.divergencia.ajuda}" class="nota" />
+							<VBox items="{path: 'dados>divergencias', templateShareable: false}" renderType="Bare">
+								<VBox renderType="Bare" class="sapUiTinyMarginTop">
+									<RadioButton groupName="{dados>grupo}" text="{dados>nome}" selected="{dados>marcada}" enabled="{dados>pode_mudar}" select=".escolher" />
+									<Text text="{dados>ajuda}" class="nota sapUiLargeMarginBegin" />
+								</VBox>
+							</VBox>
+							<Text text="{i18n>carteira.divergencia.semPermissao}" visible="{= !${dados>pode_mudar_divergencia} }" class="nota" />
+							<HBox justifyContent="End" renderType="Bare" visible="{dados>pode_mudar_divergencia}"><Button text="{i18n>carteira.salvarDivergencia}" press=".salvarDivergencia" /></HBox>
+								</VBox>
+								<VBox renderType="Bare" class="bloco-de-politica sapUiMediumMarginTop">
+							<Title text="{i18n>carteira.correcao}" level="H3" />
+							<Text text="{i18n>carteira.correcao.ajuda}" class="nota" />
+							<VBox items="{path: 'dados>correcoes', templateShareable: false}" renderType="Bare">
+								<VBox renderType="Bare" class="sapUiTinyMarginTop">
+									<RadioButton groupName="{dados>grupo}" text="{dados>nome}" selected="{dados>marcada}" select=".escolher" />
+									<Text text="{dados>ajuda}" class="nota sapUiLargeMarginBegin" />
+								</VBox>
+							</VBox>
+							<Text text="{dados>ultima_correcao}" visible="{= !!${dados>ultima_correcao} }" class="nota" />
+							<HBox justifyContent="End" renderType="Bare"><Button text="{i18n>carteira.salvarCorrecao}" press=".salvarCorrecao" /></HBox>
+								</VBox>
+								<VBox renderType="Bare" class="bloco-de-politica sapUiMediumMarginTop">
+							<Title text="{i18n>carteira.aVencer}" level="H3" />
+							<VBox items="{path: 'dados>opcoes_a_vencer', templateShareable: false}" renderType="Bare">
+								<RadioButton groupName="{dados>grupo}" text="{dados>nome}" selected="{dados>marcada}" select=".escolher" />
+							</VBox>
+							<HBox justifyContent="End" renderType="Bare"><Button text="{i18n>acao.salvar}" press=".salvarAVencer" /></HBox>
+								</VBox>
+							</FlexBox>
+						</VBox>
+					</f:content>
+				</f:Card>
+			</VBox>
+		</f:content>
+	</f:DynamicPage>
+</mvc:View>

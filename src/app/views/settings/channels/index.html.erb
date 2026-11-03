@@ -1,6 +1,7 @@
-<% content_for :title, "Configuração · Canais de recebimento" %>
-<%= pagina "Canais de recebimento", subtitulo: "Por onde o dinheiro entra. O código é o que a planilha de pagamentos traz." do %>
-  <%= abrir_painel "Criar canal", new_settings_channel_path %>
+<% content_for :title, "Configuração · Métodos de recebimento" %>
+<%= pagina "Métodos de recebimento", subtitulo: "Por onde o dinheiro entra. O código é o que a planilha de pagamentos traz; as integrações com fornecedores ficam no detalhe de cada método." do %>
+  <% if policy(PaymentChannel).new? %><%= abrir_painel "Criar método de recebimento", new_settings_channel_path %><% end %>
+  <% if policy(PaymentAccount).new? %><%= link_to "Criar integração", new_settings_payment_account_path, class: "botao", data: { variant: "secondary" } %><% end %>
 <% end %>
 <%= render "settings/modelo" %>
 

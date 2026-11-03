@@ -16,7 +16,7 @@ class TiersApplierTest < ActiveSupport::TestCase
 
   def confirm(changed) = Tiers::Applier.new(@gestor).confirm(@alfa, changed.token)
 
-  test "R267: vale o primeiro item que casa; quem não casa fica no Demais; sem título em cobrança fica sem enquadramento" do
+  test "R267, revisão 6: vale o primeiro item que casa; quem não casa fica no Demais; todo contrato é enquadrado" do
     make_tier(@alfa, "Varejo PF recente", person_type: "person", min_overdue_days: 1, max_overdue_days: 90, max_balance_cents: 500_000)
     make_tier(@alfa, "PF", person_type: "person")
     maria = make_contract(@alfa, "C-MARIA", bills: [ { overdue: 40, cents: 120_000 } ], customers: [ customer_of(@alfa, FakeData.cpf(1)) ])
@@ -25,7 +25,8 @@ class TiersApplierTest < ActiveSupport::TestCase
     paid = make_contract(@alfa, "C-PAGO", bills: [ { overdue: 10 } ])
     paid.bills.update_all(status: "paid")
     recalc(@alfa)
-    assert_equal [ "Varejo PF recente", "PF", "Demais", nil ], [ tier_of(maria), tier_of(jose), tier_of(loja), tier_of(paid) ]
+    assert_equal [ "Varejo PF recente", "PF", "Demais" ], [ tier_of(maria), tier_of(jose), tier_of(loja) ]
+    assert_not_nil tier_of(paid), "sem regra de entrada: o contrato sem título em cobrança também é enquadrado"
   end
 
   test "R272: a conferência conta quem entra e sai e de onde vem; nada muda até confirmar" do

@@ -13,7 +13,6 @@ module Payments
 
     PAYABLE_STATES = %w[active expired failed].freeze
     # O meio entra com o nome que a planilha usa (o validador lê "cartão de crédito" e grava credit_card).
-    METHODS = { "boleto" => "boleto", "pix" => "pix", "card" => "cartão de crédito" }.freeze
     # O valor que o aviso traz só vale como pista se for plausível (entre 1 centavo e 10 vezes o instrumento): o que o fornecedor consultado diz vem antes.
     HINT_FACTOR = 10
 
@@ -74,12 +73,12 @@ module Payments
       # Entra no mesmo caminho do pagamento existente (R284): o pagamento é do canal da conta e identifica o título (ou a promessa, ou o acordo) pelo número.
       def post_payment(instrument, paid_cents, paid_at, notification)
         number = reference_number(instrument)
-        return Outcome.new(:review, "instrumento pago sem título, promessa ou acordo ligado: a baixa espera o gestor") if number.blank?
+        return Outcome.new(:review, "instrumento pago sem título ou promessa com número: a baixa espera o gestor") if number.blank?
 
         identifier = notification&.end_to_end_id.presence || "#{instrument.provider}:#{instrument.external_id}"
         paid_on = [ paid_at.in_time_zone.to_date, Date.current ].min
         result = ExternalPayment.new.pay(instrument.account.channel, { identifier: identifier, document: instrument.payer_document, bill_number: number, paid_on: paid_on,
-                                                                       amount_cents: paid_cents, payment_method: METHODS.fetch(instrument.kind) },
+                                                                       amount_cents: paid_cents, payment_method: PaymentMethod.label(PaymentMethod.for_instrument(instrument.kind)) },
                                          label: "instrumento #{instrument.custom_id}")
         return Outcome.new(:review, "o pagamento não entrou: #{result.outcome}") if result.status == :rejected
 
@@ -109,11 +108,9 @@ module Payments
         cents if cents.is_a?(Integer) && cents.between?(1, instrument.amount_cents * HINT_FACTOR)
       end
 
-      # O número que identifica o objeto cobrado no pagamento: título (`bill`), promessa (`promise`, PRM-) ou acordo (`agreement`, ACD-).
-      def reference_number(instrument)
-        model = { "bill" => Bill, "promise" => PaymentPromise, "agreement" => Agreement }[instrument.reference_type] or return
-        model.where(tenant_id: instrument.tenant_id).find_by(id: instrument.reference_id)&.number
-      end
+      # O número que identifica o objeto cobrado no pagamento (16): o do título (fatura ou título de acordo, com o sufixo da parcela) ou o da
+      # promessa (PRM-).
+      def reference_number(instrument) = instrument.object&.number
 
       # Se alguma parte pede o gestor, o aviso fica em `review`; senão, `applied` quando algo mudou, e `ignored` quando o consultado era igual ao que já havia.
       def summarize(outcomes)

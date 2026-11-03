@@ -1,0 +1,59 @@
+<mvc:View controllerName="crm.controller.MetodosDeRecebimento" xmlns:mvc="sap.ui.core.mvc" xmlns="sap.m" xmlns:f="sap.f" xmlns:core="sap.ui.core" height="100%">
+	<!-- Métodos de recebimento (16, R373; R45; modelo Lista): um método por linha; as integrações (12) no detalhe abaixo da tabela, só para quem tem a 14.
+	     Criar o método no painel lateral; o método e a integração abrem numa aba. -->
+	<f:FlexibleColumnLayout id="colunas" layout="OneColumn" backgroundDesign="Solid">
+		<f:beginColumnPages>
+			<f:DynamicPage toggleHeaderOnTitleClick="false" fitContent="true">
+				<f:title><f:DynamicPageTitle>
+					<f:heading><Title text="{i18n>metodos.titulo}" level="H2" /></f:heading>
+					<f:expandedContent><Text text="{i18n>metodos.subtitulo}" /></f:expandedContent>
+					<f:actions>
+						<Button text="{i18n>metodos.criarIntegracao}" visible="{dados>/pode_criar_integracao}" press=".criarIntegracao" />
+						<Button text="{i18n>metodos.criar}" type="Emphasized" visible="{dados>/pode_criar}" press=".criar" />
+					</f:actions>
+				</f:DynamicPageTitle></f:title>
+				<f:header>
+					<f:DynamicPageHeader pinnable="false">
+						<FlexBox wrap="Wrap" alignItems="End" renderType="Bare" class="filtros">
+							<VBox><Label text="{i18n>metodos.busca}" labelFor="busca" /><SearchField id="busca" value="{filtro>/q}" liveChange=".buscarAoDigitar" search=".buscar" width="18rem" placeholder="{i18n>metodos.busca}" /></VBox>
+							<VBox visible="{dados>/varios_credores}"><Label text="{i18n>clientes.credor}" labelFor="credor" />
+								<Select id="credor" selectedKey="{filtro>/tenant}" change=".buscar" items="{path: 'dados>/credores', templateShareable: false}"><core:Item key="{dados>id}" text="{dados>nome}" /></Select></VBox>
+						</FlexBox>
+					</f:DynamicPageHeader>
+				</f:header>
+				<f:content>
+					<VBox renderType="Bare">
+						<Table items="{dados>/linhas}" sticky="ColumnHeaders" fixedLayout="false" noData="{i18n>metodos.vazio}" itemPress=".mostrarDetalhe">
+							<columns>
+								<Column><Text text="{i18n>metodos.codigo}" /></Column><Column><Text text="{i18n>metodos.descricao}" /></Column>
+								<Column visible="{dados>/varios_credores}"><Text text="{i18n>clientes.credor}" /></Column><Column><Text text="{i18n>importacoes.tipo}" /></Column>
+								<Column hAlign="End"><Text text="{i18n>metodos.integracoes}" /></Column><Column><Text text="{i18n>metodos.webhook}" /></Column>
+								<Column><Text text="{i18n>importacoes.situacao}" /></Column>
+							</columns>
+							<items><ColumnListItem type="{= ${dados>financeiro} ? 'Active' : 'Inactive' }" highlight="{= ${dados>id} === ${ui>/detalhe/id} ? 'Information' : 'None' }"><cells>
+								<Link text="{dados>codigo}" enabled="{dados>editavel}" press=".abrir" wrapping="false" /><Text text="{dados>descricao}" /><Text text="{dados>credor}" />
+								<Text text="{dados>tipo}" /><Text text="{dados>integracoes}" /><Text text="{dados>webhook}" />
+								<ObjectStatus text="{dados>situacao/texto}" state="{dados>situacao/estado}" inverted="true" />
+							</cells></ColumnListItem></items>
+						</Table>
+						<Panel visible="{= !!${ui>/detalhe} }" class="detalhe-da-linha" headerText="{parts: ['i18n>metodos.integracoesDe', 'ui>/detalhe/codigo'], formatter: '.formatarTexto'}">
+							<Text text="{i18n>metodos.semIntegracao}" visible="{= !!${ui>/detalhe} &amp;&amp; ${ui>/detalhe/contas}.length === 0 }" />
+							<Table items="{path: 'ui>/detalhe/contas', templateShareable: false}" fixedLayout="false" visible="{= !!${ui>/detalhe} &amp;&amp; ${ui>/detalhe/contas}.length > 0 }">
+								<columns>
+									<Column><Text text="{i18n>integracao.apelido}" /></Column><Column><Text text="{i18n>integracao.meio}" /></Column><Column><Text text="{i18n>integracao.fornecedor}" /></Column>
+									<Column><Text text="{i18n>integracao.ambiente}" /></Column><Column><Text text="{i18n>integracao.certificado}" /></Column>
+									<Column><Text text="{i18n>integracao.ultimoTeste}" /></Column><Column><Text text="{i18n>importacoes.situacao}" /></Column>
+								</columns>
+								<items><ColumnListItem><cells>
+									<Link text="{ui>apelido}" press=".abrirIntegracao" /><Text text="{ui>meio}" /><Text text="{ui>fornecedor}" /><Text text="{ui>ambiente}" />
+									<Text text="{ui>certificado}" /><Text text="{ui>teste}" /><ObjectStatus text="{ui>situacao/texto}" state="{ui>situacao/estado}" inverted="true" />
+								</cells></ColumnListItem></items>
+							</Table>
+						</Panel>
+						<core:Fragment fragmentName="crm.fragment.Paginacao" type="XML" />
+					</VBox>
+				</f:content>
+			</f:DynamicPage>
+		</f:beginColumnPages>
+	</f:FlexibleColumnLayout>
+</mvc:View>

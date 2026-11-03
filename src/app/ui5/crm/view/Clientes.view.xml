@@ -1,0 +1,92 @@
+<mvc:View controllerName="crm.controller.Clientes" xmlns:mvc="sap.ui.core.mvc" xmlns="sap.m" xmlns:f="sap.f" xmlns:core="sap.ui.core" height="100%">
+	<!-- Lista de clientes (R21; modelo Lista): filtros numa linha, tabela densa, ações da linha no menu, paginação no servidor (P22). -->
+	<f:DynamicPage toggleHeaderOnTitleClick="false" fitContent="true">
+		<f:title>
+			<f:DynamicPageTitle>
+				<f:heading><Title text="{i18n>clientes.titulo}" level="H2" /></f:heading>
+				<f:actions><Button text="{i18n>clientes.distribuir}" visible="{dados>/pode/distribuir}" press=".distribuir" /></f:actions>
+			</f:DynamicPageTitle>
+		</f:title>
+		<f:header>
+			<f:DynamicPageHeader pinnable="false">
+				<FlexBox wrap="Wrap" alignItems="End" class="filtros">
+					<VBox><Label text="{i18n>clientes.busca}" labelFor="busca" /><SearchField id="busca" width="18rem" placeholder="{i18n>clientes.busca.dica}" value="{filtro>/q}" search=".buscar" liveChange=".buscarAoDigitar" /></VBox>
+					<VBox visible="{dados>/varios_credores}"><Label text="{i18n>clientes.credor}" labelFor="credor" />
+						<Select id="credor" selectedKey="{filtro>/tenant}" change=".buscar" items="{path: 'dados>/filtros/credores', templateShareable: false}">
+							<core:Item key="{dados>id}" text="{dados>nome}" />
+						</Select>
+					</VBox>
+					<VBox><Label text="{i18n>clientes.faixa}" labelFor="faixa" />
+						<Select id="faixa" selectedKey="{filtro>/bracket}" change=".buscar" items="{path: 'dados>/filtros/faixas', templateShareable: false}">
+							<core:Item key="{dados>id}" text="{dados>nome}" />
+						</Select>
+					</VBox>
+					<VBox><Label text="{i18n>clientes.segmento}" labelFor="segmento" />
+						<Select id="segmento" selectedKey="{filtro>/segment}" change=".buscar" width="14rem" items="{path: 'dados>/filtros/segmentos', templateShareable: false}">
+							<core:Item key="{dados>id}" text="{dados>nome}" />
+						</Select>
+					</VBox>
+					<VBox><Label text="{i18n>clientes.promessa}" labelFor="promessa" />
+						<Select id="promessa" selectedKey="{filtro>/promise}" change=".buscar">
+							<core:Item key="" text="{i18n>filtro.todas}" /><core:Item key="open" text="{i18n>clientes.promessa.aberta}" />
+							<core:Item key="pending" text="{i18n>clientes.promessa.pendente}" /><core:Item key="broken" text="{i18n>clientes.promessa.quebrada}" />
+							<core:Item key="none" text="{i18n>clientes.promessa.nenhuma}" />
+						</Select>
+					</VBox>
+					<VBox visible="{dados>/filtros/cidade}"><Label text="{i18n>clientes.cidade}" labelFor="cidade" />
+						<Select id="cidade" selectedKey="{filtro>/unrecognized_city}" change=".buscar">
+							<core:Item key="" text="{i18n>filtro.todas}" /><core:Item key="1" text="{i18n>clientes.cidade.naoReconhecida}" />
+						</Select>
+					</VBox>
+					<VBox><Label text="{i18n>lista.ordenar}" labelFor="ordem" />
+						<Select id="ordem" selectedKey="{filtro>/sort}" change=".buscar">
+							<core:Item key="overdue_cents" text="{i18n>clientes.coluna.vencido}" /><core:Item key="name" text="{i18n>clientes.coluna.cliente}" />
+							<core:Item key="bills_count" text="{i18n>clientes.coluna.titulos}" /><core:Item key="upcoming_cents" text="{i18n>clientes.coluna.aVencer}" />
+							<core:Item key="max_days_overdue" text="{i18n>clientes.coluna.faixa}" />
+						</Select>
+					</VBox>
+					<SegmentedButton selectedKey="{filtro>/dir}" selectionChange=".buscar" class="sapUiTinyMarginBegin">
+						<items><SegmentedButtonItem key="desc" icon="sap-icon://sort-descending" tooltip="{i18n>lista.decrescente}" /><SegmentedButtonItem key="asc" icon="sap-icon://sort-ascending" tooltip="{i18n>lista.crescente}" /></items>
+					</SegmentedButton>
+				</FlexBox>
+			</f:DynamicPageHeader>
+		</f:header>
+		<f:content>
+			<VBox renderType="Bare" height="100%">
+				<MessageStrip type="Information" showIcon="true" visible="{= !!${dados>/segmento} }" text="{dados>/segmento/nome}: {dados>/segmento/resumo}" class="sapUiTinyMarginBottom" />
+				<MessageStrip type="Warning" showIcon="true" visible="{= ${dados>/segmento_lento} === true }" text="{i18n>clientes.segmentoLento}" class="sapUiTinyMarginBottom" />
+				<Table id="tabela" fixedLayout="false" items="{dados>/linhas}" sticky="ColumnHeaders" busyIndicatorDelay="200" noData="{i18n>clientes.vazio}" mode="None" growing="false">
+					<columns>
+						<Column width="16rem"><Text text="{i18n>clientes.coluna.cliente}" wrapping="false" /></Column>
+						<Column><Text text="{i18n>clientes.coluna.documento}" /></Column>
+						<Column visible="{dados>/varios_credores}"><Text text="{i18n>clientes.credor}" /></Column>
+						<Column hAlign="End"><Text text="{i18n>clientes.coluna.titulos}" /></Column>
+						<Column hAlign="End"><Text text="{i18n>clientes.coluna.vencido}" /></Column>
+						<Column hAlign="End"><Text text="{i18n>clientes.coluna.atualizado}" /></Column>
+						<Column hAlign="End"><Text text="{i18n>clientes.coluna.aVencer}" /></Column>
+						<Column><Text text="{i18n>clientes.coluna.faixa}" /></Column>
+						<Column><Text text="{i18n>clientes.coluna.enquadramento}" wrapping="false" /></Column>
+						<Column hAlign="End" width="3rem"><Text text="" /></Column>
+					</columns>
+					<items>
+						<ColumnListItem type="Inactive">
+							<cells>
+								<Link text="{dados>nome}" press=".abrirFicha" />
+								<Text text="{dados>documento}" wrapping="false" />
+								<Text text="{dados>credor}" wrapping="false" />
+								<Text text="{dados>titulos}" />
+								<Text text="{dados>vencido}" wrapping="false" />
+								<Text text="{dados>atualizado}" wrapping="false" />
+								<Text text="{dados>a_vencer}" wrapping="false" />
+								<Text text="{dados>faixa}" wrapping="false" />
+								<Text text="{dados>enquadramento}" wrapping="false" />
+								<Button icon="sap-icon://overflow" type="Transparent" tooltip="{i18n>lista.acoes}" ariaLabelledBy="tabela" press=".abrirAcoes" />
+							</cells>
+						</ColumnListItem>
+					</items>
+				</Table>
+				<core:Fragment fragmentName="crm.fragment.Paginacao" type="XML" />
+			</VBox>
+		</f:content>
+	</f:DynamicPage>
+</mvc:View>

@@ -7,10 +7,7 @@ class PanelScreensSystemTest < ApplicationSystemTestCase
     @alfa = tenants(:alfa)
     @maria = make_customer(@alfa)
     add_contact(@maria, "phone", "(11) 98765-4321")
-    visit new_session_path
-    fill_in "E-mail", with: users(:joana).email_address
-    fill_in "Senha", with: "senha-de-teste-1"
-    click_button "Entrar"
+    entrar_pela_spa(users(:joana).email_address, "senha-de-teste-1")
     assert_selector "h1", text: "Resumo da carteira"
     visit customer_path(@maria)
   end

@@ -12,7 +12,7 @@ class NoticesControllerTest < ActionDispatch::IntegrationTest
   test "o cabeçalho tem o sino com o contador e o texto do aviso, e assina o canal de avisos" do
     sign_in_as users(:carlos)
 
-    get root_url
+    get summary_url
 
     assert_select "#sino[hx-trigger*='cable:notice-created']"
     assert_select "#sino .contador", "1"
@@ -26,7 +26,7 @@ class NoticesControllerTest < ActionDispatch::IntegrationTest
     @notice.read!
     sign_in_as users(:carlos)
 
-    get root_url
+    get summary_url
 
     assert_select "#sino .contador", count: 0
     assert_select "#sino p", "Nenhum aviso novo."
@@ -79,7 +79,7 @@ class NoticesControllerTest < ActionDispatch::IntegrationTest
     post memberships_url, params: { membership: { tenant_id: tenants(:alfa).id, email_address: "marta@exemplo.com.br", name: "", profile_id: profiles(:alfa_manager).id } }
 
     sign_in_as users(:marta)
-    get root_url
+    get summary_url
     assert_select "#sino strong", "Joana Souza ligou você a Escola Alfa"
     assert_select "#sino small", "Perfil: Gestor."
   end
@@ -87,6 +87,6 @@ class NoticesControllerTest < ActionDispatch::IntegrationTest
   test "sem sessão o sino não responde" do
     get notices_url, headers: { "HX-Request" => "true" }
 
-    assert_redirected_to new_session_url
+    assert_redirected_to root_url
   end
 end

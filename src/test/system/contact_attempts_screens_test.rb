@@ -12,10 +12,7 @@ class ContactAttemptsScreensSystemTest < ApplicationSystemTestCase
     @pedro = pedro
     insert_attempt(@maria, user: users(:carlos), result: result_of(@alfa, :negotiating), text: "Quer parcelar em três vezes.\nRetornar na sexta.", contacted_at: 2.hours.ago)
     insert_attempt(@maria, user: users(:joana), result: result_of(@alfa, :voicemail), channel: "whatsapp", contacted_at: 5.hours.ago)
-    visit new_session_path
-    fill_in "E-mail", with: users(:joana).email_address
-    fill_in "Senha", with: "senha-de-teste-1"
-    click_button "Entrar"
+    entrar_pela_spa(users(:joana).email_address, "senha-de-teste-1")
     assert_selector "h1", text: "Resumo da carteira"
   end
 
@@ -45,7 +42,7 @@ class ContactAttemptsScreensSystemTest < ApplicationSystemTestCase
     assert_acessivel
     sem_rolagem_horizontal
 
-    visit root_path
+    visit summary_path
     assert_selector "h2", text: "Acionamentos"
     assert_acessivel
 

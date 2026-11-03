@@ -197,11 +197,11 @@ module Segments
           def boolean?(parent)
             return false if parent || @subject != "contracts"
 
-            %w[broke_agreement in_arrears].any? { |key| rest == fold_t("attributes.contracts.#{key}.short") }
+            %w[broke_agreement in_arrears in_collection].any? { |key| rest == fold_t("attributes.contracts.#{key}.short") }
           end
 
           def boolean(node, _parent)
-            key = %w[broke_agreement in_arrears].find { |name| rest == fold_t("attributes.contracts.#{name}.short") }
+            key = %w[broke_agreement in_arrears in_collection].find { |name| rest == fold_t("attributes.contracts.#{name}.short") }
             { "path" => key, "op" => "is", "negate" => node["negate"] }.compact
           end
 
@@ -333,6 +333,13 @@ module Segments
               raise Error, msg("result", text: text) unless result
 
               result.id
+            when :user
+              user = User.joins(:memberships).where(memberships: { tenant_id: @tenant.id }).distinct.find do |candidate|
+                [ candidate.name, candidate.email_address ].any? { |label| Parser.fold(label) == Parser.fold(text) }
+              end
+              raise Error, msg("user", text: text) unless user
+
+              user.id
             else text
             end
           end

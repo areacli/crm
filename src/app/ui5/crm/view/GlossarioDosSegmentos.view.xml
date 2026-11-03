@@ -1,0 +1,39 @@
+<mvc:View controllerName="crm.controller.GlossarioDosSegmentos" xmlns:mvc="sap.ui.core.mvc" xmlns="sap.m" xmlns:f="sap.f" xmlns:card="sap.f.cards" height="100%">
+	<!-- Glossário dos segmentos (13, R289): cada termo da linguagem com a definição, os detalhes e um exemplo com a leitura por extenso, numa seção
+	     por assunto; as seções no alto levam a cada cartão. Gerado do catálogo no servidor. -->
+	<f:DynamicPage id="pagina" toggleHeaderOnTitleClick="false">
+		<f:title><f:DynamicPageTitle>
+			<f:heading><Title text="{i18n>segmentos.glossario.titulo}" level="H2" /></f:heading>
+			<f:expandedContent><Text text="{i18n>segmentos.glossario.subtitulo}" /></f:expandedContent>
+			<f:actions><Button text="{i18n>segmentos.voltar}" press=".voltar" /></f:actions>
+		</f:DynamicPageTitle></f:title>
+		<f:content>
+			<VBox renderType="Bare">
+				<f:Card class="sapUiSmallMarginBottom">
+					<f:header><card:Header title="{i18n>segmentos.glossario.secoes}" /></f:header>
+					<f:content>
+						<FlexBox wrap="Wrap" renderType="Bare" class="sapUiSmallMargin" items="{path: 'dados>/secoes', templateShareable: false}">
+							<Link text="{dados>titulo}" press=".irParaSecao" class="sapUiSmallMarginEnd sapUiTinyMarginBottom" />
+						</FlexBox>
+					</f:content>
+				</f:Card>
+				<VBox id="secoes" renderType="Bare" items="{path: 'dados>/secoes', templateShareable: false}">
+					<f:Card class="sapUiSmallMarginBottom">
+						<f:header><card:Header title="{dados>titulo}" /></f:header>
+						<f:content>
+							<VBox renderType="Bare" class="sapUiSmallMargin" width="100%" items="{path: 'dados>termos', templateShareable: false}">
+								<VBox renderType="Bare" class="sapUiSmallMarginBottom">
+									<Text text="{dados>termo}" class="codigo termo-do-glossario" />
+									<Text text="{dados>definicao}" />
+									<Text text="{dados>detalhes}" class="nota" visible="{= !!${dados>detalhes} }" />
+									<Text text="{= ${dados>leitura} ? ${i18n>segmentos.glossario.exemplo} + ' ' + ${dados>exemplo} + ' — ' + ${dados>leitura} + '.' : ${i18n>segmentos.glossario.exemplo} + ' ' + ${dados>exemplo} }"
+										class="nota" visible="{= !!${dados>exemplo} }" />
+								</VBox>
+							</VBox>
+						</f:content>
+					</f:Card>
+				</VBox>
+			</VBox>
+		</f:content>
+	</f:DynamicPage>
+</mvc:View>

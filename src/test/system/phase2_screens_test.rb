@@ -14,10 +14,7 @@ class Phase2ScreensSystemTest < ApplicationSystemTestCase
     travel_back
     @import = Import.create!(tenant: @alfa, user: users(:joana), kind: :portfolio, mode: :incremental, status: :checked, original_name: "carteira.csv", size_bytes: 20_480, progress_percent: 100,
                              checked_at: Time.current, summary: { lines: 10, valid: 10, rejected: 0, customers: 3, customers_new: 1, amount_formatted: "1.000,00", bills_new: 2, bills_updated: 1, bills_unchanged: 7 })
-    visit new_session_path
-    fill_in "E-mail", with: users(:joana).email_address
-    fill_in "Senha", with: "senha-de-teste-1"
-    click_button "Entrar"
+    entrar_pela_spa(users(:joana).email_address, "senha-de-teste-1")
     assert_selector "h1", text: "Resumo da carteira"
   end
 

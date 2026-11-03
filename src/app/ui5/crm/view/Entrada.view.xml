@@ -1,0 +1,35 @@
+<mvc:View controllerName="crm.controller.Entrada" xmlns:mvc="sap.ui.core.mvc" xmlns="sap.m" xmlns:core="sap.ui.core" height="100%">
+	<!-- Modelo Entrada (0022, design system 17): o formulário à esquerda, a apresentação em marinho à direita; no celular, só o formulário. -->
+	<Page showHeader="false" class="entrada" enableScrolling="true">
+		<FlexBox height="100%" renderType="Bare" class="entrada-grade">
+			<VBox class="entrada-formulario" renderType="Bare" justifyContent="Center">
+				<FlexBox class="entrada-marca" renderType="Bare"><Image src="{sessao>/aplicacao}/img/logotipo-negativo.svg" alt="AreaCli" height="40px" /></FlexBox>
+				<Title text="{i18n>entrada.titulo}" level="H1" titleStyle="H2" class="sapUiSmallMarginBottom" />
+				<MessageStrip id="mensagem" type="Error" showIcon="true" visible="false" class="sapUiSmallMarginBottom" />
+				<Label text="{i18n>entrada.email}" labelFor="email" required="true" />
+				<Input id="email" type="Email" width="100%" autocomplete="false" submit=".entrar" />
+				<Label text="{i18n>entrada.senha}" labelFor="senha" required="true" class="sapUiSmallMarginTop" />
+				<Input id="senha" type="Password" width="100%" maxLength="72" submit=".entrar" />
+				<Button id="entrar" text="{i18n>entrada.entrar}" type="Emphasized" width="100%" press=".entrar" class="sapUiMediumMarginTop" />
+				<Panel headerText="{i18n>entrada.demonstracao.titulo}" visible="{sessao>/demonstracaoAtiva}" class="sapUiMediumMarginTop entrada-demonstracao">
+					<Text text="{i18n>entrada.demonstracao.texto}" />
+					<List items="{sessao>/demonstracao/usuarios}" showSeparators="Inner" class="sapUiSmallMarginTopBottom">
+						<StandardListItem type="Active" press=".preencher" title="{sessao>rotulo}" description="{sessao>email} · {sessao>senha}" />
+					</List>
+					<Text text="{i18n>entrada.demonstracao.nota}" class="entrada-nota" />
+				</Panel>
+			</VBox>
+			<VBox class="entrada-apresentacao" renderType="Bare" justifyContent="Center">
+				<Image src="{sessao>/aplicacao}/img/logotipo-negativo.svg" alt="" height="56px" />
+				<Title text="{i18n>entrada.apresentacao.titulo}" level="H2" titleStyle="H1" class="sapUiMediumMarginTop" />
+				<Text text="{i18n>entrada.apresentacao.subtitulo}" class="entrada-subtitulo" />
+				<VBox class="entrada-beneficios" renderType="Bare">
+					<VBox renderType="Bare"><Title text="{i18n>entrada.beneficio1.titulo}" level="H3" titleStyle="H5" /><Text text="{i18n>entrada.beneficio1.texto}" /></VBox>
+					<VBox renderType="Bare"><Title text="{i18n>entrada.beneficio2.titulo}" level="H3" titleStyle="H5" /><Text text="{i18n>entrada.beneficio2.texto}" /></VBox>
+					<VBox renderType="Bare"><Title text="{i18n>entrada.beneficio3.titulo}" level="H3" titleStyle="H5" /><Text text="{i18n>entrada.beneficio3.texto}" /></VBox>
+					<VBox renderType="Bare"><Title text="{i18n>entrada.beneficio4.titulo}" level="H3" titleStyle="H5" /><Text text="{i18n>entrada.beneficio4.texto}" /></VBox>
+				</VBox>
+			</VBox>
+		</FlexBox>
+	</Page>
+</mvc:View>

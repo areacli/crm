@@ -1,0 +1,28 @@
+<mvc:View controllerName="crm.controller.PessoasDaOperacao" xmlns:mvc="sap.ui.core.mvc" xmlns="sap.m" xmlns:f="sap.f" height="100%">
+	<!-- Pessoas da operação (14, R310, R310a, R327; modelo Lista): quem trabalha pela operação, com os vínculos por credor; criar no painel lateral (a senha
+	     temporária aparece uma vez), vínculo em modal pequeno, gestor, desativar e reativar com confirmação curta. -->
+	<f:FlexibleColumnLayout id="colunas" layout="OneColumn" backgroundDesign="Solid">
+		<f:beginColumnPages>
+			<f:DynamicPage toggleHeaderOnTitleClick="false">
+				<f:title><f:DynamicPageTitle>
+					<f:heading><Title text="{parts: ['i18n>pessoas.titulo', 'dados>/operacao'], formatter: '.formatarTexto'}" level="H2" /></f:heading>
+					<f:expandedContent><Text text="{i18n>pessoas.subtitulo}" /></f:expandedContent>
+					<f:actions><Button text="{i18n>pessoas.criar}" type="Emphasized" press=".criar" /></f:actions>
+				</f:DynamicPageTitle></f:title>
+				<f:content>
+					<Table items="{path: 'dados>/linhas', templateShareable: false}" fixedLayout="false">
+						<columns>
+							<Column><Text text="{i18n>operacao.pessoa}" /></Column><Column><Text text="{i18n>operacao.email}" /></Column><Column><Text text="{i18n>importacoes.situacao}" /></Column>
+							<Column><Text text="{i18n>pessoas.vinculos}" /></Column><Column hAlign="End"><Text text="" /></Column>
+						</columns>
+						<items><ColumnListItem><cells>
+							<Text text="{dados>nome}" /><Text text="{dados>email}" /><ObjectStatus text="{dados>situacao/texto}" state="{dados>situacao/estado}" inverted="true" />
+							<Text text="{dados>vinculos}" />
+							<Button icon="sap-icon://overflow" type="Transparent" tooltip="{i18n>lista.acoes}" press=".acoes" visible="{= !${dados>propria} }" />
+						</cells></ColumnListItem></items>
+					</Table>
+				</f:content>
+			</f:DynamicPage>
+		</f:beginColumnPages>
+	</f:FlexibleColumnLayout>
+</mvc:View>

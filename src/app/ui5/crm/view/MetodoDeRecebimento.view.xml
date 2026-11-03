@@ -1,0 +1,43 @@
+<mvc:View controllerName="crm.controller.MetodoDeRecebimento" xmlns:mvc="sap.ui.core.mvc" xmlns="sap.m" xmlns:f="sap.f" xmlns:card="sap.f.cards" xmlns:core="sap.ui.core"
+	xmlns:form="sap.ui.layout.form" height="100%">
+	<!-- Página do método de recebimento (16, R373; R45): os dados em linha e o webhook (endereço, formato, segredo); gerar segredo e excluir com
+	     confirmação curta. O segredo novo aparece uma vez. -->
+	<f:DynamicPage toggleHeaderOnTitleClick="false">
+		<f:title><f:DynamicPageTitle>
+			<f:heading><Title text="{dados>/nome}" level="H2" /></f:heading>
+			<f:expandedContent><Text text="{dados>/credor}" /></f:expandedContent>
+			<f:actions>
+				<Button text="{i18n>metodos.gerarSegredo}" press=".gerarSegredo" />
+				<Button text="{i18n>acao.excluir}" visible="{dados>/pode_excluir}" press=".excluir" />
+			</f:actions>
+		</f:DynamicPageTitle></f:title>
+		<f:content>
+			<FlexBox wrap="Wrap" alignItems="Start" renderType="Bare" class="ficha">
+				<f:Card class="ficha-principal">
+					<f:header><card:Header title="{i18n>metodos.dados}">
+						<card:toolbar><Button text="{i18n>acao.salvar}" type="Emphasized" press=".salvar" /></card:toolbar>
+					</card:Header></f:header>
+					<f:content>
+						<form:SimpleForm editable="true" layout="ColumnLayout" columnsM="2" columnsL="2" columnsXL="2" labelSpanL="12" labelSpanM="12" width="100%">
+							<Label text="{i18n>importacoes.tipo}" /><Select selectedKey="{dados>/tipo}" items="{path: 'dados>/tipos', templateShareable: false}"><core:Item key="{dados>id}" text="{dados>nome}" /></Select>
+							<Label text="{i18n>metodos.codigo}" required="true" /><Input value="{dados>/codigo}" maxLength="100" enabled="{= !${dados>/codigo_travado} }"
+								tooltip="{= ${dados>/codigo_travado} ? ${i18n>metodos.codigo.travado} : ${i18n>metodos.codigo.ajuda} }" />
+							<Label text="{i18n>metodos.descricao}" required="true" /><Input value="{dados>/descricao}" maxLength="200" />
+							<Label text="{i18n>metodos.ativo}" /><CheckBox selected="{dados>/ativo}" text="{i18n>metodos.ativo.ajuda}" wrapping="true" />
+						</form:SimpleForm>
+					</f:content>
+				</f:Card>
+				<f:Card class="ficha-lateral">
+					<f:header><card:Header title="{i18n>metodos.webhook.titulo}" subtitle="{i18n>metodos.webhook.ajuda}" /></f:header>
+					<f:content>
+						<VBox class="pares" width="100%" renderType="Bare">
+							<VBox renderType="Bare" class="par"><Label text="{i18n>metodos.endereco}" /><Text text="{dados>/webhook/endereco}" class="codigo" /></VBox>
+							<HBox justifyContent="SpaceBetween" width="100%" class="par"><Label text="{i18n>metodos.formato}" /><Text text="{dados>/webhook/formato}" class="codigo" /></HBox>
+							<HBox justifyContent="SpaceBetween" width="100%" class="par"><Label text="{i18n>metodos.segredo}" /><Text text="{dados>/webhook/segredo}" textAlign="End" /></HBox>
+						</VBox>
+					</f:content>
+				</f:Card>
+			</FlexBox>
+		</f:content>
+	</f:DynamicPage>
+</mvc:View>

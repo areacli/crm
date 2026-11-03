@@ -7,7 +7,7 @@ module Segments
     NUMERIC_OPS = %w[eq ne gt gte lt lte between].freeze
     CHOICE_OPS = %w[eq ne in].freeze
     OPS = { days: NUMERIC_OPS, count: NUMERIC_OPS, money: NUMERIC_OPS, percent: NUMERIC_OPS, option: CHOICE_OPS, text: CHOICE_OPS,
-            reference: CHOICE_OPS, boolean: %w[is] }.freeze
+            reference: CHOICE_OPS, user: CHOICE_OPS, boolean: %w[is] }.freeze
 
     AGGREGATES = %w[count sum max min].freeze
     QUANTIFIERS = %w[some all none].freeze
@@ -26,6 +26,11 @@ module Segments
       product_largest: { type: :text },
       broke_agreement: { type: :boolean },
       in_arrears: { type: :boolean },
+      # 13, revisão 6: o enquadramento não tem regra de entrada; quem quer só os contratos com título em cobrança escreve isto no segmento.
+      in_collection: { type: :boolean },
+      # 15, R352 (revisão 1): o retorno combinado no último acionamento do contrato, para os segmentos de callback.
+      return_days: { type: :days },
+      return_user: { type: :user },
       updated_value: { type: :money }
     }.freeze
 
@@ -34,7 +39,10 @@ module Segments
       person_type: { type: :option, options: %w[person company] },
       customer_days: { type: :days },
       overdue_days: { type: :days },
-      balance: { type: :money }
+      balance: { type: :money },
+      # 15, R352 (revisão 1): o retorno combinado no último acionamento do cliente.
+      return_days: { type: :days },
+      return_user: { type: :user }
     }.freeze
 
     BILL_KINDS = %w[common agreement break reversal].freeze
@@ -82,12 +90,12 @@ module Segments
       contracts: {
         gender: :m,
         fields: CONTRACT_ATTRIBUTES.except(:person_type, :updated_value),
-        qualifiers: %w[in_arrears], main: :product, sums: %i[balance overdue_days]
+        qualifiers: %w[in_arrears in_collection], main: :product, sums: %i[balance overdue_days]
       },
       other_contracts: {
         gender: :m,
         fields: CONTRACT_ATTRIBUTES.except(:person_type, :updated_value),
-        qualifiers: %w[in_arrears], main: :product, sums: %i[balance overdue_days]
+        qualifiers: %w[in_arrears in_collection], main: :product, sums: %i[balance overdue_days]
       },
       customers: {
         gender: :m,

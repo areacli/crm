@@ -115,11 +115,11 @@ module Payments
         end
       end
 
-      # R49: canal não cadastrado ou desativado (no estorno, canal desativado é aceito: revisão 5).
+      # R49: método de recebimento (antes "canal") não cadastrado ou desativado (no estorno, o desativado é aceito: revisão 5).
       def reject_unknown_channels(import, reversals)
         channels = PaymentChannel.where(tenant_id: import.tenant_id)
         codes = (reversals ? channels : channels.where(active: true)).pluck(:code)
-        reject(import, PaymentRow.where(import_id: import.id, ok: true).where.not(channel_code: codes).order(:line).pluck(:line).index_with { "canal não cadastrado ou desativado" })
+        reject(import, PaymentRow.where(import_id: import.id, ok: true).where.not(channel_code: codes).order(:line).pluck(:line).index_with { "método de recebimento não cadastrado ou desativado" })
       end
 
       # R48 e R61: o repetido no mesmo arquivo é recusado; vale a primeira ocorrência.
@@ -154,7 +154,7 @@ module Payments
         match = "p.tenant_id = ? and p.channel_id = ch.id and p.identifier = r.payment_identifier"
         lines = ->(sql, *binds) { Sql.rows(sql, *binds).map { |row| row["line"].to_i } }
 
-        reject(import, lines.call("select r.line #{found} where r.import_id = ? and r.ok and not exists (select 1 from payments p where #{match})", t, i, t).index_with { "pagamento não encontrado no canal" })
+        reject(import, lines.call("select r.line #{found} where r.import_id = ? and r.ok and not exists (select 1 from payments p where #{match})", t, i, t).index_with { "pagamento não encontrado no método de recebimento" })
         reject(import, lines.call("select r.line #{found} join payments p on #{match} where r.import_id = ? and r.ok and r.paid_on < p.paid_on", t, t, i)
                           .index_with { "data do estorno anterior ao pagamento" })
 

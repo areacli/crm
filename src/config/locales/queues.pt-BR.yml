@@ -1,0 +1,51 @@
+pt-BR:
+  queues:
+    catch_all: "Demais"
+    stale: "O enquadramento da fila mudou depois desta conferência (ou ela expirou); confira de novo."
+    returned: "Devolvido à fila."
+    released: "Entrega liberada; o cliente ou contrato voltou à fila."
+    subjects:
+      customers: "Clientes"
+      contracts: "Contratos"
+    subject_one:
+      customers: "cliente"
+      contracts: "contrato"
+    orders:
+      overdue_balance: "maior saldo vencido"
+      overdue_days: "maior atraso"
+      without_contact: "mais tempo sem acionamento"
+      return_at: "hora do retorno mais antiga"
+      broken_promise: "promessa quebrada mais recente"
+    modes:
+      ordered: "Em ordem (esgota uma fila antes da próxima)"
+      weighted: "Pesos (proporção de entregas por fila)"
+      round_robin: "Uma de cada vez (rodízio)"
+    end_reasons:
+      recorded: "acionamento registrado"
+      returned: "devolvido"
+      expired: "trava vencida"
+      released: "liberado pelo gestor"
+      signed_out: "saiu do sistema"
+    next:
+      empty: "Ninguém disponível nas suas filas agora."
+      no_group: "Você não está em nenhum grupo de fila."
+    groups:
+      mixed: "Um grupo não mistura operações, nem usuários de operação com a equipe do credor."
+    refused:
+      duplicate: "O mesmo segmento entra no enquadramento uma vez só."
+      name: "Dê a cada item um nome, diferente dos outros."
+      segment: "Escolha um segmento ativo do mesmo sujeito do enquadramento."
+  settings:
+    work_queues:
+      confirm:
+        done: "Enquadramento da fila confirmado; o recálculo roda em segundo plano."
+    queue_settings:
+      update:
+        done: "Fila salva; vale a partir do próximo pedido."
+    queue_groups:
+      saved: "Grupo salvo; vale a partir do próximo pedido."
+      destroy:
+        done: "Grupo excluído."
+    queue_strategies:
+      update:
+        done: "Estratégia salva."

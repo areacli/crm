@@ -24,12 +24,12 @@ class MembershipsControllerTest < ActionDispatch::IntegrationTest
 
   test "o menu do operador não mostra Usuários nem Perfis; o do gestor mostra" do
     sign_in_as users(:carlos)
-    get root_url
+    get summary_url
     assert_select "nav a", text: "Usuários", count: 0
     assert_select "nav a", text: "Perfis", count: 0
 
     sign_in_as users(:joana)
-    get root_url
+    get summary_url
     assert_select "nav a", text: "Usuários"
     assert_select "nav a", text: "Perfis"
   end
@@ -233,8 +233,8 @@ class MembershipsControllerTest < ActionDispatch::IntegrationTest
     assert_not memberships(:carlos_alfa).reload.active?
 
     sign_in_as users(:carlos)
-    get root_url
-    assert_redirected_to new_session_url
+    get summary_url
+    assert_redirected_to root_url
 
     sign_in_as users(:joana)
     post membership_activation_url(memberships(:carlos_alfa))

@@ -79,7 +79,7 @@ class CheckoutsScreensTest < ActionDispatch::IntegrationTest
     tenant = @beta
     customer = make_customer(tenant, document: PaymentsHelper::JOAO, name: "João Pereira")
     make_efi_account(tenant, modality: "card", environment: "production")
-    checkout = Payments::Checkouts.create(tenant: tenant, customer: customer, amount_cents: 5_000, card: true)
+    checkout = Payments::Checkouts.create(tenant: tenant, customer: customer, object: bill_for(customer), amount_cents: 5_000, card: true)
     get checkout_path(checkout)
     csp = csp_of(response)
     assert_response :success
@@ -93,12 +93,14 @@ class CheckoutsScreensTest < ActionDispatch::IntegrationTest
 
   test "em homologação a Efí libera também a API de cobranças de homologação" do
     make_efi_account(@beta, modality: "card", environment: "sandbox")
-    checkout = Payments::Checkouts.create(tenant: @beta, customer: make_customer(@beta, document: PaymentsHelper::JOAO, name: "João"), amount_cents: 5_000, environment: "sandbox")
+    joao = make_customer(@beta, document: PaymentsHelper::JOAO, name: "João")
+    checkout = Payments::Checkouts.create(tenant: @beta, customer: joao, object: bill_for(joao), amount_cents: 5_000, environment: "sandbox")
     get checkout_path(checkout)
     assert_includes csp_of(response)["connect-src"], "https://cobrancas-h.api.efipay.com.br"
   end
 
   test "link sem cartão não libera domínio de fornecedor nenhum" do
+    @checkout.update!(state: "canceled")
     only_pix = Payments::Checkouts.create(tenant: @alfa, customer: @customer, instruments: [ @checkout.instruments.find_by(kind: "pix") ].tap { |i| i.first.update_columns(checkout_id: nil) }, card: false)
     get checkout_path(only_pix)
     assert_equal [ "'self'", "ws://www.example.com" ], csp_of(response)["connect-src"]

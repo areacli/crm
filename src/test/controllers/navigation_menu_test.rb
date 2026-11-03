@@ -1,12 +1,12 @@
 require "test_helper"
 
-# Menu lateral por tipo de trabalho (padrões de interface, revisão 22): Cobrança, Financeiro, Entrada de dados, Operações de cobrança e
-# Administração; as cargas são botões da página Importações, e as páginas das operações são o submenu do item "Operações", fora da configuração.
+# Menu lateral por tipo de trabalho (padrões de interface, revisão 22): Resumo, Clientes e Acionamentos no primeiro nível (revisão 32); Cobrança, Financeiro,
+# Entrada de dados, Distribuição do trabalho (revisão 30) e Administração; as cargas são botões da página Importações, e as páginas das operações são o submenu do item "Operações", fora da configuração.
 class NavigationMenuTest < ActionDispatch::IntegrationTest
   test "o gestor vê os grupos na ordem, sem os itens Importar e sem a seção Operações na configuração" do
     sign_in_as users(:joana)
-    get root_url
-    assert_equal [ "Cobrança", "Financeiro", "Entrada de dados", "Operações de cobrança", "Administração" ], css_select("#menu-principal h2").map { |h| h.text.strip }
+    get summary_url
+    assert_equal [ "Cobrança", "Financeiro", "Entrada de dados", "Distribuição do trabalho", "Administração" ], css_select("#menu-principal h2").map { |h| h.text.strip }
     assert_select "#menu-principal a", text: /\AImportar/, count: 0
     assert_select "#menu-principal a", text: "Importações"
     assert_select "#menu-principal a", text: "Estornos à espera"
@@ -37,7 +37,17 @@ class NavigationMenuTest < ActionDispatch::IntegrationTest
 
   test "o operador vê só o grupo Cobrança" do
     sign_in_as users(:carlos)
-    get root_url
+    get summary_url
     assert_equal [ "Cobrança" ], css_select("#menu-principal h2").map { |h| h.text.strip }
+  end
+
+  test "Clientes e Acionamentos ficam no primeiro nível, fora do grupo Cobrança, que só tem o que é da cobrança" do
+    sign_in_as users(:joana)
+    get summary_url
+    first = css_select("#menu-principal ul").first
+    assert_equal [ "Resumo", "Clientes", "Acionamentos" ], first.css("a").map { |a| a.text.strip }
+    cobranca = css_select("#menu-principal h2").find { |h| h.text.strip == "Cobrança" }.next_element
+    assert_empty cobranca.css("a").map { |a| a.text.strip } & [ "Clientes", "Acionamentos" ]
+    assert_includes cobranca.css("a").map { |a| a.text.strip }, "Acordos"
   end
 end

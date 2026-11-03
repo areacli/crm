@@ -44,7 +44,7 @@ class PaymentsCheckoutsTest < ActiveSupport::TestCase
   end
 
   test "sem conta de cartão ativa o cartão não é oferecido; sem nenhuma forma, o link não nasce" do
-    assert_raises(Payments::Checkouts::Refused) { Payments::Checkouts.create(tenant: @alfa, customer: @customer, amount_cents: 1_000) }
+    assert_raises(Payments::Checkouts::Refused) { Payments::Checkouts.create(tenant: @alfa, customer: @customer, object: bill_for(@customer), amount_cents: 1_000) }
     boleto = issued_instrument(@alfa, @customer, "boleto")
     checkout = Payments::Checkouts.create(tenant: @alfa, customer: @customer, instruments: [ boleto ])
     assert_equal [ "boleto" ], checkout.modalities
@@ -52,10 +52,10 @@ class PaymentsCheckoutsTest < ActiveSupport::TestCase
   end
 
   test "pedir cartão sem conta ativa ou sem documento válido do pagador é recusado" do
-    assert_raises(Payments::Checkouts::Refused) { Payments::Checkouts.create(tenant: @alfa, customer: @customer, amount_cents: 1_000, card: true) }
+    assert_raises(Payments::Checkouts::Refused) { Payments::Checkouts.create(tenant: @alfa, customer: @customer, object: bill_for(@customer), amount_cents: 1_000, card: true) }
     make_card_account(@alfa)
     @customer.update_columns(document: "11111111111")
-    assert_raises(Payments::Checkouts::Refused) { Payments::Checkouts.create(tenant: @alfa, customer: @customer, amount_cents: 1_000, card: true) }
+    assert_raises(Payments::Checkouts::Refused) { Payments::Checkouts.create(tenant: @alfa, customer: @customer, object: bill_for(@customer), amount_cents: 1_000, card: true) }
     assert_nothing_raised { Payments::Checkouts.create(tenant: @alfa, customer: @customer, card: false, instruments: [ issued_instrument(@alfa, make_customer(@alfa, document: PaymentsHelper::JOAO, name: "João"), "pix") ]) }
   end
 

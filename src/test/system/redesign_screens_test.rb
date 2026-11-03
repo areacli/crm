@@ -13,10 +13,7 @@ class RedesignScreensSystemTest < ApplicationSystemTestCase
   end
 
   def entrar
-    visit new_session_path
-    fill_in "E-mail", with: users(:joana).email_address
-    fill_in "Senha", with: "senha-de-teste-1"
-    click_button "Entrar"
+    entrar_pela_spa(users(:joana).email_address, "senha-de-teste-1")
     assert_selector "h1", text: "Resumo da carteira"
   end
 
@@ -29,18 +26,19 @@ class RedesignScreensSystemTest < ApplicationSystemTestCase
   test "a entrada (formulário à esquerda e apresentação à direita) passa no axe e não rola em nenhuma largura" do
     LARGURAS.each do |largura|
       page.driver.resize(largura, 900)
-      visit new_session_path
-      assert_selector "h1", text: "Entrar no CRM"
-      sem_rolagem_horizontal("/session/new")
+      visit root_path
+      assert_selector "h1", text: "Entrar no CRM", wait: 30
+      sem_rolagem_horizontal("/")
       assert_acessivel if largura == 1440
     end
     page.driver.resize(1440, 900)
-    visit new_session_path
-    assert_selector ".entrada-apresentacao li", count: 4
+    visit root_path
+    assert_selector ".entrada-beneficios > *", count: 4, wait: 30
     assert_operator page.evaluate_script("document.querySelector('.entrada-formulario').getBoundingClientRect().left"), :<, page.evaluate_script("document.querySelector('.entrada-apresentacao').getBoundingClientRect().left")
-    assert_equal 380, medida(".entrada-formulario", "width")
+    assert_equal 384, medida(".entrada-formulario", "width")
     page.driver.resize(390, 900)
-    visit new_session_path
+    visit root_path
+    assert_selector "h1", text: "Entrar no CRM", wait: 30
     assert_no_selector ".entrada-apresentacao", visible: :visible
   end
 

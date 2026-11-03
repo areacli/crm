@@ -42,7 +42,7 @@ class CapturasTest < ApplicationSystemTestCase
                                       summary: { lines: 310, valid: 298, rejected: 3, ignored: 9, amount_formatted: "98.400,00",
                                                  effect: { settled: 270, partial: 12, credits: 9, credit_cents: 310_000, pending_new: 6, pending_cents: 180_000,
                                                            applied_cents: 9_530_000 } })
-    @payments_import.rejections.create!(line: 12, reason: "canal não cadastrado ou desativado")
+    @payments_import.rejections.create!(line: 12, reason: "método de recebimento não cadastrado ou desativado")
     @payments_import.rejections.create!(line: 31, reason: "título não informado")
     @payments_import.rejections.create!(line: 45, reason: "pagamento já registrado, ignorado", ignored: true)
     # Incremento 4: acionamentos de três operadores nos últimos dias, em dois clientes.
@@ -143,10 +143,7 @@ class CapturasTest < ApplicationSystemTestCase
     Charges::Recalculation.new(@tenant).apply(today: Date.current)
     TaskRun.create!(tenant: @tenant, name: "values_recalculation", status: "succeeded", started_at: Time.current.change(hour: 5, min: 31), finished_at: Time.current.change(hour: 5, min: 32), processed: BillValuation.where(tenant_id: @tenant.id).count)
     TaskRun.where(name: "values_recalculation", status: "running").delete_all # os jobs da carga de fotos não rodam: nada "em andamento" na foto
-    visit new_session_path
-    fill_in "E-mail", with: users(:joana).email_address
-    fill_in "Senha", with: "senha-de-teste-1"
-    click_button "Entrar"
+    entrar_pela_spa(users(:joana).email_address, "senha-de-teste-1")
     assert_selector "h1", text: "Resumo da carteira"
     # Incremento 10: uma promessa aberta, uma pendente de aprovação e uma quebrada, com o credor com encargos e a alçada do Operador de 30 dias.
     @promise_customer = Customer.order(:id).fourth
@@ -230,8 +227,9 @@ class CapturasTest < ApplicationSystemTestCase
     make_account(@tenant, modality: "card", nickname: "Cartão principal", environment: "production", config: { "connection_result" => "ok", "max_installments" => 6 })
     payer = @paid_customer
     Payments::Providers::Fake.omit_qr_image! # o QR Code é gerado aqui, como acontece quando o fornecedor só dá o texto
+    object = bill_for(payer, amount_cents: 48_750)
     issued = %w[boleto pix].map do |kind|
-      instrument = Payments::Issuer.new.request(tenant: @tenant, kind: kind, amount_cents: 48_750, customer: payer, due_on: Date.current + 12, environment: "production")
+      instrument = Payments::Issuer.new.request(tenant: @tenant, kind: kind, amount_cents: 48_750, customer: payer, due_on: Date.current + 12, environment: "production", object: object)
       IssueInstrumentJob.perform_now(instrument.id)
       instrument.reload
     end
@@ -466,14 +464,46 @@ class CapturasTest < ApplicationSystemTestCase
     "ficha-distribuida" => -> { customer_path(@distributed_customer) },
     "clientes-da-operacao" => lambda {
       page.driver.clear_cookies
-      visit new_session_path
-      fill_in "E-mail", with: @operation_user.email_address
-      fill_in "Senha", with: "senha-de-teste-1"
-      click_button "Entrar"
+      entrar_pela_spa(@operation_user.email_address, "senha-de-teste-1")
       assert_selector "body > header", text: "Recupera"
       customers_path
+    },
+    # Incremento 15 (filas): o enquadramento de contratos, os grupos, a visão do gestor, uma fila e o "Próximo" do operador com a faixa da entrega.
+    "enquadramento-das-filas" => lambda {
+      page.driver.clear_cookies
+      prepare_queues
+      entrar_pela_spa(users(:joana).email_address, "senha-de-teste-1")
+      assert_selector "header .usuario"
+      queues_work_queues_path(tenant_id: @tenant.id)
+    },
+    "grupos-das-filas" => -> { queues_queue_groups_path(tenant_id: @tenant.id) },
+    "visao-das-filas" => -> { queues_board_path(tenant_id: @tenant.id) },
+    "fila-em-ordem" => -> { queues_board_queue_path(@late_queue, tenant_id: @tenant.id) },
+    "proximo-da-fila" => lambda {
+      page.driver.clear_cookies
+      entrar_pela_spa(users(:carlos).email_address, "senha-de-teste-1")
+      click_button "Próximo"
+      assert_text "Da fila"
+      :current
     }
   }.freeze
+
+  # Filas (15) para as fotos: "Promessa ou acordo em dia" sem fila, o callback e o atraso, o grupo da manhã e uma entrega aberta.
+  def prepare_queues
+    promise = Segment.create!(tenant: @tenant, name: "Promessa ou acordo em dia", subject: "contracts",
+                              expression: { "all" => [ { "path" => "promises", "quantifier" => "some", "where" => { "field" => "state", "op" => "in", "value" => %w[pending open] } } ] })
+    callback = Segment.create!(tenant: @tenant, name: "Callback", subject: "contracts", expression: { "all" => [ { "path" => "return_days", "op" => "lte", "value" => 0 } ] })
+    late = Segment.create!(tenant: @tenant, name: "Em atraso", subject: "contracts", expression: { "all" => [ { "path" => "in_arrears", "op" => "is" } ] })
+    WorkQueue.create!(tenant: @tenant, subject: "contracts", name: "Promessa ou acordo em dia", segment: promise, position: 1, delivers: false)
+    calls = WorkQueue.create!(tenant: @tenant, subject: "contracts", name: "Callback", segment: callback, position: 2, order_by: "return_at", lock_minutes: 10)
+    @late_queue = WorkQueue.create!(tenant: @tenant, subject: "contracts", name: "Em atraso", segment: late, position: 3, order_tiebreak: "without_contact")
+    group = QueueGroup.create!(tenant: @tenant, name: "Equipe da manhã")
+    [ users(:carlos), users(:ana) ].each { |user| QueueGroupUser.create!(queue_group: group, user: user) }
+    [ calls, @late_queue ].each_with_index { |queue, index| QueueGroupQueue.create!(queue_group: group, work_queue: queue, position: index + 1) }
+    Queues::Recalculation.new(@tenant).apply
+    Queues::NextDelivery.new(users(:ana)).call
+    true
+  end
 
   # Operações (14) para as fotos: a Recupera credenciada, a regra "Cartão" do enquadramento da distribuição e três clientes à mão.
   def prepare_operations
@@ -604,7 +634,7 @@ class CapturasTest < ApplicationSystemTestCase
       page.save_screenshot(pasta.join("#{nome}.png").to_s)
     end
     page.driver.resize(1440, 900)
-    visit root_path
+    visit summary_path
     assert_selector "h1", text: "Resumo da carteira"
     assert_selector ".kpi"
     tirar.call("1-resumo")
@@ -631,11 +661,11 @@ class CapturasTest < ApplicationSystemTestCase
     tirar.call("5-configuracao-da-carteira")
     visit customer_path(@promise_customer)
     tirar.call("6-ficha-390", 390, 900)
-    visit root_path
+    visit summary_path
     tirar.call("6b-resumo-390", 390, 900)
     page.driver.clear_cookies
-    visit new_session_path
-    assert_selector "h1", text: "Entrar no CRM"
+    visit root_path
+    assert_selector "h1", text: "Entrar no CRM", wait: 30
     tirar.call("7-entrada")
     tirar.call("8-entrada-390", 390, 900)
   end

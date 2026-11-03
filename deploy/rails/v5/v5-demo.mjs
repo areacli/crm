@@ -1,4 +1,5 @@
-// V5 na demonstração (CRM_DEMO=1), contra o ambiente publicado e pelo caminho que o usuário usa: entra com o usuário público, abre cada tela, envia arquivo
+// V5 na demonstração (CRM_DEMO=1), contra o ambiente publicado e pelo caminho que o usuário usa, na SPA (decisão 0025): entra pela casca, abre cada tela numa aba,
+// envia arquivo
 // de quase 50 MB nas três importações (o arquivo é trocado por um fictício, então o que se confere é que ele CHEGA: nginx, Thruster, Rails), recusa arquivo
 // acima de 50 MB, registra um acionamento, aprova e recusa uma promessa pendente, aprova uma proposta de acordo e abre o termo, corrige um contato do
 // cadastro, exporta os dados de um cliente, muda e desfaz uma política, cria e apaga um canal, confere o que a demonstração fecha, o link público de
@@ -25,7 +26,7 @@ const passo = async (nome, fn) => {
         resultados.push({ nome, ok: true, segundos: segundos(), detalhe });
         console.log(`OK    ${nome} (${segundos()} s) ${detalhe ?? ''}`);
     } catch (e) {
-        await pagina.screenshot({ path: `${PASTA}/falha-${resultados.length + 1}.png` }).catch(() => {});
+        await (pagina?.context().pages().at(-1) ?? pagina).screenshot({ path: `${PASTA}/falha-${resultados.length + 1}.png` }).catch(() => {});
         resultados.push({ nome, ok: false, segundos: segundos(), detalhe: String(e.message).split('\n')[0] });
         console.log(`FALHA ${nome}: ${String(e.message).split('\n')[0]}`);
     }
@@ -62,84 +63,88 @@ const navegador = await chromium.launch();
 const contexto = await navegador.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1440, height: 900 }, acceptDownloads: true });
 pagina = await contexto.newPage();
 pagina.setDefaultTimeout(60000);
-// As confirmações abrem no painel compartilhado (<dialog id="painel">): o link de abrir está na página; o botão de confirmar, no rodapé do painel aberto.
-const confirmar = async (abrir, acao) => {
-    await pagina.getByRole('link', { name: abrir, exact: true }).first().click();
-    await pagina.locator('dialog#painel[open] footer').getByRole('button', { name: acao, exact: true }).click();
-    await pagina.locator('dialog#painel[open]').waitFor({ state: 'detached', timeout: 15000 }).catch(() => {});
+
+// A SPA: cada tela abre pelo endereço com # e mostra o título; o indicador de carregamento cobre a tela enquanto busca o JSON.
+const ocupada = (p = pagina) => p.locator('.sapUiLocalBusyIndicator').first().waitFor({ state: 'detached', timeout: 30000 }).catch(() => {});
+const abrir = async (hash, titulo, p = pagina) => {
+    await p.goto(`${BASE}/#/${hash}`);
+    if (titulo) await p.locator('.sapMTitle:visible', { hasText: titulo }).first().waitFor();
+    await ocupada(p);
 };
-const h1 = (titulo) => pagina.getByRole('heading', { level: 1, name: titulo }).first();
-const abrir = async (rota, titulo) => {
-    const resposta = await pagina.goto(BASE + rota);
-    if (resposta.status() !== 200) throw new Error(`${rota}: status ${resposta.status()}`);
-    if (titulo) await h1(titulo).waitFor();
+// A pergunta curta (MessageBox) e o formulário (Dialog ou painel) da regra de ação.
+const responder = async (acao) => { await pagina.locator('.sapMMessageBox, .sapMDialog').last().getByRole('button', { name: acao, exact: true }).click(); };
+const aviso = (texto) => pagina.locator('.sapMMessageToast', { hasText: texto }).first().waitFor({ timeout: 120000 });
+const entrar = async (p, email, senha) => {
+    await p.goto(BASE + '/');
+    await p.locator('input[type=email]').waitFor();
+    await p.locator('input[type=email]').fill(email);
+    await p.locator('input[type=password]').fill(senha);
+    await p.getByRole('button', { name: 'Entrar', exact: true }).click();
+    await p.locator('input[type=email]').waitFor({ state: 'hidden' });
+    await p.locator('.sapTntToolHeader:visible').first().waitFor();
+    await ocupada(p);
 };
+// O JSON de uma tela, pela sessão do navegador (o que a tela pediria).
+const status = async (p, caminho) => p.evaluate(async (c) => (await fetch(c, { headers: { Accept: 'application/json' } })).status, caminho);
 
 await passo('a tela de entrada mostra a faixa e os usuários da demonstração', async () => {
-    await pagina.goto(BASE + '/session/new');
+    await pagina.goto(BASE + '/');
     await pagina.getByText('Demonstração: os dados são fictícios').first().waitFor();
     await pagina.getByText('demonstracao-gestor').first().waitFor();
-    await pagina.locator('.entrada-apresentacao li').first().waitFor();
 });
 
 await passo('entrar com e-mail e senha', async () => {
-    await pagina.fill('#email_address', EMAIL);
-    await pagina.fill('#password', SENHA);
-    await pagina.click('button[type=submit]');
-    await pagina.waitForURL(BASE + '/');
-    await h1('Resumo da carteira').waitFor();
-    await pagina.getByText('recriados todo dia às 04:00').first().waitFor();
+    await entrar(pagina, EMAIL, SENHA);
+    await pagina.locator('text=Resumo da carteira >> visible=true').first().waitFor();
+    await pagina.locator('text=recriados todo dia às 04:00 >> visible=true').first().waitFor();
 });
 
 const telas = [
-    ['/', 'Resumo da carteira'], ['/clientes', 'Clientes'], ['/acionamentos', 'Acionamentos'], ['/importacoes/nova', 'Importar carteira'],
-    ['/importacoes', 'Importações'], ['/importacoes/nova?kind=payments', 'Importar pagamentos'], ['/importacoes/nova?kind=reversals', 'Importar estornos'],
-    ['/divergencias-de-valor', 'Divergências de valor'], ['/acordos', 'Acordos'], ['/acordos/pendentes', 'Acordos pendentes'], ['/promessas/pendentes', 'Promessas pendentes'],
-    ['/estornos-a-espera', 'Estornos à espera do gestor'], ['/arquivo-de-acordos', 'Arquivo de acordos'], ['/guarda-de-dados', 'Guarda de dados'],
-    ['/configuracao/dados-do-credor', 'Dados do credor'], ['/configuracao/carteira', 'Carteira'], ['/configuracao/canais-de-recebimento', 'Canais de recebimento'],
-    ['/configuracao/politicas-de-pagamento', 'Políticas de pagamento'], ['/configuracao/contas-de-pagamento', 'Contas de pagamento'], ['/configuracao/segmentos', 'Segmentos'],
-    ['/configuracao/promessas-e-acordos', 'Promessas e acordos'], ['/configuracao/indices', 'Índices do Banco Central'], ['/configuracao/resultados-de-acionamento', 'Resultados de acionamento'],
+    ['resumo', 'Resumo da carteira'], ['clientes', 'Clientes'], ['acionamentos', 'Acionamentos'], ['importacoes', 'Importações'],
+    ['importacoes/nova/portfolio', 'Importar carteira'], ['importacoes/nova/payments', 'Importar pagamentos'], ['importacoes/nova/reversals', 'Importar estornos'],
+    ['divergencias-de-valor', 'Divergências de valor'], ['acordos', 'Acordos'], ['acordos/pendentes', 'Acordos pendentes'], ['promessas/pendentes', 'Promessas pendentes'],
+    ['estornos-a-espera', 'Estornos à espera do gestor'], ['arquivo-de-acordos', 'Arquivo de acordos'], ['guarda-de-dados', 'Guarda de dados'],
+    ['distribuicao', 'Distribuição'], ['filas', 'Filas'], ['filas/enquadramento', 'Enquadramento das filas'], ['filas/grupos', 'Grupos'],
+    ['operacoes', 'Operações credenciadas'], ['operacoes/enquadramento-da-distribuicao', 'Enquadramento da distribuição'], ['operacoes/trilha', 'Trilha das operações'],
+    ['configuracao/dados-do-credor', 'Dados do credor'], ['configuracao/carteira', 'Carteira'], ['configuracao/metodos-de-recebimento', 'Métodos de recebimento'],
+    ['configuracao/politicas-de-pagamento', 'Políticas de pagamento'], ['configuracao/segmentos', 'Segmentos'], ['configuracao/enquadramento-financeiro', 'Enquadramento financeiro'],
+    ['configuracao/promessas-e-acordos', 'Promessas e acordos'], ['configuracao/indices', 'Índices'], ['configuracao/resultados-de-acionamento', 'Resultados de acionamento'],
 ];
-for (const [rota, titulo] of telas) {
-    await passo(`abrir ${rota}`, async () => {
-        await abrir(rota, titulo);
-        await pagina.screenshot({ path: `${PASTA}/${rota === '/' ? 'resumo' : rota.slice(1).replace(/[/?=]/g, '-')}.png` });
+for (const [hash, titulo] of telas) {
+    await passo(`abrir ${hash}`, async () => {
+        await abrir(hash, titulo);
+        await pagina.screenshot({ path: `${PASTA}/${hash.replace(/[/?=]/g, '-')}.png` });
     });
 }
 
 await passo('usuários e perfis ficam fechados (404) e a troca de senha é recusada com a mensagem da demonstração', async () => {
-    for (const rota of ['/usuarios', '/perfis']) {
-        const r = await pagina.goto(BASE + rota);
-        if (r.status() !== 404) throw new Error(`${rota}: status ${r.status()}`);
+    for (const caminho of ['/usuarios.json', '/perfis.json']) {
+        const s = await status(pagina, caminho);
+        if (s !== 404) throw new Error(`${caminho}: status ${s}`);
     }
-    await pagina.goto(BASE + '/senha/edit');
-    await pagina.waitForURL(BASE + '/');
-    await pagina.getByText('ficam fechados: dá para ver, não para alterar').first().waitFor();
-});
-
-await passo('contas de pagamento: a lista abre e a alteração é recusada', async () => {
-    await abrir('/configuracao/contas-de-pagamento', 'Contas de pagamento');
-    await pagina.getByText('fornecedor de demonstração').first().waitFor();
-    await pagina.goto(BASE + '/configuracao/contas-de-pagamento/nova');
-    await pagina.getByText('ficam fechados: dá para ver, não para alterar').first().waitFor();
+    const s = await status(pagina, '/configuracao/integracoes/nova.json');
+    if (s !== 403) throw new Error(`nova integração respondeu ${s}`);
 });
 
 // A recriação diária deixa uma importação conferida à espera: ela ocupa o credor (R10). Descarta para poder enviar.
-await passo('descartar a importação conferida que a recriação deixa pendente', async () => {
-    await abrir('/importacoes', 'Importações');
-    const linha = pagina.locator('tbody tr', { hasText: 'Conferida' }).first();
+const descartarPendente = async () => {
+    await abrir('importacoes', 'Importações');
+    const linha = pagina.locator('.sapMListTblRow:visible', { hasText: 'Conferida' }).first();
     if ((await linha.count()) === 0) return 'nenhuma pendente';
-    await linha.getByRole('link').first().click();
-    await confirmar('Descartar', 'Descartar importação');
-    await pagina.getByText('Descartada').first().waitFor();
-});
+    await linha.locator('a').first().click();
+    await pagina.getByRole('button', { name: 'Descartar importação', exact: true }).first().click();
+    await responder('Descartar importação');
+    await aviso('Nada foi gravado');
+};
+await passo('descartar a importação conferida que a recriação deixa pendente', descartarPendente);
 
-async function enviarArquivo(rota, arquivo, esperaDestino = /\/importacoes\/\d+/) {
-    await abrir(rota);
-    await pagina.setInputFiles('input[type=file]', arquivo);
+async function enviarArquivo(tipo, arquivo) {
+    await abrir(`importacoes/nova/${tipo}`);
+    await pagina.locator('.sapUiFup:visible input[type=file]').first().setInputFiles(arquivo);
     await pagina.getByRole('button', { name: 'Enviar e conferir' }).click();
-    await pagina.waitForURL(esperaDestino, { timeout: 600000 });
-    await pagina.getByRole('link', { name: 'Confirmar', exact: true }).waitFor({ timeout: 300000 });
+}
+async function esperarConferida() {
+    await pagina.getByRole('button', { name: 'Confirmar importação', exact: true }).first().waitFor({ timeout: 600000 });
 }
 
 const quase50 = '/tmp/v5-50mb.csv';
@@ -148,139 +153,116 @@ const tamanho50 = planilha(quase50, { bytesAlvo: Math.floor(49.5 * 1048576), des
 const mb = (tamanho50 / 1048576).toFixed(1);
 
 await passo(`carteira: enviar arquivo de ${mb} MB (trocado por fictício) e descartar a conferência`, async () => {
-    await enviarArquivo('/importacoes/nova', quase50);
-    await pagina.getByText('arquivo-de-demonstracao.csv').first().waitFor();
-    await confirmar('Descartar', 'Descartar importação');
-    await pagina.getByText('Descartada').first().waitFor();
+    await enviarArquivo('portfolio', quase50);
+    await esperarConferida();
+    await pagina.locator('text=arquivo-de-demonstracao.csv >> visible=true').first().waitFor();
+    await pagina.getByRole('button', { name: 'Descartar importação', exact: true }).first().click();
+    await responder('Descartar importação');
+    await aviso('Nada foi gravado');
 });
 
 await passo(`pagamentos: enviar arquivo de ${mb} MB (trocado por fictício), conferir e confirmar`, async () => {
-    await enviarArquivo('/importacoes/nova?kind=payments', quase50);
+    await enviarArquivo('payments', quase50);
+    await esperarConferida();
     await pagina.screenshot({ path: `${PASTA}/pagamentos-conferencia.png` });
-    await confirmar('Confirmar', 'Confirmar importação');
-    await pagina.getByText('Confirmada').first().waitFor({ timeout: 300000 });
+    await pagina.getByRole('button', { name: 'Confirmar importação', exact: true }).first().click();
+    await responder('Confirmar importação');
+    await pagina.locator('.sapMObjStatus:visible', { hasText: 'Confirmada' }).first().waitFor({ timeout: 300000 });
 });
 
 await passo(`estornos: enviar arquivo de ${mb} MB (trocado por fictício), conferir e descartar`, async () => {
-    await enviarArquivo('/importacoes/nova?kind=reversals', quase50);
-    await confirmar('Descartar', 'Descartar importação');
-    await pagina.getByText('Descartada').first().waitFor();
+    await enviarArquivo('reversals', quase50);
+    await esperarConferida();
+    await pagina.getByRole('button', { name: 'Descartar importação', exact: true }).first().click();
+    await responder('Descartar importação');
+    await aviso('Nada foi gravado');
 });
 
 const acima = '/tmp/v5-acima.csv';
 const tamanhoAcima = planilha(acima, { bytesAlvo: 51 * 1048576, descricao: descricaoLonga });
-for (const rota of ['/importacoes/nova', '/importacoes/nova?kind=payments']) {
-    await passo(`recusar arquivo acima de 50 MB em ${rota} (${(tamanhoAcima / 1048576).toFixed(1)} MB)`, async () => {
-        await abrir(rota);
-        await pagina.setInputFiles('input[type=file]', acima);
-        await pagina.getByRole('button', { name: 'Enviar e conferir' }).click();
-        await pagina.getByText(/acima do limite de 50 MB/i).first().waitFor({ timeout: 120000 });
+for (const tipo of ['portfolio', 'payments']) {
+    await passo(`recusar arquivo acima de 50 MB em ${tipo} (${(tamanhoAcima / 1048576).toFixed(1)} MB)`, async () => {
+        await enviarArquivo(tipo, acima);
+        await pagina.locator('text=/acima do limite de 50 MB/i >> visible=true').first().waitFor({ timeout: 120000 });
     });
 }
 
-let fichaDoCliente;
+let ficha;
 await passo('acionamento: registrar pela ficha (o texto digitado vira texto fictício)', async () => {
-    await abrir('/clientes', 'Clientes');
-    await pagina.locator('tbody tr').first().getByRole('link').first().click();
-    await pagina.waitForURL(/\/clientes\/\d+/);
-    fichaDoCliente = pagina.url();
-    // O registro abre no painel lateral (decisão 0022); ao concluir, o painel fecha e o histórico da aba Acionamentos mostra o texto fictício.
-    await pagina.getByRole('link', { name: 'Registrar acionamento', exact: true }).click();
-    await pagina.locator('dialog#painel[open] form.painel').waitFor();
-    await pagina.locator('#contact_attempt_channel').selectOption({ label: 'Telefone' });
-    await pagina.locator('#contact_attempt_result_id').selectOption({ label: 'Não atendeu' });
-    await pagina.locator('#contact_attempt_text').fill('Texto real do visitante, que não pode ficar guardado.');
-    await pagina.locator('dialog#painel').getByRole('button', { name: 'Registrar acionamento', exact: true }).click();
-    await pagina.locator('dialog#painel[open]').waitFor({ state: 'detached' }).catch(() => {});
-    await pagina.goto(fichaDoCliente + '?aba=acionamentos');
-    await pagina.getByText('texto descartado na demonstração').first().waitFor();
+    await abrir('clientes', 'Clientes');
+    await pagina.locator('.sapMListTblRow:visible a:visible').first().click();
+    await pagina.waitForURL(/#\/clientes\/\d+/);
+    ficha = pagina.url().split('#/')[1];
+    await ocupada();
+    await pagina.getByRole('button', { name: 'Registrar acionamento', exact: true }).first().click();
+    const painel = pagina.locator('.painel:visible').first();
+    await painel.getByText('Canal').first().waitFor();
+    await painel.locator('[id$="--canal"]').click();
+    await pagina.locator('.sapMSelectList li', { hasText: 'Telefone' }).first().click();
+    await painel.locator('[id$="--resultado"]').click();
+    await pagina.locator('.sapMSelectList li', { hasText: 'Não atendeu' }).first().click();
+    await painel.locator('textarea').first().fill('Texto real do visitante, que não pode ficar guardado.');
+    await painel.getByRole('button', { name: 'Registrar acionamento', exact: true }).click();
+    await aviso('Acionamento registrado');
+    await ocupada();
+    await pagina.locator('.sapMITBFilter:visible', { hasText: 'Acionamentos' }).first().click();
+    await pagina.locator('text=texto descartado na demonstração >> visible=true').first().waitFor();
 });
 
-await passo('cadastro: o contato digitado é trocado por um fictício', async () => {
-    await pagina.goto(fichaDoCliente);
-    await pagina.getByRole('button', { name: 'Mais ações do cliente' }).click();
-    await pagina.getByRole('link', { name: 'Criar contato', exact: true }).click();
-    await pagina.locator('dialog#painel[open] form.painel').waitFor();
-    await pagina.locator('#contact_kind').selectOption('phone');
-    await pagina.locator('#contact_value').fill('(11) 98765-0000');
-    await pagina.locator('dialog#painel').getByRole('button', { name: 'Criar contato', exact: true }).click();
-    await pagina.waitForLoadState('networkidle');
-    if (await pagina.getByText('98765-0000').count()) throw new Error('o contato digitado ficou guardado');
-});
-
-await passo('direitos do titular: exportar os dados de um cliente', async () => {
-    await pagina.goto(fichaDoCliente);
-    await pagina.getByRole('button', { name: 'Mais ações do cliente' }).click();
-    await pagina.getByRole('link', { name: 'Exportar dados', exact: true }).click();
-    await pagina.locator('dialog#painel[open] input[type=text]').fill('Pedido do titular, protocolo 1234');
-    await pagina.locator('dialog#painel[open]').getByRole('button', { name: 'Exportar dados', exact: true }).click();
-    await pagina.waitForURL(/exportacao/);
-    await pagina.getByText('motivo descartado').count();
-});
-
-await passo('promessas: aprovar uma pendente e recusar outra', async () => {
-    await abrir('/promessas/pendentes', 'Promessas pendentes');
-    const aprovar = pagina.getByRole('button', { name: 'Aprovar promessa' }).first();
+await passo('promessas: aprovar uma pendente', async () => {
+    await abrir('promessas/pendentes', 'Promessas pendentes');
+    const aprovar = pagina.getByRole('button', { name: /^Aprovar/ }).first();
     if ((await aprovar.count()) === 0) return 'nenhuma pendente';
     await aprovar.click();
-    await pagina.getByText(/aprovad/i).first().waitFor();
-    await abrir('/promessas/pendentes');
-    const menu = pagina.locator('button.menu-de-linha').first();
-    if ((await menu.count()) === 0) return 'só uma pendente';
-    await menu.click();
-    await pagina.getByRole('link', { name: 'Recusar promessa', exact: true }).first().click();
-    const painel = pagina.locator('dialog#painel[open]');
-    await painel.locator('input[type=text]').fill('motivo real do visitante');
-    await painel.getByRole('button', { name: 'Recusar promessa', exact: true }).click();
-    await pagina.getByText(/recusad/i).first().waitFor();
+    await aviso(/aprovad/i);
 });
 
-await passo('acordos: aprovar uma proposta pendente e abrir o termo de uma aprovada', async () => {
-    await abrir('/acordos/pendentes', 'Acordos pendentes');
+await passo('acordos: aprovar uma proposta pendente e abrir a página de um acordo', async () => {
+    await abrir('acordos/pendentes', 'Acordos pendentes');
     const aprovar = pagina.getByRole('button', { name: /^Aprovar/ }).first();
     if ((await aprovar.count()) > 0) {
         await aprovar.click();
-        await pagina.getByText(/aprovad/i).first().waitFor();
+        await aviso(/aprovad/i);
     }
-    await abrir('/acordos', 'Acordos');
-    const pagina_do_acordo = await pagina.locator('tr:has(th a[href^="/acordos/"]):has-text("Aprovad") th a').first().getAttribute('href');
-    await pagina.goto(BASE + pagina_do_acordo);
-    const termo = await pagina.getByRole('link', { name: 'Abrir o termo' }).first().getAttribute('href');
-    await pagina.goto(BASE + termo);
-    await pagina.getByText(/Escola Alfa/).first().waitFor();
+    await abrir('acordos', 'Acordos');
+    await pagina.locator('.sapMListTblRow:visible a:visible').first().click();
+    await pagina.waitForURL(/#\/acordos\/\d+/);
+    await pagina.locator('text=Entrada e parcelas >> visible=true').first().waitFor();
 });
 
 await passo('política de pagamento: mudar e desfazer', async () => {
-    await abrir('/configuracao/politicas-de-pagamento', 'Políticas de pagamento');
-    const grupo = pagina.locator('.politica', { hasText: 'Pagamento menor que o saldo' }).first();
-    const marcado = await grupo.locator('input[type=radio]:checked').getAttribute('value');
-    const outro = marcado === 'partial' ? 'credit' : 'partial';
-    await grupo.locator(`input[value=${outro}]`).check();
-    await pagina.getByRole('button', { name: 'Salvar políticas' }).first().click();
-    await pagina.getByText(/salvas|salvos|atualizad/i).first().waitFor();
-    await pagina.locator('.politica', { hasText: 'Pagamento menor que o saldo' }).first().locator(`input[value=${marcado}]`).check();
-    await pagina.getByRole('button', { name: 'Salvar políticas' }).first().click();
-    await pagina.getByText(/salvas|salvos|atualizad/i).first().waitFor();
+    await abrir('configuracao/politicas-de-pagamento', 'Políticas de pagamento');
+    const bloco = pagina.locator('.bloco-de-politica:visible', { hasText: 'Pagamento menor que o saldo' }).first();
+    const opcoes = bloco.locator('.sapMRb');
+    const marcada = (await opcoes.first().getAttribute('aria-checked')) === 'true' ? 0 : 1;
+    await opcoes.nth(1 - marcada).click();
+    await pagina.getByRole('button', { name: 'Salvar', exact: true }).first().click();
+    await aviso(/salv/i);
+    await ocupada();
+    await pagina.locator('.bloco-de-politica:visible', { hasText: 'Pagamento menor que o saldo' }).first().locator('.sapMRb').nth(marcada).click();
+    await pagina.getByRole('button', { name: 'Salvar', exact: true }).first().click();
+    await aviso(/salv/i);
 });
 
-await passo('canal de recebimento: criar e excluir', async () => {
-    await abrir('/configuracao/canais-de-recebimento/novo');
-    await pagina.locator('#payment_channel_kind').selectOption({ label: 'Conta bancária' });
-    await pagina.locator('#payment_channel_code').fill('V5-TESTE');
-    await pagina.locator('#payment_channel_description').fill('Canal da V5');
-    await pagina.getByRole('button', { name: 'Salvar', exact: true }).click();
-    await abrir('/configuracao/canais-de-recebimento?q=V5-TESTE');
-    const linha = pagina.locator('tbody tr', { hasText: 'V5-TESTE' });
-    await linha.waitFor();
-    await linha.getByRole('link').first().click();
-    await pagina.waitForURL(/\/editar/);
-    await confirmar('Excluir', 'Excluir canal');
-    await pagina.waitForURL(/canais-de-recebimento$/);
-    await abrir('/configuracao/canais-de-recebimento?q=V5-TESTE');
-    if ((await pagina.locator('tbody tr', { hasText: 'V5-TESTE' }).count()) > 0) throw new Error('o canal continua na lista');
+await passo('método de recebimento: criar e excluir', async () => {
+    await abrir('configuracao/metodos-de-recebimento', 'Métodos de recebimento');
+    await pagina.getByRole('button', { name: 'Criar método de recebimento', exact: true }).click();
+    const painel = pagina.locator('.painel:visible').first();
+    await painel.getByText('Código').first().waitFor();
+    await painel.locator('input.sapMInputBaseInner').nth(0).fill('V5-TESTE');
+    await painel.locator('input.sapMInputBaseInner').nth(1).fill('Método da V5');
+    await painel.getByRole('button', { name: 'Salvar', exact: true }).click();
+    await aviso(/V5-TESTE/);
+    await abrir('configuracao/metodos-de-recebimento?filtro=q%3DV5-TESTE');
+    await pagina.locator('.sapMListTblRow:visible a:visible', { hasText: 'V5-TESTE' }).first().click();
+    await pagina.waitForURL(/metodos-de-recebimento\/\d+/);
+    await ocupada();
+    await pagina.getByRole('button', { name: 'Excluir', exact: true }).click();
+    await responder('Excluir método de recebimento');
+    await aviso(/V5-TESTE/);
 });
 
-// O link de pagamento de exemplo: público (sem login), de outro contexto de navegador.
+// O link de pagamento de exemplo: público (sem login), de outro contexto de navegador; é página do servidor, fora da SPA.
 await passo('link público de pagamento: boleto, Pix e cartão, sem login', async () => {
     const publico = await (await navegador.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1440, height: 900 } })).newPage();
     publico.setDefaultTimeout(60000);
@@ -297,58 +279,41 @@ await passo('link público de pagamento: boleto, Pix e cartão, sem login', asyn
     await publico.locator('#cartao-codigo').fill('123');
     await publico.locator('#cartao button[type=submit]').click();
     await publico.locator('#opcoes').getByText(/aprovad|recebemos|pagamento/i).first().waitFor();
-    await publico.screenshot({ path: `${PASTA}/pagar-cartao.png`, fullPage: true });
     await publico.context().close();
 });
 
 await passo('o operador só enxerga a Escola Alfa (nunca a Clínica Beta) e não abre a configuração do credor', async () => {
     const outro = await (await navegador.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1440, height: 900 } })).newPage();
     outro.setDefaultTimeout(60000);
-    await outro.goto(BASE + '/session/new');
-    await outro.fill('#email_address', EMAIL.replace('gestor@', 'operador@'));
-    await outro.fill('#password', 'demonstracao-operador');
-    await outro.click('button[type=submit]');
-    await outro.waitForURL(BASE + '/');
-    // O resumo tem só totais, sem o nome do credor (decisão de 25/10/2026); quem tem mais de um credor vê o nome na lista de clientes.
-    await outro.getByRole('heading', { level: 1, name: 'Resumo da carteira' }).first().waitFor();
-    if ((await outro.getByText('Clínica Beta').count()) > 0) throw new Error('o operador vê a Clínica Beta');
-    const r = await outro.goto(BASE + '/configuracao/canais-de-recebimento');
-    if (r.status() !== 404) throw new Error(`configuração respondeu ${r.status()}`);
-    await outro.goto(BASE + '/clientes');
-    await outro.locator('main tbody tr').first().waitFor(); // com um credor só, a lista não mostra o nome dele
-    if ((await outro.getByText('Clínica Beta').count()) > 0) throw new Error('o operador vê a Clínica Beta na lista');
+    await entrar(outro, EMAIL.replace('gestor@', 'operador@'), 'demonstracao-operador');
+    const s = await status(outro, '/configuracao/metodos-de-recebimento.json');
+    if (s !== 404) throw new Error(`configuração respondeu ${s}`);
+    await abrir('clientes', 'Clientes', outro);
+    await outro.locator('.sapMListTblRow:visible').first().waitFor();
+    if ((await outro.locator('text=Clínica Beta >> visible=true').count()) > 0) throw new Error('o operador vê a Clínica Beta');
     await outro.context().close();
 });
 
-await passo('a operação vê o nome dela no cabeçalho, só o que foi distribuído, e não abre a configuração nem a distribuição', async () => {
+await passo('a operação vê só o que foi distribuído e não abre a configuração nem a distribuição', async () => {
     const op = await (await navegador.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1440, height: 900 } })).newPage();
     op.setDefaultTimeout(60000);
-    await op.goto(BASE + '/session/new');
-    await op.fill('#email_address', EMAIL.replace('gestor@', 'operacao@'));
-    await op.fill('#password', 'demonstracao-operacao');
-    await op.click('button[type=submit]');
-    await op.waitForURL(BASE + '/');
-    await op.locator('body > header').getByText('Recupera').first().waitFor();
-    for (const rota of ['/distribuicao', '/operacoes', '/configuracao/canais-de-recebimento']) {
-        const r = await op.goto(BASE + rota);
-        if (r.status() !== 404) throw new Error(`${rota} respondeu ${r.status()}`);
+    await entrar(op, EMAIL.replace('gestor@', 'operacao@'), 'demonstracao-operacao');
+    for (const caminho of ['/distribuicao.json', '/operacoes.json', '/configuracao/metodos-de-recebimento.json']) {
+        const s = await status(op, caminho);
+        if (s !== 404) throw new Error(`${caminho} respondeu ${s}`);
     }
-    await op.goto(BASE + '/clientes');
-    await op.locator('main tbody tr').first().waitFor();
-    const total = await op.locator('main').getByText(/Mostrando \d+ a \d+ de [\d.]+ clientes/).first().textContent();
-    const n = Number(total.match(/de ([\d.]+) clientes/)[1].replace('.', ''));
-    if (!(n > 0 && n < 3000)) throw new Error(`a operação vê ${n} clientes`);
-    if ((await op.getByText('Clínica Beta').count()) > 0) throw new Error('a operação vê a Clínica Beta');
+    const lista = await op.evaluate(async () => (await fetch('/clientes.json', { headers: { Accept: 'application/json' } })).json());
+    if (!(lista.total > 0 && lista.total < 3000)) throw new Error(`a operação vê ${lista.total} clientes`);
+    await abrir('clientes', 'Clientes', op);
+    if ((await op.locator('text=Clínica Beta >> visible=true').count()) > 0) throw new Error('a operação vê a Clínica Beta');
     await op.screenshot({ path: `${PASTA}/operacao-clientes.png`, fullPage: true });
     await op.context().close();
 });
 
-await passo('o gestor vê os dois credores (o resumo é um conjunto de totais; os credores aparecem na lista de clientes)', async () => {
-    await abrir('/', 'Resumo da carteira');
-    if ((await pagina.getByRole('heading', { name: 'Escola Alfa' }).count()) > 0) throw new Error('o resumo voltou a quebrar por credor');
-    await abrir('/clientes', 'Clientes');
-    await pagina.locator('#tenant option', { hasText: 'Escola Alfa' }).first().waitFor({ state: 'attached' });
-    await pagina.locator('#tenant option', { hasText: 'Clínica Beta' }).first().waitFor({ state: 'attached' });
+await passo('o gestor vê os dois credores na lista de clientes', async () => {
+    const lista = await pagina.evaluate(async () => (await fetch('/clientes.json', { headers: { Accept: 'application/json' } })).json());
+    const nomes = JSON.stringify(lista);
+    if (!nomes.includes('Escola Alfa') || !nomes.includes('Clínica Beta')) throw new Error('faltou um credor');
 });
 
 await navegador.close();

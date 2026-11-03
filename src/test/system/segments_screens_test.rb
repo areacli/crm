@@ -15,10 +15,7 @@ class SegmentsSystemScreensTest < ApplicationSystemTestCase
     make_tier(@alfa, "PF", person_type: "person")
     @contract = make_contract(@alfa, "CT-1", bills: [ { overdue: 40, cents: 120_000 } ], customers: [ customer_of(@alfa, FakeData.cpf(51), "Maria Souza") ])
     recalc(@alfa)
-    visit new_session_path
-    fill_in "E-mail", with: users(:joana).email_address
-    fill_in "Senha", with: "senha-de-teste-1"
-    click_button "Entrar"
+    entrar_pela_spa(users(:joana).email_address, "senha-de-teste-1")
     assert_selector "h1", text: "Resumo da carteira"
   end
 

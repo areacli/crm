@@ -11,6 +11,11 @@ class PaymentCheckout < ApplicationRecord
   TOKEN_BYTES = 32
 
   belongs_to :customer, optional: true
+  # O objeto cobrado (16, R386): um título ou uma promessa, exatamente um. `open`: o link vigente do objeto (aberto, cartão aprovado à espera
+  # da confirmação, ou não confirmado); o índice único parcial garante um por objeto.
+  belongs_to :bill, optional: true
+  belongs_to :promise, class_name: "PaymentPromise", optional: true
+  belongs_to :requested_by, class_name: "User", optional: true
   has_many :instruments, class_name: "PaymentInstrument", foreign_key: :checkout_id, inverse_of: :checkout, dependent: :restrict_with_error
 
   enum :state, { open: "open", card_approved: "card_approved", paid: "paid", card_unconfirmed: "card_unconfirmed", canceled: "canceled" }, prefix: true, validate: true
@@ -24,7 +29,17 @@ class PaymentCheckout < ApplicationRecord
   validate :modalities_known
   validate :highlight_offered
 
+  validate :one_object
+
   before_validation :generate_token, on: :create
+  before_save -> { self.open = !state_paid? && !state_canceled? }
+
+  def object = bill || promise
+
+  def object=(record)
+    self.bill = record.is_a?(Bill) ? record : nil
+    self.promise = record.is_a?(PaymentPromise) ? record : nil
+  end
 
   def to_param = token
 
@@ -51,6 +66,11 @@ class PaymentCheckout < ApplicationRecord
   def card_instruments = instruments.select(&:card?).sort_by(&:id)
 
   private
+    def one_object
+      errors.add(:base, :one_object) unless [ bill_id || bill, promise_id || promise ].compact.size == 1
+      errors.add(:base, :other_tenant) if object && object.tenant_id != tenant_id
+    end
+
     def generate_token
       self.token ||= SecureRandom.urlsafe_base64(TOKEN_BYTES)
     end

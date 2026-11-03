@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_31_220000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_02_100000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -441,9 +441,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_31_220000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["tenant_id", "created_at"], name: "index_distribution_batches_on_tenant_id_and_created_at"
-    t.check_constraint "kind::text = ANY (ARRAY['selection'::character varying, 'segment'::character varying, 'file'::character varying]::text[])", name: "distribution_batches_kind"
-    t.check_constraint "status::text = ANY (ARRAY['checking'::character varying, 'checked'::character varying, 'confirmed'::character varying, 'discarded'::character varying, 'failed'::character varying]::text[])", name: "distribution_batches_status"
-    t.check_constraint "target::text = ANY (ARRAY['customer'::character varying, 'contract'::character varying]::text[])", name: "distribution_batches_target"
+    t.check_constraint "kind::text = ANY (ARRAY['selection'::character varying::text, 'segment'::character varying::text, 'file'::character varying::text])", name: "distribution_batches_kind"
+    t.check_constraint "status::text = ANY (ARRAY['checking'::character varying::text, 'checked'::character varying::text, 'confirmed'::character varying::text, 'discarded'::character varying::text, 'failed'::character varying::text])", name: "distribution_batches_status"
+    t.check_constraint "target::text = ANY (ARRAY['customer'::character varying::text, 'contract'::character varying::text])", name: "distribution_batches_target"
   end
 
   create_table "distribution_rule_items", force: :cascade do |t|
@@ -485,7 +485,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_31_220000) do
     t.check_constraint "(customer_id IS NULL) <> (contract_id IS NULL)", name: "distributions_customer_or_contract"
     t.check_constraint "ends_on IS NULL OR ends_on >= starts_on", name: "distributions_period"
     t.check_constraint "exposure::text = ANY (ARRAY['overdue'::character varying::text, 'all'::character varying::text])", name: "distributions_exposure"
-    t.check_constraint "source::text = ANY (ARRAY['manual'::character varying, 'batch'::character varying, 'rule'::character varying]::text[])", name: "distributions_source"
+    t.check_constraint "source::text = ANY (ARRAY['manual'::character varying::text, 'batch'::character varying::text, 'rule'::character varying::text])", name: "distributions_source"
   end
 
   create_table "holidays", force: :cascade do |t|
@@ -597,6 +597,36 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_31_220000) do
     t.datetime "fetched_at", null: false
     t.index ["series", "month"], name: "index_index_rates_on_series_and_month", unique: true
     t.check_constraint "series::text = ANY (ARRAY['ipca'::character varying::text, 'inpc'::character varying::text, 'igpm'::character varying::text, 'selic'::character varying::text, 'legal'::character varying::text])", name: "index_rates_series"
+  end
+
+  create_table "instrument_batches", force: :cascade do |t|
+    t.bigint "tenant_id", null: false
+    t.bigint "created_by_id", null: false
+    t.bigint "segment_id", null: false
+    t.string "object_kind", limit: 20, null: false
+    t.string "payment_method", limit: 20, null: false
+    t.string "due_mode", limit: 10, default: "days", null: false
+    t.date "due_on"
+    t.integer "due_days"
+    t.boolean "reissue", default: false, null: false
+    t.string "status", limit: 20, default: "checking", null: false
+    t.jsonb "summary", default: {}, null: false
+    t.datetime "checked_at"
+    t.datetime "confirmed_at"
+    t.bigint "confirmed_by_id"
+    t.bigint "task_run_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["confirmed_by_id"], name: "index_instrument_batches_on_confirmed_by_id"
+    t.index ["created_by_id"], name: "index_instrument_batches_on_created_by_id"
+    t.index ["segment_id"], name: "index_instrument_batches_on_segment_id"
+    t.index ["task_run_id"], name: "index_instrument_batches_on_task_run_id"
+    t.index ["tenant_id", "created_at"], name: "index_instrument_batches_on_tenant_id_and_created_at"
+    t.index ["tenant_id"], name: "index_instrument_batches_on_tenant_id"
+    t.check_constraint "due_mode::text = ANY (ARRAY['date'::character varying, 'days'::character varying]::text[])", name: "instrument_batches_due_mode"
+    t.check_constraint "object_kind::text = ANY (ARRAY['bills'::character varying, 'agreement_bills'::character varying, 'promises'::character varying]::text[])", name: "instrument_batches_object_kind"
+    t.check_constraint "payment_method::text = ANY (ARRAY['boleto'::character varying, 'pix'::character varying, 'card'::character varying]::text[])", name: "instrument_batches_payment_method"
+    t.check_constraint "status::text = ANY (ARRAY['checking'::character varying, 'checked'::character varying, 'confirmed'::character varying, 'discarded'::character varying, 'failed'::character varying]::text[])", name: "instrument_batches_status"
   end
 
   create_table "memberships", force: :cascade do |t|
@@ -757,17 +787,25 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_31_220000) do
     t.jsonb "payer_address", default: {}, null: false
     t.string "payer_email", limit: 254
     t.string "payer_phone", limit: 20
-    t.string "reference_type", limit: 40
-    t.bigint "reference_id"
     t.integer "access_count", default: 0, null: false
     t.datetime "last_accessed_at"
     t.jsonb "result", default: {}, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "bill_id"
+    t.bigint "promise_id"
+    t.boolean "open", default: true, null: false
+    t.jsonb "object_snapshot", default: {}, null: false
+    t.string "origin", limit: 20
+    t.bigint "requested_by_id"
+    t.string "cancel_reason", limit: 300
+    t.index ["bill_id"], name: "index_payment_checkouts_open_per_bill", unique: true, where: "open"
     t.index ["customer_id"], name: "index_payment_checkouts_on_customer_id", where: "(customer_id IS NOT NULL)"
+    t.index ["promise_id"], name: "index_payment_checkouts_open_per_promise", unique: true, where: "open"
     t.index ["tenant_id", "created_at"], name: "index_payment_checkouts_on_tenant_id_and_created_at"
     t.index ["token"], name: "index_payment_checkouts_on_token", unique: true
     t.check_constraint "amount_cents > 0", name: "payment_checkouts_amount"
+    t.check_constraint "num_nonnulls(bill_id, promise_id) = 1", name: "payment_checkouts_one_object"
     t.check_constraint "state::text = ANY (ARRAY['open'::character varying::text, 'card_approved'::character varying::text, 'paid'::character varying::text, 'card_unconfirmed'::character varying::text, 'canceled'::character varying::text])", name: "payment_checkouts_state"
   end
 
@@ -802,7 +840,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_31_220000) do
     t.string "provider", limit: 30, null: false
     t.bigint "customer_id"
     t.string "kind", limit: 10, null: false
-    t.string "state", limit: 10, default: "emitting", null: false
+    t.string "state", limit: 20, default: "emitting", null: false
     t.bigint "amount_cents", null: false
     t.date "due_on", null: false
     t.string "external_id", limit: 100
@@ -810,8 +848,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_31_220000) do
     t.string "payer_name", limit: 300
     t.string "payer_document", limit: 14
     t.jsonb "payer_address", default: {}, null: false
-    t.string "reference_type", limit: 40
-    t.bigint "reference_id"
     t.string "digitable_line", limit: 60
     t.text "copy_paste"
     t.string "boleto_pdf_sha256", limit: 64
@@ -828,16 +864,39 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_31_220000) do
     t.bigint "paid_cents"
     t.bigint "refunded_cents", default: 0, null: false
     t.datetime "reconciled_at"
+    t.bigint "bill_id"
+    t.bigint "promise_id"
+    t.boolean "open", default: true, null: false
+    t.jsonb "object_snapshot", default: {}, null: false
+    t.string "origin", limit: 20
+    t.bigint "requested_by_id"
+    t.bigint "approved_by_id"
+    t.bigint "instrument_batch_id"
+    t.string "cancel_reason", limit: 300
+    t.bigint "canceled_by_id"
+    t.datetime "canceled_at"
+    t.datetime "cancel_requested_at"
+    t.jsonb "reissue_request"
+    t.bigint "replaced_by_id"
     t.index ["account_id", "external_id"], name: "index_payment_instruments_on_account_and_external_id", unique: true, where: "(external_id IS NOT NULL)"
     t.index ["account_id"], name: "index_payment_instruments_on_account_id"
+    t.index ["bill_id", "kind"], name: "index_payment_instruments_open_per_bill", unique: true, where: "(open AND ((kind)::text = ANY ((ARRAY['boleto'::character varying, 'pix'::character varying])::text[])))"
+    t.index ["bill_id"], name: "index_payment_instruments_on_bill_id"
     t.index ["checkout_id"], name: "index_payment_instruments_on_checkout_id", where: "(checkout_id IS NOT NULL)"
     t.index ["customer_id"], name: "index_payment_instruments_on_customer_id", where: "(customer_id IS NOT NULL)"
+    t.index ["instrument_batch_id"], name: "index_payment_instruments_on_batch", where: "(instrument_batch_id IS NOT NULL)"
     t.index ["payment_id"], name: "index_payment_instruments_on_payment_id", where: "(payment_id IS NOT NULL)"
+    t.index ["promise_id", "kind"], name: "index_payment_instruments_open_per_promise", unique: true, where: "(open AND ((kind)::text = ANY ((ARRAY['boleto'::character varying, 'pix'::character varying])::text[])))"
+    t.index ["promise_id"], name: "index_payment_instruments_on_promise_id"
+    t.index ["tenant_id", "canceled_at"], name: "index_payment_instruments_canceled", where: "((state)::text = 'canceled'::text)"
     t.index ["tenant_id", "custom_id"], name: "index_payment_instruments_on_tenant_id_and_custom_id", unique: true
+    t.index ["tenant_id", "due_on"], name: "index_payment_instruments_open_by_due", where: "open"
     t.index ["tenant_id", "reconciled_at"], name: "index_payment_instruments_to_reconcile", where: "((state)::text = 'active'::text)"
     t.check_constraint "amount_cents > 0", name: "payment_instruments_amount"
     t.check_constraint "kind::text = ANY (ARRAY['boleto'::character varying::text, 'pix'::character varying::text, 'card'::character varying::text])", name: "payment_instruments_kind"
-    t.check_constraint "state::text = ANY (ARRAY['emitting'::character varying::text, 'active'::character varying::text, 'paid'::character varying::text, 'expired'::character varying::text, 'canceled'::character varying::text, 'failed'::character varying::text])", name: "payment_instruments_state"
+    t.check_constraint "num_nonnulls(bill_id, promise_id) = 1", name: "payment_instruments_one_object"
+    t.check_constraint "origin IS NULL OR (origin::text = ANY (ARRAY['customer_page'::character varying, 'registration'::character varying, 'batch'::character varying, 'rule'::character varying, 'reissue'::character varying, 'service'::character varying]::text[]))", name: "payment_instruments_origin"
+    t.check_constraint "state::text = ANY (ARRAY['emitting'::character varying, 'active'::character varying, 'paid'::character varying, 'expired'::character varying, 'canceled'::character varying, 'failed'::character varying, 'cancel_pending'::character varying]::text[])", name: "payment_instruments_state"
   end
 
   create_table "payment_promise_bills", force: :cascade do |t|
@@ -988,6 +1047,76 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_31_220000) do
     t.check_constraint "max_days >= 0 AND max_days <= 365", name: "promise_limits_days"
   end
 
+  create_table "queue_deliveries", force: :cascade do |t|
+    t.bigint "tenant_id", null: false
+    t.bigint "work_queue_id", null: false
+    t.string "subject", limit: 10, null: false
+    t.bigint "subject_id", null: false
+    t.bigint "user_id", null: false
+    t.datetime "delivered_at", null: false
+    t.datetime "locked_until", null: false
+    t.datetime "ended_at"
+    t.string "end_reason", limit: 20
+    t.bigint "released_by_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["locked_until"], name: "index_queue_deliveries_open_lock", where: "(ended_at IS NULL)"
+    t.index ["subject", "subject_id"], name: "index_queue_deliveries_open_subject", unique: true, where: "(ended_at IS NULL)"
+    t.index ["tenant_id", "delivered_at"], name: "index_queue_deliveries_on_tenant_id_and_delivered_at"
+    t.index ["user_id"], name: "index_queue_deliveries_open_user", unique: true, where: "(ended_at IS NULL)"
+    t.index ["work_queue_id"], name: "index_queue_deliveries_on_work_queue_id"
+    t.check_constraint "end_reason IS NULL OR (end_reason::text = ANY (ARRAY['recorded'::character varying::text, 'returned'::character varying::text, 'expired'::character varying::text, 'released'::character varying::text, 'signed_out'::character varying::text]))", name: "queue_deliveries_end_reason"
+  end
+
+  create_table "queue_group_queues", primary_key: ["queue_group_id", "work_queue_id"], force: :cascade do |t|
+    t.bigint "queue_group_id", null: false
+    t.bigint "work_queue_id", null: false
+    t.integer "position", default: 0, null: false
+    t.index ["work_queue_id"], name: "index_queue_group_queues_on_work_queue_id"
+  end
+
+  create_table "queue_group_users", primary_key: ["queue_group_id", "user_id"], force: :cascade do |t|
+    t.bigint "queue_group_id", null: false
+    t.bigint "user_id", null: false
+    t.index ["user_id"], name: "index_queue_group_users_on_user_id"
+  end
+
+  create_table "queue_groups", force: :cascade do |t|
+    t.bigint "tenant_id", null: false
+    t.string "name", limit: 100, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["tenant_id", "name"], name: "index_queue_groups_on_tenant_id_and_name", unique: true
+    t.index ["tenant_id"], name: "index_queue_groups_on_tenant_id"
+  end
+
+  create_table "queue_placements", force: :cascade do |t|
+    t.bigint "tenant_id", null: false
+    t.string "subject", limit: 10, null: false
+    t.bigint "subject_id", null: false
+    t.bigint "work_queue_id"
+    t.integer "rank", default: 0, null: false
+    t.datetime "available_at"
+    t.text "instruction"
+    t.datetime "instruction_until"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["subject", "subject_id"], name: "index_queue_placements_on_subject_and_subject_id", unique: true
+    t.index ["tenant_id"], name: "index_queue_placements_on_tenant_id"
+    t.index ["work_queue_id", "rank"], name: "index_queue_placements_next", where: "(work_queue_id IS NOT NULL)"
+  end
+
+  create_table "queue_strategies", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "mode", limit: 20, default: "ordered", null: false
+    t.jsonb "entries", default: [], null: false
+    t.jsonb "cursor", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id"], name: "index_queue_strategies_on_user_id", unique: true
+    t.check_constraint "mode::text = ANY (ARRAY['ordered'::character varying::text, 'weighted'::character varying::text, 'round_robin'::character varying::text])", name: "queue_strategies_mode"
+  end
+
   create_table "reported_surcharges", force: :cascade do |t|
     t.bigint "tenant_id", null: false
     t.bigint "bill_id", null: false
@@ -1102,6 +1231,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_31_220000) do
     t.string "operation_other_contact_attempts", limit: 10, default: "summary", null: false
     t.boolean "operation_manager_links", default: false, null: false
     t.integer "distribution_rules_version", default: 0, null: false
+    t.integer "queue_rules_version", default: 1, null: false
+    t.string "instrument_reissue_policy", limit: 20, default: "cancel_only", null: false
+    t.string "agreement_issue_all_policy", limit: 20, default: "deny", null: false
     t.index ["tenant_id"], name: "index_tenant_settings_on_tenant_id", unique: true
     t.check_constraint "(charge_days_convention::text = ANY (ARRAY['calendar'::character varying::text, 'thirty'::character varying::text])) AND (charge_fine_base::text = ANY (ARRAY['corrected'::character varying::text, 'face'::character varying::text]))", name: "tenant_settings_charge_conventions"
     t.check_constraint "(missing_index_policy::text = ANY (ARRAY['closed_only'::character varying::text, 'last_prorated'::character varying::text])) AND (default_interest_form::text = ANY (ARRAY['simple'::character varying::text, 'compound'::character varying::text])) AND (negative_index_policy::text = ANY (ARRAY['floor'::character varying::text, 'always'::character varying::text, 'ignore'::character varying::text])) AND (old_legal_interest_policy::text = ANY (ARRAY['selic'::character varying::text, 'one_percent'::character varying::text, 'none'::character varying::text])) AND (surcharge_comparison_policy::text = ANY (ARRAY['before'::character varying::text, 'after'::character varying::text]))", name: "tenant_settings_charge_policies"
@@ -1232,6 +1364,32 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_31_220000) do
     t.index ["channel_id", "event_id"], name: "index_webhook_events_on_channel_id_and_event_id", unique: true
   end
 
+  create_table "work_queues", force: :cascade do |t|
+    t.bigint "tenant_id", null: false
+    t.string "subject", limit: 10, null: false
+    t.integer "position", default: 0, null: false
+    t.boolean "catch_all", default: false, null: false
+    t.boolean "delivers", default: true, null: false
+    t.bigint "segment_id"
+    t.string "name", limit: 100, null: false
+    t.string "order_by", limit: 30, default: "overdue_balance", null: false
+    t.string "order_tiebreak", limit: 30
+    t.integer "lock_minutes", default: 15, null: false
+    t.integer "interval_no_contact_minutes", default: 240, null: false
+    t.integer "interval_third_party_minutes", default: 1440, null: false
+    t.integer "interval_customer_minutes", default: 4320, null: false
+    t.boolean "active", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["segment_id"], name: "index_work_queues_on_segment_id"
+    t.index ["tenant_id", "subject", "catch_all"], name: "index_work_queues_one_catch_all", unique: true, where: "catch_all"
+    t.index ["tenant_id"], name: "index_work_queues_on_tenant_id"
+    t.check_constraint "catch_all OR segment_id IS NOT NULL", name: "work_queues_segment_unless_catch_all"
+    t.check_constraint "interval_no_contact_minutes >= 0 AND interval_third_party_minutes >= 0 AND interval_customer_minutes >= 0", name: "work_queues_intervals"
+    t.check_constraint "lock_minutes >= 1 AND lock_minutes <= 240", name: "work_queues_lock_minutes"
+    t.check_constraint "subject::text = ANY (ARRAY['customers'::character varying::text, 'contracts'::character varying::text])", name: "work_queues_subject"
+  end
+
   add_foreign_key "abatements", "bills"
   add_foreign_key "abatements", "payments"
   add_foreign_key "abatements", "tenants"
@@ -1325,6 +1483,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_31_220000) do
   add_foreign_key "imports", "users", on_delete: :nullify
   add_foreign_key "index_adjustments", "tenants"
   add_foreign_key "index_adjustments", "users", on_delete: :nullify
+  add_foreign_key "instrument_batches", "segments"
+  add_foreign_key "instrument_batches", "task_runs"
+  add_foreign_key "instrument_batches", "tenants"
+  add_foreign_key "instrument_batches", "users", column: "confirmed_by_id"
+  add_foreign_key "instrument_batches", "users", column: "created_by_id"
   add_foreign_key "memberships", "operations"
   add_foreign_key "memberships", "profiles", on_delete: :restrict
   add_foreign_key "memberships", "tenants"
@@ -1341,16 +1504,26 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_31_220000) do
   add_foreign_key "payment_allocations", "bills", on_delete: :restrict
   add_foreign_key "payment_allocations", "payments", on_delete: :restrict
   add_foreign_key "payment_channels", "tenants"
+  add_foreign_key "payment_checkouts", "bills"
   add_foreign_key "payment_checkouts", "customers"
+  add_foreign_key "payment_checkouts", "payment_promises", column: "promise_id"
   add_foreign_key "payment_checkouts", "tenants"
+  add_foreign_key "payment_checkouts", "users", column: "requested_by_id"
   add_foreign_key "payment_events", "payment_accounts", column: "account_id"
   add_foreign_key "payment_events", "payment_instruments", column: "instrument_id"
   add_foreign_key "payment_events", "tenants"
+  add_foreign_key "payment_instruments", "bills"
   add_foreign_key "payment_instruments", "customers"
+  add_foreign_key "payment_instruments", "instrument_batches"
   add_foreign_key "payment_instruments", "payment_accounts", column: "account_id"
   add_foreign_key "payment_instruments", "payment_checkouts", column: "checkout_id"
+  add_foreign_key "payment_instruments", "payment_instruments", column: "replaced_by_id"
+  add_foreign_key "payment_instruments", "payment_promises", column: "promise_id"
   add_foreign_key "payment_instruments", "payments", on_delete: :nullify
   add_foreign_key "payment_instruments", "tenants"
+  add_foreign_key "payment_instruments", "users", column: "approved_by_id"
+  add_foreign_key "payment_instruments", "users", column: "canceled_by_id"
+  add_foreign_key "payment_instruments", "users", column: "requested_by_id"
   add_foreign_key "payment_promise_bills", "bills", on_delete: :restrict
   add_foreign_key "payment_promise_bills", "payment_promises", column: "promise_id", on_delete: :cascade
   add_foreign_key "payment_promises", "contact_attempts", on_delete: :restrict
@@ -1374,6 +1547,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_31_220000) do
   add_foreign_key "profiles", "tenants"
   add_foreign_key "promise_limits", "profiles", on_delete: :cascade
   add_foreign_key "promise_limits", "tiers", on_delete: :cascade
+  add_foreign_key "queue_deliveries", "tenants"
+  add_foreign_key "queue_deliveries", "users"
+  add_foreign_key "queue_deliveries", "users", column: "released_by_id"
+  add_foreign_key "queue_deliveries", "work_queues"
+  add_foreign_key "queue_group_queues", "queue_groups", on_delete: :cascade
+  add_foreign_key "queue_group_queues", "work_queues", on_delete: :cascade
+  add_foreign_key "queue_group_users", "queue_groups", on_delete: :cascade
+  add_foreign_key "queue_group_users", "users"
+  add_foreign_key "queue_groups", "tenants"
+  add_foreign_key "queue_placements", "tenants"
+  add_foreign_key "queue_placements", "work_queues", on_delete: :nullify
+  add_foreign_key "queue_strategies", "users"
   add_foreign_key "reported_surcharges", "bills", on_delete: :cascade
   add_foreign_key "reported_surcharges", "imports", on_delete: :nullify
   add_foreign_key "reported_surcharges", "tenants"
@@ -1394,4 +1579,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_31_220000) do
   add_foreign_key "value_discrepancies", "users", column: "handled_by_id", on_delete: :nullify
   add_foreign_key "webhook_events", "payment_channels", column: "channel_id", on_delete: :restrict
   add_foreign_key "webhook_events", "tenants"
+  add_foreign_key "work_queues", "segments"
+  add_foreign_key "work_queues", "tenants"
 end

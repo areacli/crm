@@ -1,0 +1,35 @@
+<mvc:View controllerName="crm.controller.DesignSystem" xmlns:mvc="sap.ui.core.mvc" xmlns="sap.m" xmlns:f="sap.f" xmlns:card="sap.f.cards" height="100%">
+	<!-- Página de referência do design system (17.4): os controles do catálogo, nos estados, com a camada da marca. Só em desenvolvimento e teste. -->
+	<f:DynamicPage toggleHeaderOnTitleClick="false">
+		<f:title><f:DynamicPageTitle><f:heading><Title text="Design system" level="H2" /></f:heading>
+			<f:actions><Button text="Ação principal" type="Emphasized" /><Button text="Secundária" /><Button text="Excluir" type="Reject" /></f:actions>
+		</f:DynamicPageTitle></f:title>
+		<f:content>
+			<VBox renderType="Bare" class="sapUiSmallMargin">
+				<HBox wrap="Wrap" class="sapUiSmallMarginBottom">
+					<ObjectStatus text="Pago" state="Success" inverted="true" class="sapUiTinyMarginEnd" />
+					<ObjectStatus text="Pendente" state="Warning" inverted="true" class="sapUiTinyMarginEnd" />
+					<ObjectStatus text="Vencido" state="Error" inverted="true" class="sapUiTinyMarginEnd" />
+					<ObjectStatus text="Em negociação" state="Information" inverted="true" class="sapUiTinyMarginEnd" />
+					<ObjectStatus text="Cancelado" state="None" inverted="true" />
+				</HBox>
+				<MessageStrip text="Aviso informativo." type="Information" showIcon="true" class="sapUiTinyMarginBottom" />
+				<MessageStrip text="Erro que bloqueia." type="Error" showIcon="true" class="sapUiSmallMarginBottom" />
+				<f:Card width="16rem" class="sapUiSmallMarginBottom"><f:header><card:NumericHeader title="Vencido" number="R$ 13.657,00" numberSize="S" /></f:header></f:Card>
+				<Label text="Campo" labelFor="campo" required="true" />
+				<Input id="campo" width="20rem" />
+				<Label text="Campo com erro" labelFor="campoComErro" />
+				<Input id="campoComErro" width="20rem" valueState="Error" valueStateText="O valor não é válido." />
+				<Label text="Data" labelFor="data" />
+				<DatePicker id="data" width="12rem" displayFormat="dd/MM/yyyy" />
+				<Table class="sapUiSmallMarginTop" headerText="Tabela">
+					<columns><Column><Text text="Número" /></Column><Column hAlign="End"><Text text="Valor" /></Column><Column><Text text="Situação" /></Column></columns>
+					<items>
+						<ColumnListItem><cells><Text text="NF-0/1" /><Text text="R$ 150,00" /><ObjectStatus text="Pago" state="Success" inverted="true" /></cells></ColumnListItem>
+						<ColumnListItem><cells><Text text="NF-0/2" /><Text text="R$ 42,66" /><ObjectStatus text="Vencido" state="Error" inverted="true" /></cells></ColumnListItem>
+					</items>
+				</Table>
+			</VBox>
+		</f:content>
+	</f:DynamicPage>
+</mvc:View>

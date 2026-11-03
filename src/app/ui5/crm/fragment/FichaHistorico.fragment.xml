@@ -1,0 +1,17 @@
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core">
+	<!-- Aba Histórico (06, R116; 13, R268): mudanças do cadastro e do enquadramento financeiro dos contratos. -->
+	<VBox renderType="Bare">
+		<Title text="{i18n>ficha.historicoDoCadastro}" level="H3" titleStyle="H5" class="sapUiSmallMargin" />
+		<Table items="{dados>/historico_do_cadastro}" fixedLayout="false" noData="{i18n>ficha.historicoDoCadastro.vazio}">
+			<columns><Column><Text text="{i18n>ficha.quando}" /></Column><Column><Text text="{i18n>ficha.mudanca}" /></Column><Column><Text text="{i18n>ficha.quem}" /></Column><Column><Text text="{i18n>ficha.contatos.origem}" /></Column></columns>
+			<items><ColumnListItem><cells><Text text="{dados>quando}" wrapping="false" /><Text text="{dados>mudanca}" /><Text text="{dados>quem}" /><Text text="{dados>origem}" /></cells></ColumnListItem></items>
+		</Table>
+		<VBox visible="{= ${dados>/historico_do_enquadramento}.length > 0 }" renderType="Bare">
+			<Title text="{i18n>ficha.historicoDoEnquadramento}" level="H3" titleStyle="H5" class="sapUiSmallMargin" />
+			<Table items="{dados>/historico_do_enquadramento}" fixedLayout="false">
+				<columns><Column><Text text="{i18n>ficha.contrato}" /></Column><Column><Text text="{i18n>clientes.coluna.enquadramento}" /></Column><Column><Text text="{i18n>ficha.desde}" /></Column></columns>
+				<items><ColumnListItem><cells><Text text="{dados>contrato}" /><Text text="{dados>enquadramento}" /><Text text="{dados>desde}" /></cells></ColumnListItem></items>
+			</Table>
+		</VBox>
+	</VBox>
+</core:FragmentDefinition>

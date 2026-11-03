@@ -1,0 +1,36 @@
+<mvc:View controllerName="crm.controller.Operacao" xmlns:mvc="sap.ui.core.mvc" xmlns="sap.m" xmlns:f="sap.f" xmlns:card="sap.f.cards" height="100%">
+	<!-- Ficha do credenciamento (14, R307, R310): situação com suspender, encerrar e reativar (modal pequeno, com motivo) e as pessoas da operação com o
+	     vínculo neste credor (criar, editar o perfil, desativar). -->
+	<f:DynamicPage toggleHeaderOnTitleClick="false">
+		<f:title><f:DynamicPageTitle>
+			<f:heading><HBox alignItems="Center" renderType="Bare"><Title text="{dados>/nome}" level="H2" class="sapUiSmallMarginEnd" />
+				<ObjectStatus text="{dados>/situacao/texto}" state="{dados>/situacao/estado}" inverted="true" /></HBox></f:heading>
+			<f:expandedContent><Text text="{dados>/subtitulo}" /></f:expandedContent>
+			<f:actions>
+				<HBox items="{path: 'dados>/acoes', templateShareable: false}" renderType="Bare">
+					<Button text="{dados>nome}" type="{= ${dados>perigosa} ? 'Default' : 'Emphasized' }" press=".mudarSituacao" class="sapUiTinyMarginBegin" />
+				</HBox>
+			</f:actions>
+		</f:DynamicPageTitle></f:title>
+		<f:content>
+			<VBox renderType="Bare">
+				<MessageStrip text="{dados>/motivo}" type="{dados>/motivo_tom}" showIcon="true" visible="{= !!${dados>/motivo} }" class="sapUiSmallMarginBottom" />
+				<f:Card>
+					<f:header><card:Header title="{i18n>operacao.pessoas}" subtitle="{i18n>operacao.pessoas.ajuda}" /></f:header>
+					<f:content>
+						<Table items="{path: 'dados>/pessoas', templateShareable: false}" fixedLayout="false" noData="{i18n>operacao.semPessoas}">
+							<columns>
+								<Column><Text text="{i18n>operacao.pessoa}" /></Column><Column><Text text="{i18n>operacao.email}" /></Column><Column><Text text="{i18n>operacao.naOperacao}" /></Column>
+								<Column><Text text="{i18n>operacao.vinculo}" /></Column><Column hAlign="End"><Text text="" /></Column>
+							</columns>
+							<items><ColumnListItem><cells>
+								<Text text="{dados>nome}" /><Text text="{dados>email}" /><Text text="{dados>na_operacao}" /><Text text="{dados>vinculo}" />
+								<Button icon="sap-icon://overflow" type="Transparent" tooltip="{i18n>lista.acoes}" press=".acoes" visible="{= ${dados>ativa} &amp;&amp; ${dados>/pode_vincular} }" />
+							</cells></ColumnListItem></items>
+						</Table>
+					</f:content>
+				</f:Card>
+			</VBox>
+		</f:content>
+	</f:DynamicPage>
+</mvc:View>

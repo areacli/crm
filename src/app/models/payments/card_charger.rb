@@ -84,7 +84,7 @@ module Payments
 
       def create_attempt(checkout, account, custom_id, count)
         PaymentInstrument.create!(tenant: checkout.tenant, account: account, provider: account.provider, customer: checkout.customer, checkout: checkout, kind: "card", amount_cents: checkout.amount_cents,
-                                  due_on: Date.current, custom_id: custom_id, reference_type: checkout.reference_type, reference_id: checkout.reference_id, payer_name: checkout.payer_name,
+                                  due_on: Date.current, custom_id: custom_id, bill_id: checkout.bill_id, promise_id: checkout.promise_id, payer_name: checkout.payer_name,
                                   payer_document: checkout.payer_document, payer_address: checkout.payer_address, attempts: 1, response_summary: { "installments" => count })
       end
 

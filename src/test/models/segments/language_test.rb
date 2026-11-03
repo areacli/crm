@@ -197,15 +197,27 @@ class SegmentsLanguageTest < ActiveSupport::TestCase
     assert_equal [ ana.id ], ids(@alfa, expr("customers", { "path" => "overdue_days", "op" => "gt", "value" => 90 }, { "path" => "person_type", "op" => "eq", "value" => "person" }))
   end
 
-  test "R267: o enquadramento escolhe o primeiro item que casa; quem não casa fica no padrão; sem título em cobrança fica fora" do
+  test "R267, revisão 6: o enquadramento escolhe o primeiro item que casa; quem não casa fica no padrão; não há regra de entrada" do
     long = make_contract(@alfa, "C-L", bills: [ { overdue: 200 } ])
     short = make_contract(@alfa, "C-S", bills: [ { overdue: 10 } ])
-    make_contract(@alfa, "C-P", bills: [ { overdue: 10, paid: 100_000 } ]).bills.update_all(status: "paid")
+    paid = make_contract(@alfa, "C-P", bills: [ { overdue: 10, paid: 100_000 } ])
+    paid.bills.update_all(status: "paid")
     entries = [ [ 11, expr("contracts", { "path" => "overdue_days", "op" => "gt", "value" => 90 }) ], [ 12, expr("contracts", { "path" => "overdue_days", "op" => "gt", "value" => 0 }) ] ]
     rows = run_query(Segments::Compiler.new(@alfa).classify(entries, default_id: 99)).to_h { |row| [ row["contract_id"], row["tier_id"] ] }
-    assert_equal({ long.id => 11, short.id => 12 }, rows)
+    assert_equal({ long.id => 11, short.id => 12, paid.id => 99 }, rows)
     rows = run_query(Segments::Compiler.new(@alfa).classify([], default_id: 99)).to_h { |row| [ row["contract_id"], row["tier_id"] ] }
-    assert_equal({ long.id => 99, short.id => 99 }, rows)
+    assert_equal({ long.id => 99, short.id => 99, paid.id => 99 }, rows)
+  end
+
+  test "13, revisão 6: \"em cobrança\" separa quem tem título em cobrança, vencido ou a vencer" do
+    overdue = make_contract(@alfa, "C-V", bills: [ { overdue: 10 } ])
+    due = make_contract(@alfa, "C-AV", bills: [ { overdue: -5 } ])
+    paid = make_contract(@alfa, "C-PG", bills: [ { overdue: 10 } ])
+    paid.bills.update_all(status: "paid")
+    entries = [ [ 1, expr("contracts", { "path" => "in_collection", "op" => "is" }) ] ]
+    rows = run_query(Segments::Compiler.new(@alfa).classify(entries, default_id: 0)).to_h { |row| [ row["contract_id"], row["tier_id"] ] }
+    assert_equal({ overdue.id => 1, due.id => 1, paid.id => 0 }, rows)
+    assert_equal [ paid.id ], ids(@alfa, expr("contracts", { "path" => "in_collection", "op" => "is", "negate" => true }))
   end
 
   test "R288: conferir conta o total e cada condição sozinha" do

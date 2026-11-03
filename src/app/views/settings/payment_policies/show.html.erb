@@ -1,9 +1,11 @@
 <% content_for :title, "Configuração · Políticas de pagamento" %>
-<%= pagina "Políticas de pagamento", subtitulo: "Como o pagamento baixa o título, o título retirado e o mês do estorno. Cada credor tem as suas." %>
+<%= pagina "Políticas de pagamento", subtitulo: "Como o pagamento baixa o título, o título retirado, o mês do estorno e a reemissão de instrumentos. Cada credor tem as suas." %>
 <%= render "settings/modelo" %>
 
 <% groups = { "partial_payment_policy" => "Pagamento menor que o saldo", "withdrawn_payment_policy" => "Pagamento de título retirado",
-              "withdrawn_reversal_policy" => "Título retirado, quitado e depois estornado", "reversal_month_policy" => "Mês em que o estorno desconta do valor recuperado" } %>
+              "withdrawn_reversal_policy" => "Título retirado, quitado e depois estornado", "reversal_month_policy" => "Mês em que o estorno desconta do valor recuperado",
+              "instrument_reissue_policy" => "Instrumento cancelado porque o objeto mudou de valor ou de vencimento",
+              "agreement_issue_all_policy" => "Emitir todas as parcelas de um acordo de uma vez" } %>
 <% @settings.each do |setting| %>
   <% tenant = setting.tenant %>
   <% error = @error if @error && @error[:tenant_id] == tenant.id %>

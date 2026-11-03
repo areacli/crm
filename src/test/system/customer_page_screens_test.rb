@@ -16,10 +16,7 @@ class CustomerPageScreensSystemTest < ApplicationSystemTestCase
     @alfa.setting.update!(operation_exclusive: false)
     distributor.distribute(tenant: @alfa, operation: recupera, contract: @first, exposure: "all", starts_on: Date.current - 3)
     distributor.distribute(tenant: @alfa, operation: cobra, contract: @first, exposure: "overdue", starts_on: Date.current - 1)
-    visit new_session_path
-    fill_in "E-mail", with: users(:joana).email_address
-    fill_in "Senha", with: "senha-de-teste-1"
-    click_button "Entrar"
+    entrar_pela_spa(users(:joana).email_address, "senha-de-teste-1")
     assert_selector "header .usuario"
   end
 

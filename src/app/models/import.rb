@@ -47,6 +47,7 @@ class Import < ApplicationRecord
 
       Rails.cache.write("import-broadcast:#{id}", progress_percent, expires_in: 1.hour)
       ImportsChannel.broadcast_to(tenant, { event: "import-changed", import_id: id, status: status, progress_percent: progress_percent })
+      Live.publish("importacoes", id, tenant_id: tenant_id)
     end
 
     def progress_advanced?

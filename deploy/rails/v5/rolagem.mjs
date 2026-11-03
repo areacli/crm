@@ -14,8 +14,8 @@ await pagina.click('button[type=submit]');
 await pagina.waitForURL(BASE + '/');
 
 const rotas = ['/', '/clientes', '/acionamentos', '/importacoes', '/importacoes/nova', '/importacoes/nova?kind=payments', '/divergencias-de-valor', '/acordos', '/acordos/pendentes',
-    '/promessas/pendentes', '/estornos-a-espera', '/arquivo-de-acordos', '/guarda-de-dados', '/configuracao/carteira', '/configuracao/canais-de-recebimento',
-    '/configuracao/politicas-de-pagamento', '/configuracao/contas-de-pagamento', '/configuracao/segmentos', '/configuracao/promessas-e-acordos', '/configuracao/indices',
+    '/promessas/pendentes', '/estornos-a-espera', '/arquivo-de-acordos', '/guarda-de-dados', '/configuracao/carteira', '/configuracao/metodos-de-recebimento',
+    '/configuracao/politicas-de-pagamento', '/configuracao/segmentos', '/configuracao/promessas-e-acordos', '/configuracao/indices',
     '/configuracao/resultados-de-acionamento', '/configuracao/dados-do-credor', '/usuarios', '/perfis', '/importacoes/nova?kind=reversals'];
 await pagina.goto(BASE + '/clientes');
 await pagina.locator('tbody tr').first().getByRole('link').first().click();

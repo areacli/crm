@@ -4,6 +4,11 @@ module Acessibilidade
   TAGS = %w[wcag2a wcag2aa wcag21a wcag21aa wcag22aa].freeze
   PRAZO_DO_AXE = 30
 
+  # Exceções nomeadas dos controles do OpenUI5 (decisão 0025): o nó da violação que está dentro do controle listado não conta.
+  def self.excecoes
+    @excecoes ||= YAML.load_file(Rails.root.join("test/support/axe_excecoes.yml")).map { |excecao| excecao.slice("regra", "controle") }
+  end
+
   def self.fonte_do_axe
     @fonte_do_axe ||= Pathname(Gem.loaded_specs.fetch("axe-core-api").full_gem_path).join("node_modules/axe-core/axe.min.js").read
   end
@@ -13,7 +18,10 @@ module Acessibilidade
     # O axe numa página grande, com a suíte em paralelo e a máquina carregada, passa da espera padrão do Capybara: prazo próprio.
     resultado = using_wait_time(PRAZO_DO_AXE) { page.evaluate_async_script(<<~JS) }
       const feito = arguments[arguments.length - 1]
-      axe.run(#{contexto}, { runOnly: { type: "tag", values: #{TAGS.to_json} } }).then((r) => feito(JSON.stringify(r.violations.map((v) => ({
+      const excecoes = #{Acessibilidade.excecoes.to_json}
+      const excecao = (regra, no) => excecoes.some((e) => e.regra === regra && document.querySelector(no.target.join(" "))?.closest(e.controle))
+      axe.run(#{contexto}, { runOnly: { type: "tag", values: #{TAGS.to_json} } }).then((r) => feito(JSON.stringify(r.violations
+        .map((v) => ({ ...v, nodes: v.nodes.filter((n) => !excecao(v.id, n)) })).filter((v) => v.nodes.length > 0).map((v) => ({
         id: v.id, impacto: v.impact, ajuda: v.help,
         nos: v.nodes.slice(0, 3).map((n) => n.target.join(" ") + " :: " + (n.failureSummary || "").split("\\n")[1])
       })))))

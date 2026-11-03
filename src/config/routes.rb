@@ -5,7 +5,12 @@ Rails.application.routes.draw do
   # Estado de saúde para o balanceador e o monitoramento: 200 se a aplicação sobe sem exceção.
   get "up" => "rails/health#show", as: :rails_health_check
 
-  root "summaries#show"
+  # A casca da SPA (decisão 0025): o endereço da tela fica no hash (`/#/clientes/123`). Os módulos da aplicação OpenUI5 vêm de /crm/<versão>/.
+  root "shell#show"
+  get "crm/:versao/*caminho" => "ui5_app#show", as: :ui5_app, format: false
+  # O resumo em HTML, até ser portado para a SPA (fase C do plano).
+  get "resumo" => "summaries#show", as: :summary
+  resource :menu, only: :show
 
   # Confirmação curta de ações sem dados, no modal do painel (decisão 0022): o token assinado leva o título, a mensagem e o destino.
   get "confirmacao/:token", to: "confirmations#show", as: :confirmation, constraints: { token: %r{[^/]+} }, format: false
@@ -137,12 +142,14 @@ Rails.application.routes.draw do
     resource :tenant_registry, path: "dados-do-credor", only: %i[show update]
     resource :retention_period, path: "prazo-de-guarda", only: :update
     resource :portfolio, path: "carteira", only: %i[show update]
-    resources :channels, path: "canais-de-recebimento", path_names: { new: "novo", edit: "editar" }, except: :show do
+    # Métodos de recebimento (16, R373; antes "canais de recebimento"): uma tela só, com as integrações no detalhe de cada método.
+    resources :channels, path: "metodos-de-recebimento", path_names: { new: "novo", edit: "editar" }, except: :show do
       resource :webhook_secret, path: "segredo-do-webhook", only: :create, module: :channels
     end
     resource :payment_policy, path: "politicas-de-pagamento", only: %i[show update]
-    # Contas de pagamento (12): fornecedor de boleto, Pix e cartão por modalidade e ambiente. Não há rota de emissão de instrumento (R270).
-    resources :payment_accounts, path: "contas-de-pagamento", path_names: { new: "nova", edit: "editar" }, except: :show do
+    # Integrações (12, "contas de pagamento"): fornecedor de boleto, Pix e cartão por meio de pagamento e ambiente. A lista é o detalhe de cada
+    # método de recebimento (16, R373): não há página própria.
+    resources :payment_accounts, path: "integracoes", path_names: { new: "nova", edit: "editar" }, except: %i[index show] do
       resource :activation, path: "ativacao", only: %i[create destroy], module: :payment_accounts
       resource :webhook_secret, path: "segredo-do-webhook", only: :create, module: :payment_accounts
       resource :connection_test, path: "teste-de-conexao", only: :create, module: :payment_accounts
@@ -187,7 +194,29 @@ Rails.application.routes.draw do
     end
   end
 
-  # Operações de cobrança (14; padrões de interface, revisão 22): área própria do menu, fora da configuração. Os controladores seguem no módulo
+  # Filas de trabalho (15): o "Próximo" e o "Devolver" do operador (permissão 7); a visão das filas, a configuração dos enquadramentos e dos
+  # grupos e a estratégia de cada operador (permissão 21). As rotas fixas vêm antes da ficha de uma fila (`/filas/:id`).
+  post "fila/proximo", to: "queue_deliveries#create", as: :next_delivery
+  delete "fila/entrega", to: "queue_deliveries#destroy", as: :current_delivery
+  scope "filas", as: :queues do
+    resources :work_queues, path: "enquadramento", module: :settings, path_names: { new: "incluir", edit: "editar" }, only: %i[index new create edit update destroy] do
+      member { post :move, path: "mover" }
+      collection do
+        get :review, path: "conferencia", action: :review_show
+        post :confirm, path: "confirmar"
+      end
+    end
+    resources :queue_settings, path: "ajustes", module: :settings, path_names: { edit: "editar" }, only: %i[edit update]
+    resources :queue_groups, path: "grupos", module: :settings, path_names: { new: "novo", edit: "editar" }, only: %i[index new create edit update destroy]
+    resources :queue_strategies, path: "estrategias", module: :settings, path_names: { edit: "editar" }, only: %i[edit update]
+    resources :releases, path: "entregas", module: :queue_boards, only: [] do
+      member { post :create, path: "liberar" }
+    end
+    get "", to: "queue_boards#index", as: :board
+    get ":id", to: "queue_boards#show", as: :board_queue, constraints: { id: /\d+/ }
+  end
+
+  # Operações (14; padrões de interface, revisões 22 e 30): área própria do menu, no grupo "Distribuição do trabalho", fora da configuração. Os controladores seguem no módulo
   # Settings; as rotas da trilha e do enquadramento vêm antes das do credenciamento, que usa `/operacoes/:id`.
   scope "operacoes", module: :settings, as: :settings do
     # Enquadramento da distribuição (14, R342 a R347): itens por posição; cada mudança vai à conferência do impacto antes de valer.

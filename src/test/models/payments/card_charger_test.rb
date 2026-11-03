@@ -76,7 +76,7 @@ class PaymentsCardChargerTest < ActiveSupport::TestCase
   test "tentativa em curso com outro token barra a seguinte (processing)" do
     custom_id = Digest::SHA256.hexdigest("#{@checkout.id}:tok-em-curso").first(32)
     PaymentInstrument.create!(tenant: @alfa, account: Payments::Checkouts.card_account(@alfa, "production"), provider: "fake", checkout: @checkout, kind: "card", amount_cents: 99_900, due_on: Date.current,
-                              custom_id: custom_id, state: "emitting")
+                              custom_id: custom_id, state: "emitting", bill_id: @checkout.bill_id)
     assert_equal :processing, charge("tok-em-curso").kind
     assert_equal :processing, charge("tok-outro").kind
     assert_equal 0, charges_in_provider
@@ -84,7 +84,7 @@ class PaymentsCardChargerTest < ActiveSupport::TestCase
 
   test "tentativa em curso há mais de 5 minutos vira não confirmada e o link não aceita mais cartão" do
     attempt = PaymentInstrument.create!(tenant: @alfa, account: Payments::Checkouts.card_account(@alfa, "production"), provider: "fake", checkout: @checkout, kind: "card", amount_cents: 99_900,
-                                        due_on: Date.current, custom_id: "a" * 32, state: "emitting")
+                                        due_on: Date.current, custom_id: "a" * 32, state: "emitting", bill_id: @checkout.bill_id)
     attempt.update_columns(updated_at: 6.minutes.ago)
     assert_equal :unconfirmed, charge("tok-novo").kind
     assert @checkout.reload.state_card_unconfirmed?

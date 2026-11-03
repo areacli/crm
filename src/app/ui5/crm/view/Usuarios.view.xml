@@ -1,0 +1,41 @@
+<mvc:View controllerName="crm.controller.Usuarios" xmlns:mvc="sap.ui.core.mvc" xmlns="sap.m" xmlns:f="sap.f" xmlns:core="sap.ui.core" height="100%">
+	<!-- Usuários (R36, R40; modelo Lista): uma linha por vínculo; criar no painel lateral (a senha temporária aparece uma vez); editar o perfil em modal
+	     pequeno; desativar e reativar o acesso com confirmação curta. -->
+	<f:FlexibleColumnLayout id="colunas" layout="OneColumn" backgroundDesign="Solid">
+		<f:beginColumnPages>
+			<f:DynamicPage toggleHeaderOnTitleClick="false" fitContent="true">
+				<f:title><f:DynamicPageTitle>
+					<f:heading><Title text="{i18n>usuarios.titulo}" level="H2" /></f:heading>
+					<f:expandedContent><Text text="{i18n>usuarios.subtitulo}" /></f:expandedContent>
+					<f:actions><Button text="{i18n>usuarios.novo}" type="Emphasized" press=".novo" /></f:actions>
+				</f:DynamicPageTitle></f:title>
+				<f:header>
+					<f:DynamicPageHeader pinnable="false">
+						<FlexBox wrap="Wrap" alignItems="End" renderType="Bare" class="filtros">
+							<VBox><Label text="{i18n>usuarios.busca}" labelFor="busca" /><SearchField id="busca" value="{filtro>/q}" liveChange=".buscarAoDigitar" search=".buscar" width="18rem" placeholder="{i18n>usuarios.busca}" /></VBox>
+							<VBox visible="{dados>/varios_credores}"><Label text="{i18n>clientes.credor}" labelFor="credor" />
+								<Select id="credor" selectedKey="{filtro>/tenant}" change=".buscar" items="{path: 'dados>/credores', templateShareable: false}"><core:Item key="{dados>id}" text="{dados>nome}" /></Select></VBox>
+						</FlexBox>
+					</f:DynamicPageHeader>
+				</f:header>
+				<f:content>
+					<VBox renderType="Bare">
+						<Table items="{dados>/linhas}" sticky="ColumnHeaders" fixedLayout="false" noData="{i18n>usuarios.vazio}">
+							<columns>
+								<Column><Text text="{i18n>enquadramento.nome}" /></Column><Column><Text text="{i18n>operacao.email}" /></Column>
+								<Column visible="{dados>/varios_credores}"><Text text="{i18n>clientes.credor}" /></Column><Column><Text text="{i18n>operacao.perfil}" /></Column>
+								<Column><Text text="{i18n>importacoes.situacao}" /></Column><Column hAlign="End"><Text text="" /></Column>
+							</columns>
+							<items><ColumnListItem><cells>
+								<Link text="{dados>nome}" press=".abrir" /><Text text="{dados>email}" /><Text text="{dados>credor}" /><Text text="{dados>perfil}" />
+								<ObjectStatus text="{dados>situacao/texto}" state="{dados>situacao/estado}" inverted="true" />
+								<Button icon="sap-icon://overflow" type="Transparent" tooltip="{i18n>lista.acoes}" press=".acoes" />
+							</cells></ColumnListItem></items>
+						</Table>
+						<core:Fragment fragmentName="crm.fragment.Paginacao" type="XML" />
+					</VBox>
+				</f:content>
+			</f:DynamicPage>
+		</f:beginColumnPages>
+	</f:FlexibleColumnLayout>
+</mvc:View>

@@ -1,0 +1,25 @@
+<mvc:View controllerName="crm.controller.Lote" xmlns:mvc="sap.ui.core.mvc" xmlns="sap.m" xmlns:f="sap.f" xmlns:card="sap.f.cards" height="100%">
+	<!-- Lote de distribuição (14, R316): conferindo e confirmando ao vivo, o que vai e o que fica de fora; confirmar ou descartar a conferência. -->
+	<f:DynamicPage toggleHeaderOnTitleClick="false">
+		<f:title><f:DynamicPageTitle>
+			<f:heading><Title text="{dados>/titulo}" level="H2" /></f:heading>
+			<f:expandedContent><Text text="{dados>/subtitulo}" /></f:expandedContent>
+			<f:actions>
+				<Button text="{i18n>lote.confirmar}" type="Emphasized" visible="{dados>/pode_confirmar}" press=".confirmar" />
+				<Button text="{i18n>lote.descartar}" visible="{dados>/pode_confirmar}" press=".descartar" />
+			</f:actions>
+		</f:DynamicPageTitle></f:title>
+		<f:content>
+			<VBox renderType="Bare">
+				<HBox alignItems="Center" visible="{dados>/rodando}" renderType="Bare"><BusyIndicator size="1.25rem" class="sapUiTinyMarginEnd" /><Text text="{dados>/andamento}" /></HBox>
+				<MessageStrip text="{dados>/falha}" type="Error" showIcon="true" visible="{= !!${dados>/falha} }" />
+				<f:Card visible="{= !!${dados>/resumo} }" class="cartao-formulario">
+					<f:header><card:Header title="{= ${dados>/confirmado} ? ${i18n>lote.confirmado} : ${i18n>lote.oQueVai} }" /></f:header>
+					<f:content>
+						<VBox items="{path: 'dados>/resumo', templateShareable: false}" renderType="Bare" class="sapUiSmallMargin"><Text text="{dados>}" class="sapUiTinyMarginBottom" /></VBox>
+					</f:content>
+				</f:Card>
+			</VBox>
+		</f:content>
+	</f:DynamicPage>
+</mvc:View>

@@ -1,0 +1,35 @@
+<% content_for :title, "Filas · Grupos" %>
+<%= pagina "Grupos", subtitulo: "Os usuários de um grupo recebem, pelo \"Próximo\", das filas ligadas a ele. A estratégia de cada operador diz de qual fila sai cada entrega." do %>
+  <%= abrir_painel "Criar grupo", new_queues_queue_group_path(tenant_id: @tenant.id), tamanho: "small" %>
+<% end %>
+<%= render "settings/modelo" %>
+<%= render "queue_boards/credores", rota: :queues_queue_groups_path %>
+<section class="cartao" aria-labelledby="grupos">
+  <header><h2 id="grupos"><%= @tenant.name %></h2></header>
+  <% if @groups.empty? %>
+    <p class="vazio">Nenhum grupo. Crie um grupo e ligue-o às filas para que os operadores recebam pelo "Próximo".</p>
+  <% else %>
+    <div class="tabela" tabindex="0">
+      <table>
+        <caption class="apenas-leitor-de-tela">Grupos de usuários e as filas ligadas</caption>
+        <thead><tr><th scope="col">Grupo</th><th scope="col">Usuários</th><th scope="col">Filas, em ordem</th><th scope="col"><span class="apenas-leitor-de-tela">Ações</span></th></tr></thead>
+        <tbody>
+          <% @groups.each do |group| %>
+            <tr>
+              <th scope="row"><%= group.name %></th>
+              <td><%= safe_join(group.users.sort_by(&:name).map { |user| abrir_painel(user.name, edit_queues_queue_strategy_path(user, tenant_id: @tenant.id), tamanho: "small", title: "Estratégia de #{user.name}", data: { variant: "link" }) }, ", ") %></td>
+              <td><%= group.work_queues.map(&:name).join(" → ").presence || "—" %></td>
+              <td data-acoes>
+                <%= menu_de_linha("grupo-#{group.id}", "Ações de #{group.name}") do %>
+                  <%= abrir_painel "Editar", edit_queues_queue_group_path(group), tamanho: "small" %>
+                  <%= button_to "Excluir", queues_queue_group_path(group), method: :delete, data: { variant: "danger-outline" } %>
+                <% end %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+    <p><small>Clique no nome de um usuário para ver e mudar a estratégia dele entre as filas.</small></p>
+  <% end %>
+</section>

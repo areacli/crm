@@ -1,42 +1,86 @@
-<%# Trecho que o htmx refaz a cada busca: tabela, contagem e paginação. %>
+<%# Trecho que o htmx refaz a cada busca: tabela, contagem e paginação. Uma linha por método de recebimento (16, R373); o detalhe, pela seta,
+    mostra as integrações dele (antes "contas de pagamento"), só a quem tem a 14 no credor do método. A integração ativa é única por credor,
+    meio de pagamento e ambiente, em qualquer método (12, R260). %>
 <div id="resultado" aria-live="polite">
   <% if @channels.empty? %>
-    <p class="vazio">Nenhum canal cadastrado.</p>
+    <p class="vazio">Nenhum método de recebimento cadastrado.</p>
   <% else %>
     <div class="tabela" tabindex="0" data-fixa>
-      <table>
-        <caption class="apenas-leitor-de-tela">Canais de recebimento</caption>
+      <table data-detalhes>
+        <caption class="apenas-leitor-de-tela">Métodos de recebimento</caption>
         <thead>
           <tr>
-            <th scope="col">Código</th>
+            <th scope="col"><%= alternar_todos_os_detalhes %>Código</th>
             <th scope="col">Descrição</th>
             <% if @several_tenants %><th scope="col">Credor</th><% end %>
             <th scope="col">Tipo</th>
+            <th scope="col" data-numerico>Integrações</th>
             <th scope="col">Webhook</th>
             <th scope="col">Situação</th>
             <th scope="col"><span class="apenas-leitor-de-tela">Ações</span></th>
           </tr>
         </thead>
         <tbody>
+          <% columns = @several_tenants ? 8 : 7 %>
           <% @channels.each do |channel| %>
+            <% detail_id = "detalhe-metodo-#{channel.id}" %>
+            <% editable = @editable_tenant_ids.include?(channel.tenant_id) %>
+            <% financial = @financial_tenant_ids.include?(channel.tenant_id) %>
+            <% accounts = financial ? channel.payment_accounts.sort_by { |account| [ account.active? ? 0 : 1, account.modality, account.environment ] } : [] %>
             <tr>
-              <th scope="row"><%= link_to channel.code, edit_settings_channel_path(channel) %></th>
+              <th scope="row">
+                <% if financial %><%= alternar_detalhe(detail_id, "método #{channel.code}") %><% end %>
+                <%= editable ? link_to(channel.code, edit_settings_channel_path(channel)) : channel.code %>
+              </th>
               <td><%= channel.description %></td>
               <% if @several_tenants %><td><%= channel.tenant.name %></td><% end %>
               <td><%= t("payments.channels.kinds.#{channel.kind}") %></td>
+              <td data-numerico><%= financial ? channel.payment_accounts.size : "—" %></td>
               <td><%= channel.webhook_enabled? ? "Ativo" : "Sem segredo" %></td>
               <td><%= channel.active? ? situacao("Ativo", tom: :success) : situacao("Desativado", tom: :neutral) %></td>
               <td data-acoes>
-                <%= menu_de_linha("canal-#{channel.id}", "Ações do canal #{channel.code}") do %>
-                  <%= link_to "Abrir canal", edit_settings_channel_path(channel), class: "botao" %>
-                  <%= confirmar_no_painel "Gerar novo segredo", titulo: "Gerar um novo segredo?", mensagem: "O segredo atual, se houver, deixa de valer na hora: o provedor precisa ser atualizado com o novo.", acao: "Gerar novo segredo", url: settings_channel_webhook_secret_path(channel), perigoso: false %>
+                <% if editable %>
+                  <%= menu_de_linha("metodo-#{channel.id}", "Ações do método #{channel.code}") do %>
+                    <%= link_to "Abrir método", edit_settings_channel_path(channel), class: "botao" %>
+                    <%= confirmar_no_painel "Gerar novo segredo", titulo: "Gerar um novo segredo?", mensagem: "O segredo atual, se houver, deixa de valer na hora: o provedor precisa ser atualizado com o novo.", acao: "Gerar novo segredo", url: settings_channel_webhook_secret_path(channel), perigoso: false %>
+                  <% end %>
                 <% end %>
               </td>
             </tr>
+            <% if financial %>
+              <%= detalhe_da_linha(detail_id, columns) do %>
+                <% if accounts.empty? %>
+                  <p>Nenhuma integração com fornecedor: este método recebe só pela planilha de pagamentos. <%= link_to "Criar integração", new_settings_payment_account_path(tenant_id: channel.tenant_id) %></p>
+                <% else %>
+                  <table>
+                    <caption>Integrações do método <%= channel.code %></caption>
+                    <thead>
+                      <tr>
+                        <th scope="col">Apelido</th><th scope="col">Meio de pagamento</th><th scope="col">Fornecedor</th><th scope="col">Ambiente</th>
+                        <th scope="col">Certificado</th><th scope="col">Último teste</th><th scope="col">Situação</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <% accounts.each do |account| %>
+                        <tr>
+                          <th scope="row"><%= link_to account.nickname, edit_settings_payment_account_path(account) %></th>
+                          <td><%= t("payments.accounts.modalities.#{account.modality}") %></td>
+                          <td><%= provider_name(account.provider) %></td>
+                          <td><%= t("payments.accounts.environments.#{account.environment}") %></td>
+                          <td><%= account.certificate_expires_on ? "vence em #{date_br(account.certificate_expires_on)}" : "—" %></td>
+                          <td><%= account.last_test_status ? "#{account.last_test_status == 'ok' ? 'Boa' : 'Falhou'}, #{datetime_br(account.last_tested_at)}" : "Nunca testada" %></td>
+                          <td><%= account.active? ? situacao("Ativa", tom: :success) : situacao("Desativada", tom: :neutral) %></td>
+                        </tr>
+                      <% end %>
+                    </tbody>
+                  </table>
+                <% end %>
+              <% end %>
+            <% end %>
           <% end %>
         </tbody>
       </table>
     </div>
-    <%= render "shared/paginacao", pagination: @pagination, unit: "canais", path: ->(page) { settings_channels_path(request.query_parameters.merge("page" => page)) } %>
+    <%= render "shared/paginacao", pagination: @pagination, unit: "métodos", path: ->(page) { settings_channels_path(request.query_parameters.merge("page" => page)) } %>
   <% end %>
 </div>

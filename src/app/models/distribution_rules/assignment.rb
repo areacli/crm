@@ -1,5 +1,5 @@
 module DistributionRules
-  # O primeiro item do enquadramento da distribuição que cada contrato com título em cobrança atende (14, R342, R343), numa tabela temporária
+  # O primeiro item do enquadramento da distribuição que cada contrato atende (sem regra de entrada, 13, revisão 6) (14, R342, R343), numa tabela temporária
   # `dist_calc (contract_id, item_key)`; 0 é a equipe do credor. O cálculo é o do compilador da linguagem (decisão 0023).
   module Assignment
     module_function

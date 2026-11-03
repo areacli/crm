@@ -152,7 +152,7 @@ namespace :crm do
     methods = %w[pix boleto cartão\ de\ crédito transferência]
     payments_path = Rails.root.join("tmp", "pagamentos-#{tenant.id}.csv").to_s
     File.open(payments_path, "wb") do |file|
-      file.write "canal;identificador;documento;titulo;data_pagamento;valor;meio\n"
+      file.write "metodo_recebimento;identificador;documento;titulo;data_pagamento;valor;meio\n"
       count.times do |index|
         amount = 10_000 + ((index * 7919) % 200_000)
         # 60% quitam, 20% parciais, 10% a mais, 10% de título inexistente.
@@ -176,7 +176,7 @@ namespace :crm do
     # Estornos de pagamentos que quitaram (índice múltiplo de 10), 30% do valor de cada um.
     reversals_path = Rails.root.join("tmp", "estornos-#{tenant.id}.csv").to_s
     File.open(reversals_path, "wb") do |file|
-      file.write "canal;identificador_pagamento;identificador_estorno;data_estorno;valor;motivo\n"
+      file.write "metodo_recebimento;identificador_pagamento;identificador_estorno;data_estorno;valor;motivo\n"
       reversal_count.times do |position|
         index = position * 10
         amount = 10_000 + ((index * 7919) % 200_000)
@@ -601,7 +601,7 @@ namespace :crm do
     numbers = Bill.where(id: valuations.map(&:first)).pluck(:id, :number, :customer_id).to_h { |id, number, customer| [ id, [ number, customer ] ] }
     documents = Customer.where(id: numbers.values.map(&:last)).pluck(:id, :document).to_h
     File.open(path, "wb") do |file|
-      file.write "canal;identificador;documento;titulo;data_pagamento;valor;meio;estado_final\n"
+      file.write "metodo_recebimento;identificador;documento;titulo;data_pagamento;valor;meio;estado_final\n"
       valuations.each_with_index do |(bill_id, total, principal), index|
         value = case index % 20 when 0..11 then total when 12..16 then total / 2 else principal end
         number, customer = numbers.fetch(bill_id)
@@ -706,7 +706,7 @@ namespace :crm do
     direct_rows = Bill.where(tenant_id: t).where("bills.customer_id > ?", first_ids.last).joins(:customer).order("bills.id").limit(direct).pluck(:number, "customers.document", :amount_cents).map { |n, d, c| { "number" => n, "document" => d, "total" => c } }
     pay_date = (Date.current - 6).strftime("%d/%m/%Y")
     File.open(path, "wb") do |file|
-      file.write "canal;identificador;documento;titulo;data_pagamento;valor;meio\n"
+      file.write "metodo_recebimento;identificador;documento;titulo;data_pagamento;valor;meio\n"
       (promise_rows.map { |row| [ row, "pix" ] } + direct_rows.map { |row| [ row, "boleto" ] }).each_with_index do |(row, method), index|
         file.write [ channel.code, "ID-#{index}", row.fetch("document"), row.values.first, pay_date, Money.format(row.values.last.to_i), method ].join(";") + "\n"
       end
@@ -815,7 +815,7 @@ namespace :crm do
     rows = Bill.where(tenant_id: t, kind: "agreement").where("bills.number like '%-02'").joins(:customer).order("bills.id").limit(payments).pluck(:number, "customers.document").map { |number, document| { "number" => number, "document" => document } }
     pay_date = Date.current.strftime("%d/%m/%Y")
     File.open(path, "wb") do |file|
-      file.write "canal;identificador;documento;titulo;data_pagamento;valor;meio\n"
+      file.write "metodo_recebimento;identificador;documento;titulo;data_pagamento;valor;meio\n"
       rows.each_with_index { |row, index| file.write [ channel.code, "AG-#{index}", row["document"], row["number"], pay_date, "300,00", "pix" ].join(";") + "\n" }
     end
     import = Portfolio::ImportService.new.start(tenant: tenant, user: user, file: path, mode: :incremental, kind: "payments")
@@ -828,7 +828,7 @@ namespace :crm do
     # (N10) e reavaliam os acordos em lotes.
     reversal_path = Rails.root.join("tmp", "estornos-acordos-#{t}.csv").to_s
     File.open(reversal_path, "wb") do |file|
-      file.write "canal;identificador_pagamento;identificador_estorno;data_estorno;valor;motivo\n"
+      file.write "metodo_recebimento;identificador_pagamento;identificador_estorno;data_estorno;valor;motivo\n"
       rows.size.times { |index| file.write [ channel.code, "AG-#{index}", "EST-#{index}", pay_date, "300,00", "contestação" ].join(";") + "\n" }
     end
     reversal_import = Portfolio::ImportService.new.start(tenant: tenant, user: user, file: reversal_path, mode: :incremental, kind: "reversals")

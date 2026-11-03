@@ -1,0 +1,8 @@
+<%# Faixa da entrega (15, R353, R354): na ficha do cliente entregue pelo "Próximo" (ou do contrato, pela ficha do responsável financeiro). Local: delivery. %>
+<%= aviso(tom: :info) do %>
+  <p>
+    Da fila <strong><%= delivery.work_queue.name %></strong> · travado para você até <%= l(delivery.locked_until, format: :short) %>.
+    Registrar um acionamento encerra a entrega.
+  </p>
+  <div class="acoes"><%= button_to "Devolver", current_delivery_path, method: :delete, data: { variant: "secondary", size: "small" } %></div>
+<% end %>

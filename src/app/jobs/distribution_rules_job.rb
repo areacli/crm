@@ -8,5 +8,6 @@ class DistributionRulesJob < ApplicationJob
     token ? DistributionRules::Review.compute(tenant, token) : DistributionRules::Recalculation.new(tenant, actor: actor).apply
   ensure
     DistributionsChannel.broadcast_to(tenant, { event: token ? "distribution-review-ready" : "distribution-rules-changed" })
+    Live.publish("credores", tenant.id, tenant_id: tenant.id)
   end
 end

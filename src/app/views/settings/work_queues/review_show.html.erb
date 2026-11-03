@@ -1,0 +1,13 @@
+<% content_for :title, "Conferir o impacto das filas" %>
+<% content_for :cable_channels, @cable %>
+<%= pagina "Conferir o impacto", subtitulo: safe_join([ "Enquadramento das filas de #{t("queues.subjects.#{@proposal.subject}").downcase} de #{@tenant.name}. Nada muda até você confirmar. ", link_to("Voltar", queues_work_queues_path(tenant_id: @tenant.id)) ]) %>
+<section class="cartao" aria-labelledby="proposta">
+  <header><h2 id="proposta">Como fica</h2></header>
+  <div>
+    <ol>
+      <% @proposal.items.each do |item| %><li><%= item.name %><%= " (sem fila)" unless item.delivers %></li><% end %>
+      <li><%= t("queues.catch_all") %> (quem não atende nenhum item)</li>
+    </ol>
+  </div>
+</section>
+<%= render "settings/work_queues/review", result: @result %>

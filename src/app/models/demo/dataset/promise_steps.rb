@@ -34,7 +34,7 @@ module Demo
           broken = 3.times.map { make.call(9, 3) }
           not_approved = 2.times.map { make.call(40, 25, pool: old) }
 
-          rows = [ %w[canal identificador documento titulo data_pagamento valor meio] ]
+          rows = [ %w[metodo_recebimento identificador documento titulo data_pagamento valor meio] ]
           fulfilled.each { |promise| rows << payment_row(promise, today - 5, promise.total_cents) }
           # Pagos direto nos títulos, depois da data prometida (ainda dentro da tolerância): a promessa termina cumprida com atraso.
           late.each do |promise|

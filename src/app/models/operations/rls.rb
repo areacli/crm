@@ -82,7 +82,18 @@ module Operations
       "changes" => "changes.user_id = crm_user()",
       # As distribuições e a trilha: a operação só lê as suas (e a linha que ela mesma grava, pelo RETURNING).
       "distributions" => "distributions.operation_id = crm_operation()",
-      "operation_trail_events" => "operation_trail_events.user_id = crm_user()"
+      "operation_trail_events" => "operation_trail_events.user_id = crm_user()",
+      # Filas (15): onde está e quem recebeu cada sujeito; a operação só vê, e o "Próximo" só entrega, o que está pra ela (R353).
+      "queue_placements" => <<~SQL.squish,
+        (queue_placements.subject = 'contracts' AND queue_placements.subject_id IN (#{OP_CONTRACTS}))
+        OR (queue_placements.subject = 'customers' AND queue_placements.subject_id IN (#{OP_CUSTOMERS}))
+      SQL
+      "queue_deliveries" => <<~SQL.squish,
+        (queue_deliveries.subject = 'contracts' AND queue_deliveries.subject_id IN (#{OP_CONTRACTS}))
+        OR (queue_deliveries.subject = 'customers' AND queue_deliveries.subject_id IN (#{OP_CUSTOMERS}))
+      SQL
+      # Lotes de emissão (16, R384, R387): a operação só lê os que ela mesma pediu (a conferência roda no contexto de quem pediu).
+      "instrument_batches" => "instrument_batches.created_by_id = crm_user()"
     }.merge(
       # Tabelas de valores ligadas a uma fatura, um contrato, um acordo ou um cliente: visíveis quando o registro pai é (a política do pai vale
       # dentro da subconsulta). Não têm nome nem documento, mas uma tela que as liste mostraria valores do que não está pra a operação.

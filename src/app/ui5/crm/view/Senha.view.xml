@@ -1,0 +1,20 @@
+<mvc:View controllerName="crm.controller.Senha" xmlns:mvc="sap.ui.core.mvc" xmlns="sap.m" height="100%">
+	<!-- Definição da senha no primeiro acesso (R38): sem menu nem abas, no modelo Entrada. -->
+	<Page showHeader="false" class="entrada">
+		<FlexBox height="100%" renderType="Bare" class="entrada-grade">
+			<VBox class="entrada-formulario" renderType="Bare" justifyContent="Center">
+				<FlexBox class="entrada-marca" renderType="Bare"><Image src="{sessao>/aplicacao}/img/logotipo-negativo.svg" alt="AreaCli" height="40px" /></FlexBox>
+				<Title text="{i18n>senha.titulo.primeiro}" level="H1" titleStyle="H2" />
+				<Text text="{i18n>senha.subtitulo.primeiro}" class="sapUiSmallMarginBottom" />
+				<MessageStrip id="mensagem" type="Error" showIcon="true" visible="false" class="sapUiSmallMarginBottom" />
+				<Label text="{i18n>senha.nova}" labelFor="nova" required="true" />
+				<Input id="nova" type="Password" width="100%" maxLength="72" ariaDescribedBy="ajuda" />
+				<Text id="ajuda" text="{i18n>senha.ajuda}" class="entrada-nota" />
+				<Label text="{i18n>senha.repetir}" labelFor="repetir" required="true" class="sapUiSmallMarginTop" />
+				<Input id="repetir" type="Password" width="100%" maxLength="72" submit=".salvar" />
+				<Button id="salvar" text="{i18n>senha.salvar}" type="Emphasized" width="100%" press=".salvar" class="sapUiMediumMarginTop" />
+				<Button text="{i18n>senha.sair}" type="Transparent" width="100%" press=".sair" class="sapUiTinyMarginTop" />
+			</VBox>
+		</FlexBox>
+	</Page>
+</mvc:View>

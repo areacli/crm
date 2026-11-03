@@ -1,0 +1,14 @@
+<%= formulario_de_painel(titulo: "Estratégia de #{@user.name}", url: queues_queue_strategy_path(@user, tenant_id: @tenant.id), metodo: :patch, enviar: "Salvar", escopo: :strategy,
+                         tamanho: :small, voltar: queues_queue_groups_path(tenant_id: @tenant.id), descricao: "De qual das filas sai cada entrega do \"Próximo\". Vale a partir do próximo pedido.") do |form| %>
+  <div class="campo"><%= form.label :mode, "Estratégia" %><%= form.select :mode, QueueStrategy::MODES.map { [ t("queues.modes.#{_1}"), _1 ] }, selected: @strategy.mode %></div>
+  <fieldset>
+    <legend>Filas de <%= @tenant.name %></legend>
+    <small>A posição vale para "em ordem"; o peso, para "pesos".</small>
+    <% entries = Array(@strategy.entries).index_by { _1["queue_id"] } %>
+    <% @mine.each_with_index do |queue, index| %>
+      <div class="campo"><%= label_tag "posicao-#{queue.id}", "#{queue.name}: posição" %><%= number_field_tag "strategy[positions][#{queue.id}]", (entries.keys.index(queue.id) || index) + 1, min: 1, id: "posicao-#{queue.id}" %></div>
+      <div class="campo"><%= label_tag "peso-#{queue.id}", "#{queue.name}: peso" %><%= number_field_tag "strategy[weights][#{queue.id}]", entries.dig(queue.id, "weight") || 1, min: 1, max: 100, id: "peso-#{queue.id}" %></div>
+    <% end %>
+  </fieldset>
+  <% if @others_count.positive? %><p><small>Além destas, <%= @user.name %> está em <%= @others_count %> <%= @others_count == 1 ? "fila" : "filas" %> de outros credores, que ficam como estão.</small></p><% end %>
+<% end %>

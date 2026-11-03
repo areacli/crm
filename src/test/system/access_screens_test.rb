@@ -4,10 +4,7 @@ require "application_system_test_case"
 # evento do WebSocket (o adaptador de teste do Action Cable não entrega ao navegador, então o evento `cable:` é disparado na página).
 class AccessScreensSystemTest < ApplicationSystemTestCase
   def sign_in(user)
-    visit new_session_path
-    fill_in "E-mail", with: user.email_address
-    fill_in "Senha", with: "senha-de-teste-1"
-    click_button "Entrar"
+    entrar_pela_spa(user.email_address, "senha-de-teste-1")
     assert_selector "header .usuario"
   end
 
@@ -37,8 +34,8 @@ class AccessScreensSystemTest < ApplicationSystemTestCase
     assert_acessivel
 
     visit new_profile_path
-    # 19 permissões e a marca "disponível para operações" (14, R310).
-    assert_selector "input[type=checkbox]", count: 20
+    # 21 permissões e a marca "disponível para operações" (14, R310).
+    assert_selector "input[type=checkbox]", count: 22
     assert_acessivel
 
     visit edit_password_path
@@ -57,18 +54,19 @@ class AccessScreensSystemTest < ApplicationSystemTestCase
     assert_acessivel
   end
 
-  test "o primeiro acesso com senha temporária leva à tela de definir a senha, que passa no axe" do
+  test "o primeiro acesso com senha temporária leva à tela de definir a senha da SPA, que passa no axe" do
     users(:carlos).update!(temporary_password_until: 72.hours.from_now)
-    sign_in users(:carlos)
+    entrar_pela_spa(users(:carlos).email_address, "senha-de-teste-1", destino: nil)
 
-    assert_selector "h1", text: "Defina sua senha"
-    assert_no_selector "nav[aria-label=Menu]"
+    assert_selector "h1", text: "Defina sua senha", wait: 15
+    assert_no_text "Nenhuma tela aberta"
     assert_acessivel
 
     fill_in "Nova senha", with: "minha-senha-definitiva"
     fill_in "Repita a nova senha", with: "minha-senha-definitiva"
-    click_button "Salvar a senha"
-    assert_selector "h1", text: "Resumo da carteira"
+    click_button "Salvar"
+    assert_text "Resumo da carteira", wait: 15
+    assert_not users(:carlos).reload.temporary_password?
   end
 
   test "o gestor cria o operador pela tela e vê a senha temporária uma única vez" do

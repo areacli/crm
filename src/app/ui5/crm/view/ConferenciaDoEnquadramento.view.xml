@@ -1,0 +1,139 @@
+<mvc:View controllerName="crm.controller.ConferenciaDoEnquadramento" xmlns:mvc="sap.ui.core.mvc" xmlns="sap.m" xmlns:f="sap.f" xmlns:card="sap.f.cards" height="100%">
+	<!-- Conferência do impacto do enquadramento financeiro (13, R272, R291), na ordem da R291: o que muda numa frase; o que foi alterado (antes e depois);
+	     por item; de onde para onde; valor atualizado; avisos. Ações: Confirmar a mudança, Voltar e editar, Descartar. Nada muda até confirmar. -->
+	<f:DynamicPage toggleHeaderOnTitleClick="false">
+		<f:title><f:DynamicPageTitle>
+			<f:heading><Title text="{i18n>conferencia.titulo}" level="H2" /></f:heading>
+			<f:expandedContent><Text text="{dados>/subtitulo}" /></f:expandedContent>
+			<f:actions>
+				<Button text="{i18n>conferencia.confirmar}" type="Emphasized" enabled="{dados>/pronto}" press=".confirmar" />
+				<Button text="{i18n>financeiro.conferencia.voltarEEditar}" press=".voltarEEditar" visible="{= !!${dados>/voltar} }" />
+				<Button text="{i18n>conferencia.descartar}" press=".descartar" />
+			</f:actions>
+		</f:DynamicPageTitle></f:title>
+		<f:content>
+			<FlexBox wrap="Wrap" alignItems="Start" renderType="Bare" class="ficha">
+				<VBox renderType="Bare" class="ficha-principal">
+					<f:Card class="sapUiSmallMarginBottom">
+						<f:header><card:Header title="{i18n>conferencia.oQueMuda}" /></f:header>
+						<f:content>
+							<VBox renderType="Bare" class="sapUiSmallMargin">
+								<BusyIndicator visible="{dados>/conferindo}" class="sapUiTinyMarginBottom" />
+								<Text text="{dados>/resumo}" visible="{= !!${dados>/resumo} }" />
+								<MessageStrip text="{dados>/erro}" type="Error" showIcon="true" visible="{dados>/falhou}" />
+							</VBox>
+						</f:content>
+					</f:Card>
+
+					<f:Card class="sapUiSmallMarginBottom">
+						<f:header><card:Header title="{i18n>financeiro.conferencia.alterado}" /></f:header>
+						<f:content>
+							<VBox renderType="Bare" class="sapUiSmallMargin">
+								<Text text="{i18n>financeiro.conferencia.nenhumaAlteracao}" visible="{= ${dados>/alteracoes}.length === 0 }" class="nota" />
+								<VBox items="{path: 'dados>/alteracoes', templateShareable: false}" renderType="Bare">
+									<VBox renderType="Bare" class="sapUiSmallMarginBottom">
+										<Title text="{dados>o_que}" level="H3" />
+										<HBox alignItems="Center" renderType="Bare" visible="{= !!${dados>antes} }" class="sapUiTinyMarginTop">
+											<ObjectStatus text="{i18n>financeiro.conferencia.antes}" inverted="true" class="sapUiTinyMarginEnd" />
+											<Text text="{dados>antes}" class="texto-do-segmento" />
+										</HBox>
+										<Text text="{dados>antes_extenso}" visible="{= !!${dados>antes_extenso} }" class="nota" />
+										<HBox alignItems="Center" renderType="Bare" visible="{= !!${dados>depois} }" class="sapUiTinyMarginTop">
+											<ObjectStatus text="{i18n>financeiro.conferencia.depois}" state="Information" inverted="true" class="sapUiTinyMarginEnd" />
+											<Text text="{dados>depois}" class="texto-do-segmento" />
+										</HBox>
+										<Text text="{dados>depois_extenso}" visible="{= !!${dados>depois_extenso} }" class="nota" />
+									</VBox>
+								</VBox>
+							</VBox>
+						</f:content>
+					</f:Card>
+
+					<f:Card class="sapUiSmallMarginBottom" visible="{dados>/pronto}">
+						<f:header><card:Header title="{i18n>financeiro.conferencia.porItem}" /></f:header>
+						<f:content>
+							<Table items="{path: 'dados>/itens', templateShareable: false}" fixedLayout="false">
+								<columns>
+									<Column><Text text="{i18n>enquadramento.item}" /></Column>
+									<Column hAlign="End"><Text text="{i18n>conferencia.entram}" /></Column>
+									<Column hAlign="End"><Text text="{i18n>conferencia.saldoQueEntra}" /></Column>
+									<Column hAlign="End"><Text text="{i18n>conferencia.saem}" /></Column>
+									<Column hAlign="End"><Text text="{i18n>conferencia.saldoQueSai}" /></Column>
+								</columns>
+								<items><ColumnListItem><cells>
+									<Text text="{dados>nome}" wrapping="false" /><Text text="{dados>entram}" wrapping="false" /><Text text="{dados>saldo_entra}" wrapping="false" />
+									<Text text="{dados>saem}" wrapping="false" /><Text text="{dados>saldo_sai}" wrapping="false" />
+								</cells></ColumnListItem></items>
+							</Table>
+						</f:content>
+					</f:Card>
+
+					<f:Card class="sapUiSmallMarginBottom" visible="{= ${dados>/pronto} &amp;&amp; ${dados>/movimentos}.length > 0 }">
+						<f:header><card:Header title="{i18n>financeiro.conferencia.movimentos}" /></f:header>
+						<f:content>
+							<Table items="{path: 'dados>/movimentos', templateShareable: false}" fixedLayout="false">
+								<columns>
+									<Column><Text text="{i18n>conferencia.saiDe}" /></Column>
+									<Column><Text text="{i18n>conferencia.vaiPara}" /></Column>
+									<Column hAlign="End"><Text text="{i18n>financeiro.contratos}" /></Column>
+									<Column hAlign="End"><Text text="{i18n>financeiro.saldo}" /></Column>
+								</columns>
+								<items><ColumnListItem><cells>
+									<Text text="{dados>de}" wrapping="false" /><Text text="{dados>para}" wrapping="false" /><Text text="{dados>contratos}" wrapping="false" />
+									<Text text="{dados>saldo}" wrapping="false" />
+								</cells></ColumnListItem></items>
+							</Table>
+						</f:content>
+					</f:Card>
+
+					<f:Card class="sapUiSmallMarginBottom" visible="{= ${dados>/pronto} &amp;&amp; ${dados>/tem_valores} }">
+						<f:header><card:Header title="{i18n>financeiro.conferencia.valores}" /></f:header>
+						<f:content>
+							<VBox renderType="Bare" width="100%">
+								<Text text="{i18n>financeiro.conferencia.nenhumValor}" visible="{= ${dados>/valores}.length === 0 }" class="nota sapUiSmallMargin" />
+								<Table items="{path: 'dados>/valores', templateShareable: false}" fixedLayout="false" visible="{= ${dados>/valores}.length > 0 }">
+									<columns>
+										<Column><Text text="{i18n>enquadramento.item}" /></Column>
+										<Column hAlign="End"><Text text="{i18n>financeiro.conferencia.clientes}" /></Column>
+										<Column hAlign="End"><Text text="{i18n>financeiro.conferencia.antes}" /></Column>
+										<Column hAlign="End"><Text text="{i18n>financeiro.conferencia.depois}" /></Column>
+										<Column hAlign="End"><Text text="{i18n>financeiro.conferencia.diferenca}" /></Column>
+									</columns>
+									<items><ColumnListItem><cells>
+										<Text text="{dados>nome}" wrapping="false" /><Text text="{dados>clientes}" wrapping="false" /><Text text="{dados>antes}" wrapping="false" />
+										<Text text="{dados>depois}" wrapping="false" /><Text text="{dados>diferenca}" wrapping="false" />
+									</cells></ColumnListItem></items>
+								</Table>
+							</VBox>
+						</f:content>
+					</f:Card>
+
+					<f:Card class="sapUiSmallMarginBottom" visible="{= ${dados>/pronto} &amp;&amp; ${dados>/avisos}.length > 0 }">
+						<f:header><card:Header title="{i18n>financeiro.conferencia.avisos}" /></f:header>
+						<f:content>
+							<VBox items="{path: 'dados>/avisos', templateShareable: false}" renderType="Bare" class="sapUiSmallMargin">
+								<MessageStrip text="{dados>}" type="Warning" showIcon="true" class="sapUiTinyMarginBottom" />
+							</VBox>
+						</f:content>
+					</f:Card>
+				</VBox>
+
+				<f:Card class="ficha-lateral">
+					<f:header><card:Header title="{i18n>financeiro.conferencia.comoLer}" /></f:header>
+					<f:content>
+						<VBox renderType="Bare" class="sapUiSmallMargin">
+							<Label text="{i18n>financeiro.conferencia.entramESaem}" design="Bold" />
+							<Text text="{i18n>financeiro.conferencia.entramESaem.ajuda}" class="sapUiSmallMarginBottom" />
+							<Label text="{i18n>financeiro.conferencia.movimentos}" design="Bold" />
+							<Text text="{i18n>financeiro.conferencia.movimentos.ajuda}" class="sapUiSmallMarginBottom" />
+							<Label text="{i18n>financeiro.conferencia.valores}" design="Bold" />
+							<Text text="{i18n>financeiro.conferencia.valores.ajuda}" class="sapUiSmallMarginBottom" />
+							<Label text="{i18n>financeiro.conferencia.aoConfirmar}" design="Bold" />
+							<Text text="{i18n>financeiro.conferencia.aoConfirmar.ajuda}" />
+						</VBox>
+					</f:content>
+				</f:Card>
+			</FlexBox>
+		</f:content>
+	</f:DynamicPage>
+</mvc:View>

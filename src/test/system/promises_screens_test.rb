@@ -8,10 +8,7 @@ class PromisesScreensSystemTest < ApplicationSystemTestCase
     @customer, @nf1, @nf2 = promise_scenario(@alfa)
     Tier.catch_all_of(@alfa).update!(promise_max_days: 60)
     PromiseLimit.where(tier: Tier.catch_all_of(@alfa), profile: profiles(:alfa_manager)).update_all(max_days: 60)
-    visit new_session_path
-    fill_in "E-mail", with: users(:joana).email_address
-    fill_in "Senha", with: "senha-de-teste-1"
-    click_button "Entrar"
+    entrar_pela_spa(users(:joana).email_address, "senha-de-teste-1")
     assert_selector "h1", text: "Resumo da carteira"
   end
 
@@ -115,7 +112,7 @@ class PromisesScreensSystemTest < ApplicationSystemTestCase
     assert_acessivel
     sem_rolagem_horizontal
 
-    visit root_path
+    visit summary_path
     assert_selector "h2", text: "Promessas"
     assert_acessivel
     visit settings_contact_results_path
