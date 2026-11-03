@@ -25,7 +25,7 @@ class ContactAttempt < ApplicationRecord
   def self.history_for(customer, page:, contract: nil)
     scope = where(customer_id: customer.id)
     scope = scope.where(contract_id: contract.id) if contract
-    Pagination.new(scope.includes(:result, :user, :contract, :promise).recent, page: page, per_page: 20)
+    Pagination.new(scope.includes(:result, :user, :contract, :promise).recent, page: page, per_page: 10)
   end
 
   after_commit :announce_change, on: :create

@@ -1,4 +1,4 @@
-<mvc:View controllerName="crm.controller.EstornosAEspera" xmlns:mvc="sap.ui.core.mvc" xmlns="sap.m" xmlns:f="sap.f" xmlns:card="sap.f.cards" height="100%">
+<mvc:View controllerName="crm.controller.EstornosAEspera" xmlns:mvc="sap.ui.core.mvc" xmlns="sap.m" xmlns:f="sap.f" xmlns:card="sap.f.cards" xmlns:core="sap.ui.core" height="100%">
 	<!-- Estornos à espera do gestor (11, R233, AH2, AJ1; modelo Lista): os que esperam, com a decisão num modal pequeno, e os decididos há pouco. -->
 	<f:DynamicPage toggleHeaderOnTitleClick="false">
 		<f:title><f:DynamicPageTitle>
@@ -31,11 +31,12 @@
 									</ColumnListItem>
 								</items>
 							</Table>
+							<core:Fragment fragmentName="crm.fragment.Paginacao" type="XML" />
 							<Panel visible="{= !!${ui>/detalhe/detalhe} }" class="detalhe-da-linha"><Text text="{ui>/detalhe/detalhe}" /></Panel>
 						</VBox>
 					</f:content>
 				</f:Card>
-				<f:Card visible="{= ${dados>/decididos}.length > 0 }" class="sapUiSmallMarginTop">
+				<f:Card visible="{= (${dados>/decididos} || []).length > 0 }" class="sapUiSmallMarginTop">
 					<f:header><card:Header title="{i18n>estornos.decididos}" /></f:header>
 					<f:content>
 						<Table items="{path: 'dados>/decididos', templateShareable: false}" fixedLayout="false">

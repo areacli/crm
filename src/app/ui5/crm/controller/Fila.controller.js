@@ -3,7 +3,7 @@ sap.ui.define(["crm/controller/Lista", "crm/servico/tempo-real", "crm/servico/li
   "use strict"
 
   return Lista.extend("crm.controller.Fila", {
-    filtroInicial: { tenant_id: "", per_page: 20, page: 1 },
+    filtroInicial: { tenant_id: "", per_page: 10, page: 1 },
 
     onInit() {
       this.endereco = `/filas/${this.getView().getViewData().argumentos.id}`

@@ -35,7 +35,13 @@ class RedesignScreensSystemTest < ApplicationSystemTestCase
     visit root_path
     assert_selector ".entrada-beneficios > *", count: 4, wait: 30
     assert_operator page.evaluate_script("document.querySelector('.entrada-formulario').getBoundingClientRect().left"), :<, page.evaluate_script("document.querySelector('.entrada-apresentacao').getBoundingClientRect().left")
-    assert_equal 384, medida(".entrada-formulario", "width")
+    assert_equal 480, medida(".entrada-formulario", "width")
+    # Janela baixa (1366×768 menos o navegador, ou tablet deitado): o título não encolhe e "Entrar" aparece inteiro (design system, 17.5).
+    page.driver.resize(1366, 500)
+    visit root_path
+    assert_selector "h1", text: "Entrar no CRM", wait: 30
+    assert_operator medida("h1"), :>=, 30
+    assert_operator page.evaluate_script("Math.round([...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Entrar').getBoundingClientRect().bottom)"), :<=, 500
     page.driver.resize(390, 900)
     visit root_path
     assert_selector "h1", text: "Entrar no CRM", wait: 30

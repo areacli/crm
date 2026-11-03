@@ -167,18 +167,18 @@ class ContactAttemptsScreensTest < ActionDispatch::IntegrationTest
     assert_not_includes response.body, "<script>alert(1)</script>"
   end
 
-  test "R74: a ficha mostra os 20 mais recentes pela data do contato e leva aos 5 restantes" do
-    25.times { |index| insert_attempt(@maria, contacted_at: (index + 1).hours.ago, text: "contato #{index + 1}") }
+  test "R74 (P22, revisão 34): a ficha mostra os 10 mais recentes pela data do contato e leva aos 5 restantes" do
+    15.times { |index| insert_attempt(@maria, contacted_at: (index + 1).hours.ago, text: "contato #{index + 1}") }
     entrar(users(:joana))
     get customer_path(@maria, aba: "acionamentos")
-    assert_select "#historico-acionamentos tbody tr:not(.detalhe-da-linha)", 20
+    assert_select "#historico-acionamentos tbody tr:not(.detalhe-da-linha)", 10
     assert_select "#historico-acionamentos tbody tr:first-child", text: /contato 1\b/
-    assert_select "#historico-acionamentos", text: /Mostrando 1 a 20 de 25/
+    assert_select "#historico-acionamentos", text: /Mostrando 1 a 10 de 15/
     assert_select "#historico-acionamentos a[rel=next][data-hx-get]"
 
     get customer_contact_attempts_path(@maria, page: 2), headers: htmx
     assert_select "tbody tr:not(.detalhe-da-linha)", 5
-    assert_select "tbody tr:first-child", text: /contato 21\b/
+    assert_select "tbody tr:first-child", text: /contato 11\b/
     assert_select "#historico-acionamentos[hx-trigger*='cable:contact-attempts-changed']"
   end
 
@@ -329,11 +329,11 @@ class ContactAttemptsScreensTest < ActionDispatch::IntegrationTest
     assert_select "meta[name=cable-channels][content*='ContactAttemptsChannel']"
   end
 
-  test "P22: a lista abre com 20 por página e oferece 50 e 100" do
+  test "P22 (revisão 34): a lista abre com 10 por página e oferece 20, 50 e 100" do
     22.times { |index| insert_attempt(@maria, contacted_at: (index + 1).minutes.ago) }
     entrar(users(:joana))
     get contact_attempts_path
-    assert_select "#resultado tbody tr", 20
+    assert_select "#resultado tbody tr", 10
     assert_select "#resultado a[rel=next]"
     get contact_attempts_path(per_page: 50)
     assert_select "#resultado tbody tr", 22

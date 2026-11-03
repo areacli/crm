@@ -1,15 +1,18 @@
 // Estornos à espera do gestor (11, R233, AH2): a decisão (o que fazer e o motivo) num modal pequeno, com as opções que o estado de cada estorno
 // permite. Tempo real: a lista se refaz quando um acordo muda (recurso `clientes`, publicado pelo acordo).
-sap.ui.define(["sap/ui/core/mvc/Controller", "sap/ui/model/json/JSONModel", "sap/m/MessageToast", "crm/servico/http", "crm/servico/formulario", "crm/servico/tempo-real"],
-  (Controller, JSONModel, MessageToast, http, formulario, tempoReal) => {
+sap.ui.define(["crm/controller/Lista", "sap/ui/model/json/JSONModel", "sap/m/MessageToast", "crm/servico/formulario", "crm/servico/tempo-real"],
+  (Lista, JSONModel, MessageToast, formulario, tempoReal) => {
   "use strict"
 
-  return Controller.extend("crm.controller.EstornosAEspera", {
+  // Base de lista (P22): os que esperam vêm paginados; os decididos há pouco, os 10 últimos.
+  return Lista.extend("crm.controller.EstornosAEspera", {
+    endereco: "/estornos-a-espera",
+    filtroInicial: { per_page: 10, page: 1 },
+
     onInit() {
-      this.getView().setModel(new JSONModel({ esperando: [], decididos: [] }), "dados")
       this.getView().setModel(new JSONModel({ detalhe: null }), "ui")
+      Lista.prototype.onInit.apply(this, arguments)
       this.desligar = [tempoReal.ouvir("clientes", () => this.carregar()), tempoReal.ouvir("*conectado", () => this.carregar())]
-      this.carregar()
     },
 
     onExit() {
@@ -18,14 +21,6 @@ sap.ui.define(["sap/ui/core/mvc/Controller", "sap/ui/model/json/JSONModel", "sap
 
     texto(chave, argumentos) {
       return this.getOwnerComponent().getModel("i18n").getResourceBundle().getText(chave, argumentos)
-    },
-
-    async carregar() {
-      this.getView().getModel("dados").setData(await http.obter("/estornos-a-espera.json"))
-    },
-
-    objetoDaLinha(evento) {
-      return evento.getSource().getBindingContext("dados").getObject()
     },
 
     mostrarDetalhe(evento) {

@@ -6,7 +6,7 @@ sap.ui.define(["crm/controller/Lista", "sap/ui/model/json/JSONModel", "sap/m/Men
 
   return Lista.extend("crm.controller.Perfis", {
     endereco: "/perfis",
-    filtroInicial: { tenant: "", per_page: 20, page: 1 },
+    filtroInicial: { tenant: "", per_page: 10, page: 1 },
     opcoesComTodos: [["credores", "filtro.todos"]],
 
     onInit() {

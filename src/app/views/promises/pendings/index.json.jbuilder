@@ -1,4 +1,8 @@
 # Promessas pendentes na SPA (10, R192, R204; decisão 0025): as que a pessoa pode aprovar, com o filtro de credor.
+json.total @pagination.total
+json.pagina @pagination.page
+json.por_pagina @pagination.per_page
+json.paginas @pagination.pages
 json.varios_credores @several_tenants
 json.credores(@tenants.map { |nome, id| { id: id.to_s, nome: nome } })
 json.linhas @promises do |promise|

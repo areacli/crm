@@ -1,5 +1,6 @@
 // Abas da aplicação (padrões de interface, P27): uma aba por tela e uma por ficha, vivas enquanto abertas, lembradas na janela
-// (sessionStorage), no máximo 12. A aba com trabalho por salvar não se fecha sozinha e pede confirmação ao fechar.
+// (sessionStorage), no máximo 12. A aba com trabalho por salvar não se fecha sozinha e pede confirmação ao fechar. A tela recebe `fechar()` no
+// viewData para fechar a própria aba quando o trabalho dela acaba (editor salvo, conferência confirmada).
 sap.ui.define(["sap/m/TabContainerItem", "sap/ui/core/mvc/XMLView", "sap/m/MessageBox", "crm/servico/telas"], (TabContainerItem, XMLView, MessageBox, telas) => {
   "use strict"
 
@@ -32,7 +33,7 @@ sap.ui.define(["sap/m/TabContainerItem", "sap/ui/core/mvc/XMLView", "sap/m/Messa
         this.abertas.set(chave, aba)
         aba.item = new TabContainerItem({ key: chave, name: tela.titulo })
         this.container.addItem(aba.item)
-        aba.view = await this.componente.runAsOwner(() => XMLView.create({ viewName: tela.view, viewData: { argumentos, aba: aba.item } }))
+        aba.view = await this.componente.runAsOwner(() => XMLView.create({ viewName: tela.view, viewData: { argumentos, aba: aba.item, fechar: () => setTimeout(() => this.fechar(chave, true)) } }))
         aba.item.addContent(aba.view)
         this.limitar()
       } else if (aba.view?.getController().mudarArgumentos) {

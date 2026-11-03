@@ -4,7 +4,8 @@ class AgreementExportsController < ApplicationController
   def index
     authorize AgreementExport
     @tenants = Tenant.where(id: Current.user.tenant_ids_with("administer_agreements")).order(:name)
-    @exports = policy_scope(AgreementExport).includes(:tenant, :user).recent.limit(50)
+    @pagination = Pagination.new(policy_scope(AgreementExport).includes(:tenant, :user).recent, page: params[:page], per_page: params[:per_page])
+    @exports = @pagination.records
     @unseen = Agreements::UnseenEntries.for(@tenants)
   end
 

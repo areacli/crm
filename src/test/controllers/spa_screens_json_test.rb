@@ -17,6 +17,17 @@ class SpaScreensJsonTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "P22 (revisão 34): as listas abrem com 10 por página, inclusive as que vinham inteiras" do
+    entrar(users(:joana))
+    [ pending_promises_path, pending_agreements_path, reversal_waits_path, agreement_exports_path, agreements_path, customers_path, imports_path ].each do |caminho|
+      get "#{caminho}.json"
+      assert_response :success, caminho
+      assert_equal [ 10, 1 ], response.parsed_body.values_at("por_pagina", "pagina"), caminho
+    end
+    get "#{pending_promises_path}.json", params: { per_page: 20 }
+    assert_equal 20, response.parsed_body["por_pagina"]
+  end
+
   test "a recusa de um formulário vem em JSON com a mensagem (422)" do
     entrar(users(:joana))
     patch settings_portfolio_path, params: { tenant_id: tenants(:alfa).id, section: "brackets", brackets: [ { from: "5", to: "2" } ] }, as: :json

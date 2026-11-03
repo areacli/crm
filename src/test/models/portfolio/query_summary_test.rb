@@ -68,13 +68,13 @@ class Portfolio::QuerySummaryTest < ActiveSupport::TestCase
     assert_equal [ "Maria da Silva" ], query(users(:joana)).customers.map(&:name)
   end
 
-  test "ordenação por coluna e paginação de 20 por padrão" do
+  test "ordenação por coluna e paginação de 10 por padrão (P22, revisão 34)" do
     por_nome = query(users(:joana)).customers(sort: "name", direction: "asc").map(&:name)
     assert_equal [ "José Conceição", "Maria da Silva" ], por_nome
 
     pagination = Pagination.new(query(users(:ana)).customers, page: 1, per_page: 20)
     assert_equal [ 20, 3, 1 ], [ pagination.per_page, pagination.total, pagination.pages ]
-    assert_equal [ 20, 20 ], [ Pagination.new(Customer.all, page: 1, per_page: 33).per_page, Pagination.new(Customer.all, page: 0, per_page: nil).per_page ]
+    assert_equal [ 10, 10 ], [ Pagination.new(Customer.all, page: 1, per_page: 33).per_page, Pagination.new(Customer.all, page: 0, per_page: nil).per_page ]
   end
 
   test "o resumo de um credor conta cada título uma vez e distribui por faixa (R23)" do

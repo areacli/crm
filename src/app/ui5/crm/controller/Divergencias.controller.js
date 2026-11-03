@@ -4,7 +4,7 @@ sap.ui.define(["crm/controller/Lista", "sap/m/Menu", "sap/m/MenuItem", "crm/serv
 
   return Lista.extend("crm.controller.Divergencias", {
     endereco: "/divergencias-de-valor",
-    filtroInicial: { status: "open", tenant: "", per_page: 20, page: 1 },
+    filtroInicial: { status: "open", tenant: "", per_page: 10, page: 1 },
     opcoesComTodos: [["credores", "filtro.todos"]],
 
     texto(chave) {

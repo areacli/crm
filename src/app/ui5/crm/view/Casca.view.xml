@@ -1,27 +1,32 @@
 <mvc:View controllerName="crm.controller.Casca" xmlns:mvc="sap.ui.core.mvc" xmlns="sap.m" xmlns:tnt="sap.tnt" xmlns:core="sap.ui.core" height="100%">
-	<!-- Casca (design system 17.3): cabeçalho marinho, menu lateral com os grupos e as abas da aplicação (P27) no centro. -->
-	<tnt:ToolPage id="pagina" sideExpanded="true">
+	<!-- Casca (design system 17.3 e 17.5): cabeçalho marinho com o menu na barra (um botão por item de primeiro nível e um por grupo, com a lista
+	     dos itens; os botões entram depois do nome, montados pelo controlador) e as abas da aplicação (P27) com a largura toda. -->
+	<tnt:ToolPage id="pagina" sideExpanded="false">
 		<tnt:header>
-			<tnt:ToolHeader class="cabecalho">
-				<Button icon="sap-icon://menu2" type="Transparent" tooltip="{i18n>casca.menu}" press=".alternarMenu">
+			<tnt:ToolHeader id="cabecalho" class="cabecalho" ariaLabelledBy="rotuloDoMenu">
+				<Image src="{sessao>/aplicacao}/img/logotipo-negativo.svg" alt="AreaCli" height="32px">
+					<layoutData><OverflowToolbarLayoutData priority="NeverOverflow" /></layoutData>
+				</Image>
+				<Title text="{i18n>marca}" level="H1" class="marca">
+					<layoutData><OverflowToolbarLayoutData priority="NeverOverflow" /></layoutData>
+				</Title>
+				<core:InvisibleText id="rotuloDoMenu" text="{i18n>casca.menuPrincipal}" />
+				<ToolbarSpacer id="fimDoMenu" />
+				<SearchField id="busca" width="18rem" placeholder="{i18n>casca.busca}" visible="{= ${menu>/busca} &amp;&amp; !${menu>/buscaCurta} }" search=".buscar">
+					<layoutData><OverflowToolbarLayoutData priority="NeverOverflow" /></layoutData>
+				</SearchField>
+				<Button id="lupa" icon="sap-icon://search" type="Transparent" tooltip="{i18n>casca.busca}" visible="{= ${menu>/busca} &amp;&amp; ${menu>/buscaCurta} }" press=".abrirBusca">
 					<layoutData><OverflowToolbarLayoutData priority="NeverOverflow" /></layoutData>
 				</Button>
-				<Image src="{sessao>/aplicacao}/img/logotipo-negativo.svg" alt="AreaCli" height="32px" press=".irAoInicio" />
-				<Title text="{i18n>marca}" level="H1" class="marca" />
-				<ToolbarSpacer />
-				<SearchField id="busca" width="28rem" placeholder="{i18n>casca.busca}" visible="{menu>/busca}" search=".buscar" />
-				<ToolbarSpacer />
 				<Button id="sino" icon="sap-icon://bell" type="Transparent" tooltip="{i18n>casca.avisos}" press=".abrirAvisos">
+					<layoutData><OverflowToolbarLayoutData priority="NeverOverflow" /></layoutData>
 					<customData><BadgeCustomData value="{= ${menu>/avisos} > 0 ? String(${menu>/avisos}) : '' }" visible="{= ${menu>/avisos} > 0 }" /></customData>
 				</Button>
-				<Button id="usuario" type="Transparent" text="{sessao>/usuario/nome}" icon="sap-icon://customer" press=".abrirMenuDoUsuario" />
+				<Button id="usuario" type="Transparent" text="{= ${menu>/usuarioCurto} ? '' : ${sessao>/usuario/nome} }" tooltip="{sessao>/usuario/nome}" icon="sap-icon://customer" press=".abrirMenuDoUsuario">
+					<layoutData><OverflowToolbarLayoutData priority="NeverOverflow" /></layoutData>
+				</Button>
 			</tnt:ToolHeader>
 		</tnt:header>
-		<tnt:sideContent>
-			<tnt:SideNavigation id="menu" itemSelect=".escolherNoMenu" ariaLabel="Menu principal">
-				<tnt:NavigationList id="itensDoMenu" />
-			</tnt:SideNavigation>
-		</tnt:sideContent>
 		<tnt:mainContents>
 			<VBox height="100%" renderType="Bare" fitContainer="true">
 				<IllustratedMessage id="vazio" illustrationType="sapIllus-NoActivities" title="{i18n>abas.vazio.titulo}" description="{i18n>abas.vazio.texto}" visible="false" />

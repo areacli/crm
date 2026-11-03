@@ -4,7 +4,7 @@ sap.ui.define(["crm/controller/Lista", "sap/m/Menu", "sap/m/MenuItem"], (Lista, 
 
   return Lista.extend("crm.controller.Clientes", {
     endereco: "/clientes",
-    filtroInicial: { q: "", tenant: "", bracket: "", segment: "", promise: "", unrecognized_city: "", sort: "overdue_cents", dir: "desc", per_page: 20, page: 1 },
+    filtroInicial: { q: "", tenant: "", bracket: "", segment: "", promise: "", unrecognized_city: "", sort: "overdue_cents", dir: "desc", per_page: 10, page: 1 },
     opcoesComTodos: [["filtros/credores", "filtro.todos"], ["filtros/faixas", "filtro.todas"], ["filtros/segmentos", "filtro.todos"]],
 
     abrirFicha(evento) {

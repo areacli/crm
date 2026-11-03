@@ -5,7 +5,7 @@ sap.ui.define(["crm/controller/Lista", "sap/ui/model/json/JSONModel", "crm/servi
 
   return Lista.extend("crm.controller.Acionamentos", {
     endereco: "/acionamentos",
-    filtroInicial: { from: "", to: "", operator: "", channel: "", result: "", kind: "", origin: "", tenant: "", per_page: 20, page: 1 },
+    filtroInicial: { from: "", to: "", operator: "", channel: "", result: "", kind: "", origin: "", tenant: "", per_page: 10, page: 1 },
     opcoesComTodos: [["filtros/operadores", "filtro.todos"], ["filtros/canais", "filtro.todos"], ["filtros/resultados", "filtro.todos"], ["filtros/tipos", "filtro.todos"],
       ["filtros/origens", "filtro.todas"], ["filtros/credores", "filtro.todos"]],
 

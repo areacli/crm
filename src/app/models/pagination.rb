@@ -1,6 +1,6 @@
-# Paginação simples (P22): 20 registros por página por padrão, com 20, 50 ou 100 à escolha. Sem gem: o Active Record já tem limit e offset.
+# Paginação simples (P22, padrões de interface revisão 34): 10 registros por página por padrão, com 10, 20, 50 ou 100 à escolha. Sem gem: o Active Record já tem limit e offset.
 class Pagination
-  PER_PAGE_OPTIONS = [ 20, 50, 100 ].freeze
+  PER_PAGE_OPTIONS = [ 10, 20, 50, 100 ].freeze
 
   attr_reader :page, :per_page
 

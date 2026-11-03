@@ -15,8 +15,3 @@
   motivo: >-
     sap.m.TabContainer (abas da aplicação, P27): a aba é focável e tem o botão de fechar dentro. O OpenUI5 tira o botão da ordem do Tab
     (tabindex -1) e fecha a aba pela tecla Delete; o axe recusa qualquer controle dentro de outro.
-- regra: aria-valid-attr-value
-  controle: .sapTntNLGroup
-  motivo: >-
-    sap.tnt.NavigationListGroup (grupos do menu lateral): o grupo aponta `aria-owns` para a lista dos itens, que o OpenUI5 desenha com outro id
-    quando o grupo é o primeiro nível do menu. O leitor de tela continua lendo os itens dentro do grupo (estrutura do próprio HTML).

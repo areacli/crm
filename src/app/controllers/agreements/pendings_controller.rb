@@ -8,7 +8,8 @@ module Agreements
       @tenants = Tenant.where(id: scope.distinct.pluck(:tenant_id)).order(:name).pluck(:name, :id)
       @several_tenants = @tenants.size > 1
       scope = scope.where(tenant_id: params[:tenant]) if params[:tenant].present?
-      @agreements = scope.includes(:customer, :tenant, :user).order(:valid_until, :id).to_a
+      @pagination = Pagination.new(scope.includes(:customer, :tenant, :user).order(:valid_until, :id), page: params[:page], per_page: params[:per_page])
+      @agreements = @pagination.records.to_a
       @cable = Current.user.tenant_ids_with("negotiate_agreements").map { |id| { channel: "AgreementsChannel", tenant_id: id } }.to_json
       render partial: "agreements/pendings/result" if htmx_fragment? && !request.format.json?
     end
