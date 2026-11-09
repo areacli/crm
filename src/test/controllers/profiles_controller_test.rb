@@ -10,7 +10,7 @@ class ProfilesControllerTest < ActionDispatch::IntegrationTest
   test "sem a permissão 11 a tela é recusada e registrada (R33)" do
     sign_in_as users(:carlos)
 
-    get profiles_url
+    get profiles_url, headers: TRECHO
     assert_response :not_found
     post profiles_url, params: { profile: { tenant_id: @alfa.id, name: "Novo", permissions: %w[view_portfolio] } }
     assert_response :not_found
@@ -24,7 +24,7 @@ class ProfilesControllerTest < ActionDispatch::IntegrationTest
   test "a lista traz só os perfis dos credores com a permissão 11, com os usuários de cada um (V10)" do
     sign_in_as users(:joana)
 
-    get profiles_url
+    get profiles_url, headers: TRECHO
 
     assert_response :success
     assert_select "tbody tr", 2
@@ -37,18 +37,18 @@ class ProfilesControllerTest < ActionDispatch::IntegrationTest
     memberships(:ana_alfa).update!(profile: profiles(:alfa_manager))
     sign_in_as users(:ana)
 
-    get profiles_url
+    get profiles_url, headers: TRECHO
     assert_select "th", text: "Credor"
     assert_select "tbody tr", 4
 
-    get profiles_url(tenant: @beta.id)
+    get profiles_url(credor: @beta.id), headers: TRECHO
     assert_select "tbody tr", 2
   end
 
   test "perfil de outro credor responde como não encontrado, por link direto, com o credor no registro (V10)" do
     sign_in_as users(:joana)
 
-    get edit_profile_url(profiles(:beta_operator))
+    get edit_profile_url(profiles(:beta_operator)), headers: TRECHO
     assert_response :not_found
     delete profile_url(profiles(:beta_operator))
     assert_response :not_found
@@ -63,7 +63,7 @@ class ProfilesControllerTest < ActionDispatch::IntegrationTest
   test "R30: o formulário traz as 21 permissões (16, as 3 da especificação 14, a da 15 e a da 16)" do
     sign_in_as users(:joana)
 
-    get new_profile_url
+    get new_profile_url, headers: TRECHO
 
     assert_select "input[type=checkbox][name='profile[permissions][]']", 21
     assert_select "label", text: /10\. Gerenciar usuários/
@@ -79,10 +79,9 @@ class ProfilesControllerTest < ActionDispatch::IntegrationTest
 
     patch membership_profile_url(memberships(:carlos_alfa)), params: { membership: { profile_id: analista.id } }
     sign_in_as users(:carlos)
-    get root_url
-    assert_select "nav a", text: "Importações"
-    assert_select "nav summary", text: "Configuração", count: 0
-    assert_select "nav a", text: "Usuários", count: 0
+    menu = rotulos_do_menu
+    assert_includes menu, "Importações"
+    assert_empty menu & [ "Configuração", "Usuários" ]
   end
 
   test "R31: nome repetido no credor e PD6 voltam ao formulário com o motivo, sem gravar" do
@@ -131,10 +130,8 @@ class ProfilesControllerTest < ActionDispatch::IntegrationTest
   test "R35: apagar perfil em uso é recusado com a contagem; sem usuários, apaga" do
     sign_in_as users(:joana)
 
-    delete profile_url(profiles(:alfa_operator))
-    assert_redirected_to profiles_url
-    follow_redirect!
-    assert_select "[role=alert]", "Perfil em uso por 3 usuários."
+    delete profile_url(profiles(:alfa_operator)), headers: TRECHO
+    assert_equal [ "Perfil em uso por 3 usuários.", "danger" ], evento_da_spa.values_at("aviso", "tom")
     assert Profile.exists?(profiles(:alfa_operator).id)
 
     livre = Profile.create!(tenant: @alfa, name: "Livre", permissions: %w[view_portfolio])

@@ -26,13 +26,13 @@ module Settings
     def destroy
       @group.destroy!
       Change.record!(@group, "queue_group_deleted", tenant_id: @tenant.id, actor: Current.user, origin: "screen", before: @group.name)
-      redirect_to queues_queue_groups_path(tenant_id: @tenant.id), notice: t(".done"), status: :see_other
+      panel_finish(queues_queue_groups_path(credor: @tenant.id), notice: t(".done"), atualizar: true)
     end
 
     private
       def set_tenant
         tenants = Tenant.where(id: Current.user.tenant_ids_with("manage_queues")).order(:name)
-        @tenant = tenants.find_by(id: params[:tenant_id]) || tenants.first or raise Pundit::NotAuthorizedError
+        @tenant = tenants.find_by(id: params[:credor]) || tenants.first or raise Pundit::NotAuthorizedError
         @tenants = tenants
         authorize WorkQueue.new(tenant: @tenant), :create?
       end
@@ -63,7 +63,7 @@ module Settings
           positions.each_with_index { |(id, _), index| QueueGroupQueue.create!(queue_group: @group, work_queue_id: id, position: index + 1) if valid.include?(id) }
           Change.record!(@group, before ? "queue_group_changed" : "queue_group_created", tenant_id: @tenant.id, actor: Current.user, origin: "screen", before: before, after: describe(@group.reload))
         end
-        redirect_to queues_queue_groups_path(tenant_id: @tenant.id), notice: t("settings.queue_groups.saved"), status: :see_other
+        panel_finish(queues_queue_groups_path(credor: @tenant.id), notice: t("settings.queue_groups.saved"), atualizar: true)
       rescue ActiveRecord::RecordInvalid
         load_choices
         render(@group.persisted? ? :edit : :new, status: :unprocessable_content)

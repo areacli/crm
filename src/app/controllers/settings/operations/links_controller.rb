@@ -5,7 +5,7 @@ module Settings
       before_action :set_accreditation
 
       def new
-        @member = @accreditation.operation.members.active.includes(:user).find(params[:member_id])
+        @member = @accreditation.operation.members.active.includes(:user).find(params[:membro])
         @profiles = @accreditation.tenant.profiles.where(available_to_operations: true).order(:name)
       end
 

@@ -1,8 +1,8 @@
 <% content_for :title, "Operação #{@operation.short_name}" %>
-<%= pagina @operation.short_name, subtitulo: safe_join([ @operation.legal_name, " · CNPJ #{Document.format(@operation.cnpj)} · #{@accreditation.tenant.name} · ", link_to("Voltar para as operações credenciadas", settings_operations_path) ]),
+<%= pagina @operation.short_name, subtitulo: safe_join([ @operation.legal_name, " · CNPJ #{Document.format(@operation.cnpj)} · #{@accreditation.tenant.name}" ]),
            indicadores: [ situacao(t("operations.statuses.#{@accreditation.status}"), tom: { "active" => :success, "suspended" => :warning, "ended" => :neutral }[@accreditation.status]) ] do %>
   <% (Accreditation.statuses.keys - [ @accreditation.status ]).each do |status| %>
-    <%= abrir_painel t("operations.status_actions.#{status}"), new_settings_operation_status_path(@accreditation, status: status), variante: (status == "active" ? nil : "secondary"), tamanho: "small" %>
+    <%= abrir_painel t("operations.status_actions.#{status}"), new_settings_operation_status_path(@accreditation, situacao: FilterValue.to_url(status)), variante: (status == "active" ? nil : "secondary"), tamanho: "small" %>
   <% end %>
 <% end %>
 <%= render "settings/modelo" %>
@@ -33,7 +33,7 @@
                 <td data-acoes>
                   <% if member.active? && policy(@accreditation).link? %>
                     <%= menu_de_linha("pessoa-#{member.id}", "Ações de #{member.user.name}") do %>
-                      <%= abrir_painel (membership&.active? ? "Editar o perfil" : "Criar vínculo"), new_settings_operation_link_path(@accreditation, member_id: member.id), variante: "modal", tamanho: "small" %>
+                      <%= abrir_painel (membership&.active? ? "Editar o perfil" : "Criar vínculo"), new_settings_operation_link_path(@accreditation, membro: member.id), variante: "modal", tamanho: "small" %>
                       <% if membership&.active? %>
                         <%= confirmar_no_painel "Desativar o vínculo", titulo: "Desativar o vínculo de #{member.user.name}?", mensagem: "Ela deixa de ver #{@accreditation.tenant.name} na hora.", acao: "Desativar o vínculo", url: settings_operation_link_path(@accreditation, membership), metodo: :delete %>
                       <% end %>

@@ -39,11 +39,10 @@ class RegistryScreensTest < ActionDispatch::IntegrationTest
     use(@maria, "whatsapp", "11 92222 2222", 5.hours.ago)
     entrar(users(:joana))
 
-    get customer_path(@maria)
-
+    get_ficha(@maria)
     assert_response :success
     assert_select "#contatos-resumo", 0
-    get customer_path(@maria, aba: "contatos")
+    get_ficha(@maria, aba: "contatos")
     assert_select "#contatos tbody[id^=contato-]", 6
     assert_select "#contatos", text: /número errado/
     assert_select "#contatos", text: /Pedido de não perturbe em 20\/10\/2026/
@@ -54,8 +53,7 @@ class RegistryScreensTest < ActionDispatch::IntegrationTest
     add_contact(@maria, "phone", "(11) 98765-4321", origin: "load", seen_in_import_at: Time.zone.local(2026, 10, 20, 9))
     entrar(users(:joana))
 
-    get customer_path(@maria, aba: "contatos")
-
+    get_ficha(@maria, aba: "contatos")
     assert_select "#contatos", text: /Carga.*Veio na carga de 20\/10\/2026/m
   end
 
@@ -64,10 +62,10 @@ class RegistryScreensTest < ActionDispatch::IntegrationTest
     viewer = make_user(@alfa, [])
     entrar(viewer)
 
-    get customer_path(@maria)
-    assert_select "section[aria-labelledby=dados]", text: /98765-4321/
-    assert_select "a[hx-get*='/nome/'], a[hx-get*='/contatos/']", 0
-    get customer_path(@maria, aba: "contatos")
+    get_ficha(@maria)
+    assert_select ".ficha-lateral .cartao", text: /98765-4321/
+    assert_select "[data-inline], a[href*='/contatos/']", 0
+    get_ficha(@maria, aba: "contatos")
     assert_select "#contatos button.menu-de-linha", 0
     get edit_customer_name_path(@maria), headers: painel
     assert_response :not_found
@@ -86,13 +84,15 @@ class RegistryScreensTest < ActionDispatch::IntegrationTest
   test "R113 e R116: o operador acrescenta, corrige, marca inválido, não perturbe e volta a válido pela ficha, e o histórico mostra tudo com o nome dele" do
     entrar(users(:carlos))
 
-    post customer_contacts_path(@maria), params: { contact: { kind: "phone", value: "(11) 98765-4321" } }
-    assert_redirected_to customer_path(@maria, aba: "contatos")
-    follow_redirect!
-    assert_select "aside", text: /Contato criado/
+    post customer_contacts_path(@maria), params: { contact: { kind: "phone", value: "(11) 98765-4321" } }, headers: TRECHO
+    assert_response :no_content
+    assert_match(/Contato criado/, evento_da_spa["aviso"])
     contact = @maria.contacts.sole
 
-    patch customer_contact_path(@maria, contact), params: { contact: { value: "(11) 98765-4312" } }
+    # Telefone se corrige na célula (`X-CRM-Inline`): o contato corrigido vira outro, e a aba se refaz.
+    patch customer_contact_path(@maria, contact), params: { contact: { value: "(11) 98765-4312" } }, headers: TRECHO.merge("X-CRM-Inline" => "1")
+    assert_response :no_content
+    assert_equal [ "(11) 98765-4312", true ], evento_da_spa.values_at("valor", "atualizar")
     assert_equal [ "invalid", "corrigido para (11) 98765-4312" ], [ contact.reload.status, contact.reason ]
     fixed = @maria.contacts.find_by!(status: "valid")
 
@@ -102,7 +102,7 @@ class RegistryScreensTest < ActionDispatch::IntegrationTest
     patch customer_contact_status_path(@maria, fixed), params: { status: { status: "invalid", reason: "telefone desligado" } }
     assert_equal [ "invalid", "telefone desligado" ], [ fixed.reload.status, fixed.reason ]
 
-    get customer_path(@maria, aba: "historico")
+    get_ficha(@maria, aba: "historico")
     assert_select "#historico-do-cadastro tbody tr", text: /Carlos Lima/, count: 6
     assert_select "#historico-do-cadastro tbody tr", text: /válido → não perturbe/
   end
@@ -111,13 +111,19 @@ class RegistryScreensTest < ActionDispatch::IntegrationTest
     entrar(users(:carlos))
 
     get edit_customer_name_path(@maria), headers: painel
-    assert_select "[data-painel] form.painel input[name='customer[name]']"
+    assert_select "form.dialogo input[name='customer[name]']"
     assert_select "input[name*='document']", 0
-    patch customer_name_path(@maria), params: { customer: { name: "Maria da Silva Souza" } }
-    follow_redirect!
+    # Na SPA, o nome se corrige em "Dados do cliente" (`X-CRM-Inline`); vazio, a mensagem volta para junto do campo.
+    patch customer_name_path(@maria), params: { customer: { name: "" } }, headers: TRECHO.merge("X-CRM-Inline" => "1")
+    assert_response :unprocessable_content
+    assert response.parsed_body["erro"].present?
+    patch customer_name_path(@maria), params: { customer: { name: "Maria da Silva Souza" } }, headers: TRECHO.merge("X-CRM-Inline" => "1")
+    assert_response :no_content
+    assert_equal [ "Maria da Silva Souza", "Nome corrigido.", true ], evento_da_spa.values_at("valor", "aviso", "atualizar")
 
-    assert_select "aside", text: /Nome corrigido/
-    assert_select "section", text: /mantido pelo credor/
+    get_ficha(@maria)
+    assert_select ".ficha-lateral [data-inline] .inline-valor", text: "Maria da Silva Souza"
+    assert_select ".ficha-lateral .nota", text: /mantido pelo credor/
     assert_equal "Maria da Silva Souza", @maria.reload.name
   end
 
@@ -125,10 +131,9 @@ class RegistryScreensTest < ActionDispatch::IntegrationTest
     @alfa.update!(phone: "(11) 3000-1000")
     entrar(users(:carlos))
 
-    post customer_contacts_path(@maria), params: { contact: { kind: "phone", value: "11 3000-1000" } }
-    follow_redirect!
+    post customer_contacts_path(@maria), params: { contact: { kind: "phone", value: "11 3000-1000" } }, headers: TRECHO
 
-    assert_select "aside", text: /Contato criado como inválido: é contato do credor/
+    assert_match(/Contato criado como inválido: é contato do credor/, evento_da_spa["aviso"])
     assert_equal "invalid", @maria.contacts.sole.status
   end
 
@@ -136,15 +141,14 @@ class RegistryScreensTest < ActionDispatch::IntegrationTest
     add_contact(@maria, "phone", "(11) 98765-4321")
     entrar(users(:carlos))
 
-    post customer_contacts_path(@maria), params: { contact: { kind: "phone", value: "+55 11 98765-4321" } }
-    follow_redirect!
-    assert_select "aside", text: /Este contato já está cadastrado \(válido\)/
-    post customer_contacts_path(@maria), params: { contact: { kind: "email", value: "sem-arroba" } }
-    follow_redirect!
-    assert_select "aside", text: /E-mail inválido/
-    patch customer_contact_status_path(@maria, @maria.contacts.first), params: { status: { status: "invalid", reason: "" } }
-    follow_redirect!
-    assert_select "aside", text: /Informe o motivo/
+    # Na SPA, a recusa volta no diálogo (422), com a mensagem.
+    post customer_contacts_path(@maria), params: { contact: { kind: "phone", value: "+55 11 98765-4321" } }, headers: TRECHO
+    assert_response :unprocessable_content
+    assert_select ".aviso", text: /Este contato já está cadastrado \(válido\)/
+    post customer_contacts_path(@maria), params: { contact: { kind: "email", value: "sem-arroba" } }, headers: TRECHO
+    assert_select ".aviso", text: /E-mail inválido/
+    patch customer_contact_status_path(@maria, @maria.contacts.first), params: { status: { status: "invalid", reason: "" } }, headers: TRECHO
+    assert_select ".aviso", text: /Informe o motivo/
   end
 
   test "R113a e R33 (critério de aceite): Marta corrige na Alfa e é recusada, com o credor registrado, na Beta, que mostra os contatos sem botões" do
@@ -162,10 +166,10 @@ class RegistryScreensTest < ActionDispatch::IntegrationTest
     assert_equal "valid", beta_contact.reload.status
     assert_equal @beta.id, AccessEvent.where(event: "access_denied").last.tenant_id
 
-    get customer_path(@beta_customer, aba: "contatos")
+    get_ficha(@beta_customer, aba: "contatos")
     assert_select "#contatos tbody", text: /98765-4321/
     assert_select "#contatos button.menu-de-linha", 0
-    get customer_path(@maria, aba: "contatos")
+    get_ficha(@maria, aba: "contatos")
     assert_select "#contatos button.menu-de-linha", minimum: 1
   end
 
@@ -174,10 +178,10 @@ class RegistryScreensTest < ActionDispatch::IntegrationTest
     only_beta = make_user(@beta, %w[edit_customer_registry])
     entrar(only_beta)
 
-    get customer_path(@beta_customer)
+    get_ficha(@beta_customer)
     assert_response :success
     assert_select "#contatos", text: /98765-4321/, count: 0
-    get customer_path(@maria)
+    get_ficha(@maria)
     assert_response :not_found
     post customer_contacts_path(@maria), params: { contact: { kind: "phone", value: "(11) 97777-7777" } }
     assert_response :not_found
@@ -192,8 +196,7 @@ class RegistryScreensTest < ActionDispatch::IntegrationTest
     ContractCustomer.where(contract: contract, customer: pedro).update_all(roles: %w[holder])
     entrar(users(:joana))
 
-    get customer_path(pedro)
-
+    get_ficha(pedro)
     assert_select "#contratos tbody tr:not(.detalhe-da-linha)", 1
     assert_select "#contratos th", text: "C-2026-7"
     assert_select "#contratos td", text: /titular/
@@ -206,15 +209,14 @@ class RegistryScreensTest < ActionDispatch::IntegrationTest
     ContractCustomer.update_all(roles: %w[holder])
     entrar(users(:joana))
 
-    get customer_path(@maria)
-
+    get_ficha(@maria)
     assert_select "#contratos td", text: /titular e responsável financeiro/
   end
 
   # ---- Acionamento (R120 a R123) ----
 
-  # O aviso que o painel mostra ao terminar: vem no cabeçalho HX-Trigger.
-  def notice_of_panel = JSON.parse(response.headers["HX-Trigger"]).dig("painel:concluido", "aviso").to_s
+  # O aviso que o diálogo mostra ao terminar: vem no fim de ação da SPA (`X-CRM-Evento`).
+  def notice_of_panel = evento_da_spa["aviso"].to_s
 
   test "R120 (critério de aceite): as sugestões são os contatos válidos do tipo do canal; o não perturbe e o inválido não são oferecidos" do
     add_contact(@maria, "phone", "(11) 98765-4321")
@@ -244,7 +246,7 @@ class RegistryScreensTest < ActionDispatch::IntegrationTest
     post customer_contact_attempts_path(@maria), params: { contact_attempt: { channel: "phone", result_id: result.id, contact_used: "(11) 3333-4444" } }, headers: painel
     assert_response :no_content
     assert_match(/este contato está em não perturbe desde 20\/10\/2026/i, notice_of_panel)
-    assert_equal "warning", JSON.parse(response.headers["HX-Trigger"]).dig("painel:concluido", "tom")
+    assert_equal "warning", evento_da_spa["tom"]
     post customer_contact_attempts_path(@maria), params: { contact_attempt: { channel: "phone", result_id: result.id, contact_used: "11 2222-1111" } }, headers: painel
     assert_match(/está inválido \(errado\)/, notice_of_panel)
     post customer_contact_attempts_path(@maria), params: { contact_attempt: { channel: "phone", result_id: result.id, contact_used: "(11) 97777-7777" } }, headers: painel
@@ -272,14 +274,14 @@ class RegistryScreensTest < ActionDispatch::IntegrationTest
     contact = add_contact(@maria, "phone", "(11) 98765-4321")
     entrar(users(:joana))
 
-    get edit_settings_contact_result_path(result)
+    get edit_settings_contact_result_path(result), headers: TRECHO
     assert_select "input[type=checkbox][name='contact_result[invalidates_contact]']"
     patch settings_contact_result_path(result), params: { contact_result: { name: result.name, return_rule: result.return_rule, invalidates_contact: "1" } }
     assert result.reload.invalidates_contact?
     post customer_contact_attempts_path(@maria), params: { contact_attempt: { channel: "whatsapp", result_id: result.id, contact_used: "11987654321" } }
     assert_equal "invalid", contact.reload.status
     assert_equal [ "Número ou endereço inexistente" ], ContactResult.where(tenant: @alfa, invalidates_contact: true).where.not(id: result.id).pluck(:name), "na lista inicial só 'inexistente' vem marcado"
-    get settings_contact_results_path
+    get settings_contact_results_path, headers: TRECHO
     assert_select "th", text: "Invalida o contato"
   end
 
@@ -317,7 +319,7 @@ class RegistryScreensTest < ActionDispatch::IntegrationTest
     users(:carlos).memberships.first.profile.update!(permissions: %w[view_portfolio record_contact_attempts])
 
     get form_customer_contact_attempts_path(@maria), headers: painel
-    assert_select "form.painel[hx-post]", 1
+    assert_select "form.dialogo", 1
     assert_select "input[name='contact_attempt[save_contact]']", 0
   end
 
@@ -326,21 +328,23 @@ class RegistryScreensTest < ActionDispatch::IntegrationTest
   test "R106 (critério de aceite): o gestor recusa CNPJ inválido, salva com razão social, e o painel mostra o nome fantasia" do
     entrar(users(:joana))
 
-    get settings_tenant_registry_path
+    get settings_tenant_registry_path, headers: TRECHO
     assert_response :success
     assert_select "h1", "Dados do credor"
-    patch settings_tenant_registry_path, params: { tenant_id: @alfa.id, tenant: { cnpj: "11.111.111/1111-11", legal_name: "Comércio Exemplo Ltda", trade_name: "Exemplo" } }
+    patch settings_tenant_registry_path, params: { credor: @alfa.id, tenant: { cnpj: "11.111.111/1111-11", legal_name: "Comércio Exemplo Ltda", trade_name: "Exemplo" } }, headers: TRECHO
     assert_response :unprocessable_content
-    assert_select "aside", text: /CNPJ inválido/
+    assert_select "[data-refazer-no-erro] aside", text: /CNPJ inválido/
+    assert_select "input[name='tenant[trade_name]'][value='Exemplo']"
     assert_nil @alfa.reload.cnpj
 
-    patch settings_tenant_registry_path, params: { tenant_id: @alfa.id, tenant: { cnpj: "11.222.333/0001-81", legal_name: "Comércio Exemplo Ltda", trade_name: "Exemplo", phone: "(11) 3000-1000" } }
-    assert_redirected_to settings_tenant_registry_path
-    follow_redirect!
-    assert_select "aside", text: /Dados de Escola Alfa salvos/
+    patch settings_tenant_registry_path, params: { credor: @alfa.id, tenant: { cnpj: "11.222.333/0001-81", legal_name: "Comércio Exemplo Ltda", trade_name: "Exemplo", phone: "(11) 3000-1000" } }, headers: TRECHO
+    assert_response :no_content
+    assert_match(/Dados de Escola Alfa salvos/, evento_da_spa["aviso"])
+    assert evento_da_spa["atualizar"]
+    get settings_tenant_registry_path, headers: TRECHO
     assert_select "input[name='tenant[cnpj]'][value='11.222.333/0001-81']"
     assert_select "p", text: /Última alteração: Joana Souza/
-    get root_path
+    get summary_path, headers: TRECHO
     assert_select "section header p", text: /Exemplo/, count: 0 # o resumo só tem totais, sem nome de credor (25/10/2026)
   end
 
@@ -348,16 +352,16 @@ class RegistryScreensTest < ActionDispatch::IntegrationTest
     user = marta
     entrar(user)
 
-    get settings_tenant_registry_path
+    get settings_tenant_registry_path, headers: TRECHO
     assert_select "section h2", text: "Escola Alfa"
     assert_select "section h2", text: "Clínica Beta"
-    patch settings_tenant_registry_path, params: { tenant_id: @beta.id, tenant: { legal_name: "Clínica Beta SA", trade_name: "Beta" } }
+    patch settings_tenant_registry_path, params: { credor: @beta.id, tenant: { legal_name: "Clínica Beta SA", trade_name: "Beta" } }
     assert_equal [ "Beta", nil ], [ @beta.reload.display_name, @alfa.reload.trade_name ]
 
     only_alfa = make_user(@alfa, %w[change_settings])
     delete session_path
     entrar(only_alfa)
-    patch settings_tenant_registry_path, params: { tenant_id: @beta.id, tenant: { legal_name: "Invasão" } }
+    patch settings_tenant_registry_path, params: { credor: @beta.id, tenant: { legal_name: "Invasão" } }
     assert_response :not_found
     assert_equal "Clínica Beta SA", @beta.reload.legal_name
     assert_equal @beta.id, AccessEvent.where(event: "access_denied").last.tenant_id
@@ -366,26 +370,25 @@ class RegistryScreensTest < ActionDispatch::IntegrationTest
   test "quem não tem 'alterar configuração' não vê a aba Dados do credor nem abre a tela" do
     entrar(users(:carlos))
 
-    get settings_tenant_registry_path
+    get settings_tenant_registry_path, headers: TRECHO
     assert_response :not_found
-    get root_path
-    assert_select "#menu-principal .submenu a", text: "Dados do credor", count: 0
+    assert_not_includes rotulos_do_menu, "Dados do credor"
   end
 
   test "R117: a política 'Correção na tela ou carga' é um cartão na aba Carteira, com padrão 'a tela prevalece', salva por credor com o histórico" do
     entrar(users(:joana))
 
-    get settings_portfolio_path
+    get settings_portfolio_path, headers: TRECHO
     assert_select ".politica .titulo", text: /Correção na tela ou carga: qual vale/
     assert_select "input[name=correction_policy][value=screen][checked]"
-    patch settings_portfolio_path, params: { tenant_id: @alfa.id, section: "correction", correction_policy: "load" }
+    patch settings_portfolio_path, params: { credor: @alfa.id, section: "correction", correction_policy: "load" }
     assert_redirected_to settings_portfolio_path
-    follow_redirect!
+    seguir_redirecionamento!
 
     assert_equal [ "load", "screen" ], [ @alfa.setting.reload.correction_policy, @beta.setting.correction_policy ]
     assert_select "p", text: /Alterada por Joana Souza/
     assert_equal [ "screen", "load" ], Change.where(subject_type: "settings", field: "correction_policy").pluck(:before, :after).first
-    patch settings_portfolio_path, params: { tenant_id: @alfa.id, section: "correction", correction_policy: "qualquer" }
+    patch settings_portfolio_path, params: { credor: @alfa.id, section: "correction", correction_policy: "qualquer" }
     assert_response :unprocessable_content
   end
 
@@ -402,8 +405,7 @@ class RegistryScreensTest < ActionDispatch::IntegrationTest
                       header: %w[documento nome titulo vencimento valor telefone contrato]))
     perform_enqueued_jobs(only: CheckImportJob)
 
-    get import_path(import)
-
+    get import_path(import), headers: TRECHO
     assert_select "#contatos-da-conferencia", text: /linha 2: telefone ignorado \(menos de 8 dígitos\)/
     assert_select "#mantidos-pelo-credor", text: /1 nome/
     assert_select "#mantidos-pelo-credor", text: /Maria da Silva Souza.*Maria da Silva.*mantido pelo credor/m

@@ -4,13 +4,14 @@ module Queues
   class Proposal
     Item = Data.define(:id, :segment_id, :name, :delivers)
 
-    attr_reader :tenant, :subject, :items, :version
+    attr_reader :tenant, :subject, :items, :version, :started_at
 
-    def initialize(tenant, subject, items, version)
+    def initialize(tenant, subject, items, version, started_at: nil)
       @tenant = tenant
       @subject = subject
       @items = items
       @version = version
+      @started_at = started_at
     end
 
     def self.current(tenant, subject)
@@ -25,13 +26,13 @@ module Queues
       raise Refused, I18n.t("queues.stale") unless data["tenant_id"] == tenant.id
 
       items = data["items"].map { |item| Item.new(item["id"], item["segment_id"], item["name"], item["delivers"]) }
-      new(tenant, data["subject"], items, data["version"])
+      new(tenant, data["subject"], items, data["version"], started_at: data["started_at"])
     rescue ActiveSupport::MessageVerifier::InvalidSignature
       raise Refused, I18n.t("queues.stale")
     end
 
     def token
-      payload = { "tenant_id" => tenant.id, "subject" => subject, "version" => version, "items" => items.map { |item| item.to_h.transform_keys(&:to_s) } }
+      payload = { "tenant_id" => tenant.id, "subject" => subject, "version" => version, "started_at" => Time.current.iso8601, "items" => items.map { |item| item.to_h.transform_keys(&:to_s) } }
       self.class.verifier.generate(payload, expires_in: 30.minutes)
     end
 
@@ -63,6 +64,4 @@ module Queues
         self.class.new(tenant, subject, list, version).validate!
       end
   end
-
-  class Refused < StandardError; end
 end

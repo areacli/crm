@@ -5,8 +5,8 @@
 <section class="cartao" aria-labelledby="politicas-acordo-<%= tenant.id %>">
   <header><h2 id="politicas-acordo-<%= tenant.id %>">Políticas dos acordos — <%= tenant.name %></h2><%= informacao "políticas dos acordos", "Como o acordo é efetivado, pago e quebrado, as tolerâncias de valor e o mínimo para quebrar. A mudança vale só para as propostas novas: o acordo segue o termo.", "definicao-pol-acordo-#{tenant.id}" %></header>
   <div>
-    <%= form_with url: settings_agreement_policies_path, method: :patch, html: { "hx-boost": "false" } do |form| %>
-      <%= hidden_field_tag :tenant_id, tenant.id %>
+    <%= form_with url: settings_agreement_policies_path, method: :patch do |form| %>
+      <%= hidden_field_tag :credor, tenant.id, id: nil %>
       <%= hidden_field_tag :tab, "agreements" %>
       <%= render "settings/promises/agreement_policy_fields", tenant: tenant, policies: policies, history: history, keys: Agreements::Policies.keys(:agreements) %>
       <div class="acoes" data-rodape><button type="submit">Salvar políticas dos acordos</button></div>
@@ -17,8 +17,8 @@
 <section class="cartao" aria-labelledby="variaveis-acordo-<%= tenant.id %>">
   <header><h2 id="variaveis-acordo-<%= tenant.id %>">Variáveis de acordo do enquadramento financeiro — <%= tenant.name %></h2><%= informacao "variáveis de acordo", "O que cada item do enquadramento permite: teto de desconto por componente (parcelado e à vista), parcelas, parcela mínima, entrada mínima, prazos e dias de quebra. Baixar um teto baixa os limites dos perfis que passavam dele.", "definicao-var-acordo-#{tenant.id}" %></header>
   <div>
-    <%= form_with url: settings_agreement_variables_path, method: :patch, html: { "hx-boost": "false" } do |form| %>
-      <%= hidden_field_tag :tenant_id, tenant.id %>
+    <%= form_with url: settings_agreement_variables_path, method: :patch do |form| %>
+      <%= hidden_field_tag :credor, tenant.id, id: nil %>
       <div class="duas-colunas">
       <% tiers.each do |tier| %>
         <fieldset>
@@ -59,8 +59,8 @@
 <section class="cartao" aria-labelledby="limites-acordo-<%= tenant.id %>">
   <header><h2 id="limites-acordo-<%= tenant.id %>">Limites de acordo por perfil — <%= tenant.name %></h2><%= informacao "limites de acordo", "O que cada perfil negocia sozinho em cada item do enquadramento, dentro das variáveis dele. Acima do limite, a proposta nasce pendente e espera quem tem limites que a cobririam. Os tetos em reais são opcionais (vazio, sem teto).", "definicao-lim-acordo-#{tenant.id}" %></header>
   <div>
-    <%= form_with url: settings_agreement_limits_path, method: :patch, html: { "hx-boost": "false" } do |form| %>
-      <%= hidden_field_tag :tenant_id, tenant.id %>
+    <%= form_with url: settings_agreement_limits_path, method: :patch do |form| %>
+      <%= hidden_field_tag :credor, tenant.id, id: nil %>
       <div class="duas-colunas">
       <% tiers.each do |tier| %>
         <% profiles.each do |profile| %>

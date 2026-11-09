@@ -7,13 +7,13 @@ module Settings
         @adjustment = IndexAdjustment.includes(:tenant).find(params[:desfazer])
         authorize @adjustment, :destroy?, policy_class: IndexAdjustmentPolicy
       else
-        @tenant = Tenant.find(params[:tenant_id])
+        @tenant = Tenant.find(params[:credor])
         authorize IndexAdjustment.new(tenant: @tenant), :create?, policy_class: IndexAdjustmentPolicy
       end
     end
 
     def create
-      @tenant = Tenant.find(params[:tenant_id])
+      @tenant = Tenant.find(params[:credor])
       authorize IndexAdjustment.new(tenant: @tenant), :create?, policy_class: IndexAdjustmentPolicy
       data = params.expect(adjustment: %i[series month value reason])
       Indexes::Adjuster.new(Current.user, @tenant).correct(series: data[:series], month: data[:month], value: data[:value], reason: data[:reason])

@@ -1,1 +1,4 @@
-<%= render "profiles/form", profile: @profile, url: profile_path(@profile), method: :patch, titulo: "Perfil #{@profile.name_was}" %>
+<% usuarios = @profile.memberships.count %>
+<% content_for :title, "Perfil #{@profile.name_was}" %>
+<%= pagina "Perfil #{@profile.name_was}", subtitulo: "#{@profile.tenant.name} · #{usuarios} #{usuarios == 1 ? "usuário" : "usuários"} com este perfil" %>
+<%= render "profiles/form", profile: @profile, url: profile_path(@profile), method: :patch %>

@@ -2,11 +2,11 @@
 <%= pagina "Trilha das operações", subtitulo: "O que os usuários das operações abriram, buscaram, não encontraram e exportaram. Guardada por 12 meses." %>
 <%= render "settings/modelo" %>
 <form class="filtros" role="search" action="<%= settings_operation_trails_path %>" method="get">
-  <div class="campo"><label for="operation">Operação</label><select id="operation" name="operation"><option value="">Todas</option><%= options_for_select(@operations, params[:operation]) %></select></div>
-  <div class="campo"><label for="user">Usuário</label><select id="user" name="user"><option value="">Todos</option><%= options_for_select(@users, params[:user]) %></select></div>
-  <div class="campo"><label for="kind">Tipo</label><select id="kind" name="kind"><option value="">Todos</option><%= options_for_select(OperationTrailEvent::KINDS.map { [ t("operation_trails.kinds.#{_1}"), _1 ] }, params[:kind]) %></select></div>
-  <div class="campo"><label for="from">De</label><input type="date" id="from" name="from" value="<%= params[:from] %>"></div>
-  <div class="campo"><label for="to">Até</label><input type="date" id="to" name="to" value="<%= params[:to] %>"></div>
+  <div class="campo"><label for="operation">Operação</label><select id="operation" name="operacao"><option value="">Todas</option><%= options_for_select(@operations, params[:operacao]) %></select></div>
+  <div class="campo"><label for="user">Usuário</label><select id="user" name="usuario"><option value="">Todos</option><%= options_for_select(@users, params[:usuario]) %></select></div>
+  <div class="campo"><label for="kind">Tipo</label><select id="kind" name="tipo"><option value="">Todos</option><%= opcoes_de_filtro(OperationTrailEvent::KINDS.map { [ t("operation_trails.kinds.#{_1}"), _1 ] }, params[:tipo]) %></select></div>
+  <div class="campo"><label for="from">De</label><input type="date" id="from" name="de" value="<%= params[:de] %>"></div>
+  <div class="campo"><label for="to">Até</label><input type="date" id="to" name="ate" value="<%= params[:ate] %>"></div>
   <button type="submit" data-variant="secondary">Filtrar</button>
 </form>
 <% if @events.empty? %>
@@ -29,5 +29,5 @@
       </tbody>
     </table>
   </div>
-  <%= render "shared/paginacao", pagination: @pagination, unit: "registros", path: ->(page) { settings_operation_trails_path(request.query_parameters.merge("page" => page)) } %>
+  <%= render "shared/paginacao", pagination: @pagination, unit: "registros", path: ->(page) { settings_operation_trails_path(request.query_parameters.merge("pagina" => page)) } %>
 <% end %>

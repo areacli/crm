@@ -3,7 +3,7 @@ module Settings
   # execução da tarefa diária.
   class RetentionPeriodsController < ApplicationController
     def update
-      tenant = Tenant.find(params[:tenant_id])
+      tenant = Tenant.find(params[:credor])
       authorize tenant.setting, :update?, policy_class: TenantSettingPolicy
       years = params.expect(retention: [ :years ])[:years].to_s
       raise Access::Refused, t(".invalid") unless years.match?(/\A\d{1,2}\z/) && years.to_i.between?(1, 50)
@@ -16,6 +16,8 @@ module Settings
                        before: before.to_s, after: years, origin: "screen")
         Titular::Broadcast.changed(tenant)
       end
+      return panel_finish(settings_tenant_registry_path, notice: t(".done", tenant: tenant.name), atualizar: true) if spa?
+
       redirect_to settings_tenant_registry_path, notice: t(".done", tenant: tenant.name), status: :see_other
     end
   end

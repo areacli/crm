@@ -1,0 +1,24 @@
+<%# Histórico de acessos e alterações do vínculo (R39). Local: user. %>
+<section class="cartao" aria-labelledby="historico">
+  <header><h2 id="historico">Histórico de acessos e alterações</h2><%= informacao "histórico", "Os últimos #{@events.size} registros deste credor e das entradas no sistema.", "definicao-historico" %></header>
+  <% if @events.empty? %>
+    <p class="vazio">Nenhum registro ainda.</p>
+  <% else %>
+    <div class="tabela" tabindex="0" data-fixa>
+      <table>
+        <caption class="apenas-leitor-de-tela">Histórico de <%= user.name %></caption>
+        <thead><tr><th scope="col">Quando</th><th scope="col">O que aconteceu</th><th scope="col">Por quem</th><th scope="col">Endereço</th></tr></thead>
+        <tbody>
+          <% @events.each do |event| %>
+            <tr>
+              <th scope="row"><%= datetime_br(event.occurred_at) %></th>
+              <td><%= event_description(event) %></td>
+              <td><%= event.actor&.name || "—" %></td>
+              <td><%= event.ip_address || "—" %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
+</section>

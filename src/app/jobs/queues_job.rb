@@ -4,8 +4,12 @@ class QueuesJob < ApplicationJob
   queue_as :default
   discard_on ActiveJob::DeserializationError
 
-  def perform(tenant, token: nil)
-    token ? Queues::Review.compute(tenant, token) : Queues::Recalculation.new(tenant).call
+  def perform(tenant, token: nil, requested_by: nil)
+    if token
+      ImpactReview.run(Queues::Review, tenant, token, user: requested_by, where: I18n.t("impact_review.queues", tenant: tenant.name))
+    else
+      Queues::Recalculation.new(tenant).call
+    end
   ensure
     QueuesChannel.broadcast_to(tenant, { event: token ? "queue-review-ready" : "queues-changed" })
   end

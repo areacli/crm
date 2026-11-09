@@ -12,15 +12,15 @@ class DistributionsScreensTest < ActionDispatch::IntegrationTest
 
   test "distribuir pelo documento, ver na lista e na ficha, mudar e recolher" do
     sign_in_as users(:joana)
-    get distributions_url
+    assert_includes rotulos_do_menu, "Distribuição"
+    get distributions_url, headers: TRECHO
     assert_response :success
-    assert_select "#menu-principal a", text: "Distribuição"
     post distributions_url, params: { distribution: { accreditation_id: @accreditation.id, target: "customer", value: Document.format(@ana.document), exposure: "overdue", starts_on: Date.current.iso8601 } }
     distribution = Distribution.last
     assert_equal @ana, distribution.customer
-    get distributions_url
+    get distributions_url, headers: TRECHO
     assert_select "tbody tr", text: /Ana Lima.*Recupera/m
-    get customer_url(@ana)
+    get_ficha(@ana)
     # Revisão 23: na tabela só a etiqueta; o período e a origem vão para a linha do tempo da lateral.
     assert_select "ul.operacoes-do-contrato li", text: /\ARecupera, Recupera Cobranças/
     assert_select "ol.linha-do-tempo li[data-evento=entrada]", text: /#{Regexp.escape(Date.current.strftime('%d/%m/%Y'))}.*Entrada.*Recupera.*Cliente · vencidas · à mão/m
@@ -31,7 +31,7 @@ class DistributionsScreensTest < ActionDispatch::IntegrationTest
     assert_response :unprocessable_content
     post distribution_recall_url(distribution), params: { recall: { reason: "performance", note: "" } }
     assert_equal "performance", distribution.reload.end_reason
-    get customer_url(@ana)
+    get_ficha(@ana)
     assert_select "ol.linha-do-tempo li", 2
     assert_select "ol.linha-do-tempo li:first-child[data-evento=saida]", text: /Saída.*Recupera.*Desempenho/m
     assert_select "ul.operacoes-do-contrato", count: 0
@@ -45,9 +45,8 @@ class DistributionsScreensTest < ActionDispatch::IntegrationTest
 
   test "sem a permissão 19, Distribuição não aparece e o endereço é recusado" do
     sign_in_as users(:carlos)
-    get root_url
-    assert_select "#menu-principal a", text: "Distribuição", count: 0
-    get distributions_url
+    assert_not_includes rotulos_do_menu, "Distribuição"
+    get distributions_url, headers: TRECHO
     assert_response :not_found
   end
 end

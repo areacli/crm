@@ -17,11 +17,11 @@ class SegmentsScreensTest < ActionDispatch::IntegrationTest
 
   test "R295: a lista mostra nome, o que seleciona, o texto curto, onde é usado e a situação; sem segmento, o estado vazio" do
     entrar(users(:joana))
-    get settings_segments_path
+    get settings_segments_path, headers: TRECHO
     assert_select "p.vazio", text: /Nenhum segmento criado/
     make_tier(@alfa, "Longo", min_overdue_days: 90)
     make_segment(@alfa, "PF sem uso", subject: "customers", person_type: "person")
-    get settings_segments_path
+    get settings_segments_path, headers: TRECHO
     assert_select "th a", text: "Longo"
     assert_select "td code", text: "atraso >= 90"
     assert_select "td", text: "Enquadramento financeiro, item 1"
@@ -33,11 +33,11 @@ class SegmentsScreensTest < ActionDispatch::IntegrationTest
     contract = make_contract(@alfa, "C1", bills: [ { overdue: 120 } ])
     recalc(@alfa)
     entrar(users(:joana))
-    get new_settings_segment_path(tenant_id: @alfa.id)
+    get new_settings_segment_path(credor: @alfa.id), headers: TRECHO
     assert_select "h2", text: "Nome"
     assert_select "textarea[name='segment[source]']", text: /contratos/
     assert_select "h2", text: "Como fica"
-    post settings_segments_path, params: { tenant_id: @alfa.id, segment: { name: "Atraso longo", source: text("Contratos", "  atraso > 90") } }
+    post settings_segments_path, params: { credor: @alfa.id, segment: { name: "Atraso longo", source: text("Contratos", "  atraso > 90") } }
     assert_redirected_to settings_segments_path
     segment = @alfa.segments.find_by!(name: "Atraso longo")
     assert_equal [ { "path" => "overdue_days", "op" => "gt", "value" => 90 } ], segment.expression["all"]
@@ -47,36 +47,36 @@ class SegmentsScreensTest < ActionDispatch::IntegrationTest
 
   test "R285, R290: o segmento novo em branco e o exemplo pronto abrem com o texto do sujeito, sem tradução faltando" do
     entrar(users(:joana))
-    get new_settings_segment_path(tenant_id: @alfa.id)
+    get new_settings_segment_path(credor: @alfa.id), headers: TRECHO
     assert_select "textarea[name='segment[source]']", text: /\Acontratos\s*\z/
     assert_select "p.leitura", text: /Escreva as condições/
     assert_no_match(/Translation missing/, response.body)
-    get new_settings_segment_path(tenant_id: @alfa.id, exemplo: "sem-contato-valido")
+    get new_settings_segment_path(credor: @alfa.id, exemplo: "sem-contato-valido"), headers: TRECHO
     assert_select "textarea[name='segment[source]']", text: /\Aclientes\s+sem contato válido\z/
     assert_no_match(/Translation missing/, response.body)
     segment = make_segment(@alfa, "Longo", min_overdue_days: 90)
-    get edit_settings_segment_path(segment)
+    get edit_settings_segment_path(segment), headers: TRECHO
     assert_select "p.leitura strong", text: "Seleciona contratos em que o contrato tem atraso de pelo menos 90 dias."
     assert_no_match(/Translation missing/, response.body)
   end
 
   test "R301, R302: enquanto escreve, Como fica mostra a leitura de cada linha e os erros em português, sem gravar" do
     entrar(users(:joana))
-    post draft_settings_segments_path(tenant_id: @alfa.id), params: { segment: { name: "X", source: text("contratos", "  atraso > 90", "  títulos vencidos 3", "  qualquer:", "    quebrou acordo") } }
+    post draft_settings_segments_path(credor: @alfa.id), params: { segment: { name: "X", source: text("contratos", "  atraso > 90", "  títulos vencidos 3", "  qualquer:", "    quebrou acordo") } }, headers: TRECHO
     assert_response :success
-    assert_select "aside#como-fica"
     assert_select "li[value='1'] p.leitura", text: "Seleciona contratos."
     assert_select "li[value='2'] p.leitura", text: "O contrato tem atraso maior que 90 dias."
     assert_select "li[value='3'][data-erro] p.erro", text: /\ALinha 3: vem uma comparação/
     assert_select "li[value='4'] p.leitura", text: "Pelo menos uma das linhas de baixo."
     assert_select "li[value='5'] p.leitura", text: "O contrato já quebrou acordo."
-    assert_select "p.erro", text: "1 linha com erro."
+    # O erro marca o cálculo como recusado: o Salvar do editor espera o texto sem erro (design system, 7.2).
+    assert_select "p.erro[data-calculo=recusado]", text: "1 linha com erro: corrija para salvar."
     assert_equal 0, @alfa.segments.count
   end
 
   test "R303: com erro, não salva; o texto volta à caixa como estava e os erros aparecem" do
     entrar(users(:joana))
-    post settings_segments_path, params: { tenant_id: @alfa.id, segment: { name: "Errado", source: text("contratos", "  atraso > noventa") } }
+    post settings_segments_path, params: { credor: @alfa.id, segment: { name: "Errado", source: text("contratos", "  atraso > noventa") } }
     assert_response :unprocessable_content
     assert_select "textarea[name='segment[source]']", text: /atraso > noventa/
     assert_select "p.erro", text: /"noventa" não é um número inteiro/
@@ -95,11 +95,11 @@ class SegmentsScreensTest < ActionDispatch::IntegrationTest
     make_contract(@alfa, "C1", bills: [ { overdue: 120, cents: 100_000 } ])
     make_contract(@alfa, "C2", bills: [ { overdue: 10, cents: 50_000 } ])
     entrar(users(:joana))
-    post probe_settings_segments_path(tenant_id: @alfa.id), params: { segment: { source: text("contratos", "  atraso > 90", "  saldo > R$ 5.000") } }
-    assert_select "#conferir", text: /Contando/
-    url = css_select("#conferir").first["hx-get"]
+    post probe_settings_segments_path(credor: @alfa.id), params: { segment: { source: text("contratos", "  atraso > 90", "  saldo > R$ 5.000") } }, headers: TRECHO
+    assert_select "[data-conferir][data-spa-vivo-confere]", text: /Contando/
+    url = css_select("[data-conferir]").first["data-spa-vivo"]
     perform_enqueued_jobs(only: SegmentProbeJob)
-    get url
+    get url, headers: TRECHO.merge("X-CRM-Fragmento" => "1")
     assert_select "strong", text: "Pega 0 contratos"
     assert_select "td", text: "1"
     assert_select "td", text: "0 (zera)", count: 1
@@ -137,7 +137,7 @@ class SegmentsScreensTest < ActionDispatch::IntegrationTest
 
   test "R289: o glossário vem do catálogo, com definição e exemplo" do
     entrar(users(:joana))
-    get settings_segment_glossary_path
+    get settings_segment_glossary_path, headers: TRECHO
     assert_select "h2", text: "Coleções"
     assert_select "dt code", text: "atraso"
     assert_select "dd", text: /Dias desde o vencimento do título em cobrança mais atrasado do contrato/
@@ -149,11 +149,11 @@ class SegmentsScreensTest < ActionDispatch::IntegrationTest
     contracts = make_segment(@alfa, "Longos", min_overdue_days: 90)
     make_tier(@alfa, "Já usado")
     entrar(users(:joana))
-    get new_settings_tier_path(tenant_id: @alfa.id)
+    get new_settings_tier_path(credor: @alfa.id), headers: TRECHO
     assert_select "select[name='tier[segment_id]'] option", text: /Longos/
     assert_select "select[name='tier[segment_id]'] option", text: /Clientes PF|Já usado/, count: 0
     assert_select "small", text: /Segmentos de clientes não aparecem/
-    post settings_tiers_path, params: { tenant_id: @alfa.id, tier: { segment_id: contracts.id, before_id: "", copy_from_id: Tier.catch_all_of(@alfa).id } }
+    post settings_tiers_path, params: { credor: @alfa.id, tier: { segment_id: contracts.id, before_id: "", copy_from_id: Tier.catch_all_of(@alfa).id } }
     follow_review
     assert_select "h3", text: "Incluído no enquadramento: Longos"
     confirm_review(@alfa)
@@ -164,7 +164,7 @@ class SegmentsScreensTest < ActionDispatch::IntegrationTest
     a = make_tier(@alfa, "A", min_overdue_days: 1)
     make_tier(@alfa, "B", min_overdue_days: 5)
     entrar(users(:joana))
-    get settings_tiers_path
+    get settings_tiers_path, headers: TRECHO
     assert_select "span", text: "Trilha padrão"
     post settings_tier_movement_path(a), params: { movement: { direction: "down" } }
     follow_review
@@ -176,7 +176,7 @@ class SegmentsScreensTest < ActionDispatch::IntegrationTest
   test "R272: as variáveis de acordo passam pela conferência antes de valer" do
     demais = Tier.catch_all_of(@alfa)
     entrar(users(:joana))
-    patch settings_agreement_variables_path, params: { tenant_id: @alfa.id, tiers: { demais.id.to_s => { max_installments: "6", min_installment: "50,00", min_down_payment_pct: "10", down_payment_days: "10", validity_days: "5", tolerance_days: "3", break_days: "30" } } }
+    patch settings_agreement_variables_path, params: { credor: @alfa.id, tiers: { demais.id.to_s => { max_installments: "6", min_installment: "50,00", min_down_payment_pct: "10", down_payment_days: "10", validity_days: "5", tolerance_days: "3", break_days: "30" } } }
     follow_review
     assert_not_equal 6, demais.reload.agreement_max_installments
     confirm_review(@alfa)
@@ -193,15 +193,14 @@ class SegmentsScreensTest < ActionDispatch::IntegrationTest
     pf = make_segment(@alfa, "PF", subject: "customers", person_type: "person")
     long = Tier.financial.find_by!(tenant: @alfa, catch_all: false).segment
     entrar(users(:joana))
-    get customers_path
-    assert_select "th", text: "Enquadramento"
+    get customers_path, headers: TRECHO
+    assert_match(/"titulo":"Enquadramento"/, CGI.unescapeHTML(response.body))
     assert_select "optgroup[label='Segmentos de clientes'] option", text: "PF"
-    get customers_path(segment: pf.id)
-    assert_select "a", text: "Maria"
-    assert_select "a", text: "Loja Ltda", count: 0
-    get customers_path(segment: long.id)
-    assert_select "td", text: "Longo"
-    assert_select "a", text: "Loja Ltda", count: 0
+    corpo = get_clientes(segmento: pf.id)
+    assert_equal [ "Maria" ], corpo["rows"].map { |linha| celula(linha, "name") }
+    assert_match(/\ASegmento PF: /, corpo["nota"])
+    linhas = linhas_de_clientes(segmento: long.id)
+    assert_equal [ [ "Maria", "Longo" ] ], linhas.map { |linha| [ celula(linha, "name"), linha["enquadramento"] ] }
   end
 
   test "revisão 3: segmento pesado demais para a lista mostra a mensagem" do
@@ -209,8 +208,7 @@ class SegmentsScreensTest < ActionDispatch::IntegrationTest
     entrar(users(:joana))
     original = Segments::ListFilter.method(:load)
     Segments::ListFilter.define_singleton_method(:load) { |*| false }
-    get customers_path(segment: segment.id)
-    assert_select "p", text: /demora demais para a lista/
+    assert_match(/demora demais para a lista/, get_clientes(segmento: segment.id)["aviso"])
   ensure
     Segments::ListFilter.define_singleton_method(:load, original) if original
   end
@@ -220,7 +218,7 @@ class SegmentsScreensTest < ActionDispatch::IntegrationTest
     contract = make_contract(@alfa, "C1", bills: [ { overdue: 120 } ])
     recalc(@alfa)
     entrar(users(:joana))
-    get customer_path(contract.customers.first)
+    get_ficha(contract.customers.first)
     assert_select "th", text: "Enquadramento"
     assert_select "td", text: /Longo/
     assert_select "tr.detalhe-da-linha p", text: /No item Longo do enquadramento financeiro desde/
@@ -231,10 +229,10 @@ class SegmentsScreensTest < ActionDispatch::IntegrationTest
     Membership.create!(user: marta, tenant: @beta, profile: Profile.create!(tenant: @beta, name: "Configura", permissions: %w[view_portfolio change_settings]))
     beta = make_segment(@beta, "Beta A")
     entrar(marta)
-    get settings_segments_path
+    get settings_segments_path, headers: TRECHO
     assert_select "a", text: "Criar segmento", count: 1
     assert_difference -> { AccessEvent.where(event: "access_denied", tenant_id: @beta.id, user_id: marta.id).count }, 1 do
-      post settings_segments_path, params: { tenant_id: @beta.id, segment: { name: "Y", source: text("contratos", "  atraso > 1") } }
+      post settings_segments_path, params: { credor: @beta.id, segment: { name: "Y", source: text("contratos", "  atraso > 1") } }
       assert_response :not_found
     end
     patch settings_segment_path(beta), params: { segment: { name: "Mudado", source: text("contratos", "  atraso > 1") } }

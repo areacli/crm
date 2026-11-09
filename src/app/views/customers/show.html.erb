@@ -1,4 +1,4 @@
-<% content_for :title, @customer.name %>
+<%# Ficha na SPA (decisão 0028): aba de registro, com as abas internas no centro e a lateral a leste. %>
 <% content_for :cable_channels, customer_contact_cable_channels(@customer) %>
 <%
   active = @bills.select(&:active?)
@@ -14,75 +14,70 @@
   indicators << situacao(pluralize(promises_count, "promessa em aberto", "promessas em aberto"), tom: :info) if promises_count.positive?
   indicators << situacao(pluralize(agreements_count, "proposta ou acordo", "propostas ou acordos"), tom: :info) if agreements_count.positive?
   can_more = @can_edit_registry || @can_transfer || @can_handle_rights
+  delivery = QueueDelivery.open.find_by(user_id: Current.user.id)
+  delivery = nil unless delivery && (delivery.subject == "customers" ? delivery.subject_id == @customer.id : @all_contracts.any? { |contract| contract.id == delivery.subject_id })
   tabs = [ [ "Títulos", @bills.size, "titulos" ], [ "Acionamentos", @contact_history.total, "acionamentos" ], [ "Promessas e acordos", promises_count + agreements_count, "promessas" ],
            [ "Pagamentos", @payments.size, "pagamentos" ], [ "Contatos", @listed_contacts.size, "contatos" ], [ "Histórico", nil, "historico" ] ]
 %>
-<%= pagina(@customer.name, subtitulo: safe_join([ @customer.tenant.name, " · ", link_to("Voltar para os clientes", customers_path) ]), indicadores: indicators, vivo: { url: request.fullpath, eventos: %w[cable:promises-changed cable:agreements-changed] }) do %>
-  <% if @contact_form %><%= abrir_painel "Registrar acionamento", form_customer_contact_attempts_path(@customer) %><% end %>
-  <% if @can_negotiate %><%= link_to "Simular acordo", new_customer_agreement_simulation_path(@customer), class: "botao", data: { variant: "secondary" } %><% end %>
-  <% if can_more %>
-    <%= menu_de_linha("mais-acoes", "Mais ações do cliente") do %>
-      <% if @can_edit_registry %>
-        <%= abrir_painel "Editar nome", edit_customer_name_path(@customer) %>
-        <%= abrir_painel "Criar contato", new_customer_contact_path(@customer) %>
-      <% end %>
-      <% if @can_transfer %><%= abrir_painel "Transferir crédito", new_customer_credit_transfer_path(@customer) %><% end %>
-      <% if @can_handle_rights %>
-        <%= abrir_painel "Exportar dados", new_customer_data_export_path(@customer) %>
-        <% unless @customer.anonymized? %><%= abrir_painel "Anonimizar", new_customer_anonymization_path(@customer), variante: "danger-outline" %><% end %>
+<div class="ficha" data-titulo="<%= @customer.name %>">
+  <%= pagina(@customer.name, subtitulo: @customer.tenant.name, indicadores: indicators) do %>
+    <% if @contact_form %><%= abrir_painel "Registrar acionamento", form_customer_contact_attempts_path(@customer) %><% end %>
+    <% if @can_negotiate %><%= link_to "Simular acordo", new_customer_agreement_simulation_path(@customer), class: "botao", data: { variant: "secondary" } %><% end %>
+    <% if can_more %>
+      <%= menu_de_linha("mais-acoes", "Mais ações do cliente") do %>
+        <%# O nome se corrige no cartão "Dados do cliente" (design system, 7.1). %>
+        <% if @can_edit_registry %><%= abrir_painel "Criar contato", new_customer_contact_path(@customer) %><% end %>
+        <% if @can_transfer %><%= abrir_painel "Transferir crédito", new_customer_credit_transfer_path(@customer) %><% end %>
+        <% if @can_handle_rights %>
+          <%= abrir_painel "Exportar dados", new_customer_data_export_path(@customer) %>
+          <% unless @customer.anonymized? %><%= abrir_painel "Anonimizar", new_customer_anonymization_path(@customer), variante: "danger-outline" %><% end %>
+        <% end %>
       <% end %>
     <% end %>
   <% end %>
-<% end %>
-
-<%# 15, R354: a entrega aberta do usuário, se é este cliente ou um contrato dele. %>
-<% if (delivery = QueueDelivery.open.find_by(user_id: Current.user.id)) && (delivery.subject == "customers" ? delivery.subject_id == @customer.id : @all_contracts.any? { |contract| contract.id == delivery.subject_id }) %>
-  <%= render "queue_deliveries/faixa", delivery: delivery %>
-<% end %>
-<% if @city_unrecognized %><%= aviso(tom: :warning) { tag.p "Cidade não reconhecida: o endereço deste cliente não casa com a lista de municípios do IBGE, e os acordos dele usam só os feriados nacionais. Corrija o endereço no cadastro." } %><% end %>
-<% if @customer.anonymized? %><%= aviso(tom: :info) { tag.p "Cliente anonimizado em #{date_br(@customer.anonymized_at.to_date)}. Só restam os dados que não identificam a pessoa." } %><% end %>
-
-<div class="ficha">
-  <div class="ficha-principal">
-    <%# Padrões de interface, revisões 21 e 28: o cartão Contratos é o filtro da ficha; o contrato escolhido recorta a página inteira e passa de uma aba a outra. %>
-    <%= render "customers/contracts", customer: @customer, contracts: @all_contracts, selected: @contract, tab: @tab, bill_counts: @contract_bill_counts,
-               operations: (Operations::Context.operation? ? nil : @contract_operations), members: @contract_members, credit_totals: @credit_totals,
-               brackets: @brackets, overdue: @contract_overdue, tiers: @contract_tiers, since: @tier_since %>
-    <%= abas_da_pagina "Seções da ficha", tabs.map { |texto, contagem, chave| [ texto, customer_path(@customer, aba: chave, contrato: @contract&.id), contagem, @tab == chave ] } %>
-    <%= render "customers/tabs/#{@tab}" %>
+  <div class="ficha-avisos"><%# 15, R354: a entrega aberta do usuário, se é este cliente ou um contrato dele. %><% if delivery %><%= render "queue_deliveries/faixa", delivery: delivery %><% end %><% if @city_unrecognized %><%= aviso(tom: :warning) { tag.p "Cidade não reconhecida: o endereço deste cliente não casa com a lista de municípios do IBGE, e os acordos dele usam só os feriados nacionais. Corrija o endereço no cadastro." } %><% end %><% if @customer.anonymized? %><%= aviso(tom: :info) { tag.p "Cliente anonimizado em #{date_br(@customer.anonymized_at.to_date)}. Só restam os dados que não identificam a pessoa." } %><% end %></div>
+  <div class="ficha-corpo" data-spa-layout>
+    <div region="center" border="false">
+      <div class="ficha-centro">
+        <%= render "customers/contracts", customer: @customer, contracts: @all_contracts, selected: @contract, tab: @tab, bill_counts: @contract_bill_counts,
+                   operations: (Operations::Context.operation? ? nil : @contract_operations), members: @contract_members, credit_totals: @credit_totals,
+                   brackets: @brackets, overdue: @contract_overdue, tiers: @contract_tiers, since: @tier_since %>
+        <%= abas_internas tabs.map { |texto, contagem, chave| [ texto, customer_path(@customer, aba: chave, contrato: @contract&.id), contagem, @tab == chave ] } %>
+      </div>
+    </div>
+    <div region="east" border="false" split="false" data-largura="300">
+      <div class="ficha-lateral">
+        <section class="cartao">
+          <header><h2>Dados do cliente</h2></header>
+          <div>
+            <dl class="dados">
+              <dt>Nome</dt><dd><%= @can_edit_registry ? campo_inline(@customer.name, rotulo: "Nome", url: customer_name_path(@customer), nome: "customer[name]", maximo: 300) : @customer.name %></dd>
+              <dt>Documento</dt><dd><%= @customer.formatted_document %></dd>
+              <dt>Telefone</dt><dd><%= @contacts.find { |contact| contact.phone? && contact.status_valid? }&.value || "—" %></dd>
+              <dt>E-mail</dt><dd><%= @contacts.find { |contact| contact.email? && contact.status_valid? }&.value || "—" %></dd>
+              <dt>Faixa de atraso</dt><dd><%= worst ? "#{@brackets.label(@brackets.index_for(worst))} dias" : "Sem atraso" %></dd>
+            </dl>
+            <% if @customer.name_kept? %><p class="nota">O nome foi corrigido na tela (mantido pelo credor).</p><% end %>
+          </div>
+        </section>
+        <section class="cartao">
+          <header><h2>Em cobrança</h2></header>
+          <div>
+            <dl class="dados">
+              <dt>Vencido</dt><dd><%= money(overdue.sum(&:balance_cents)) %></dd>
+              <% unless @setting.upcoming_display == "detail_only" %><dt>A vencer</dt><dd><%= money(upcoming.sum(&:balance_cents)) %></dd><% end %>
+              <dt>Títulos em cobrança</dt><dd><%= number_br(active.size) %></dd>
+              <dt>Atualizado</dt><dd><%= money(overdue.sum { |bill| @valuations[bill.id]&.total_cents || bill.balance_cents }) %></dd>
+            </dl>
+            <% if @value_status[:calculated_on] %>
+              <p class="nota">Valor atualizado até <%= date_br(@value_status[:calculated_on]) %> pelas regras de <%= @customer.tenant.name %>.<%= " Os valores estão sendo recalculados." if @value_status[:running] %></p>
+            <% elsif overdue.any? %>
+              <p class="nota">O valor atualizado ainda não foi calculado para este credor.</p>
+            <% end %>
+          </div>
+        </section>
+        <%= render "customers/timeline", customer: @customer, timeline: @timeline, base: { aba: (@tab unless @tab == "titulos"), contrato: @contract&.id }.compact %>
+      </div>
+    </div>
   </div>
-
-  <aside class="ficha-lateral" aria-label="Resumo do cliente">
-    <section class="cartao" aria-labelledby="dados">
-      <header><h2 id="dados">Dados do cliente</h2></header>
-      <div>
-        <dl class="dados">
-          <dt>Documento</dt><dd><%= @customer.formatted_document %></dd>
-          <dt>Telefone</dt><dd><%= @contacts.find { |contact| contact.phone? && contact.status_valid? }&.value || "—" %></dd>
-          <dt>E-mail</dt><dd><%= @contacts.find { |contact| contact.email? && contact.status_valid? }&.value || "—" %></dd>
-          <dt>Faixa de atraso</dt><dd><%= worst ? "#{@brackets.label(@brackets.index_for(worst))} dias" : "Sem atraso" %></dd>
-        </dl>
-        <% if @customer.name_kept? %><p><small>O nome foi corrigido na tela (mantido pelo credor).</small></p><% end %>
-      </div>
-    </section>
-
-    <section class="cartao" aria-labelledby="totais">
-      <header><h2 id="totais">Em cobrança</h2></header>
-      <div>
-        <% updated_total = overdue.sum { |bill| @valuations[bill.id]&.total_cents || bill.balance_cents } %>
-        <dl class="dados">
-          <dt>Vencido</dt><dd><%= money(overdue.sum(&:balance_cents)) %></dd>
-          <% unless @setting.upcoming_display == "detail_only" %><dt>A vencer</dt><dd><%= money(upcoming.sum(&:balance_cents)) %></dd><% end %>
-          <dt>Títulos em cobrança</dt><dd><%= number_br(active.size) %></dd>
-          <dt>Atualizado</dt><dd><%= money(updated_total) %></dd>
-        </dl>
-        <% if @value_status[:calculated_on] %>
-          <p><small>Valor atualizado até <%= date_br(@value_status[:calculated_on]) %> (principal corrigido, multa, juros e honorários pelas regras de <%= @customer.tenant.name %>).<%= " Os valores estão sendo recalculados." if @value_status[:running] %></small></p>
-        <% elsif overdue.any? %>
-          <p><small>O valor atualizado ainda não foi calculado para este credor.</small></p>
-        <% end %>
-      </div>
-    </section>
-    <%= render "customers/timeline", customer: @customer, timeline: @timeline, base: { aba: (@tab unless @tab == "titulos"), contrato: @contract&.id }.compact %>
-  </aside>
 </div>

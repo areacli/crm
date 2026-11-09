@@ -4,13 +4,13 @@
 <% policy = policy(agreement) %>
 <%# A página de uma proposta ou de um acordo (11, R216 a R220): situação, termos congelados, entrada e parcelas; as ações abrem no painel (decisão 0022). %>
 <% more = policy.cancel? || (policy.approve?) || policy.settle? || policy.break? || policy.revert? || policy.conclude? %>
-<%= pagina "Acordo #{agreement.number}", subtitulo: safe_join([ link_to(agreement.customer.name, customer_path(agreement.customer, aba: "promessas")), " · ", agreement.tenant.name, " · ", link_to("Voltar para os acordos", agreements_path) ]),
+<%= pagina "Acordo #{agreement.number}", subtitulo: safe_join([ link_to(agreement.customer.name, customer_path(agreement.customer, aba: "promessas")), " · ", agreement.tenant.name ]),
            indicadores: [ agreement_state(agreement) ] do %>
   <% if policy.term? && !agreement.state_pending? && @term["missing"].blank? && !agreement.state_refused? %>
     <%= link_to "Abrir o termo", agreement_term_path(agreement), class: "botao", data: { variant: "secondary" }, target: "_blank", rel: "noopener" %>
   <% end %>
   <% if policy.accept? && @term["missing"].blank? %><%= abrir_painel "Registrar aceite", new_agreement_acceptance_path(agreement) %><% end %>
-  <% if policy.approve? %><%= button_to "Aprovar proposta", agreement_approval_path(agreement), form: { "hx-boost": "false" } %><% end %>
+  <% if policy.approve? %><%= button_to "Aprovar proposta", agreement_approval_path(agreement) %><% end %>
   <% if more %>
     <%= menu_de_linha("mais-acoes-acordo", "Mais ações do acordo") do %>
       <% if policy.approve? %><%= abrir_painel "Recusar proposta", new_agreement_refusal_path(agreement), variante: "danger-outline" %><% end %>
@@ -78,11 +78,11 @@
   <div class="tabela" tabindex="0">
     <table>
       <caption class="apenas-leitor-de-tela">Entrada e parcelas do acordo</caption>
-      <thead><tr><th scope="col">Título de acordo</th><th scope="col">Vencimento</th><th scope="col" data-numerico>Valor</th><th scope="col" data-numerico>Juros do parcelamento</th><th scope="col" data-numerico>Amortização</th><th scope="col" data-numerico>Falta amortizar</th></tr></thead>
+      <thead><tr><th scope="col">Título de acordo</th><th scope="col">Vencimento</th><th scope="col" data-numerico>Valor</th><th scope="col" data-numerico>Juros</th><th scope="col" data-numerico>Amortização</th><th scope="col" data-numerico>Falta amortizar</th></tr></thead>
       <tbody>
         <% agreement.schedule.each do |row| %>
           <tr>
-            <th scope="row"><%= row["number"].to_i.zero? ? "Entrada" : "Parcela #{row['number']}" %></th>
+            <th scope="row"><%= row["number"].to_i.zero? ? nome_da_primeira(agreement.schedule.size - 1) : "Parcela #{row['number']}" %></th>
             <td><%= date_br(Date.iso8601(row["due"])) %></td>
             <td data-numerico><%= money(row["amount_cents"]) %></td>
             <td data-numerico><%= money(row["interest_cents"]) %></td>
@@ -97,7 +97,7 @@
 
 <% if agreement.state_awaiting_effectuation? %>
   <% entry_title = @titles.find { |bill| bill.composition["number"].to_i.zero? } %>
-  <%= aviso(tom: :info) { tag.p "Aguardando efetivação. O acordo vira ativo quando a entrada #{entry_title&.number} for paga (o credor emite a cobrança). Os títulos originais seguem em cobrança até lá; a entrada vence em #{date_br(agreement.down_payment_due)}." } %>
+  <%= aviso(tom: :info) { tag.p "Aguardando efetivação. O acordo vira ativo quando a #{nome_da_primeira(agreement.schedule.size - 1).downcase} #{entry_title&.number} for paga (o credor emite a cobrança). Os títulos originais seguem em cobrança até lá; a entrada vence em #{date_br(agreement.down_payment_due)}." } %>
 <% elsif agreement.state_broken? %>
   <%= aviso(tom: :danger) { tag.p "Acordo quebrado em #{datetime_br(agreement.broken_at)}: #{agreement.reason}. #{agreement.break_kind == 'before_effectuation' ? 'Os títulos originais voltaram a ser cobrados.' : (agreement.break_form == 'single_title' ? 'O título da quebra reúne o que faltava pagar.' : 'Os títulos de acordo seguem em cobrança, cada um com o vencimento dele.')}" } %>
 <% elsif agreement.state_canceled? && agreement.accepted_at %>

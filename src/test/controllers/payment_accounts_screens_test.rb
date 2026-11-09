@@ -20,9 +20,9 @@ class PaymentAccountsScreensTest < ActionDispatch::IntegrationTest
 
   test "operador não vê a aba nem as contas (404 registrado) (R267)" do
     entrar(users(:carlos))
-    get settings_channels_path
+    get settings_channels_path, headers: TRECHO
     assert_response :not_found
-    get new_settings_payment_account_path
+    get new_settings_payment_account_path, headers: TRECHO
     assert_response :not_found
     assert_operator AccessEvent.where(event: "access_denied").count, :>=, 2
   end
@@ -30,23 +30,24 @@ class PaymentAccountsScreensTest < ActionDispatch::IntegrationTest
   test "a tela Métodos de recebimento abre para a 4 e para a 14; as integrações só aparecem a quem tem a 14 (16, R373; 12, R267)" do
     make_account(@alfa, nickname: "Boleto do método")
     entrar(users(:joana))
-    get settings_channels_path
+    configuracao = submenu_do_menu("Configuração")
+    assert_includes configuracao, "Métodos de recebimento"
+    assert_not_includes configuracao, "Contas de pagamento"
+    get settings_channels_path, headers: TRECHO
     assert_response :success
-    assert_select "#menu-principal .submenu a", text: "Métodos de recebimento"
-    assert_select "#menu-principal .submenu a", text: "Contas de pagamento", count: 0
     assert_select "th a", text: "Boleto do método"
     assert_select "a", text: "Criar integração"
     only_settings = make_user(@alfa, %w[view_portfolio change_settings])
     delete session_path
     entrar(only_settings)
-    get settings_channels_path
+    get settings_channels_path, headers: TRECHO
     assert_response :success
     assert_select "th a", text: "Boleto do método", count: 0
     assert_select "a", text: "Criar integração", count: 0
     only_financial = make_user(@alfa, %w[view_portfolio change_financial_policies], email: "fin@alfa.test")
     delete session_path
     entrar(only_financial)
-    get settings_channels_path
+    get settings_channels_path, headers: TRECHO
     assert_response :success
     assert_select "th a", text: "Boleto do método"
     assert_select "th a", text: @channel.code, count: 0
@@ -55,9 +56,9 @@ class PaymentAccountsScreensTest < ActionDispatch::IntegrationTest
 
   test "a página própria das contas de pagamento não existe mais (16, R373)" do
     entrar(users(:joana))
-    get "/configuracao/contas-de-pagamento"
+    get "/configuracao/contas-de-pagamento", headers: TRECHO
     assert_response :not_found
-    get "/configuracao/canais-de-recebimento"
+    get "/configuracao/canais-de-recebimento", headers: TRECHO
     assert_response :not_found
   end
 
@@ -65,10 +66,10 @@ class PaymentAccountsScreensTest < ActionDispatch::IntegrationTest
     mine = make_account(@alfa, nickname: "Minha")
     theirs = make_account(@beta, nickname: "Da Beta")
     entrar(users(:joana))
-    get settings_channels_path
+    get settings_channels_path, headers: TRECHO
     assert_select "th a", text: "Minha"
     assert_select "th a", text: "Da Beta", count: 0
-    get edit_settings_payment_account_path(theirs)
+    get edit_settings_payment_account_path(theirs), headers: TRECHO
     assert_response :not_found
     assert_equal @beta.id, AccessEvent.where(event: "access_denied").last.tenant_id
     patch settings_payment_account_path(theirs), params: { payment_account: { nickname: "x" } }
@@ -99,26 +100,31 @@ class PaymentAccountsScreensTest < ActionDispatch::IntegrationTest
     make_account(@alfa, nickname: "Alfa 1")
     make_account(@beta, nickname: "Beta 1")
     entrar(user)
-    get settings_channels_path
+    get settings_channels_path, headers: TRECHO
     assert_select "th a", text: "Beta 1"
     assert_select "th", text: "Credor"
   end
 
   test "o passo de escolha mostra o formulário montado pelo manifesto do fornecedor (R259)" do
     entrar(users(:joana))
-    get new_settings_payment_account_path
-    assert_select "h2", text: "Credor, meio de pagamento e fornecedor"
-    assert_select "form[action='#{settings_payment_accounts_path}']", count: 0
-    get new_settings_payment_account_path(tenant_id: @alfa.id, modality: "pix", provider: "efi")
+    get new_settings_payment_account_path, headers: TRECHO
+    assert_select "h2", text: "Integração"
+    assert_select "[id=campos-da-integracao] p.vazio", text: /Escolha o meio de pagamento e o fornecedor/
+    assert_select "input[name='payment_account[nickname]']", count: 0
+    # A escolha feita na tela pede só o bloco dos campos que dependem dela, para entrar no lugar do atual.
+    get new_settings_payment_account_path(payment_account: { tenant_id: @alfa.id, modality: "pix", provider: "efi" }), headers: TRECHO
+    assert_select "[id=campos-da-integracao][data-fora-de-banda=true] input[name='payment_account[nickname]']"
+    assert_select "h1", count: 0
+    get new_settings_payment_account_path(credor: @alfa.id, modalidade: "pix", fornecedor: "efi"), headers: TRECHO
     assert_select "input[type=file][name='payment_account[files][certificate]']"
     assert_select "input[type=password][name='payment_account[secrets][client_secret]']"
     assert_select "input[name='payment_account[config][pix_key]']"
     assert_select "input[name='payment_account[config][payee_code]']", count: 0
     assert_select "form[enctype='multipart/form-data']"
-    get new_settings_payment_account_path(tenant_id: @alfa.id, modality: "boleto", provider: "efi")
+    get new_settings_payment_account_path(credor: @alfa.id, modalidade: "boleto", fornecedor: "efi"), headers: TRECHO
     assert_select "input[type=file]", count: 0
     assert_select "input[name='payment_account[config][write_off_days]']"
-    get new_settings_payment_account_path(tenant_id: @alfa.id, modality: "card", provider: "fake")
+    get new_settings_payment_account_path(credor: @alfa.id, modalidade: "card", fornecedor: "fake"), headers: TRECHO
     assert_select "input[name='payment_account[config][max_installments]']"
     assert_select "select[name='payment_account[config][connection_result]']"
   end
@@ -135,7 +141,7 @@ class PaymentAccountsScreensTest < ActionDispatch::IntegrationTest
     change = Change.where(subject_type: "payment_account", subject_id: account.id).last
     assert_equal [ "created", "nickname", "Boleto Alfa" ], [ change.event, change.field, change.after ]
     assert_empty Change.where(subject_id: account.id).select { |c| [ c.before, c.after, c.note ].compact.any? { |text| text.include?(secret) } }
-    follow_redirect!
+    seguir_redirecionamento!
     assert_not_includes response.body, secret
     assert_select "small", text: /Definido \(não é mostrado\)/
   end
@@ -154,7 +160,7 @@ class PaymentAccountsScreensTest < ActionDispatch::IntegrationTest
     assert_equal novo, account.reload.secrets["api_key"]
     change = Change.where(subject_id: account.id, event: "secret_replaced").last
     assert_equal [ "api_key", nil, nil ], [ change.field, change.before, change.after ]
-    follow_redirect!
+    seguir_redirecionamento!
     assert_not_includes response.body, novo
     assert_not_includes response.body, "original"
     assert_select "td", text: "Chave de API"
@@ -200,7 +206,7 @@ class PaymentAccountsScreensTest < ActionDispatch::IntegrationTest
     patch settings_payment_account_path(account), params: { payment_account: { nickname: "Pix Alfa", channel_id: @channel.id, secrets: { certificate_password: senha },
                                                                               files: { certificate: p12_upload(subject: "CN=Escola Alfa", days: 90, password: senha) } } }
     assert_redirected_to edit_settings_payment_account_path(account)
-    follow_redirect!
+    seguir_redirecionamento!
     assert_select "dd", text: "CN=Escola Alfa"
     assert_select "dd", text: (Date.current + 90).strftime("%d/%m/%Y")
     assert_select "dd code", text: /\A([0-9A-F]{2}:){31}[0-9A-F]{2}\z/
@@ -226,11 +232,11 @@ class PaymentAccountsScreensTest < ActionDispatch::IntegrationTest
     entrar(users(:joana))
     post settings_payment_account_webhook_secret_path(account)
     assert_redirected_to edit_settings_payment_account_path(account)
-    follow_redirect!
+    seguir_redirecionamento!
     assert_equal "no-store", response.headers["Cache-Control"]
     secret = account.reload.secrets["webhook_secret"]
     assert_includes response.body, secret
-    get edit_settings_payment_account_path(account)
+    get edit_settings_payment_account_path(account), headers: TRECHO
     assert_not_includes response.body, secret
     assert_select "dd", text: "Definido (não é mostrado de novo)"
     assert_equal "webhook_secret_generated", Change.where(subject_id: account.id).order(:id).last.event
@@ -246,21 +252,20 @@ class PaymentAccountsScreensTest < ActionDispatch::IntegrationTest
     efi.save!
     entrar(users(:joana))
 
-    post settings_payment_account_connection_test_path(ok)
-    follow_redirect!
-    assert_match(/Conexão com o fornecedor conferida/, response.body)
+    post settings_payment_account_connection_test_path(ok), headers: TRECHO
+    assert_match(/Conexão com o fornecedor conferida/, evento_da_spa["aviso"])
+    assert_nil evento_da_spa["tom"]
     assert_equal "ok", ok.reload.last_test_status
 
-    post settings_payment_account_connection_test_path(refused)
-    follow_redirect!
-    assert_select "[role=alert]", text: /Credencial recusada pelo fornecedor/
+    post settings_payment_account_connection_test_path(refused), headers: TRECHO
+    assert_match(/Credencial recusada pelo fornecedor/, evento_da_spa["aviso"])
+    assert_equal "danger", evento_da_spa["tom"]
     assert_equal "failed", refused.reload.last_test_status
     assert_equal "tested", Change.where(subject_id: refused.id).order(:id).last.event
 
     use_efi_client(efi_client.on(:post, "/v1/authorize", status: 401, body: {}))
-    post settings_payment_account_connection_test_path(efi)
-    follow_redirect!
-    assert_match(/Credencial recusada pela Efí/, response.body)
+    post settings_payment_account_connection_test_path(efi), headers: TRECHO
+    assert_match(/Credencial recusada pela Efí/, evento_da_spa["aviso"])
     assert_equal "failed", efi.reload.last_test_status
   end
 
@@ -268,7 +273,7 @@ class PaymentAccountsScreensTest < ActionDispatch::IntegrationTest
     account = make_account(@alfa, nickname: "Emitiu")
     Payments::Issuer.new.request(tenant: @alfa, kind: "boleto", amount_cents: 1_000, customer: (maria = make_customer(@alfa)), object: bill_for(maria), due_on: Date.current + 5, environment: "sandbox")
     entrar(users(:joana))
-    get edit_settings_payment_account_path(account)
+    get edit_settings_payment_account_path(account), headers: TRECHO
     assert_select "button", text: /Apagar/, count: 0
     delete settings_payment_account_path(account)
     assert PaymentAccount.exists?(account.id)
@@ -292,7 +297,7 @@ class PaymentAccountsScreensTest < ActionDispatch::IntegrationTest
     account = make_account(@alfa, nickname: "Hist")
     entrar(users(:joana))
     patch settings_payment_account_path(account), params: { payment_account: { nickname: "Hist 2", channel_id: @channel.id, config: { expire_days: "12" }, secrets: { api_key: sentinel("h") } } }
-    get edit_settings_payment_account_path(account)
+    get edit_settings_payment_account_path(account), headers: TRECHO
     assert_select "section[aria-labelledby=historico] td", text: "Hist 2"
     assert_select "section[aria-labelledby=historico] td", text: "Dias de validade"
     assert_select "section[aria-labelledby=historico] td", text: "12"
@@ -303,10 +308,10 @@ class PaymentAccountsScreensTest < ActionDispatch::IntegrationTest
     account = make_account(@alfa, nickname: "Orfã")
     account.update_columns(provider: "extinto")
     entrar(users(:joana))
-    get settings_channels_path
+    get settings_channels_path, headers: TRECHO
     assert_response :success
     assert_select "td", text: "extinto"
-    get edit_settings_payment_account_path(account)
+    get edit_settings_payment_account_path(account), headers: TRECHO
     assert_response :success
     assert_select "aside", text: /não está mais instalado/
   end

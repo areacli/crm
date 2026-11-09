@@ -2,7 +2,7 @@ module Settings
   # Prazo máximo de cada segmento e alçada de cada perfil (10, R189, R190): permissão 14 no credor. Baixar o prazo do segmento baixa as alçadas que passavam dele.
   class PromiseLimitsController < ApplicationController
     def update
-      tenant = Tenant.find(params[:tenant_id])
+      tenant = Tenant.find(params[:credor])
       authorize tenant.setting, :update?, policy_class: PromiseSettingPolicy
       profile_ids = tenant.profiles.ids.map(&:to_s)
       tiers = tenant.tiers.ids.filter_map do |id|

@@ -47,7 +47,7 @@
           <p><small>Disponível <%= money(@credit_totals.fetch(contract.id, 0)) %><% if @credit_awaiting.fetch(contract.id, 0).nonzero? %> · aguardando alocação <%= money(@credit_awaiting[contract.id]) %><% end %><% if @credit_blocked.fetch(contract.id, 0).nonzero? %> · bloqueado (estorno à espera do gestor) <%= money(@credit_blocked[contract.id]) %><% end %></small></p>
         <% end %>
         <% if @can_allocate && @credit_awaiting.fetch(contract.id, 0).positive? %>
-          <p><%= abrir_painel "Alocar crédito aguardando alocação do contrato #{contract.label}", new_customer_credit_allocation_path(@customer, contract_id: contract.id), variante: "secondary", tamanho: "small" %></p>
+          <p><%= abrir_painel "Alocar crédito aguardando alocação do contrato #{contract.label}", new_customer_credit_allocation_path(@customer, contrato_id: contract.id), variante: "secondary", tamanho: "small" %></p>
         <% end %>
         <% if excess.any? %>
           <div class="tabela" tabindex="0">

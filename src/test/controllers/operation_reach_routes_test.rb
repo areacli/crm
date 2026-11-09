@@ -5,6 +5,7 @@ require "test_helper"
 # nova esquecer o recorte, ela aparece aqui, porque o recorte não é dela.
 class OperationReachRoutesTest < ActionDispatch::IntegrationTest
   HIDDEN_NAME = "Bia Escondida".freeze
+  PEDIDOS = [ {}, TRECHO, TRECHO.merge("X-CRM-Secao" => "1"), TRECHO.merge("X-CRM-Fragmento" => "1") ].freeze
 
   setup do
     @alfa = tenants(:alfa)
@@ -52,11 +53,15 @@ class OperationReachRoutesTest < ActionDispatch::IntegrationTest
     checked = 0
     routes.each do |route|
       path = fill(route)
-      get path
-      checked += 1
-      body = response.body
-      [ HIDDEN_NAME, @hidden.document, Document.format(@hidden.document), @hidden_bill.number, "97777-0202" ].each do |secret|
-        assert_not_includes body, secret, "#{route.defaults[:controller]}##{route.defaults[:action]} (#{path}) mostrou #{secret}"
+      # Cada rota como página do servidor e como a SPA a pede (o trecho, a aba interna da ficha e o trecho vivo): os endereços já portados só
+      # respondem com conteúdo na segunda forma.
+      PEDIDOS.each do |headers|
+        get path, headers: headers
+        checked += 1
+        body = response.body
+        [ HIDDEN_NAME, @hidden.document, Document.format(@hidden.document), @hidden_bill.number, "97777-0202" ].each do |secret|
+          assert_not_includes body, secret, "#{route.defaults[:controller]}##{route.defaults[:action]} (#{path}, #{headers.keys.join(', ').presence || 'página'}) mostrou #{secret}"
+        end
       end
     end
     assert_operator checked, :>, 50
@@ -73,9 +78,11 @@ class OperationReachRoutesTest < ActionDispatch::IntegrationTest
            .reject { |route| route.defaults[:controller].start_with?("rails/", "active_storage/", "action_mailbox/") || route.path.spec.to_s.include?("*") }
            .each do |route|
         path = route.path.spec.to_s.sub("(.:format)", "")
-        get path
-        failures << "#{path}: #{response.status}" if response.status >= 500
-        checked += 1
+        PEDIDOS.each do |headers|
+          get path, headers: headers
+          failures << "#{path} #{headers.keys.join(', ')}: #{response.status}" if response.status >= 500
+          checked += 1
+        end
       end
     end
     assert_empty failures
@@ -84,13 +91,12 @@ class OperationReachRoutesTest < ActionDispatch::IntegrationTest
 
   test "a lista, a busca e a ficha da operação mostram só o que está pra ela" do
     sign_in_as @caio
-    get customers_url
-    assert_includes response.body, "Ana Visível"
-    get customers_url(q: "Bia")
+    assert_includes linhas_de_clientes.map { |linha| celula(linha, "name") }, "Ana Visível"
+    get_clientes(busca: "Bia")
     assert_not_includes response.body, HIDDEN_NAME
-    get customer_url(@hidden)
+    get_ficha(@hidden)
     assert_response :not_found
-    get customer_url(@ana)
+    get_ficha(@ana)
     assert_response :success
   end
 end

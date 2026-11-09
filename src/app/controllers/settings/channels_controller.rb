@@ -12,14 +12,14 @@ module Settings
       @tenants = Tenant.where(id: @editable_tenant_ids + @financial_tenant_ids).order(:name).pluck(:name, :id)
       @several_tenants = @tenants.size > 1
       scope = policy_scope(PaymentChannel).includes(:tenant, :payment_accounts).order(:code)
-      scope = scope.where(tenant_id: params[:tenant]) if params[:tenant].present?
-      if params[:q].present?
-        term = "%#{PaymentChannel.sanitize_sql_like(params[:q].strip)}%"
+      scope = scope.where(tenant_id: params[:credor]) if params[:credor].present?
+      if params[:busca].present?
+        term = "%#{PaymentChannel.sanitize_sql_like(params[:busca].strip)}%"
         scope = scope.where("code ILIKE :term OR description ILIKE :term", term: term)
       end
-      @pagination = Pagination.new(scope, page: params[:page], per_page: params[:per_page])
+      @pagination = Pagination.new(scope, page: params[:pagina], per_page: params[:por_pagina])
       @channels = @pagination.records
-      render partial: "settings/channels/result" if htmx_fragment?
+      render partial: "settings/channels/result" if fragment?
     end
 
     def new
@@ -48,7 +48,8 @@ module Settings
     def update
       attributes = params.expect(payment_channel: %i[kind code description active])
       manager.update(@channel, kind: attributes[:kind], code: attributes[:code], description: attributes[:description], active: attributes[:active] == "1")
-      redirect_to settings_channels_path, notice: t(".done", code: @channel.code), status: :see_other
+      # Como antes, salvar volta à lista; na SPA, a aba do método passa a ser a da lista (ou dá lugar a ela, se já estiver aberta).
+      panel_finish(settings_channels_path, notice: t(".done", code: @channel.code), atualizar: true, navegar: spa?, mesma_aba: true)
     rescue ActiveRecord::RecordInvalid => error
       @channel = error.record
       render :edit, status: :unprocessable_content
@@ -57,7 +58,7 @@ module Settings
     def destroy
       code = @channel.code
       manager.destroy(@channel)
-      panel_finish(settings_channels_path, notice: t(".done", code: code), navegar: true)
+      panel_finish(settings_channels_path, notice: t(".done", code: code), navegar: true, mesma_aba: true)
     end
 
     private

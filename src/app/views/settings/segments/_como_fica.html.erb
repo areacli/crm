@@ -1,48 +1,20 @@
-<%# Coluna "Como fica" (13, R278, R302): para cada linha escrita, a leitura por extenso ou o erro, com o número da linha; o segmento inteiro por
-    extenso; "Conferir" e onde é usado. Refeita pelo htmx enquanto o gestor escreve. Locais: segment, source, parsed, probe. %>
-<% errors = parsed ? parsed.errors.group_by(&:first).transform_values { |list| list.map(&:last) } : {} %>
+<%# Coluna "Como fica" (13, R278, R302): a leitura de cada linha (cálculo à vista), "Conferir" e onde o segmento é usado. Locais: segment, source, parsed, probe. %>
 <% text = parsed&.ok? ? Segments::Text.new(Segments::Expression.new(parsed.tree)) : nil %>
 <% subject = parsed&.subject || segment.subject || "contracts" %>
-<aside id="como-fica" class="como-fica" aria-labelledby="titulo-como-fica">
-  <section class="cartao">
+<aside class="como-fica pilha-de-cartoes" aria-label="Como fica">
+  <section class="cartao" aria-labelledby="titulo-como-fica">
     <header><h2 id="titulo-como-fica">Como fica</h2></header>
-    <div id="leitura-ao-vivo" aria-live="polite">
-      <% if parsed.nil? %>
-        <p class="leitura">Escreva as condições; a leitura de cada linha aparece aqui.</p>
-      <% else %>
-        <ol class="linhas-do-segmento">
-          <% source.to_s.split(/\r?\n/).each_with_index do |line, index| %>
-            <% number = index + 1 %>
-            <% next if line.strip.empty? %>
-            <% node = parsed.nodes[number] %>
-            <li value="<%= number %>" <%= "data-erro" if errors[number] %>>
-              <code><%= line.strip %></code>
-              <% if errors[number] %>
-                <% errors[number].each do |message| %><p class="erro"><%= message %></p><% end %>
-              <% elsif number == 1 %>
-                <p class="leitura">Seleciona <%= segment_t("subjects.#{subject}.long") %>.</p>
-              <% elsif node == :group %>
-                <p class="leitura">Pelo menos uma das linhas de baixo.</p>
-              <% elsif node %>
-                <p class="leitura"><%= Segments::Text.new(Segments::Expression.new("grammar" => 1, "subject" => subject, "all" => [ node ])).long(node).upcase_first %>.</p>
-              <% end %>
-            </li>
-          <% end %>
-        </ol>
-        <% if text %>
-          <p class="leitura"><strong><%= text.long_text.presence || "Escreva pelo menos uma condição." %></strong></p>
-        <% else %>
-          <p class="erro" role="status"><%= errors.size == 1 ? "1 linha com erro." : "#{errors.size} linhas com erro." %></p>
-        <% end %>
-      <% end %>
-      <button type="submit" form="formulario-segmento" name="acao" value="conferir" data-variant="secondary"
-        hx-post="<%= probe_settings_segments_path(id: segment.id, tenant_id: segment.tenant_id) %>" hx-include="#formulario-segmento" hx-target="#conferir" hx-swap="outerHTML" hx-push-url="false">Conferir</button>
+    <div class="campos-do-cartao">
+      <%= resultado_do_calculo { render "settings/segments/leitura", segment: segment, source: source, parsed: parsed } %>
+      <div>
+        <button type="button" data-variant="secondary" data-spa-conferir="<%= probe_settings_segments_path(id: segment.id, credor: segment.tenant_id) %>">Conferir</button>
+      </div>
       <%= render "settings/segments/probe", probe: probe, subject: subject, expression: (text ? Segments::Expression.new(parsed.tree) : nil) %>
     </div>
   </section>
   <% if segment.persisted? %>
-    <section class="cartao">
-      <header><h2>Onde é usado</h2></header>
+    <section class="cartao" aria-labelledby="onde-e-usado">
+      <header><h2 id="onde-e-usado">Onde é usado</h2></header>
       <div>
         <% uses = segment.uses.to_a %>
         <% if uses.any? %>

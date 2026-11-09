@@ -1,7 +1,7 @@
 require "application_system_test_case"
 
-# Segmentos, enquadramento financeiro e índices no navegador (13, 08): editor em blocos com htmx e o "Conferir" pelo WebSocket, conferência do
-# impacto em segundo plano, lista e ficha, e a tela de índices; todos no axe, sem rolagem horizontal.
+# Segmentos, enquadramento financeiro e índices no navegador (13, 08), na SPA (fase 7): o editor com a leitura à vista e o "Conferir" pelo WebSocket, a conferência
+# do impacto em segundo plano na própria aba, o glossário em janela e a tela de índices, sem rolagem horizontal.
 class SegmentsSystemScreensTest < ApplicationSystemTestCase
   include ActiveJob::TestHelper
 
@@ -15,79 +15,107 @@ class SegmentsSystemScreensTest < ApplicationSystemTestCase
     make_tier(@alfa, "PF", person_type: "person")
     @contract = make_contract(@alfa, "CT-1", bills: [ { overdue: 40, cents: 120_000 } ], customers: [ customer_of(@alfa, FakeData.cpf(51), "Maria Souza") ])
     recalc(@alfa)
-    visit new_session_path
-    fill_in "E-mail", with: users(:joana).email_address
-    fill_in "Senha", with: "senha-de-teste-1"
-    click_button "Entrar"
-    assert_selector "h1", text: "Resumo da carteira"
+    entrar_na_casca users(:joana)
   end
 
   def sem_rolagem_horizontal = assert_not(page.evaluate_script("document.documentElement.scrollWidth > document.documentElement.clientWidth"))
 
-  test "o editor de segmentos, o enquadramento, a conferência e a ficha passam no axe; a leitura e os erros aparecem enquanto escreve e o Conferir chega pelo WebSocket" do
-    visit settings_segments_path
-    assert_selector "h1", text: "Segmentos"
-    assert_selector "th", text: "PF"
-    assert_acessivel
+  def segmentos_do_alfa = { channel: "SegmentsChannel", tenant_id: @alfa.id }
+
+  # Na SPA (fase 7 do port): o editor é uma aba própria, com a leitura como cálculo à vista (design system, 7.2), e a conferência do impacto ocupa a aba de onde
+  # saiu. O axe saiu da área interna (plano, D7); o teste não tem WebSocket entre o servidor e o navegador, e o aviso do canal é entregue por `simular_evento`.
+  test "o editor de segmentos, o enquadramento e a conferência abrem nas abas; a leitura aparece enquanto escreve, o Salvar espera o texto sem erro e o Conferir chega pelo WebSocket" do
+    abrir_aba settings_segments_path
+    assert_selector ".aba-raiz h1", text: "Segmentos", wait: 10
+    assert_selector ".aba-raiz .datagrid-row", text: "PF"
     sem_rolagem_horizontal
 
-    click_link "Criar segmento"
-    assert_selector "h1", text: "Novo segmento"
+    within(".aba-raiz") { click_link "Criar segmento", match: :first }
+    assert_selector ".aba-raiz h1", text: "Novo segmento", wait: 10
+    assert_button "Salvar segmento", disabled: true # sem texto, nada a salvar
     fill_in "Nome do segmento", with: "Atraso de 1 a 90"
     fill_in "Texto do segmento", with: "contratos\n  atraso entre 1 e 90\n  titulos vencidos 2"
     assert_selector "li[data-erro] p.erro", text: "Linha 3: vem uma comparação", wait: 10
+    assert_button "Salvar segmento", disabled: true
     fill_in "Texto do segmento", with: "contratos\n  atraso entre 1 e 90"
     assert_selector "p.leitura strong", text: "Seleciona contratos em que o contrato tem atraso entre 1 dia e 90 dias.", wait: 10
+    assert_selector ".estado-do-calculo[data-situacao=calculado]"
+    assert_button "Salvar segmento", disabled: false
+
     click_button "Conferir"
-    assert_selector "#conferir", text: "Contando"
+    assert_selector "[data-conferir]", text: "Contando", wait: 10
     perform_enqueued_jobs(only: SegmentProbeJob)
-    assert_selector "#conferir", text: "Pega 1 contrato", wait: 10
-    assert_acessivel
+    simular_evento(segmentos_do_alfa, { event: "segment-probe-ready" })
+    assert_selector "[data-conferir]", text: "Pega 1 contrato", wait: 10
+    assert_field "Texto do segmento", with: "contratos\n  atraso entre 1 e 90" # o aviso refaz só o resultado, não o editor
     sem_rolagem_horizontal
     click_button "Salvar segmento"
-    assert_text "Segmento \"Atraso de 1 a 90\" criado"
+    assert_aviso "Segmento \"Atraso de 1 a 90\" criado"
+    assert_selector ".aba-raiz h1", text: "Segmentos", wait: 10
+    assert_selector ".aba-raiz .datagrid-row", text: "Atraso de 1 a 90"
 
-    visit settings_tiers_path
-    assert_selector "h1", text: "Enquadramento financeiro"
-    assert_acessivel
-    click_link "Incluir segmento"
-    assert_selector "dialog#painel[open]"
-    select "Atraso de 1 a 90 — atraso entre 1 e 90", from: "Segmento"
-    click_button "Conferir o impacto"
-    assert_selector "h1", text: "Conferir o impacto"
+    abrir_aba settings_tiers_path
+    assert_selector ".aba-raiz h1", text: "Enquadramento financeiro", wait: 10
+    find(".aba-raiz .botao", text: "Incluir segmento", match: :first).click
+    no_dialogo { escolher "Segmento", "Atraso de 1 a 90" }
+    gravar_dialogo "Conferir o impacto"
+    assert_selector ".aba-raiz h1", text: "Conferir o impacto", wait: 10
     assert_text "Conferindo"
     perform_enqueued_jobs(only: TierReviewJob)
-    assert_selector "h3", text: "Incluído no enquadramento: Atraso de 1 a 90"
-    assert_text "Nenhum contrato muda de item", wait: 10
-    assert_acessivel
+    simular_evento(segmentos_do_alfa, { event: "tier-review-ready" })
+    assert_selector "h3", text: "Incluído no enquadramento: Atraso de 1 a 90", wait: 10
+    assert_text "Nenhum contrato muda de item"
     sem_rolagem_horizontal
     click_button "Confirmar mudança"
-    assert_text "Enquadramento financeiro de Escola Alfa atualizado"
+    assert_aviso "Enquadramento financeiro de Escola Alfa atualizado"
+    assert_selector ".aba-raiz h1", text: "Enquadramento financeiro", wait: 10
+    assert_selector ".aba-raiz .datagrid-row", text: "Atraso de 1 a 90"
 
-    visit customers_path(q: "Maria")
-    assert_selector "td", text: "PF"
-    assert_acessivel
-    visit customer_path(@contract.customers.first, aba: "historico")
-    assert_selector "h2", text: "Histórico do enquadramento financeiro"
-    assert_acessivel
-    sem_rolagem_horizontal
-    visit settings_segment_glossary_path
-    assert_acessivel
+    abrir_aba customers_path(busca: "Maria")
+    assert_selector ".lista .datagrid-row", text: "PF", wait: 10
+    abrir_ficha(@contract.customers.first, aba: "historico")
+    na_aba_interna { assert_selector "h2", text: "Histórico do enquadramento financeiro" }
   end
 
-  test "a aba Índices passa no axe e se refaz sozinha pelo WebSocket quando a busca termina" do
-    visit settings_indexes_path
-    assert_selector "h1", text: "Índices do Banco Central"
+  test "a conferência do impacto de um segmento usado ocupa a aba do editor, e Voltar e editar volta a ele" do
+    tier = Tier.where(tenant: @alfa).where.not(segment_id: nil).first
+    abrir_aba edit_settings_segment_path(tier.segment)
+    assert_selector ".aba-raiz h1", text: "Editar segmento", wait: 10
+    assert_button "Conferir o impacto", disabled: false
+    fill_in "Texto do segmento", with: "contratos\n  tipo = PJ"
+    # Clicar logo depois de digitar: a caixa perde o foco, e o cálculo à vista não pode desabilitar o botão no meio do clique.
+    click_button "Conferir o impacto"
+    assert_selector ".aba-raiz h1", text: "Conferir o impacto", wait: 10
+    assert_selector ".tabs-selected .tabs-title", text: "Conferir o impacto"
+    click_link "Voltar e editar"
+    assert_selector ".aba-raiz h1", text: "Editar segmento", wait: 10
+  end
+
+  test "o glossário abre numa janela, e as seções rolam dentro dela sem tocar no endereço" do
+    abrir_aba settings_segments_path
+    assert_selector ".aba-raiz h1", text: "Segmentos", wait: 10
+    find(".aba-raiz .cabecalho-da-pagina .botao", text: "Ver o glossário").click
+    assert_selector ".janela-corpo", text: "Cada termo da linguagem dos segmentos", wait: 10
+    endereco = page.evaluate_script("location.hash")
+    within(".janela-corpo") { first("a[href^='#secao-']").click }
+    assert_equal endereco, page.evaluate_script("location.hash")
+  end
+
+  test "a aba Índices se refaz sozinha pelo WebSocket quando a busca termina" do
+    abrir_aba settings_indexes_path
+    assert_selector ".aba-raiz h1", text: "Índices do Banco Central", wait: 10
     assert_selector "td", text: /Corrigido\s+1,52%/
-    click_link "Editar índice", match: :first
-    assert_selector "dialog#painel[open][data-variant=drawer]"
-    assert_acessivel
-    find("dialog#painel button", text: "Cancelar").click
+    find(".aba-raiz .botao", text: "Editar índice", match: :first).click
+    no_dialogo { assert_text "Motivo" }
+    send_keys :escape
+    assert_no_selector ".dialogo-conteudo"
     sem_rolagem_horizontal
 
-    assert_selector "section[aria-labelledby=situacao] tbody tr", count: 1
+    assert_selector "section[aria-labelledby=situacao] tr.datagrid-row", count: 1
     fake_bank(433 => [ [ @month.strftime("%d/%m/%Y"), "0.40" ] ])
     Indexes::Fetch.new.call
-    assert_selector "section[aria-labelledby=situacao] tbody tr", count: 2, wait: 10
+    sleep 1.6 # a aba que acabou de se refazer ignora avisos por 1,5 s (`spa/abas`, avisarMudanca)
+    simular_evento({ channel: "IndexesChannel" }, { event: "indexes-changed" })
+    assert_selector "section[aria-labelledby=situacao] tr.datagrid-row", count: 2, wait: 10
   end
 end

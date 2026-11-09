@@ -13,14 +13,14 @@
   <button type="submit" data-variant="secondary">Filtrar</button>
 <% end %>
 
-<div id="segmentos" hx-get="<%= settings_segments_path(@filters) %>" hx-trigger="cable:segments-changed from:body" hx-swap="outerHTML" hx-push-url="false" hx-select="#segmentos" hx-disinherit="hx-select hx-swap hx-push-url">
+<div id="segmentos">
   <% @tenants.each do |tenant| %>
     <% segments = @segments.fetch(tenant.id, []) %>
     <% can_change = @can_change.include?(tenant.id) %>
     <section class="cartao" aria-labelledby="credor-<%= tenant.id %>">
       <header>
         <h2 id="credor-<%= tenant.id %>"><%= tenant.name %></h2>
-        <% if can_change %><div class="acoes"><%= link_to "Criar segmento", new_settings_segment_path(tenant_id: tenant.id), class: "botao", data: { size: "small" } %></div><% end %>
+        <% if can_change %><div class="acoes"><%= link_to "Criar segmento", new_settings_segment_path(credor: tenant.id), class: "botao", data: { size: "small" } %></div><% end %>
       </header>
       <div>
         <% if segments.empty? %>
@@ -46,11 +46,11 @@
                         <%= link_to "Abrir", settings_segment_path(segment), class: "botao" %>
                         <% if can_change %>
                           <%= link_to "Editar", edit_settings_segment_path(segment), class: "botao" %>
-                          <%= link_to "Duplicar", new_settings_segment_path(tenant_id: tenant.id, from: segment.id), class: "botao" %>
+                          <%= link_to "Duplicar", new_settings_segment_path(credor: tenant.id, de: segment.id), class: "botao" %>
                           <% if segment.active? %>
-                            <%= button_to "Desativar", settings_segment_activation_path(segment), method: :delete, form: { "hx-boost": "false" } %>
+                            <%= button_to "Desativar", settings_segment_activation_path(segment), method: :delete %>
                           <% else %>
-                            <%= button_to "Reativar", settings_segment_activation_path(segment), form: { "hx-boost": "false" } %>
+                            <%= button_to "Reativar", settings_segment_activation_path(segment) %>
                           <% end %>
                           <% if uses.empty? %>
                             <%= confirmar_no_painel "Excluir", titulo: "Excluir o segmento?", mensagem: "O segmento \"#{segment.name}\" será excluído. Ele não está em uso, então nada muda na carteira.", acao: "Excluir", url: settings_segment_path(segment), metodo: :delete %>

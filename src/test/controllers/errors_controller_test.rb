@@ -5,7 +5,7 @@ class ErrorsControllerTest < ActionDispatch::IntegrationTest
   { 400 => "Pedido inválido", 404 => "Página não encontrada", 406 => "Navegador não suportado", 422 => "Não foi possível concluir",
     429 => "Muitas tentativas", 500 => "Algo deu errado do nosso lado", 503 => "Sistema indisponível" }.each do |status, title|
     test "a página de #{status} tem título e volta ao início, sem sessão" do
-      get "/#{status}"
+      get "/#{status}", headers: TRECHO
 
       assert_response status
       assert_select "h1", title
@@ -34,15 +34,11 @@ class ErrorsControllerTest < ActionDispatch::IntegrationTest
     assert_response :not_found
   end
 
-  test "acesso recusado por permissão mostra a página de não encontrado no layout do app, e o htmx recebe só o código" do
+  # A configuração está na SPA (fase 7): o trecho recusado responde só o código, e a casca mostra a mensagem no lugar da tela (spa_responses_test).
+  test "acesso recusado por permissão responde só o código ao trecho da SPA" do
     post session_path, params: { email_address: users(:carlos).email_address, password: "senha-de-teste-1" }
-    get settings_portfolio_path
+    get settings_portfolio_path, headers: TRECHO
 
-    assert_response :not_found
-    assert_select "h1", "Página não encontrada"
-    assert_select "nav[aria-label=Menu]" # o usuário continua no app
-
-    get settings_portfolio_path, headers: { "HX-Request" => "true" }
     assert_response :not_found
     assert_empty response.body
   end
@@ -60,7 +56,7 @@ class ErrorsControllerTest < ActionDispatch::IntegrationTest
 
   test "registro inexistente vira a página de não encontrado, em pt-BR" do
     post session_path, params: { email_address: users(:joana).email_address, password: "senha-de-teste-1" }
-    com_erros_de_producao { get customer_path(id: 0) }
+    com_erros_de_producao { get agreement_term_path(agreement_id: 0) }
 
     assert_response :not_found
     assert_select "h1", "Página não encontrada"
@@ -71,7 +67,7 @@ class ErrorsControllerTest < ActionDispatch::IntegrationTest
     original = Portfolio::Summary.method(:new)
     Portfolio::Summary.define_singleton_method(:new) { |*| raise "falha de teste" }
     begin
-      com_erros_de_producao { get root_path }
+      com_erros_de_producao { get summary_path, headers: TRECHO }
     ensure
       Portfolio::Summary.define_singleton_method(:new, original)
     end

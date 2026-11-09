@@ -1,6 +1,6 @@
 <% content_for :title, "Divergência do título #{@discrepancy.bill.number}" %>
 <% item = @discrepancy %>
-<%= pagina "Divergência do título #{item.bill.number}", subtitulo: safe_join([ item.tenant.name, " · ", link_to("Voltar para as divergências", value_discrepancies_path) ]),
+<%= pagina "Divergência do título #{item.bill.number}", subtitulo: item.tenant.name,
            indicadores: [ (item.open? ? situacao("Aberta", tom: :warning) : situacao("Tratada", tom: :success)) ] do %>
   <% if item.open? && policy(item).create? %><%= abrir_painel "Tratar divergência", new_value_discrepancy_handling_path(item) %><% end %>
   <% if @can_view_customer %><%= link_to "Ver o histórico do título", bill_path(item.bill), class: "botao", data: { variant: "secondary" } %><% end %>

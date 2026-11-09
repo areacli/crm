@@ -11,7 +11,7 @@ class PasswordsControllerTest < ActionDispatch::IntegrationTest
 
     assert_redirected_to root_url
     assert_not Session.exists?(outra.id)
-    get root_url
+    get summary_url, headers: TRECHO
     assert_response :success
     assert_equal joana, User.authenticate_by(email_address: joana.email_address, password: "uma-senha-nova-bem-longa")
     event = AccessEvent.find_by!(event: "password_changed", user: joana)
@@ -35,10 +35,10 @@ class PasswordsControllerTest < ActionDispatch::IntegrationTest
   test "R38: o primeiro acesso define a senha sem repetir a temporária; 123456789012 e a própria temporária são recusadas" do
     temporary = Access::TemporaryPassword.generate
     users(:carlos).update!(password: temporary, temporary_password_until: 72.hours.from_now)
-    post session_url, params: { email_address: users(:carlos).email_address, password: temporary }
-    assert_redirected_to root_url
-    follow_redirect!
-    assert_redirected_to edit_password_url
+    post session_url, params: { email_address: users(:carlos).email_address, password: temporary }, headers: TRECHO
+    assert_response :no_content
+    get summary_url, headers: TRECHO
+    assert_response :conflict # a casca abre "Defina sua senha"
 
     patch password_url, params: { password: { password: temporary, password_confirmation: temporary } }
     assert_response :unprocessable_content
@@ -50,14 +50,14 @@ class PasswordsControllerTest < ActionDispatch::IntegrationTest
 
     patch password_url, params: { password: { password: "minha-senha-definitiva", password_confirmation: "minha-senha-definitiva" } }
     assert_redirected_to root_url
-    get root_url
+    get summary_url, headers: TRECHO
     assert_response :success
     assert_not users(:carlos).reload.temporary_password?
   end
 
   test "sem sessão a tela de senha pede o login" do
-    get edit_password_url
+    get edit_password_url, headers: TRECHO
 
-    assert_redirected_to new_session_url
+    assert_response :unauthorized
   end
 end

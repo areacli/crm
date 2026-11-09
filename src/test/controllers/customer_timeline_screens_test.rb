@@ -16,9 +16,11 @@ class CustomerTimelineScreensTest < ActionDispatch::IntegrationTest
     assert_select ".filtro-em-pilulas a[aria-current=true]", text: "Atendimento"
     assert_select "details.usuario", count: 0
 
-    get customer_timeline_url(@customer, linha: "atendimento", linha_pagina: 2)
-    assert_redirected_to customer_url(@customer, linha: "atendimento", linha_pagina: 2)
-    get customer_url(@customer, linha: "atendimento")
+    # Na SPA (decisão 0028), o mesmo trecho, pelo `X-CRM-Trecho`; e a ficha com os parâmetros abre no filtro dela.
+    get customer_timeline_url(@customer, linha: "atendimento"), headers: TRECHO
+    assert_select "section#linha-do-tempo li[data-evento=atendimento]", 1
+    assert_select ".aba-raiz, .ficha", count: 0
+    get_ficha(@customer, linha: "atendimento")
     assert_select "#linha-do-tempo .filtro-em-pilulas a[aria-current=true]", text: "Atendimento"
   end
 

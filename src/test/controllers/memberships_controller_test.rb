@@ -10,10 +10,10 @@ class MembershipsControllerTest < ActionDispatch::IntegrationTest
   test "sem a permissão 10 o endereço é recusado e registrado, sem dado de outros usuários (R33)" do
     sign_in_as users(:carlos)
 
-    get memberships_url
+    get memberships_url, headers: TRECHO
     assert_response :not_found
     assert_not_includes response.body, "joana@exemplo.com.br"
-    get membership_url(memberships(:joana_alfa))
+    get membership_url(memberships(:joana_alfa)), headers: TRECHO
     assert_response :not_found
     post memberships_url, params: { membership: { tenant_id: @alfa.id, email_address: "x@exemplo.com.br", name: "X", profile_id: profiles(:alfa_operator).id } }
     assert_response :not_found
@@ -24,20 +24,16 @@ class MembershipsControllerTest < ActionDispatch::IntegrationTest
 
   test "o menu do operador não mostra Usuários nem Perfis; o do gestor mostra" do
     sign_in_as users(:carlos)
-    get root_url
-    assert_select "nav a", text: "Usuários", count: 0
-    assert_select "nav a", text: "Perfis", count: 0
+    assert_empty rotulos_do_menu & [ "Usuários", "Perfis" ]
 
     sign_in_as users(:joana)
-    get root_url
-    assert_select "nav a", text: "Usuários"
-    assert_select "nav a", text: "Perfis"
+    assert_empty [ "Usuários", "Perfis" ] - rotulos_do_menu
   end
 
   test "a lista traz só os vínculos dos credores com a permissão 10, sem coluna Credor com um só credor (V10)" do
     sign_in_as users(:joana)
 
-    get memberships_url
+    get memberships_url, headers: TRECHO
 
     assert_response :success
     assert_select "tbody th a", text: "Joana Souza"
@@ -50,20 +46,20 @@ class MembershipsControllerTest < ActionDispatch::IntegrationTest
     memberships(:ana_alfa).update!(profile: profiles(:alfa_manager))
     sign_in_as users(:ana)
 
-    get memberships_url
+    get memberships_url, headers: TRECHO
     assert_select "th", text: "Credor"
     assert_select "tbody tr", 6
     assert_select "select#tenant"
 
-    get memberships_url(tenant: @beta.id)
+    get memberships_url(credor: @beta.id), headers: TRECHO
     assert_select "tbody tr", 2
     assert_not_includes response.body, "Carlos Lima"
   end
 
-  test "a busca por nome ou e-mail refaz só o resultado pelo htmx" do
+  test "a busca por nome ou e-mail refaz só o resultado" do
     sign_in_as users(:joana)
 
-    get memberships_url(q: "carl"), headers: { "HX-Request" => "true" }
+    get memberships_url(busca: "carl"), headers: TRECHO.merge("X-CRM-Fragmento" => "1")
 
     assert_response :success
     assert_select "header", false
@@ -73,7 +69,7 @@ class MembershipsControllerTest < ActionDispatch::IntegrationTest
   test "a ficha de um vínculo de outro credor é recusada por link direto e registrada com o credor (V10, R42)" do
     sign_in_as users(:joana)
 
-    get membership_url(memberships(:ana_beta))
+    get membership_url(memberships(:ana_beta)), headers: TRECHO
     assert_response :not_found
     patch membership_profile_url(memberships(:ana_beta)), params: { membership: { profile_id: profiles(:beta_operator).id } }
     assert_response :not_found
@@ -93,18 +89,18 @@ class MembershipsControllerTest < ActionDispatch::IntegrationTest
     post memberships_url, params: { membership: { tenant_id: @alfa.id, email_address: "Joana.Souza@Credor.example", name: "Joana de Souza", profile_id: profiles(:alfa_operator).id } }
 
     assert_redirected_to memberships_url
-    follow_redirect!
+    seguir_redirecionamento!
     password = response.body[%r{<code>([^<]+)</code>}, 1]
     assert_match(/\A[a-zA-Z2-9]{4}(-[a-zA-Z2-9]{4}){3}\z/, password)
     assert_select "[role=status]", /não será mostrada de novo/
     assert_select "[role=status]", /joana.souza@credor.example/
 
-    get memberships_url
+    get memberships_url, headers: TRECHO
     assert_not_includes response.body, password
 
     user = User.find_by!(email_address: "joana.souza@credor.example")
     assert_equal profiles(:alfa_operator), user.memberships.sole.profile
-    get membership_url(user.memberships.sole)
+    get membership_url(user.memberships.sole), headers: TRECHO
     assert_not_includes response.body, password
     assert_select "td", /Usuário criado com o perfil Operador/
   end
@@ -138,16 +134,15 @@ class MembershipsControllerTest < ActionDispatch::IntegrationTest
     sign_in_as users(:joana)
 
     assert_difference -> { Notice.where(user: users(:marta)).count } => 1 do
-      post memberships_url, params: { membership: { tenant_id: @alfa.id, email_address: "MARTA@exemplo.com.br", name: "", profile_id: profiles(:alfa_manager).id } }
+      post memberships_url, params: { membership: { tenant_id: @alfa.id, email_address: "MARTA@exemplo.com.br", name: "", profile_id: profiles(:alfa_manager).id } }, headers: TRECHO
     end
 
-    assert_redirected_to memberships_url
-    follow_redirect!
-    assert_select "[role=status]", /Marta Nunes \(marta@exemplo.com.br\) foi ligado\(a\) a Escola Alfa/
+    assert_match(/Marta Nunes \(marta@exemplo.com.br\) foi ligado\(a\) a Escola Alfa/, evento_da_spa["aviso"])
+    get memberships_url, headers: TRECHO
     assert_select "code", count: 0
     membership = Membership.find_by!(user: users(:marta), tenant: @alfa)
 
-    get membership_url(membership)
+    get membership_url(membership), headers: TRECHO
     assert_response :success
     assert_select "form[action='#{membership_path(membership)}']", count: 0
     assert_select "button", text: "Redefinir a senha", count: 0
@@ -158,7 +153,7 @@ class MembershipsControllerTest < ActionDispatch::IntegrationTest
     sign_in_as users(:joana)
     membership = memberships(:ana_alfa)
 
-    get membership_url(membership)
+    get membership_url(membership), headers: TRECHO
     assert_select "button", text: "Salvar o nome", count: 0
     assert_select "button", text: "Redefinir a senha", count: 0
 
@@ -184,7 +179,7 @@ class MembershipsControllerTest < ActionDispatch::IntegrationTest
 
   test "R33: a mudança de perfil vale no clique seguinte de quem está logado" do
     sign_in_as users(:carlos)
-    get new_import_url
+    get new_import_url, headers: TRECHO
     assert_response :not_found
 
     sign_in_as users(:joana)
@@ -192,16 +187,16 @@ class MembershipsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to membership_url(memberships(:carlos_alfa))
 
     sign_in_as users(:carlos)
-    get new_import_url
+    get new_import_url, headers: TRECHO
     assert_response :success
-    assert_select "nav summary", text: "Configuração"
+    assert_includes rotulos_do_menu, "Configuração"
   end
 
   test "PD7 e R41: a própria conta não tem as ações, o servidor recusa e a última gestão fica protegida" do
     sign_in_as users(:joana)
     propria = memberships(:joana_alfa)
 
-    get membership_url(propria)
+    get membership_url(propria), headers: TRECHO
     assert_response :success
     assert_select "button", text: "Salvar o perfil", count: 0
     assert_select "button", text: "Desativar o acesso", count: 0
@@ -218,11 +213,10 @@ class MembershipsControllerTest < ActionDispatch::IntegrationTest
     memberships(:carlos_alfa).update!(profile: Profile.create!(tenant: @alfa, name: "Só usuários", permissions: %w[view_portfolio manage_users]))
     sign_in_as users(:carlos)
 
-    delete membership_activation_url(memberships(:joana_alfa)), headers: { "HTTP_REFERER" => membership_url(memberships(:joana_alfa)) }
+    delete membership_activation_url(memberships(:joana_alfa)), headers: TRECHO.merge("HTTP_REFERER" => membership_url(memberships(:joana_alfa)))
 
-    assert_redirected_to membership_url(memberships(:joana_alfa))
-    follow_redirect!
-    assert_select "[role=alert]", /Ao menos um usuário ativo precisa poder gerenciar usuários e perfis/
+    assert_match(/Ao menos um usuário ativo precisa poder gerenciar usuários e perfis/, evento_da_spa["aviso"])
+    assert_equal "danger", evento_da_spa["tom"]
     assert memberships(:joana_alfa).reload.active?
   end
 
@@ -233,8 +227,8 @@ class MembershipsControllerTest < ActionDispatch::IntegrationTest
     assert_not memberships(:carlos_alfa).reload.active?
 
     sign_in_as users(:carlos)
-    get root_url
-    assert_redirected_to new_session_url
+    get summary_url, headers: TRECHO
+    assert_response :unauthorized
 
     sign_in_as users(:joana)
     post membership_activation_url(memberships(:carlos_alfa))
@@ -248,10 +242,10 @@ class MembershipsControllerTest < ActionDispatch::IntegrationTest
     delete membership_activation_url(memberships(:ana_alfa))
 
     sign_in_as users(:ana)
-    get memberships_url
+    get memberships_url, headers: TRECHO
     assert_response :success
     assert_not_includes response.body, "Joana Souza"
-    get membership_url(memberships(:joana_alfa))
+    get membership_url(memberships(:joana_alfa)), headers: TRECHO
     assert_response :not_found
     assert AccessEvent.exists?(event: "access_denied", user: users(:ana), tenant: @alfa)
   end
@@ -262,12 +256,12 @@ class MembershipsControllerTest < ActionDispatch::IntegrationTest
     post membership_password_reset_url(memberships(:carlos_alfa))
 
     assert_redirected_to membership_url(memberships(:carlos_alfa))
-    follow_redirect!
+    seguir_redirecionamento!
     password = response.body[%r{<code>([^<]+)</code>}, 1]
     assert_equal users(:carlos).reload, User.authenticate_by(email_address: "carlos@exemplo.com.br", password: password)
     assert_select "td", /Senha redefinida/
 
-    get membership_url(memberships(:carlos_alfa))
+    get membership_url(memberships(:carlos_alfa)), headers: TRECHO
     assert_not_includes response.body, password
   end
 
@@ -279,7 +273,7 @@ class MembershipsControllerTest < ActionDispatch::IntegrationTest
     AccessEvent.record("access_denied", user: users(:carlos), tenant: @beta, details: { path: "/clientes/9" })
     AccessEvent.record("profile_changed", user: users(:carlos), tenant: @alfa, actor: users(:joana), details: { before: "Operador", after: "Gestor" })
 
-    get membership_url(memberships(:carlos_alfa))
+    get membership_url(memberships(:carlos_alfa)), headers: TRECHO
 
     assert_select "td", "Entrou no sistema"
     assert_select "td", "Tentativa de entrada recusada"
@@ -289,16 +283,52 @@ class MembershipsControllerTest < ActionDispatch::IntegrationTest
     assert_not_includes response.body, "/clientes/9"
   end
 
-  test "o formulário de novo usuário troca só o campo de perfil quando o credor muda (htmx)" do
+  test "o formulário de novo usuário troca só o campo de perfil quando o credor muda" do
     memberships(:ana_alfa).update!(profile: profiles(:alfa_manager))
     sign_in_as users(:ana)
 
-    get new_membership_url
-    assert_select "select#membership_tenant_id"
+    get new_membership_url, headers: TRECHO
+    assert_select "select#membership_tenant_id[data-spa-dependentes]"
 
-    get new_membership_url(tenant_id: @alfa.id), headers: { "HX-Request" => "true" }
-    assert_select "header", false
+    get new_membership_url(membership: { tenant_id: @alfa.id }), headers: TRECHO
+    assert_select "form", false
     assert_select "#campo-perfil option", 2
     assert_select "#campo-perfil option", text: "Gestor"
+  end
+
+  # Na ficha da SPA (fase 7), o nome e o perfil se editam na linha (design system, 7.1): 204 com o valor gravado, 422 com a mensagem junto do campo.
+  test "na ficha, o nome e o perfil se editam na linha; a recusa da regra volta junto do campo" do
+    sign_in_as users(:joana)
+    get membership_url(memberships(:carlos_alfa)), headers: TRECHO
+    assert_select "[data-inline]", 2
+    assert_select "a, button", text: "Editar o perfil", count: 0
+
+    inline = TRECHO.merge("X-CRM-Inline" => "1")
+    patch membership_profile_url(memberships(:carlos_alfa)), params: { membership: { profile_id: profiles(:alfa_manager).id } }, headers: inline
+    assert_response :no_content
+    assert_equal profiles(:alfa_manager).name, evento_da_spa["valor"]
+    assert_equal profiles(:alfa_manager), memberships(:carlos_alfa).reload.profile
+
+    patch membership_url(memberships(:carlos_alfa)), params: { user: { name: "Carlos Lima" } }, headers: inline
+    assert_response :no_content
+    assert_equal [ "Carlos Lima", true ], evento_da_spa.values_at("valor", "atualizar")
+
+    patch membership_url(memberships(:carlos_alfa)), params: { user: { name: "" } }, headers: inline
+    assert_response :unprocessable_content
+    assert response.parsed_body["erro"].present?
+    assert_equal "Carlos Lima", users(:carlos).reload.name
+
+    # A última gestão do credor fica protegida (R41): a recusa vem para junto da lista de perfis.
+    memberships(:carlos_alfa).update!(profile: profiles(:alfa_operator))
+    patch membership_profile_url(memberships(:joana_alfa)), params: { membership: { profile_id: profiles(:alfa_operator).id } }, headers: inline
+    assert_response :not_found
+  end
+
+  test "no diálogo de novo usuário, trocar o credor pede só o campo do perfil, com os perfis dele" do
+    sign_in_as users(:joana)
+    get new_membership_url(membership: { tenant_id: @alfa.id }), headers: TRECHO
+    assert_response :success
+    assert_select "[id=campo-perfil][data-fora-de-banda=true] option", text: profiles(:alfa_operator).name
+    assert_select "form", count: 0
   end
 end

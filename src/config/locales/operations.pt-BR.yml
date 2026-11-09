@@ -96,15 +96,32 @@ pt-BR:
       selection: "Filtro da lista de clientes"
       segment: "Segmento"
       file: "Planilha"
+    create:
+      started: "Lote recebido. A conferência começou."
+    confirm:
+      started: "Confirmação do lote em andamento."
+    steps:
+      check: "Conferência do lote"
+      confirm: "Confirmação do lote"
+    where: "Lote de distribuição à %{name}."
     too_many: "O lote passa de %{max} clientes ou contratos; divida em lotes menores."
     expired: "A conferência passou de 30 minutos; confira de novo."
     discarded: "Lote descartado."
+    checking: "Lote recebido. A conferência começou."
+    confirming: "Confirmação começou. As distribuições aparecem aqui quando terminar."
     failed: "A conferência do lote falhou."
     segment_required: "Escolha um segmento ativo."
     kind_required: "Escolha de onde vem o lote."
     file_required: "Envie a planilha."
     file_columns: "A planilha precisa de uma coluna só, chamada documento ou contrato."
+  impact_review:
+    name: "Conferência do impacto"
+    failed: "A conferência do impacto não terminou. Tente de novo."
+    queues: "Enquadramento das filas de %{tenant}."
+    distribution: "Enquadramento da distribuição de %{tenant}."
+    financial: "Enquadramento financeiro de %{tenant}."
   distributions:
+    out_of_reach: "registro fora do seu alcance"
     create:
       done: "%{target} distribuído à %{name}."
     update:
@@ -119,6 +136,7 @@ pt-BR:
       past_end: "O fim não pode ser antes de hoje."
       started: "O início só muda enquanto a distribuição está agendada."
       target_required: "Informe o documento do cliente ou o código do contrato."
+      operation_required: "Escolha a operação."
       not_found: "Nenhum cliente ou contrato encontrado com %{value}."
     proposal_canceled: "Distribuição encerrada: %{reason}."
     end_reasons:

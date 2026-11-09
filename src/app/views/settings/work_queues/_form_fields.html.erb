@@ -1,6 +1,6 @@
 <%# Campos do item do enquadramento da fila. Locais: form, item (nil ao incluir). %>
 <% if @segments.empty? %>
-  <p class="vazio">Nenhum segmento de <%= t("queues.subjects.#{@subject}").downcase %> disponível. <%= link_to "Crie um segmento", new_settings_segment_path(tenant_id: @tenant.id, subject: @subject) %>.</p>
+  <p class="vazio">Nenhum segmento de <%= t("queues.subjects.#{@subject}").downcase %> disponível. <%= link_to "Crie um segmento", new_settings_segment_path(credor: @tenant.id, sujeito: @subject) %>.</p>
 <% else %>
   <div class="campo"><%= form.label :name, "Nome" %><%= form.text_field :name, value: item&.name, required: true, maxlength: 100 %></div>
   <div class="campo"><%= form.label :segment_id, "Segmento" %><%= form.select :segment_id, @segments.map { [ _1.name, _1.id ] }, { selected: item&.segment_id }, required: true %></div>

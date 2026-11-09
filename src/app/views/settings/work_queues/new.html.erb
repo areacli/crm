@@ -1,5 +1,5 @@
-<%= formulario_de_painel(titulo: "Incluir item no enquadramento de #{t("queues.subjects.#{@subject}").downcase}", url: queues_work_queues_path(tenant_id: @tenant.id, sujeito: @subject),
-                         enviar: "Conferir o impacto", escopo: :queue, variante: :modal, tamanho: :small, erro: @error, voltar: queues_work_queues_path(tenant_id: @tenant.id),
+<%= formulario_de_painel(titulo: "Incluir item no enquadramento de #{t("queues.subjects.#{@subject}").downcase}", url: queues_work_queues_path(credor: @tenant.id, sujeito: @subject),
+                         enviar: "Conferir o impacto", escopo: :queue, variante: :modal, tamanho: :small, erro: @error, voltar: queues_work_queues_path(credor: @tenant.id),
                          descricao: "Quem o segmento pegar vai para este item, se nenhum item acima o pegar antes.") do |form| %>
   <%= render "settings/work_queues/form_fields", form: form, item: nil %>
   <% unless @segments.empty? %>

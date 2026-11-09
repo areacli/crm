@@ -37,13 +37,14 @@ module Authentication
     end
 
     def request_authentication
-      session[:return_to_after_authenticating] = request.url
-      redirect_to new_session_path
+      # A SPA recebe 401 e abre a entrada por cima das abas, sem perder o que está nelas (decisão 0028).
+      return head(:unauthorized) if spa?
+
+      redirect_to root_path
     end
 
-    def after_authentication_url
-      session.delete(:return_to_after_authenticating) || root_url
-    end
+    # A entrada é a da casca (fase 8): quem entra pelo envio sem a SPA vai à raiz, que abre a casca.
+    def after_authentication_url = root_url
 
     def start_new_session_for(user)
       user.register_successful_login!

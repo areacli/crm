@@ -1,5 +1,5 @@
 <% content_for :title, "Configuração · Integração #{@account.nickname_was || @account.nickname}" %>
-<%= pagina "Integração #{@account.nickname_was || @account.nickname}", subtitulo: safe_join([ @account.tenant.name, " · ", t("payments.accounts.modalities.#{@account.modality}"), " em ", provider_name(@account.provider), " · ", t("payments.accounts.environments.#{@account.environment}"), " · ", link_to("Voltar para os métodos de recebimento", settings_channels_path) ]),
+<%= pagina "Integração #{@account.nickname_was || @account.nickname}", subtitulo: safe_join([ @account.tenant.name, " · ", t("payments.accounts.modalities.#{@account.modality}"), " em ", provider_name(@account.provider), " · ", t("payments.accounts.environments.#{@account.environment}") ]),
            indicadores: [ (@account.active? ? situacao("Ativa", tom: :success) : situacao("Desativada", tom: :neutral)) ] do %>
   <% if @account.provider_available? %><%= button_to "Testar conexão", settings_payment_account_connection_test_path(@account), method: :post, data: { variant: "secondary" } %><% end %>
   <% if @account.active? %>
@@ -16,13 +16,14 @@
 <% end %>
 <%= render "settings/modelo" %>
 
-<div class="ficha">
+<%# O formulário estreito à esquerda; a conexão e o histórico à direita (modelo Entrada). Na recusa (422), a SPA troca a tela pela refeita, com a mensagem. %>
+<div class="ficha" data-lateral="esquerda" data-refazer-no-erro>
 <section class="cartao" aria-labelledby="dados">
   <header><h2 id="dados">Dados da integração</h2></header>
   <div>
-    <% if @account.errors.any? %><%= aviso(tom: :danger) { tag.p @account.errors.full_messages.to_sentence } %><% end %>
-    <% unless @account.provider_available? %><%= aviso(tom: :warning) { tag.p "O fornecedor desta integração não está mais instalado: ela não emite e pode ser desativada ou apagada." } %><% end %>
-    <%= form_with model: @account, scope: :payment_account, url: settings_payment_account_path(@account), method: :patch, multipart: true, html: { "hx-boost": "false" } do |form| %>
+    <%= form_with model: @account, scope: :payment_account, url: settings_payment_account_path(@account), method: :patch, multipart: true, class: "campos-do-cartao" do |form| %>
+      <% if @account.errors.any? %><%= aviso(tom: :danger) { tag.p @account.errors.full_messages.to_sentence } %><% end %>
+      <% unless @account.provider_available? %><%= aviso(tom: :warning) { tag.p "O fornecedor desta integração não está mais instalado: ela não emite e pode ser desativada ou apagada." } %><% end %>
       <div class="campo">
         <%= label_tag "campo-nickname", "Apelido" %>
         <%= text_field_tag "payment_account[nickname]", @account.nickname, id: "campo-nickname", required: true, maxlength: 100 %>
@@ -32,15 +33,12 @@
         <%= select_tag "payment_account[channel_id]", options_for_select(PaymentChannel.where(tenant_id: @account.tenant_id).order(:code).map { |channel| [ "#{channel.code} · #{channel.description}", channel.id ] }, @account.channel_id), id: "campo-channel", required: true %>
       </div>
       <% if @account.provider_available? %><%= render "settings/payment_accounts/fields", form: form, account: @account %><% end %>
-      <div class="acoes" data-rodape>
-        <%= link_to "Cancelar", settings_channels_path, class: "botao", data: { variant: "secondary" } %>
-        <button type="submit">Salvar</button>
-      </div>
+      <div class="acoes" data-rodape><button type="submit">Salvar a integração</button></div>
     <% end %>
   </div>
 </section>
 
-<aside class="ficha-lateral">
+<div class="pilha-de-cartoes">
 <section class="cartao" aria-labelledby="situacao-conta">
   <header><h2 id="situacao-conta">Conexão</h2></header>
   <div>
@@ -55,8 +53,6 @@
     <% end %>
   </div>
 </section>
-</aside>
-</div>
 
 <section class="cartao" aria-labelledby="historico">
   <header><h2 id="historico">Histórico</h2></header>
@@ -85,3 +81,5 @@
     <% end %>
   </div>
 </section>
+</div>
+</div>

@@ -4,7 +4,7 @@
                elsif bill.paid? then situacao("Pago", tom: :success)
                elsif bill.due_date < Date.current then situacao("Vencido", tom: :danger)
                else situacao("A vencer", tom: :info) end %>
-<%= pagina "Título #{bill.number}", subtitulo: safe_join([ link_to(bill.customer.name, customer_path(bill.customer)), " · ", bill.tenant.name, " · ", link_to("Voltar para a ficha", customer_path(bill.customer, aba: "titulos")) ]), indicadores: [ situation ] %>
+<%= pagina "Título #{bill.number}", subtitulo: safe_join([ link_to(bill.customer.name, customer_path(bill.customer)), " · ", bill.tenant.name ]), indicadores: [ situation ] %>
 
 <dl class="kpis">
   <%= kpi "Valor vigente", money(bill.amount_cents) %>

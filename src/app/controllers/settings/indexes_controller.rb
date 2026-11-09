@@ -8,9 +8,9 @@ module Settings
       ids = %w[view_portfolio change_settings change_financial_policies].flat_map { |permission| user.tenant_ids_with(permission) }.uniq
       @tenants = Tenant.where(id: ids).order(:name).to_a
       @can_correct = user.tenant_ids_with("change_financial_policies")
-      @grid = Indexes::Grid.new(ids, page: params[:page])
+      @grid = Indexes::Grid.new(ids, page: params[:pagina])
       load_runs
-      render partial: "settings/indexes/page" if htmx_fragment?
+      render partial: "settings/indexes/page" if fragment?
     end
 
     private

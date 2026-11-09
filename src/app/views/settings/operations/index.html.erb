@@ -34,7 +34,7 @@
         </tbody>
       </table>
     </div>
-    <%= render "shared/paginacao", pagination: @pagination, unit: "operações", path: ->(page) { settings_operations_path(request.query_parameters.merge("page" => page)) } %>
+    <%= render "shared/paginacao", pagination: @pagination, unit: "operações", path: ->(page) { settings_operations_path(request.query_parameters.merge("pagina" => page)) } %>
   <% end %>
 </div>
 <% @tenants.each do |tenant| %><%= render "settings/operation_policies/form", tenant: tenant %><% end %>

@@ -1,5 +1,5 @@
 # Guarda de dados de um credor: só quem atende os direitos do titular nele (permissão 13, MT-3). O canal transmite um evento de invalidação
-# pequeno ("retention-changed"); a página de guarda refaz os trechos com htmx.
+# pequeno ("retention-changed"); a aba da guarda refaz os trechos (`data-spa-vivo`).
 class RetentionChannel < ApplicationCable::Channel
   def subscribed
     tenant = Tenant.find_by(id: params[:tenant_id])

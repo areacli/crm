@@ -10,18 +10,18 @@ class CustomerContractsCardTest < ActionDispatch::IntegrationTest
   end
 
   test "mostra 5 contratos e o link para os 7; o escolhido aparece mesmo depois do quinto e passa de aba a aba" do
-    get customer_url(@maria)
+    get_ficha(@maria)
     assert_select "#contratos tbody tr:not(.detalhe-da-linha)", 5
     assert_select "#contratos p.mais a", text: "Mostrar os 7 contratos"
-    assert_select "#contratos + nav.abas"
+    assert_select "#contratos + .abas-internas[data-abas]"
 
-    get customer_url(@maria, contrato: @contracts.last.id, aba: "acionamentos")
+    get_ficha(@maria, contrato: @contracts.last.id, aba: "acionamentos")
     assert_select "#contratos tbody tr:not(.detalhe-da-linha)", 6
     assert_select "#contratos tr[data-atual] a[aria-current=true]", text: "CT-7"
     assert_select "#contratos a", text: "Ver todos os contratos"
     assert_select "#contratos a[aria-label='Filtrar a ficha pelo contrato CT-1'][href*='aba=acionamentos']"
 
-    get customer_url(@maria, contratos: "todos")
+    get_ficha(@maria, contratos: "todos")
     assert_select "#contratos tbody tr:not(.detalhe-da-linha)", 7
     assert_select "#contratos p.mais", 0
   end

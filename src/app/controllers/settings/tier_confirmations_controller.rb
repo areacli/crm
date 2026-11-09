@@ -5,7 +5,7 @@ module Settings
     include TierReview
 
     def create
-      tenant = tenant_for_change(params[:tenant_id])
+      tenant = tenant_for_change(params[:credor])
       ::Tiers::Applier.new(Current.user).confirm(tenant, params.expect(confirmation: [ :token ])[:token])
       redirect_to settings_tiers_path, notice: t("tiers.flash.confirmed", tenant: tenant.name), status: :see_other
     rescue ::Tiers::Refused => error

@@ -1,8 +1,7 @@
 <%# Campos do registro de acionamento (R69 a R73), dentro do painel lateral. Locais: f (construtor do formulário), form (Contacts::Form), customer. O resultado e o
     contrato pedem ao servidor os campos que dependem deles (retorno, aviso do responsável financeiro, bloco da promessa), sem recarregar a página. %>
 <% fields_path = new_customer_contact_attempt_path(customer) %>
-<% dependents = { "hx-get": fields_path, "hx-trigger": "change", "hx-swap": "none",
-                  "hx-include": "[name='contact_attempt[channel]'], [name='contact_attempt[result_id]'], [name='contact_attempt[contract_id]'], [name='contact_attempt[return_at]'], [name='contact_attempt[contacted_at]'], #bloco-promessa input, #bloco-promessa select" } %>
+<% dependents = { data: { spa_dependentes: fields_path } } %>
 <div class="grupo-de-campos">
   <div class="campo">
     <%= f.label :channel, "Canal" %>

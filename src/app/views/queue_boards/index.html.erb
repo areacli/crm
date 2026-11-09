@@ -2,11 +2,11 @@
 <% content_for :cable_channels, @cable %>
 <%= pagina "Filas", subtitulo: "Quantos estão disponíveis, em atendimento e aguardando em cada fila, e quem está atendendo o quê agora." %>
 <%= render "queue_boards/credores", rota: :queues_board_path %>
-<div id="visao-das-filas" hx-get="<%= queues_board_path(tenant_id: @tenant.id) %>" hx-trigger="cable:queues-changed from:body" hx-select="#visao-das-filas" hx-swap="outerHTML" hx-push-url="false" hx-disinherit="hx-select hx-swap hx-push-url">
+<div id="visao-das-filas">
   <section class="cartao" aria-labelledby="por-fila">
     <header><h2 id="por-fila">Por fila</h2></header>
     <% if @queues.empty? %>
-      <p class="vazio">Nenhuma fila. <%= link_to "Monte o enquadramento das filas", queues_work_queues_path(tenant_id: @tenant.id) %>.</p>
+      <p class="vazio">Nenhuma fila. <%= link_to "Monte o enquadramento das filas", queues_work_queues_path(credor: @tenant.id) %>.</p>
     <% else %>
       <div class="tabela" tabindex="0">
         <table>
@@ -15,7 +15,7 @@
           <tbody>
             <% @queues.each do |queue| %>
               <tr>
-                <th scope="row"><%= link_to queue.name, queues_board_queue_path(queue, tenant_id: @tenant.id) %> <% unless @grouped.include?(queue.id) %><%= situacao "Sem grupo", tom: :warning %><% end %></th>
+                <th scope="row"><%= link_to queue.name, queues_board_queue_path(queue, credor: @tenant.id) %> <% unless @grouped.include?(queue.id) %><%= situacao "Sem grupo", tom: :warning %><% end %></th>
                 <td><%= t("queues.subjects.#{queue.subject}") %></td>
                 <td data-numerico><%= number_br(@available[queue.id].to_i - @in_service[queue.id].to_i) %></td>
                 <td data-numerico><%= number_br(@in_service[queue.id].to_i) %></td>

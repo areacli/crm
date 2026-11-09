@@ -19,15 +19,21 @@ class DistributionBatchesTest < ActionDispatch::IntegrationTest
 
   test "planilha de documentos: confere, lista o que não achou e confirma" do
     file = Rack::Test::UploadedFile.new(StringIO.new("documento\n#{Document.format(@ana.document)}\n#{FakeData.cpf(599)}\n"), "text/csv", original_filename: "lote.csv")
-    perform_enqueued_jobs { post distribution_batches_url, params: batch_params(kind: "file", file: file) }
+    # Na SPA, o envio abre o lote na aba dele, onde a conferência chega pelo tempo real.
+    perform_enqueued_jobs { post distribution_batches_url, params: batch_params(kind: "file", file: file), headers: TRECHO }
     batch = DistributionBatch.last
+    assert_equal distribution_batch_path(batch), evento_da_spa["navegar"]
     assert_predicate batch, :checked?
     assert_equal 1, batch.summary["targets"]
     assert_equal 1, batch.summary["missing_count"]
-    get distribution_batch_url(batch)
+    get distribution_batch_url(batch), headers: TRECHO
     assert_includes response.body, "Vão 1 contratos"
-    perform_enqueued_jobs { post confirm_distribution_batch_url(batch) }
+    assert_select "button", text: "Confirmar o lote"
+    perform_enqueued_jobs { post confirm_distribution_batch_url(batch), headers: TRECHO }
+    assert evento_da_spa["atualizar"]
     assert_predicate batch.reload, :confirmed?
+    get distribution_batch_url(batch), headers: TRECHO.merge("X-CRM-Fragmento" => "1") # o trecho vivo do resultado
+    assert_select "#lote h2", text: "Lote confirmado"
     assert_equal [ [ @ana.id, "batch" ] ], Distribution.where(batch_id: batch.id).pluck(:customer_id, :source)
   end
 
@@ -44,16 +50,35 @@ class DistributionBatchesTest < ActionDispatch::IntegrationTest
   end
 
   test "os clientes do filtro da lista" do
-    get customers_url(q: "Ana Lote")
-    assert_select "a", text: "Distribuir estes clientes"
-    perform_enqueued_jobs { post distribution_batches_url, params: batch_params(kind: "selection", selection: { q: "Ana Lote" }) }
+    get customers_url(busca: "Ana Lote"), headers: TRECHO
+    assert_select "a[data-com-filtros]", text: "Distribuir estes clientes"
+    perform_enqueued_jobs { post distribution_batches_url, params: batch_params(kind: "selection", selection: { busca: "Ana Lote" }) }
     assert_equal [ @ana.id ], DistributionBatch.last.entries
+  end
+
+  test "descartar deixa o lote como descartado, sem distribuições" do
+    segment = make_segment(@alfa, "Todos os contratos", [ { "path" => "balance", "op" => "gt", "value" => 0 } ])
+    perform_enqueued_jobs { post distribution_batches_url, params: batch_params(kind: "segment", segment_id: segment.id), headers: TRECHO }
+    batch = DistributionBatch.last
+    delete discard_distribution_batch_url(batch), headers: TRECHO
+    assert_equal "Lote descartado.", evento_da_spa["aviso"]
+    assert_predicate batch.reload, :discarded?
+    get distribution_batch_url(batch), headers: TRECHO
+    assert_select "p.vazio", text: /Lote descartado/
+    assert_empty Distribution.where(batch_id: batch.id)
+  end
+
+  test "sem operação escolhida, a recusa diz isso" do
+    post distribution_batches_url, params: batch_params(kind: "segment", accreditation_id: ""), headers: TRECHO
+    assert_response :unprocessable_content
+    assert_includes response.body, "Escolha a operação."
   end
 
   test "planilha com a coluna errada é recusada antes da conferência" do
     file = Rack::Test::UploadedFile.new(StringIO.new("cpf\n123\n"), "text/csv", original_filename: "lote.csv")
-    post distribution_batches_url, params: batch_params(kind: "file", file: file)
+    post distribution_batches_url, params: batch_params(kind: "file", file: file), headers: TRECHO
     assert_response :unprocessable_content
     assert_includes response.body, "uma coluna só"
+    assert_select "[data-refazer-no-erro] form" # a SPA troca a tela pela refeita, com a mensagem
   end
 end

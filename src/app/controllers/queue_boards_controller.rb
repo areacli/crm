@@ -17,7 +17,7 @@ class QueueBoardsController < ApplicationController
 
   def show
     @queue = WorkQueue.find_by!(tenant: @tenant, id: params[:id])
-    @placements = Pagination.new(QueuePlacement.where(work_queue_id: @queue.id).order(:rank), page: params[:page], per_page: params[:per_page])
+    @placements = Pagination.new(QueuePlacement.where(work_queue_id: @queue.id).order(:rank), page: params[:pagina], per_page: params[:por_pagina])
     ids = @placements.records.map(&:subject_id)
     @names = @queue.subject == "customers" ? Customer.where(id: ids).pluck(:id, :name).to_h : Contract.where(id: ids).pluck(:id, :code).to_h
     @open = QueueDelivery.open.where(work_queue_id: @queue.id, subject_id: ids).includes(:user).index_by(&:subject_id)
@@ -27,7 +27,7 @@ class QueueBoardsController < ApplicationController
   private
     def set_tenant
       tenants = Tenant.where(id: Current.user.tenant_ids_with("manage_queues")).order(:name)
-      @tenant = tenants.find_by(id: params[:tenant_id]) || tenants.first or raise Pundit::NotAuthorizedError
+      @tenant = tenants.find_by(id: params[:credor]) || tenants.first or raise Pundit::NotAuthorizedError
       @tenants = tenants
       authorize WorkQueue.new(tenant: @tenant), :update?
     end

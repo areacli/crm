@@ -1,5 +1,5 @@
-<%# Trecho que o htmx refaz a cada filtro, página ou aviso do WebSocket: contagem, tabela e paginação. %>
-<div id="resultado" aria-live="polite" hx-get="<%= contact_attempts_path(request.query_parameters) %>" hx-trigger="cable:contact-attempts-changed from:body, cable:connected from:body" hx-include="form.filtros" hx-sync="form.filtros:replace" hx-swap="outerHTML" hx-push-url="false">
+<%# Trecho que a SPA refaz a cada filtro, página ou aviso do WebSocket: contagem, tabela e paginação. %>
+<div id="resultado" aria-live="polite">
   <% if @attempts.empty? %>
     <p class="vazio">Nenhum acionamento no período.</p>
   <% else %>
@@ -34,6 +34,6 @@
         </tbody>
       </table>
     </div>
-    <%= render "shared/paginacao", pagination: @pagination, unit: "acionamentos", path: ->(page) { contact_attempts_path(request.query_parameters.merge("page" => page)) } %>
+    <%= render "shared/paginacao", pagination: @pagination, unit: "acionamentos", path: ->(page) { contact_attempts_path(request.query_parameters.merge("pagina" => page)) } %>
   <% end %>
 </div>

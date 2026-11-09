@@ -18,17 +18,22 @@ module Agreements
 
     # `error`: a primeira recusa da R215 (nil quando a proposta pode ser gravada); `status`: aprovada ou pendente pela alçada (R216).
     Quote = Data.define(:rows, :tier, :limit, :mode, :discounts, :base_cents, :discount_cents, :value_cents, :net_cents, :down_payment_cents, :down_payment_on,
-                        :schedule, :method, :rate_pct, :effective_annual_pct, :total_cents, :interest_cents, :error, :status, :warnings, :calendar, :square, :credit) do
+                        :schedule, :method, :rate_pct, :effective_annual_pct, :total_cents, :interest_cents, :error, :status, :warnings, :calendar, :square, :credit, :limits) do
       def installments = schedule.reject { |row| row.number.zero? }
       def down_payment = schedule.first
       def valid? = error.nil?
       def pending? = status == "pending"
     end
 
+    # O que a tela oferece para os títulos e termos de agora (revisão 12): a faixa da entrada, a entrada inicial (zero concessão: a maior entre o mínimo do item e o
+    # do perfil, para caber na alçada de quem negocia), os números de parcelas que a R215 aceita, o limite do perfil em parcelas, o crédito que dá para usar e, em
+    # pontos percentuais, o limite do perfil em cada componente para a escolha (à vista ou parcelado).
+    Limits = Data.define(:down_min, :down_initial, :down_max, :installment_counts, :profile_installments, :credit_max, :profile_discounts, :minimum_installment)
+
     # Entrada do formulário. `down_payment_cents` e `down_payment_on` vazios no parcelado valem a entrada mínima e o dia útil seguinte.
-    # `credit_cents`: quanto do crédito dos contratos o operador usa (R223); vazio, nenhum.
-    Input = Data.define(:bill_ids, :mode, :discounts_bp, :down_payment_cents, :down_payment_on, :installments, :day, :replace, :credit_cents) do
-      def initialize(credit_cents: 0, **rest) = super(credit_cents: credit_cents.to_i, **rest)
+    # `auto_down`: a pessoa não mexeu na entrada, que acompanha a entrada inicial. `credit_cents`: quanto do crédito dos contratos o operador usa (R223); vazio, nenhum.
+    Input = Data.define(:bill_ids, :mode, :discounts_bp, :down_payment_cents, :down_payment_on, :installments, :day, :replace, :credit_cents, :auto_down) do
+      def initialize(credit_cents: 0, auto_down: false, **rest) = super(credit_cents: credit_cents.to_i, auto_down: auto_down, **rest)
     end
 
     def initialize(user:, customer:, input:, today: Date.current)
@@ -54,7 +59,8 @@ module Agreements
       discount = rows.sum(&:discount_total)
       after_discount = base - discount
       credit = credit_plan(rows)
-      cash = @input.mode == "cash"
+      # Zero parcelas é parcela única: sem entrada, e ela é o valor do acordo (revisão 12).
+      cash = @input.mode == "cash" || @input.installments.to_i < 1
       # R223, Z8: o crédito como abatimento que cobre o valor do acordo inteiro entra como pagamento da entrada de um acordo à vista.
       if credit.rebate? && credit.total >= after_discount
         credit = CreditUse::Plan.new("down_payment", credit.requested, credit.distribution, credit.offered, credit.error)
@@ -68,13 +74,13 @@ module Agreements
       net = rows.sum(&:value) # o valor líquido: o valor do acordo menos o crédito usado como abatimento (R223)
       limit = AgreementLimit.for(profile, tier)
       down_on = calendar.next_business(@input.down_payment_on || (@today + 1))
-      down = cash ? net : (@input.down_payment_cents || minimum_down(net, tier))
+      down = cash ? net : (@input.down_payment_cents || (@input.auto_down ? initial_down(net, tier, limit) : minimum_down(net, tier)))
       schedule, method, rate, interest = build_schedule(net, down, down_on, tier, calendar, cash)
       annual = method == "none" || rate.zero? ? BigDecimal("0") : (((1 + rate / 100)**12 - 1) * 100).round(4)
       quote = Quote.new(rows: rows, tier: tier, limit: limit, mode: @input.mode, discounts: @input.discounts_bp, base_cents: base, discount_cents: discount, value_cents: value,
                         net_cents: net, down_payment_cents: down, down_payment_on: down_on, schedule: schedule, method: method, rate_pct: rate, effective_annual_pct: annual,
                         total_cents: schedule.sum(&:amount_cents), interest_cents: interest, error: nil, status: "approved", warnings: warnings(bills, square), calendar: calendar, square: square,
-                        credit: credit)
+                        credit: credit, limits: limits_for(rows, after_discount, net, down, down_on, tier, limit, calendar, cash))
       quote = quote.with(mode: "cash") if cash
       error = first_error(quote, tier)
       quote = quote.with(error: error)
@@ -166,13 +172,13 @@ module Agreements
 
       # O plano do crédito dos contratos (R223, R223a): o que o operador pediu, distribuído pelos contratos dos títulos conforme as políticas.
       def credit_plan(rows)
-        values = Hash.new(0)
         oldest = {}
-        rows.each do |row|
-          values[row.bill.contract_id] += row.after.values.sum
-          oldest[row.bill.contract_id] = [ oldest[row.bill.contract_id], row.bill.due_date ].compact.min
-        end
-        CreditUse.plan(@setting, values, oldest, @input.credit_cents)
+        rows.each { |row| oldest[row.bill.contract_id] = [ oldest[row.bill.contract_id], row.bill.due_date ].compact.min }
+        CreditUse.plan(@setting, credit_values(rows), oldest, @input.credit_cents)
+      end
+
+      def credit_values(rows)
+        rows.each_with_object(Hash.new(0)) { |row, values| values[row.bill.contract_id] += row.after.values.sum }
       end
 
       # R212, DA30: os honorários são recalculados pela taxa do contrato sobre o resultado dos outros componentes, e só então recebe o desconto.
@@ -182,7 +188,8 @@ module Agreements
         base = (row.bill.kind_common? ? %w[principal correction fine interest] : %w[principal correction]).sum { |component| after.fetch(component, 0) }
         recomputed = Charges::Calculator.round_cents(base * rate)
         part = self.class.half_even_div(recomputed * @input.discounts_bp.fetch("fees", 0), 10_000)
-        discount["fees"] = part
+        # O que o recálculo tira dos honorários é desconto: a soma do acordo tem de fechar com a base menos os descontos (revisão 12).
+        discount["fees"] = part + [ row.components.fetch("fees", 0) - recomputed, 0 ].max
         after["fees"] = recomputed - part
       end
 
@@ -190,14 +197,47 @@ module Agreements
 
       def minimum_down(net, tier) = (net * tier.agreement_min_down_payment_pct + 99) / 100
 
+      def initial_down(net, tier, limit) = [ minimum_down(net, tier), (net * limit.min_down_payment_pct + 99) / 100 ].max
+
+      def limits_for(rows, after_discount, net, down, down_on, tier, limit, calendar, cash)
+        kind = cash ? "cash" : "installment"
+        floor = minimum_down(net, tier)
+        offered = CreditUse.usable(@setting, credit_values(rows)).values.sum
+        cap = Policies.value(@setting, "credit_entry") == "rebate" ? after_discount : down
+        Limits.new(down_min: floor, down_initial: initial_down(net, tier, limit), down_max: [ net - tier.agreement_min_installment_cents, floor ].max,
+                   installment_counts: installment_counts(net, cash ? floor : down, down_on, tier, calendar), profile_installments: limit.max_installments,
+                   credit_max: [ offered, cap ].min, profile_discounts: Caps.normalize(limit.caps)[kind], minimum_installment: tier.agreement_min_installment_cents)
+      end
+
+      # De 1 ao máximo do item, sem os números que deixariam alguma parcela abaixo da mínima (a R215 os recusaria). Quanto mais parcelas, menor cada uma: basta achar a primeira que não serve.
+      def installment_counts(net, down, down_on, tier, calendar)
+        top = [ tier.agreement_max_installments.to_i, 1 ].max
+        return [ 1 ] if down >= net
+
+        parameters = Parameters.installment(@setting, tier)
+        day = valid_day(down_on)
+        too_small = (1..top).bsearch do |count|
+          rows, = amortize(net - down, count, due_dates(count, day, down_on, calendar), down_on, parameters)
+          rows.any? { |row| row.amount_cents < tier.agreement_min_installment_cents }
+        end
+        (1..[ too_small ? too_small - 1 : top, 1 ].max).to_a
+      end
+
+      def valid_day(down_on) = @input.day.to_i.between?(1, 28) ? @input.day.to_i : [ down_on.day, 28 ].min
+
+      def due_dates(count, day, down_on, calendar)
+        (1..count).map { |k| calendar.next_business(Date.new(down_on.year, down_on.month, 1).next_month(k).change(day: day)) }
+      end
+
       # Entrada e parcelas (R213, R214): vencimentos mensais no dia escolhido, a primeira no mês seguinte ao da entrada, cada um em dia útil.
       def build_schedule(net, down, down_on, tier, calendar, cash)
         parameters = Parameters.installment(@setting, tier)
         entry = Installment.new(0, down_on, down, 0, down, net - down)
-        return [ [ entry ], "none", BigDecimal("0"), 0 ] if cash || (@input.installments.to_i < 1) || @input.day.to_i < 1 || @input.day.to_i > 28 || down >= net
+        return [ [ entry ], "none", BigDecimal("0"), 0 ] if cash || down >= net
 
         count = @input.installments.to_i
-        dues = (1..count).map { |k| calendar.next_business(Date.new(down_on.year, down_on.month, 1).next_month(k).change(day: @input.day.to_i)) }
+        # O dia fora de 1 a 28 é recusado (R215), mas a conta mostrada continua sendo a do acordo inteiro, nunca só a da entrada.
+        dues = due_dates(count, valid_day(down_on), down_on, calendar)
         rows, interest = amortize(net - down, count, dues, down_on, parameters)
         [ [ entry, *rows ], parameters.method, parameters.rate_pct, interest ]
       end
@@ -259,26 +299,20 @@ module Agreements
 
       # R215, na ordem da especificação; devolve a primeira recusa, ou nil.
       def first_error(quote, tier)
-        caps = Caps.normalize(tier.agreement_caps)[quote.mode == "cash" ? "cash" : "installment"]
-        discount_error(quote, caps) ||
+        discount_error(quote) ||
           credit_error(quote) ||
           (I18n.t("agreements.refused.total_forgiveness") if quote.value_cents <= 0) ||
           installments_error(quote, tier) ||
           down_payment_error(quote, tier) ||
           (I18n.t("agreements.refused.total_forgiveness") if forgiveness?(quote)) ||
+          (I18n.t("agreements.refused.sum_below_debt") if sum_below_debt?(quote)) ||
           minimum_to_break_error(quote)
       end
 
-      def discount_error(quote, caps)
-        quote.discounts.each do |component, bp|
-          return I18n.t("agreements.refused.discount_range") if bp.negative? || bp > 10_000
-
-          cap = caps.fetch(component, 0)
-          next if bp <= cap * 100
-
-          name = I18n.t("agreements.components.#{component}").downcase
-          return cap.zero? ? I18n.t("agreements.refused.discount_none", component: name) : I18n.t("agreements.refused.discount_above", component: name, cap: cap)
-        end
+      # Revisão 12: o desconto vai até 100% do valor de cada componente, e não há recusa por teto: quem decide se a proposta nasce aprovada ou pendente é o limite do perfil
+      # (R216), e o teto do item só limita o que um perfil pode ter (R209). Sem ninguém que a cubra, a proposta pendente vence pela validade (R217).
+      def discount_error(quote)
+        quote.discounts.each_value { |bp| return I18n.t("agreements.refused.discount_range") if bp.negative? || bp > 10_000 }
         nil
       end
 
@@ -295,7 +329,6 @@ module Agreements
         return nil if quote.mode == "cash"
 
         count = @input.installments.to_i
-        return I18n.t("agreements.refused.installments_required") if count < 1
         return I18n.t("agreements.refused.installments_above", max: tier.agreement_max_installments) if count > tier.agreement_max_installments
         return I18n.t("agreements.refused.day_range") unless @input.day.to_i.between?(1, 28)
 
@@ -317,6 +350,9 @@ module Agreements
 
         nil
       end
+
+      # Revisão 12: o acordo nunca termina com a soma das parcelas abaixo da dívida (base menos descontos). O crédito usado como abatimento já pagou a parte dele.
+      def sum_below_debt?(quote) = quote.schedule.sum(&:amount_cents) + (quote.credit.rebate? ? quote.credit.total : 0) < quote.value_cents
 
       # Todos os componentes com 100% de desconto: perdão total não passa por acordo (R215).
       def forgiveness?(quote)

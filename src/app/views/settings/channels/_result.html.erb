@@ -1,4 +1,4 @@
-<%# Trecho que o htmx refaz a cada busca: tabela, contagem e paginação. Uma linha por método de recebimento (16, R373); o detalhe, pela seta,
+<%# Trecho que a SPA refaz a cada busca: tabela, contagem e paginação. Uma linha por método de recebimento (16, R373); o detalhe, pela seta,
     mostra as integrações dele (antes "contas de pagamento"), só a quem tem a 14 no credor do método. A integração ativa é única por credor,
     meio de pagamento e ambiente, em qualquer método (12, R260). %>
 <div id="resultado" aria-live="polite">
@@ -50,7 +50,7 @@
             <% if financial %>
               <%= detalhe_da_linha(detail_id, columns) do %>
                 <% if accounts.empty? %>
-                  <p>Nenhuma integração com fornecedor: este método recebe só pela planilha de pagamentos. <%= link_to "Criar integração", new_settings_payment_account_path(tenant_id: channel.tenant_id) %></p>
+                  <p>Nenhuma integração com fornecedor: este método recebe só pela planilha de pagamentos. <%= link_to "Criar integração", new_settings_payment_account_path(credor: channel.tenant_id) %></p>
                 <% else %>
                   <table>
                     <caption>Integrações do método <%= channel.code %></caption>
@@ -81,6 +81,6 @@
         </tbody>
       </table>
     </div>
-    <%= render "shared/paginacao", pagination: @pagination, unit: "métodos", path: ->(page) { settings_channels_path(request.query_parameters.merge("page" => page)) } %>
+    <%= render "shared/paginacao", pagination: @pagination, unit: "métodos", path: ->(page) { settings_channels_path(request.query_parameters.merge("pagina" => page)) } %>
   <% end %>
 </div>

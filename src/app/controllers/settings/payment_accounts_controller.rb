@@ -12,6 +12,8 @@ module Settings
       @account = PaymentAccount.new(choice_params.merge(environment: "sandbox"))
       @chosen = choice_complete?(@account)
       load_channels
+      # Na SPA, a mudança da escolha pede só os campos que dependem dela (`data-spa-dependentes`).
+      render partial: "settings/payment_accounts/choice_fields", locals: { fora_de_banda: true } if spa? && params[:payment_account].present?
     end
 
     def create
@@ -20,7 +22,8 @@ module Settings
       authorize PaymentAccount.new(tenant: tenant), :create?
       @account = manager.create(tenant: tenant, channel: tenant.payment_channels.find_by(id: permitted_params[:channel_id]), modality: permitted_params[:modality],
                                 provider: permitted_params[:provider], environment: permitted_params[:environment], nickname: permitted_params[:nickname], values: values)
-      redirect_to edit_settings_payment_account_path(@account), notice: t(".done", nickname: @account.nickname), status: :see_other
+      # A aba da nova integração passa a ser a da integração criada.
+      panel_finish(edit_settings_payment_account_path(@account), notice: t(".done", nickname: @account.nickname), navegar: true, mesma_aba: true)
     rescue ActiveRecord::RecordInvalid => error
       @account = error.record
       @chosen = true
@@ -36,7 +39,7 @@ module Settings
 
     def update
       manager.update(@account, nickname: permitted_params[:nickname], channel: @account.tenant.payment_channels.find_by(id: permitted_params[:channel_id]), values: values)
-      redirect_to edit_settings_payment_account_path(@account), notice: t(".done", nickname: @account.nickname), status: :see_other
+      panel_finish(edit_settings_payment_account_path(@account), notice: t(".done", nickname: @account.nickname), atualizar: true)
     rescue ActiveRecord::RecordInvalid => error
       @account = error.record
       load_history
@@ -46,7 +49,7 @@ module Settings
     def destroy
       nickname = @account.nickname
       manager.destroy(@account)
-      panel_finish(settings_channels_path, notice: t(".done", nickname: nickname), navegar: true)
+      panel_finish(settings_channels_path, notice: t(".done", nickname: nickname), navegar: true, mesma_aba: true)
     end
 
     private
@@ -87,7 +90,9 @@ module Settings
         Payments::Providers.known?(provider) && Payments::Providers::MODALITIES.include?(modality.to_s) ? Payments::Providers.manifest(provider).fields_for(modality) : []
       end
 
-      def choice_params = params.permit(:tenant_id, :modality, :provider).to_h.symbolize_keys.select { |key, value| value.present? && (key != :provider || Payments::Providers.known?(value)) }
+      # A escolha vem na consulta (link "Criar integração" do método) ou no formulário (`payment_account[...]`, quando a escolha muda na SPA).
+      def choice_params = { tenant_id: params[:credor], modality: params[:modalidade], provider: params[:fornecedor] }.merge(params.fetch(:payment_account, {}).permit(:tenant_id, :modality, :provider).to_h.compact_blank.symbolize_keys)
+                                .select { |key, value| value.present? && (key != :provider || Payments::Providers.known?(value)) }
 
       def choice_complete?(account) = account.tenant_id.present? && account.modality.present? && account.provider.present? && manageable_tenants.exists?(account.tenant_id) &&
                                       Payments::Providers::MODALITIES.include?(account.modality) && account.adapter.supports?(account.modality)

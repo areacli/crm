@@ -42,7 +42,7 @@ module DistributionRules
           moves["Equipe do credor"]["#{team}_cents"] += cents.to_i
         end
       end
-      { "moves" => moves.sort.to_h, "total" => moves.values.sum { |move| move["in"] }, "tenant_id" => tenant.id }
+      { "moves" => moves.sort.to_h, "total" => moves.values.sum { |move| move["in"] }, "tenant_id" => tenant.id, "finished_at" => Time.current.iso8601 }
     end
   end
 end

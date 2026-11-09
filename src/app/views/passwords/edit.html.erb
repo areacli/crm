@@ -1,28 +1,21 @@
+<%# Trocar a senha (R39) em diálogo, e definir a senha no primeiro acesso (R38) na entrada da casca. %>
 <% first_access = Current.user.temporary_password? %>
-<% content_for :title, first_access ? "Defina sua senha" : "Trocar a senha" %>
-<%= pagina(first_access ? "Defina sua senha" : "Trocar a senha", subtitulo: (first_access ? "Você entrou com uma senha temporária. Escolha a sua senha para continuar." : "As suas outras sessões abertas serão encerradas.")) %>
-
-<section class="cartao" aria-labelledby="senha" data-formulario>
-  <header><h2 id="senha">Nova senha</h2></header>
-  <div>
-    <% if @user.errors.any? %><%= aviso(tom: :danger) { tag.p @user.errors.full_messages.to_sentence } %><% end %>
-    <%= form_with scope: :password, url: password_path, method: :patch, html: { "hx-boost": "false" } do |form| %>
-      <% unless first_access %>
-        <div class="campo">
-          <%= form.label :current_password, "Senha atual" %>
-          <%= form.password_field :current_password, required: true, autocomplete: "current-password", maxlength: 72 %>
-        </div>
-      <% end %>
-      <div class="campo">
-        <%= form.label :password, "Nova senha" %>
-        <%= form.password_field :password, required: true, autocomplete: "new-password", minlength: StrongPasswordValidator::MIN_LENGTH, maxlength: 72 %>
-        <small>No mínimo 12 caracteres, que não sejam só números, uma senha comum ou parecida com o seu e-mail. Não pode repetir a senha atual.</small>
-      </div>
-      <div class="campo">
-        <%= form.label :password_confirmation, "Repita a nova senha" %>
-        <%= form.password_field :password_confirmation, required: true, autocomplete: "new-password", maxlength: 72 %>
-      </div>
-      <div class="acoes" data-rodape><button type="submit">Salvar a senha</button></div>
-    <% end %>
+<%= formulario_de_painel(titulo: first_access ? "Defina sua senha" : "Trocar a senha", url: password_path, metodo: :patch, escopo: :password, enviar: "Salvar a senha",
+                         descricao: (first_access ? "Você entrou com uma senha temporária. Escolha a sua senha para continuar." : nil),
+                         variante: :modal, tamanho: :medio, erro: @user.errors.full_messages.to_sentence.presence, cancelar: (first_access ? "Sair" : "Cancelar")) do |form| %>
+  <% unless first_access %>
+    <div class="campo">
+      <%= form.label :current_password, "Senha atual" %>
+      <%= form.password_field :current_password, required: true, autocomplete: "current-password", maxlength: 72 %>
+    </div>
+  <% end %>
+  <div class="campo">
+    <%= form.label :password, "Nova senha" %>
+    <%= form.password_field :password, required: true, autocomplete: "new-password", minlength: StrongPasswordValidator::MIN_LENGTH, maxlength: 72 %>
+    <small>No mínimo 12 caracteres, que não sejam só números, uma senha comum ou parecida com o seu e-mail. Não pode repetir a senha atual.</small>
   </div>
-</section>
+  <div class="campo">
+    <%= form.label :password_confirmation, "Repita a nova senha" %>
+    <%= form.password_field :password_confirmation, required: true, autocomplete: "new-password", maxlength: 72 %>
+  </div>
+<% end %>

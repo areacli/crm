@@ -3,7 +3,7 @@ module Settings
   # para as propostas novas, porque o acordo congela as dele (R210). Cada mudança fica registrada, com "Ver histórico".
   class AgreementPoliciesController < ApplicationController
     def update
-      tenant = Tenant.find(params[:tenant_id])
+      tenant = Tenant.find(params[:credor])
       authorize tenant.setting, :update?, policy_class: AgreementSettingPolicy
       tab = params[:tab] == "payments" ? :payments : :agreements
       values = Agreements::Policies.keys(tab).filter_map do |key|

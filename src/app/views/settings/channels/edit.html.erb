@@ -1,5 +1,5 @@
 <% content_for :title, "Configuração · Método #{@channel.code_was || @channel.code}" %>
-<%= pagina "Método #{@channel.code_was || @channel.code}", subtitulo: safe_join([ @channel.tenant.name, " · ", link_to("Voltar para os métodos de recebimento", settings_channels_path) ]) do %>
+<%= pagina "Método #{@channel.code_was || @channel.code}", subtitulo: "#{@channel.tenant.name} · #{t("payments.channels.kinds.#{@channel.kind_was || @channel.kind}")}" do %>
   <%= confirmar_no_painel "Gerar novo segredo", titulo: "Gerar um novo segredo?", mensagem: "O segredo atual, se houver, deixa de valer na hora: o provedor precisa ser atualizado com o novo.",
                           acao: "Gerar novo segredo", url: settings_channel_webhook_secret_path(@channel), perigoso: false, variante: "secondary" %>
   <% unless @channel.used? %>
@@ -8,21 +8,19 @@
 <% end %>
 <%= render "settings/modelo" %>
 
-<div class="duas-colunas">
+<%# O formulário estreito à esquerda e o webhook à direita (modelo Entrada). Na recusa (422), a SPA troca a tela pela refeita, com a mensagem. %>
+<div class="ficha" data-lateral="esquerda" data-refazer-no-erro>
   <section class="cartao" aria-labelledby="dados">
     <header><h2 id="dados">Dados do método</h2></header>
     <div>
-      <% if @channel.errors.any? %><%= aviso(tom: :danger) { tag.p @channel.errors.full_messages.to_sentence } %><% end %>
-      <%= form_with model: @channel, scope: :payment_channel, url: settings_channel_path(@channel), method: :patch, html: { "hx-boost": "false" } do |form| %>
+      <%= form_with model: @channel, scope: :payment_channel, url: settings_channel_path(@channel), method: :patch, class: "campos-do-cartao" do |form| %>
+        <% if @channel.errors.any? %><%= aviso(tom: :danger) { tag.p @channel.errors.full_messages.to_sentence } %><% end %>
         <%= render "settings/channels/fields", form: form, channel: @channel, code_locked: @channel.used? %>
         <div class="campo">
           <label><%= form.check_box :active, { checked: @channel.active? }, "1", "0" %> Método ativo</label>
           <small>Desativado, não recebe pagamentos novos por planilha; os estornos dos pagamentos dele continuam aceitos.</small>
         </div>
-        <div class="acoes" data-rodape>
-          <%= link_to "Cancelar", settings_channels_path, class: "botao", data: { variant: "secondary" } %>
-          <button type="submit">Salvar</button>
-        </div>
+        <div class="acoes" data-rodape><button type="submit">Salvar o método</button></div>
       <% end %>
     </div>
   </section>

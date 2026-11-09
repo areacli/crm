@@ -1,5 +1,5 @@
 <%# Resultado da conferência, refeito quando o WebSocket avisa. Local: result (nil enquanto confere). %>
-<div id="conferencia-filas" <% if result.nil? %>hx-get="<%= request.fullpath %>" hx-trigger="cable:queue-review-ready from:body" hx-swap="outerHTML" hx-push-url="false"<% end %>>
+<div id="conferencia-filas" data-spa-vivo="<%= request.fullpath %>">
   <% if result.nil? %>
     <p class="carregando" role="status">Conferindo o impacto…</p>
   <% else %>
@@ -21,8 +21,8 @@
           </div>
         <% end %>
         <div class="acoes" data-rodape>
-          <%= button_to "Confirmar a mudança", confirm_queues_work_queues_path(tenant_id: @tenant.id, token: @token), data: { variant: "primary" } %>
-          <%= link_to "Descartar", queues_work_queues_path(tenant_id: @tenant.id), class: "botao", data: { variant: "secondary" } %>
+          <%= button_to "Confirmar a mudança", confirm_queues_work_queues_path(credor: @tenant.id, token: @token), data: { variant: "primary" } %>
+          <%= link_to "Descartar", queues_work_queues_path(credor: @tenant.id), class: "botao", data: { variant: "secondary", mesma_aba: true } %>
         </div>
       </div>
     </section>

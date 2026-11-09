@@ -1,6 +1,6 @@
 <%# Propostas e acordos do cliente no cabeçalho da ficha (11, R241, P17): uma proposta ou acordo por linha (padrões de interface, revisão 25; antes, as propostas iam juntas
     numa frase), com os títulos e a validade no detalhe. Refeita a cada evento do WebSocket. Locais: customer, agreements. %>
-<div id="acordos" hx-get="<%= customer_agreements_path(customer) %>" hx-trigger="cable:agreements-changed from:body, cable:connected from:body" hx-swap="outerHTML" hx-target="this">
+<div id="acordos">
   <% if agreements.any? %>
     <div class="tabela" tabindex="0">
       <table data-detalhes>

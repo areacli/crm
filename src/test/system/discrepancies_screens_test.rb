@@ -1,6 +1,6 @@
 require "application_system_test_case"
 
-# Carteira revista no navegador (05): lista e detalhe das divergências, histórico do título, ficha com excedente, conferência e política, no axe.
+# Carteira revista no navegador (05), nas abas da casca: lista e detalhe das divergências, histórico do título, ficha com excedente, conferência e política.
 class DiscrepanciesScreensSystemTest < ApplicationSystemTestCase
   include ActiveJob::TestHelper
 
@@ -11,50 +11,39 @@ class DiscrepanciesScreensSystemTest < ApplicationSystemTestCase
     @discrepancy = ValueDiscrepancy.sole
     paid_bill(number: "NF-C", document: JOAO, contract_code: "CT-C", name: "João C")
     @checked = run_portfolio_import([ bill_line("NF-C", "300,00", "documento" => JOAO, "nome" => "João C", "contrato" => "CT-C") ])
-    visit new_session_path
-    fill_in "E-mail", with: users(:joana).email_address
-    fill_in "Senha", with: "senha-de-teste-1"
-    click_button "Entrar"
-    assert_selector "h1", text: "Resumo da carteira"
+    entrar_na_casca
   end
 
-  test "lista, detalhe, histórico, ficha, conferência e política passam no axe e não rolam na horizontal" do
-    find("#menu-principal summary", text: "Financeiro").click
-    click_link "Divergências de valor 1"
-    assert_selector "h1", text: "Divergências de valor"
-    assert_selector "th a", text: "NF-1024/3"
-    assert_acessivel
-    assert_no_horizontal_scroll
+  test "lista, detalhe, histórico, ficha, conferência e política nas abas e janelas" do
+    # A lista, a divergência (janela), o título (janela), a ficha e a importação estão na SPA (fases 3 e 5).
+    visitar_lista value_discrepancies_path
+    assert_selector "[id='resultado'] .datagrid-row a", text: "NF-1024/3"
 
-    click_link "NF-1024/3"
-    assert_selector "h1", text: "Divergência do título NF-1024/3"
-    assert_acessivel
-    click_link "Ver o histórico do título"
-    assert_selector "h2", text: "Linha do tempo"
-    assert_acessivel
+    within("[id='resultado']") { click_link "NF-1024/3" }
+    assert_selector ".window .panel-title", text: "Divergência do título NF-1024/3"
+    within(".janela-corpo", match: :first) { click_link "Ver o histórico do título" }
+    assert_selector ".janela-corpo h2", text: "Linha do tempo"
 
-    visit customer_path(@bill.customer, aba: "pagamentos")
-    assert_selector "h2", text: "Crédito por contrato"
-    assert_acessivel
-    assert_no_horizontal_scroll
+    visitar_ficha(@bill.customer, aba: "pagamentos")
+    na_aba_interna { assert_selector "h2", text: "Crédito por contrato" }
 
     visit import_path(@checked)
-    assert_selector "h2", text: "Divergências de valor: 1 título"
-    assert_acessivel
+    assert_selector ".aba-raiz h2", text: "Divergências de valor: 1 título", wait: 15
 
-    visit settings_portfolio_path
-    assert_text "Divergência de valor"
-    assert_acessivel
+    # A carteira está na SPA (fase 7), fora do axe (D7).
+    abrir_aba settings_portfolio_path
+    assert_selector ".aba-raiz .politica .titulo", text: "Divergência de valor", wait: 10
   end
 
   test "trata a divergência pela tela, com nota" do
+    # O endereço antigo da divergência leva à casca, que a abre em janela; o diálogo de tratar refaz a janela no fim.
     visit value_discrepancy_path(@discrepancy)
-    click_link "Tratar divergência"
-    assert_selector "dialog#painel[open][data-variant=modal]"
-    fill_in "Nota", with: "credor confirmou o desconto"
-    within("dialog#painel[open]") { click_button "Tratar divergência" }
-    assert_text "Divergência tratada.", wait: 10
-    assert_acessivel
+    assert_selector ".window .panel-title", text: /Divergência do título/, wait: 15
+    within(".janela-corpo") { click_link "Tratar divergência" }
+    no_dialogo { fill_in "Nota", with: "credor confirmou o desconto" }
+    gravar_dialogo "Tratar divergência"
+    assert_aviso "Divergência tratada."
+    assert_no_selector ".janela-corpo a", text: "Tratar divergência", wait: 10
     assert_predicate @discrepancy.reload, :handled?
   end
 

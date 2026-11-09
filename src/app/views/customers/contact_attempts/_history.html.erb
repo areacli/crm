@@ -1,8 +1,6 @@
-<%# Histórico de acionamentos do cliente (R74), do contato mais recente ao mais antigo, 20 por vez. Refeito pelo htmx na paginação e a cada
-    evento do WebSocket (cable:contact-attempts-changed). Locais: customer, history, oob. %>
+<%# Histórico de acionamentos do cliente (R74), do contato mais recente ao mais antigo, 20 por vez. Locais: customer, history, oob. %>
 <% attempts = history.records.to_a %>
-<% wrapper = { id: "historico-acionamentos", "hx-get": customer_contact_attempts_path(customer, page: history.page, contrato: params[:contrato].presence), "hx-swap": "outerHTML",
-               "hx-trigger": "cable:contact-attempts-changed from:body, cable:connected from:body" }.merge(local_assigns[:oob] ? { "hx-swap-oob": "true" } : {}) %>
+<% wrapper = { id: "historico-acionamentos" }.merge(local_assigns[:oob] ? { "data-fora-de-banda": "true" } : {}) %>
 <%= tag.div(**wrapper) do %>
   <% if attempts.empty? %>
     <p class="vazio">Nenhum acionamento registrado para este cliente.</p>
@@ -46,6 +44,6 @@
         </tbody>
       </table>
     </div>
-    <%= render "shared/paginacao", pagination: history, path: ->(page) { customer_contact_attempts_path(customer, page: page, contrato: params[:contrato].presence) }, fragment: "#historico-acionamentos" %>
+    <%= render "shared/paginacao", pagination: history, path: ->(page) { customer_contact_attempts_path(customer, pagina: page, contrato: params[:contrato].presence) }, fragment: "#historico-acionamentos" %>
   <% end %>
 <% end %>

@@ -1,5 +1,5 @@
 <%# Resultado da conferência, refeito quando o WebSocket avisa. Local: result (nil enquanto confere). %>
-<div id="conferencia-distribuicao" <% if result.nil? %>hx-get="<%= request.fullpath %>" hx-trigger="cable:distribution-review-ready from:body" hx-swap="outerHTML" hx-push-url="false"<% end %>>
+<div id="conferencia-distribuicao" data-spa-vivo="<%= request.fullpath %>">
   <% if result.nil? %>
     <p class="carregando" role="status">Conferindo o impacto…</p>
   <% else %>
@@ -23,8 +23,8 @@
         <% end %>
         <p><small>Contratos com distribuição à mão ou de lote não entram na conta: a regra não os toca.</small></p>
         <div class="acoes" data-rodape>
-          <%= button_to "Confirmar a mudança", confirm_settings_distribution_rules_path(tenant_id: @tenant.id, token: @token), data: { variant: "primary" } %>
-          <%= link_to "Descartar", settings_distribution_rules_path(tenant_id: @tenant.id), class: "botao", data: { variant: "secondary" } %>
+          <%= button_to "Confirmar a mudança", confirm_settings_distribution_rules_path(credor: @tenant.id, token: @token), data: { variant: "primary" } %>
+          <%= link_to "Descartar", settings_distribution_rules_path(credor: @tenant.id), class: "botao", data: { variant: "secondary", mesma_aba: true } %>
         </div>
       </div>
     </section>

@@ -5,7 +5,7 @@ module Settings
     FIELDS = %i[operation_exclusive operation_default_exposure operation_exposure_business_days operation_sees_other_deals operation_other_contact_attempts operation_manager_links].freeze
 
     def update
-      tenant = Tenant.find_by(id: params[:tenant_id]) or return head(:not_found)
+      tenant = Tenant.find_by(id: params[:credor]) or return head(:not_found)
       authorize Accreditation.new(tenant: tenant), :update?
       setting = tenant.setting
       attributes = params.expect(policies: FIELDS)
@@ -19,9 +19,9 @@ module Settings
         end
       end
       ::Operations::ReachBuilder.new(tenant).rebuild if before["operation_exposure_business_days"] != setting.operation_exposure_business_days
-      redirect_to settings_operations_path, notice: t(".done", tenant: tenant.name), status: :see_other
+      panel_finish(settings_operations_path, notice: t(".done", tenant: tenant.name), atualizar: true)
     rescue ActiveRecord::RecordInvalid => error
-      redirect_to settings_operations_path, alert: error.record.errors.full_messages.to_sentence, status: :see_other
+      panel_finish(settings_operations_path, notice: error.record.errors.full_messages.to_sentence, tom: :danger)
     end
   end
 end

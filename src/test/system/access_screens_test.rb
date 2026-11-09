@@ -1,130 +1,89 @@
 require "application_system_test_case"
 
-# Telas de acesso no navegador: usuários, perfis, senha e sino de avisos passam no axe, e o sino se refaz pelo htmx quando chega o
-# evento do WebSocket (o adaptador de teste do Action Cable não entrega ao navegador, então o evento `cable:` é disparado na página).
+# Telas de acesso no navegador: usuários, perfis e a planilha-modelo nas abas da casca. A senha temporária e o sino são da casca (`spa_casca_test.rb`).
 class AccessScreensSystemTest < ApplicationSystemTestCase
-  def sign_in(user)
-    visit new_session_path
-    fill_in "E-mail", with: user.email_address
-    fill_in "Senha", with: "senha-de-teste-1"
-    click_button "Entrar"
-    assert_selector "header .usuario"
-  end
-
-  test "usuários, ficha, novo usuário, perfis e senha passam no axe, com dois credores" do
+  # Na SPA (fase 7): usuários e perfis nas abas, a ficha do usuário com o nome e o perfil editáveis na linha, as ações em diálogos; o axe saiu da área interna
+  # (plano, D7).
+  test "usuários, ficha, novo usuário e perfis nas abas, com dois credores; o perfil se troca na linha" do
     memberships(:ana_alfa).update!(profile: profiles(:alfa_manager))
-    sign_in users(:ana)
+    entrar_na_casca users(:ana)
 
-    visit memberships_path
-    assert_selector "h1", text: "Usuários"
-    assert_selector "th", text: "Credor"
-    assert_acessivel
+    abrir_aba memberships_path
+    assert_selector ".aba-raiz h1", text: "Usuários", wait: 10
+    assert_selector ".aba-raiz .datagrid-header", text: "Credor"
 
-    click_link "Carlos Lima"
-    assert_selector "h1", text: "Carlos Lima"
-    assert_acessivel
-    click_link "Desativar o acesso"
-    assert_selector "dialog#painel[open]", text: "Desativar o acesso?"
-    assert_acessivel
-    within("dialog#painel[open]") { click_button "Cancelar" }
+    within(".aba-raiz") { click_link "Carlos Lima", match: :first }
+    assert_selector ".aba-raiz h1", text: "Carlos Lima", wait: 10
+    within(find(".aba-raiz section.cartao", text: "Acesso em")) do
+      find("button[aria-label='Editar perfil']").click
+      find("form.inline-editando select").select("Gestor")
+      click_button "Salvar"
+    end
+    assert_aviso "Perfil alterado."
+    assert_equal "Gestor", memberships(:carlos_alfa).reload.profile.name
+    find(".aba-raiz .cabecalho-da-pagina .botao", text: "Desativar o acesso").click
+    no_dialogo { assert_text "deixa de operar" }
+    send_keys :escape
 
-    visit new_membership_path
-    assert_selector "h1", text: "Novo usuário"
-    assert_acessivel
+    abrir_aba memberships_path
+    find(".aba-raiz .cabecalho-da-pagina .botao", text: "Criar usuário").click
+    no_dialogo do
+      escolher "Credor", "Clínica Beta"
+      assert_selector "[id=campo-perfil]", wait: 10
+    end
+    send_keys :escape
 
-    visit profiles_path
-    assert_selector "h1", text: "Perfis"
-    assert_acessivel
-
-    visit new_profile_path
-    # 21 permissões e a marca "disponível para operações" (14, R310).
-    assert_selector "input[type=checkbox]", count: 22
-    assert_acessivel
-
-    visit edit_password_path
-    assert_selector "h1", text: "Trocar a senha"
-    assert_acessivel
+    abrir_aba profiles_path
+    assert_selector ".aba-raiz h1", text: "Perfis", wait: 10
+    find(".aba-raiz .cabecalho-da-pagina .botao", text: "Criar perfil").click
+    assert_selector ".aba-raiz h1", text: "Novo perfil", wait: 10
+    # 21 permissões, em quatro grupos, e a marca "disponível para operações" (14, R310).
+    assert_selector ".aba-raiz input[type=checkbox]", count: 22
+    assert_selector ".aba-raiz .grupos-de-permissoes legend", count: 4
   end
 
-  test "importação: a tabela de colunas e o botão da planilha-modelo aparecem e passam no axe" do
-    sign_in users(:joana)
+  test "importação: a tabela de colunas e o botão da planilha-modelo aparecem" do
+    entrar_na_casca
 
-    visit new_import_path
+    visit new_import_path # na SPA desde a fase 5
 
-    assert_selector "h2", text: "Colunas da planilha"
-    assert_selector "tbody tr", count: 30
+    assert_selector ".aba-raiz h2", text: "Colunas da planilha", wait: 15
+    assert_selector ".aba-raiz .datagrid-view2 tr.datagrid-row", count: 30
     assert_link "Baixar planilha modelo"
-    assert_acessivel
-  end
-
-  test "o primeiro acesso com senha temporária leva à tela de definir a senha, que passa no axe" do
-    users(:carlos).update!(temporary_password_until: 72.hours.from_now)
-    sign_in users(:carlos)
-
-    assert_selector "h1", text: "Defina sua senha"
-    assert_no_selector "nav[aria-label=Menu]"
-    assert_acessivel
-
-    fill_in "Nova senha", with: "minha-senha-definitiva"
-    fill_in "Repita a nova senha", with: "minha-senha-definitiva"
-    click_button "Salvar a senha"
-    assert_selector "h1", text: "Resumo da carteira"
   end
 
   test "o gestor cria o operador pela tela e vê a senha temporária uma única vez" do
-    sign_in users(:joana)
-    visit new_membership_path
+    entrar_na_casca users(:joana)
+    abrir_aba memberships_path
+    find(".aba-raiz .cabecalho-da-pagina .botao", text: "Criar usuário", wait: 10).click
+    no_dialogo do
+      fill_in "E-mail", with: "joana.souza@credor.example"
+      fill_in "Nome", with: "Joana de Souza"
+      escolher "Perfil", "Operador"
+    end
+    gravar_dialogo
 
-    fill_in "E-mail", with: "joana.souza@credor.example"
-    fill_in "Nome", with: "Joana de Souza"
-    select "Operador", from: "Perfil"
-    click_button "Salvar"
-
-    assert_selector "[role=status]", text: "não será mostrada de novo"
-    assert_acessivel
-    visit memberships_path
-    assert_no_selector "[role=status]", text: "não será mostrada de novo"
-    assert_selector "tbody th a", text: "Joana de Souza"
+    # A lista se refaz com a senha, mostrada só nesta resposta.
+    assert_selector ".aba-raiz [role=status]", text: "não será mostrada de novo", wait: 10
+    assert_selector ".aba-raiz .datagrid-row", text: "Joana de Souza"
+    find(".tabs-selected .tabs-close").click
+    abrir_aba memberships_path
+    assert_selector ".aba-raiz h1", text: "Usuários", wait: 10
+    assert_no_selector ".aba-raiz [role=status]", text: "não será mostrada de novo"
   end
 
-  test "o sino mostra o aviso novo quando o evento chega, sem recarregar a página, e marca como lido" do
-    sign_in users(:carlos)
-    assert_no_selector "#sino .contador"
-    # O sino se refaz uma vez quando o WebSocket conecta; espera essa busca terminar para o evento do teste não correr contra ela.
-    assert_selector "html[data-cable='conectado']"
-    page.driver.wait_for_network_idle
-    page.execute_script("window.marcaDaPagina = 1")
-
-    Notice.create!(user: users(:carlos), kind: "linked_to_tenant", data: { tenant_name: "Clínica Beta", actor_name: "Ana Prado", profile_name: "Gestor" })
-    page.execute_script("document.body.dispatchEvent(new CustomEvent('cable:notice-created'))")
-
-    assert_selector "#sino .contador", text: "1"
-    assert_equal 1, page.evaluate_script("window.marcaDaPagina")
-    find("#sino summary").click
-    assert_text "Ana Prado ligou você a Clínica Beta"
-    assert_acessivel
-
-    click_button "Marcar como lido"
-    assert_no_selector "#sino .contador"
-    assert_equal 0, users(:carlos).notices.unread.count
-  end
-
-  test "o e-mail muito longo não estoura o menu do usuário e o cabeçalho tem 56 px" do
-    users(:joana).update!(email_address: "#{'nome.muito.longo.' * 6}joana@exemplo.com.br")
-    sign_in users(:joana)
+  # O nome no cabeçalho da casca encurta com reticências: o cabeçalho não sai da janela nem com um nome muito longo.
+  test "o nome muito longo não estoura o cabeçalho da casca" do
+    users(:joana).update!(name: "Joana #{'Sobrenome Muito Comprido ' * 6}")
+    entrar_na_casca
     page.driver.resize(1440, 900)
-    assert_equal 56, page.evaluate_script("document.querySelector('body > header').getBoundingClientRect().height")
-    find("header .usuario summary").click
-
     dentro = page.evaluate_script(<<~JS)
       (() => {
-        const painel = document.querySelector("header .usuario[open] > div").getBoundingClientRect()
-        const email = document.querySelector("header .usuario[open] > div p").getBoundingClientRect()
-        return painel.right <= window.innerWidth && painel.left >= 0 && email.right <= painel.right + 1 && email.left >= painel.left - 1
+        const barra = document.querySelector(".barra-topo").getBoundingClientRect()
+        const usuario = document.querySelector("#usuario").getBoundingClientRect()
+        return usuario.right <= window.innerWidth && usuario.right <= barra.right + 1 && document.documentElement.scrollWidth <= window.innerWidth
       })()
     JS
-    assert dentro, "o e-mail ou o painel saiu da janela"
-    page.driver.resize(390, 800)
-    assert page.evaluate_script("document.querySelector('header .usuario[open] > div').getBoundingClientRect().right <= window.innerWidth")
+    assert dentro, "o nome saiu do cabeçalho ou a página rolou na horizontal"
   end
 end

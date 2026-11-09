@@ -1,11 +1,14 @@
 Rails.application.routes.draw do
-  resource :session
-  resource :password, path: "senha", only: %i[edit update]
+  resource :session, path: "sessao", path_names: { new: "nova", edit: "editar" }
+  resource :password, path: "senha", path_names: { edit: "editar" }, only: %i[edit update]
 
   # Estado de saúde para o balanceador e o monitoramento: 200 se a aplicação sobe sem exceção.
   get "up" => "rails/health#show", as: :rails_health_check
 
-  root "summaries#show"
+  # SPA em EasyUI (decisão 0028): a casca fica na raiz, e o Resumo passa a `/resumo` (a aba fixa dela). O menu vem em JSON.
+  root "shell#show"
+  get "resumo", to: "summaries#show", as: :summary
+  resource :menu, only: :show, defaults: { format: :json }
 
   # Confirmação curta de ações sem dados, no modal do painel (decisão 0022): o token assinado leva o título, a mensagem e o destino.
   get "confirmacao/:token", to: "confirmations#show", as: :confirmation, constraints: { token: %r{[^/]+} }, format: false
@@ -13,25 +16,25 @@ Rails.application.routes.draw do
   # Nomes das rotas em inglês, caminhos em português (decisão 0013).
   resources :customers, path: "clientes", only: %i[index show] do
     # Cadastro do cliente (06): nome corrigido na tela e contatos com a situação de cada um.
-    resource :name, path: "nome", only: %i[edit update], module: :customers
-    # Linha do tempo da lateral (padrões de interface, revisão 24): o trecho que o htmx troca no filtro e na paginação.
+    resource :name, path: "nome", path_names: { edit: "editar" }, only: %i[edit update], module: :customers
+    # Linha do tempo da lateral (padrões de interface, revisão 24): o trecho que a ficha troca no filtro e na paginação (`data-trecho`).
     resource :timeline, path: "linha-do-tempo", only: :show, module: :customers
-    resources :contacts, path: "contatos", controller: "customer_contacts", only: %i[new create edit update] do
-      resource :status, path: "situacao", only: %i[edit update], controller: "customer_contacts/statuses"
+    resources :contacts, path: "contatos", path_names: { new: "novo", edit: "editar" }, controller: "customer_contacts", only: %i[new create edit update] do
+      resource :status, path: "situacao", path_names: { new: "nova", edit: "editar" }, only: %i[edit update], controller: "customer_contacts/statuses"
     end
     # Transferência de crédito entre contratos do mesmo credor (R55a).
-    resources :credit_transfers, path: "transferencias-de-credito", only: %i[new create], module: :customers
+    resources :credit_transfers, path: "transferencias-de-credito", path_names: { new: "nova" }, only: %i[new create], module: :customers
     # Crédito do contrato (11, R232b, R239): usar num título de acordo ou de estorno, e alocar o aguardando alocação.
-    resources :credit_uses, path: "uso-de-credito", only: %i[new create], module: :customers
-    resources :credit_allocations, path: "alocacao-de-credito", only: %i[new create], module: :customers
+    resources :credit_uses, path: "uso-de-credito", path_names: { new: "novo" }, only: %i[new create], module: :customers
+    resources :credit_allocations, path: "alocacao-de-credito", path_names: { new: "nova" }, only: %i[new create], module: :customers
     # Direitos do titular (07): exportar (registra e abre a página com endereço assinado), anonimizar e reter.
-    resource :data_export, path: "exportacao", only: %i[new show create], module: :customers
-    resource :anonymization, path: "anonimizacao", only: %i[new create], module: :customers
-    resource :retention, path: "retencao", only: %i[new create destroy], module: :customers
+    resource :data_export, path: "exportacao", path_names: { new: "nova" }, only: %i[new show create], module: :customers
+    resource :anonymization, path: "anonimizacao", path_names: { new: "nova" }, only: %i[new create], module: :customers
+    resource :retention, path: "retencao", path_names: { new: "nova" }, only: %i[new create destroy], module: :customers
     # Promessas abertas e pendentes na ficha (10, R203): o trecho do cabeçalho, refeito a cada evento.
     resources :promises, path: "promessas", only: :index, module: :customers
     # Acordos (11): o trecho da ficha, a simulação e a gravação da proposta.
-    resources :agreement_simulations, path: "simulacao-de-acordo", only: %i[new create], module: :customers
+    resources :agreement_simulations, path: "simulacao-de-acordo", path_names: { new: "nova" }, only: %i[new create], module: :customers
     resources :agreements, path: "acordos", only: %i[index create], module: :customers
     # Acionamentos do cliente: histórico, campos que dependem da escolha e registro (04).
     resources :contact_attempts, path: "acionamentos", path_names: { new: "campos" }, only: %i[index new create], module: :customers do
@@ -46,30 +49,30 @@ Rails.application.routes.draw do
   # Histórico do título (05, R100) e divergências de valor (05, R99).
   resources :bills, path: "titulos", only: :show
   resources :value_discrepancies, path: "divergencias-de-valor", only: %i[index show] do
-    resource :handling, path: "tratamento", only: %i[new create], module: :value_discrepancies
+    resource :handling, path: "tratamento", path_names: { new: "novo" }, only: %i[new create], module: :value_discrepancies
   end
 
   # Promessas de pagamento (10): aprovar, recusar e cancelar (R192, R200) e a lista das pendentes (R204).
   resources :promises, path: "promessas", only: [] do
     get "pendentes", on: :collection, to: "promises/pendings#index", as: :pending
     resource :approval, path: "aprovacao", only: :create, module: :promises
-    resource :refusal, path: "recusa", only: %i[new create], module: :promises
-    resource :cancellation, path: "cancelamento", only: %i[new create], module: :promises
+    resource :refusal, path: "recusa", path_names: { new: "nova" }, only: %i[new create], module: :promises
+    resource :cancellation, path: "cancelamento", path_names: { new: "novo" }, only: %i[new create], module: :promises
   end
 
   # Acordos (11): a lista, a página do acordo e, nela, aprovar, recusar, cancelar a proposta, o termo e o aceite (R216, R218 a R220).
   resources :agreements, path: "acordos", only: %i[index show] do
     get "pendentes", on: :collection, to: "agreements/pendings#index", as: :pending
     resource :approval, path: "aprovacao", only: :create, module: :agreements
-    resource :refusal, path: "recusa", only: %i[new create], module: :agreements
-    resource :cancellation, path: "cancelamento", only: %i[new create], module: :agreements
-    resource :acceptance, path: "aceite", only: %i[new create], module: :agreements
+    resource :refusal, path: "recusa", path_names: { new: "nova" }, only: %i[new create], module: :agreements
+    resource :cancellation, path: "cancelamento", path_names: { new: "novo" }, only: %i[new create], module: :agreements
+    resource :acceptance, path: "aceite", path_names: { new: "novo" }, only: %i[new create], module: :agreements
     resource :term, path: "termo", only: :show, module: :agreements
     # Depois do aceite: calcular a quitação antecipada (R230) e a quebra manual (R238).
-    resource :settlement, path: "quitacao", only: %i[new create], module: :agreements
-    resource :break, path: "quebra", only: %i[new create], module: :agreements
+    resource :settlement, path: "quitacao", path_names: { new: "nova" }, only: %i[new create], module: :agreements
+    resource :break, path: "quebra", path_names: { new: "nova" }, only: %i[new create], module: :agreements
     # Reverter o acordo em dois passos (R239): abrir (create), concluir (update) e desistir (destroy).
-    resource :reversion, path: "reversao", only: %i[new create update destroy], module: :agreements
+    resource :reversion, path: "reversao", path_names: { new: "nova" }, only: %i[new create update destroy], module: :agreements
   end
   # Estornos à espera do gestor (R233, AH2): a lista e a decisão.
   resources :reversal_waits, path: "estornos-a-espera", path_names: { edit: "decidir" }, only: %i[index edit update]
@@ -226,7 +229,7 @@ Rails.application.routes.draw do
     resources :operation_trails, path: "trilha", only: :index
     # Operações credenciadas (14, R306, R307, R310): a ficha é a do credenciamento; situação e vínculos no painel.
     resources :operations, path: "", path_names: { new: "credenciar" }, only: %i[index new create show] do
-      resource :status, path: "situacao", only: %i[new create], module: :operations
+      resource :status, path: "situacao", path_names: { new: "nova", edit: "editar" }, only: %i[new create], module: :operations
       resources :links, path: "vinculos", path_names: { new: "novo" }, only: %i[new create destroy], module: :operations
     end
   end
@@ -241,5 +244,16 @@ Rails.application.routes.draw do
   match "/:status", to: "errors#show", via: :all, constraints: { status: /400|403|404|406|422|429|500|503/ }, as: :error
 
   # Referência dos tokens e dos componentes: só onde se desenvolve e se testa.
-  get "design-system" => "design_system#show", as: :design_system if Rails.env.local?
+  if Rails.env.local?
+    get "design-system" => "design_system#show", as: :design_system
+    # Exemplos da SPA (decisão 0028): espera, falha, cálculo à vista, edição inline, janela e diálogo, com respostas de mentira.
+    scope "design-system", controller: :design_system, as: :design_system do
+      post "calculo"
+      patch "inline"
+      get "lento"
+      get "janela"
+      get "dialogo"
+      post "dialogo", action: :gravar_dialogo
+    end
+  end
 end

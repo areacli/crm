@@ -91,9 +91,9 @@ class IndexesFetchTest < ActiveSupport::TestCase
     assert_equal 3, TaskRun.where(name: "index_fetch", status: "failed").count
   end
 
-  test "a busca transmite indexes-changed" do
+  test "a busca transmite indexes-changed no começo e no fim" do
     fake_bank(jan_2024)
-    assert_broadcasts(IndexesChannel.broadcasting_for("all"), 1) { Indexes::Fetch.new.call }
+    assert_broadcasts(IndexesChannel.broadcasting_for("all"), 2) { Indexes::Fetch.new.call }
   end
 
   test "o cliente real lê o formato do SGS e recusa erro de HTTP e falta de resposta" do

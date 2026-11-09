@@ -1,5 +1,5 @@
 <%# Retorno combinado (R73): o campo só aparece quando o resultado escolhido o aceita; "exige" o torna obrigatório. Locais: form, oob. %>
-<% wrapper = { id: "campo-retorno" }.merge(local_assigns[:oob] ? { "hx-swap-oob": "true" } : {}) %>
+<% wrapper = { id: "campo-retorno" }.merge(local_assigns[:oob] ? { "data-fora-de-banda": "true" } : {}) %>
 <%= tag.div(**wrapper) do %><% if form.show_return? %>
     <div class="campo">
       <label for="contact_attempt_return_at">Retorno combinado<%= form.return_rule == "required" ? "" : " (opcional)" %></label>

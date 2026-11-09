@@ -5,7 +5,7 @@ module Settings
       before_action :set_accreditation
 
       def new
-        @status = params[:status].presence_in(Accreditation.statuses.keys) or return head(:not_found)
+        @status = FilterValue.from_url(params[:situacao]).presence_in(Accreditation.statuses.keys) or return head(:not_found)
       end
 
       def create

@@ -1,8 +1,7 @@
 require "application_system_test_case"
 
-# A demonstração pública no navegador (CRM_DEMO=1): a faixa de aviso e a lista de usuários passam no axe e não fazem a página rolar na horizontal, no
-# computador e no celular, na entrada e na página pública de pagamento; no resumo e na importação, o axe vale no computador e, no celular, só a faixa
-# (a rolagem lateral das telas internas estreitas é do design system e das tabelas, não da faixa).
+# A demonstração pública no navegador (CRM_DEMO=1): a entrada da casca mostra os usuários da demonstração, a faixa de aviso fica no alto da casca,
+# o celular vê o aviso de tela pequena com o endereço das telas no GitHub, e a página pública de pagamento passa no axe no computador e no celular.
 class DemoScreensSystemTest < ApplicationSystemTestCase
   setup do
     @previous = Rails.configuration.x.demo.enabled
@@ -19,40 +18,51 @@ class DemoScreensSystemTest < ApplicationSystemTestCase
     assert page.evaluate_script("document.documentElement.scrollWidth <= document.documentElement.clientWidth"), "rolagem horizontal em #{page.current_path}"
   end
 
-  def entrar
-    visit new_session_path
-    fill_in "E-mail", with: users(:joana).email_address
-    fill_in "Senha", with: "senha-de-teste-1"
-    click_button "Entrar"
-    assert_selector "h1", text: "Resumo da carteira"
-  end
-
-  # A faixa aparece, a página não rola na horizontal em nenhuma largura e o axe passa no computador (no celular, as tabelas largas das telas internas rolam
-  # dentro do contêiner `.tabela`, como manda o design system; o axe não é o assunto da faixa).
-  def conferir(*larguras, axe_no_celular: false, sem_rolagem: true)
-    larguras.each do |largura|
-      page.driver.resize(largura, 900)
-      visit current_path
-      assert_selector "aside.demonstracao", text: "Demonstração: os dados são fictícios"
-      assert_acessivel if largura >= 1024 || axe_no_celular
-      assert_no_horizontal_scroll if sem_rolagem
+  test "a entrada mostra os usuários da demonstração sem rolagem lateral, e o celular vê o aviso com o endereço das telas" do
+    visit root_path
+    within("#entrada-form") do
+      assert_selector "code", text: Demo.email("gestor")
+      assert_selector "code", text: Demo.password("operador")
     end
+    assert_acessivel
+    assert_no_horizontal_scroll
+    page.driver.browser.page.command("Emulation.setDeviceMetricsOverride", width: 390, height: 844, deviceScaleFactor: 2, mobile: true)
+    page.driver.browser.page.command("Emulation.setTouchEmulationEnabled", enabled: true)
+    visit root_path
+    assert_selector "#aviso-tela a[href*='github.com/areacli/crm']"
+    assert_no_horizontal_scroll
+  ensure
+    page.driver.browser.page.command("Emulation.clearDeviceMetricsOverride")
+    page.driver.browser.page.command("Emulation.setTouchEmulationEnabled", enabled: false)
   end
 
-  test "a entrada mostra a faixa e os usuários da demonstração, acessíveis e sem rolagem lateral" do
-    visit new_session_path
-    assert_selector "code", text: Demo.email("gestor")
-    assert_selector "code", text: Demo.password("operador")
-    conferir(1440, 390, axe_no_celular: true)
+  # O carrossel é só da demonstração: telas com legenda, navegação pelos botões, e cada usuário e senha numa linha, sem quebrar no meio.
+  test "a entrada da demonstração mostra as telas em carrossel e as credenciais em linhas inteiras" do
+    visit root_path
+    assert_selector "[data-vitrine-tela][data-atual] figcaption", text: "O retrato da carteira"
+    find("[data-vitrine-passo='1']").click
+    assert_selector "[data-vitrine-tela][data-atual] figcaption", text: "Tudo de um cliente"
+    find("[data-vitrine-ir='3']").click
+    assert_selector "[data-vitrine-tela][data-atual] figcaption", text: "Simule o acordo"
+    assert_acessivel
+    alturas = page.evaluate_script("[...document.querySelectorAll('.entrada-demonstracao dd')].map((dd) => dd.getBoundingClientRect().height)")
+    assert_operator alturas.max, :<, 22, "credencial quebrou de linha"
+    assert_equal 6, alturas.size
   end
 
-  test "o resumo e a importação mostram a faixa, o aviso do arquivo descartado e passam no axe" do
-    entrar
-    conferir(1440, 390, sem_rolagem: false)
-    visit new_import_path
-    assert_selector "h1", text: "Importar carteira"
+  test "fora da demonstração a entrada não tem carrossel" do
+    Rails.configuration.x.demo.enabled = false
+    visit root_path
+    assert_selector "#entrada-form"
+    assert_no_selector "[data-vitrine]"
+  end
+
+  test "a faixa fica no alto da casca, e a importação avisa que o arquivo é descartado" do
+    entrar_na_casca
+    assert_selector "#norte .faixa", text: "Demonstração: os dados são fictícios"
+    visit new_import_path # o endereço antigo leva à aba na casca
+    assert_selector ".aba-raiz h1", text: "Importar carteira", wait: 15
     assert_text "descartado sem ser lido"
-    conferir(1440, 390, sem_rolagem: false)
   end
 
   test "a página pública de pagamento mostra o aviso da demonstração e passa no axe" do
@@ -67,19 +77,14 @@ class DemoScreensSystemTest < ApplicationSystemTestCase
     assert_no_horizontal_scroll
   end
 
-  # Menu na barra superior (padrões de interface, revisão 34) com a faixa: numa janela baixa, a lista do grupo cabe na janela; na configuração, o grupo
-  # Administração aparece como o atual e o submenu vem aberto com a seção atual; o cabeçalho fica no alto quando a página rola.
-  test "o menu da barra superior cabe na janela com a faixa e mostra a seção atual da configuração" do
-    entrar
+  # A casca com a faixa cabe na janela baixa: as abas não passam do fim da janela e a página não rola; quem rola é o conteúdo da aba.
+  test "a casca cabe na janela com a faixa, e o cabeçalho não rola com a aba" do
+    entrar_na_casca
     page.driver.resize(1280, 640)
-    visit settings_promises_path
-    assert_selector "#menu-principal details.grupo[data-atual] summary", text: "Administração"
-    find("#menu-principal summary", text: "Administração").click
-    assert_selector "#menu-principal details.submenu[open] a[aria-current=page]", text: "Promessas e acordos"
-    fim = "(() => document.querySelector('#menu-principal details.grupo[open] .menu-lista').getBoundingClientRect().bottom <= window.innerHeight)()"
-    assert page.evaluate_script(fim), "a lista do grupo saiu da janela"
-    visit root_path
+    visit settings_promises_path # o endereço antigo leva à aba na casca
+    assert_selector ".aba-raiz h1", text: "Promessas e acordos", wait: 15
+    assert page.evaluate_script("document.querySelector('#abas').getBoundingClientRect().bottom <= window.innerHeight + 1"), "as abas passaram da janela"
     page.execute_script("window.scrollTo(0, 400)")
-    assert_operator page.evaluate_script("document.querySelector('body > header').getBoundingClientRect().top"), :<, 60, "o cabeçalho rolou com a página"
+    assert_equal 0, page.evaluate_script("Math.round(document.querySelector('#norte').getBoundingClientRect().top)"), "o cabeçalho rolou com a página"
   end
 end

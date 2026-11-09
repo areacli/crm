@@ -8,7 +8,7 @@ module Settings
     FIELDS = %i[max_installments min_installment min_down_payment_pct down_payment_days validity_days tolerance_days break_days].freeze
 
     def update
-      tenant = Tenant.find(params[:tenant_id])
+      tenant = Tenant.find(params[:credor])
       authorize tenant.setting, :update?, policy_class: AgreementSettingPolicy
       tiers = tenant.tiers.ids.filter_map do |id|
         row = params.dig(:tiers, id.to_s) or next

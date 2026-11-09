@@ -7,7 +7,7 @@ module Settings
     end
 
     def update
-      tenant = Tenant.find(params[:tenant_id])
+      tenant = Tenant.find(params[:credor])
       # A política de divergência é financeira (permissão 14, no credor); faixas e a vencer são da permissão 4.
       authorize tenant.setting, :update?, policy_class: (params[:section] == "discrepancy" ? PaymentSettingPolicy : TenantSettingPolicy)
       service = Portfolio::SettingsService.new
@@ -25,9 +25,13 @@ module Settings
       else
         return head :bad_request
       end
-      redirect_to settings_portfolio_path, notice: "Configuração de #{tenant.name} salva."
+      panel_finish(settings_portfolio_path, notice: "Configuração de #{tenant.name} salva.", atualizar: true)
     rescue Portfolio::InvalidBrackets, ActiveRecord::RecordInvalid => error
       @settings = settings_scope
+      # As faixas voltam como foram digitadas (as marcadas "Remover" saem), com as linhas em branco de sobra.
+      if params[:section] == "brackets"
+        @rows = params.fetch(:brackets, []).map { |row| row.permit(:from, :to, :remove).to_h }.reject { |row| row["remove"] == "1" || (row["from"].blank? && row["to"].blank?) }.map { |row| [ row["from"].presence, row["to"].presence ] }
+      end
       @error = { tenant_id: tenant.id, message: "#{error.message.capitalize}." }
       render :show, status: :unprocessable_content
     end

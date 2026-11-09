@@ -49,23 +49,26 @@ module Distributions
       # R312 e R344: com a exclusividade, outra operação com distribuição aberta no mesmo período sobre o mesmo contrato recusa a nova; a da regra,
       # diante de uma distribuição à mão, se encerra ("distribuído à mão").
       def clear_conflicts!(distribution)
-        return unless distribution.tenant.setting.operation_exclusive
+        # O RLS esconde do usuário de operação as distribuições das outras: a exclusividade olha todas, como o sistema (14, R312).
+        Operations::Context.system do
+          return unless distribution.tenant.setting.operation_exclusive
 
-        contracts = self.class.contract_ids_for(distribution)
-        return if contracts.empty?
+          contracts = self.class.contract_ids_for(distribution)
+          return if contracts.empty?
 
-        others = Distribution.open.where(tenant_id: distribution.tenant_id).where.not(operation_id: distribution.operation_id).where.not(id: distribution.id)
-                             .where("starts_on <= COALESCE(?::date, 'infinity'::date) AND (ends_on IS NULL OR ends_on >= ?)", distribution.ends_on, distribution.starts_on)
-                             .where("contract_id IN (:ids) OR customer_id IN (SELECT customer_id FROM contract_customers WHERE contract_id IN (:ids))", ids: contracts)
-                             .includes(:operation)
-        rule = others.select { |other| other.source == "rule" }
-        if distribution.source != "rule" && rule.any?
-          rule.each { |other| Closer.new(@actor).close(other, reason: "manual_override", rebuild: false) }
-          others = others.reject { |other| other.source == "rule" }
+          others = Distribution.open.where(tenant_id: distribution.tenant_id).where.not(operation_id: distribution.operation_id).where.not(id: distribution.id)
+                               .where("starts_on <= COALESCE(?::date, 'infinity'::date) AND (ends_on IS NULL OR ends_on >= ?)", distribution.ends_on, distribution.starts_on)
+                               .where("contract_id IN (:ids) OR customer_id IN (SELECT customer_id FROM contract_customers WHERE contract_id IN (:ids))", ids: contracts)
+                               .includes(:operation)
+          rule = others.select { |other| other.source == "rule" }
+          if distribution.source != "rule" && rule.any?
+            rule.each { |other| Closer.new(@actor).close(other, reason: "manual_override", rebuild: false) }
+            others = others.reject { |other| other.source == "rule" }
+          end
+          conflict = others.first or return
+          raise Refused, I18n.t("distributions.refused.exclusive", target: distribution.target_label, name: conflict.operation.short_name,
+                                                                     period: conflict.ends_on ? "até #{I18n.l(conflict.ends_on)}" : "sem fim")
         end
-        conflict = others.first or return
-        raise Refused, I18n.t("distributions.refused.exclusive", target: distribution.target_label, name: conflict.operation.short_name,
-                                                                   period: conflict.ends_on ? "até #{I18n.l(conflict.ends_on)}" : "sem fim")
       end
 
       def log(distribution, event, **fields) = Change.record!(distribution, event, tenant_id: distribution.tenant_id, actor: @actor, origin: @actor ? "screen" : "task", **fields)

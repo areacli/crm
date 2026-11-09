@@ -35,6 +35,11 @@ pt-BR:
     subjects:
       contracts: "Contratos"
       customers: "Clientes"
+    probe:
+      failed: "A contagem não terminou. Tente conferir de novo."
+      timeout: "A contagem passou do tempo. O segmento é pesado: simplifique as condições ou use-o só no enquadramento."
+      invalid: "Corrija os erros do texto para conferir."
+      zero: "O segmento não pega ninguém hoje. Veja abaixo qual condição zera a contagem."
     flash:
       created: "Segmento \"%{name}\" criado. Ele não muda nada até ser usado num enquadramento."
       updated: "Segmento \"%{name}\" atualizado."
@@ -91,6 +96,10 @@ pt-BR:
         expression: "Condições"
       tier:
         segment: "Segmento"
+        fine_pct: "Multa"
+        interest_pct: "Taxa fixa"
+        fees_pct: "Honorários de cobrança"
+        promise_max_days: "Prazo máximo da promessa"
     errors:
       models:
         segment:

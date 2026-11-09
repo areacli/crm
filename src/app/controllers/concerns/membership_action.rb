@@ -15,6 +15,6 @@ module MembershipAction
 
     def manager = Access::UserManager.new(Current.user, request: request)
 
-    # Termina a ação do painel (modal): fecha, mostra o aviso e atualiza a ficha do vínculo; sem JavaScript, volta à ficha.
+    # Termina a ação do diálogo: fecha, mostra o aviso e atualiza a ficha do vínculo.
     def back_to_membership(notice: nil) = panel_finish(membership_path(@membership), notice: notice, atualizar: true)
 end

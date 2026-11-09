@@ -70,18 +70,44 @@ class Agreements::SimulationTest < ActiveSupport::TestCase
     assert_equal "approved", simulate_agreement(@customer, [ @nf1, @nf2 ], discounts: { "fine" => 10_000, "interest" => 5_000 }, user: users(:joana)).status
   end
 
-  test "R215: desconto acima do teto do segmento, na ordem das validações" do
-    quote = simulate_agreement(@customer, [ @nf1, @nf2 ], discounts: { "principal" => 500 })
-    assert_equal I18n.t("agreements.refused.discount_none", component: "principal"), quote.error
+  test "revisão 12: desconto acima do teto do item não é recusado, e o limite do perfil decide" do
+    principal = simulate_agreement(@customer, [ @nf1, @nf2 ], discounts: { "principal" => 500 })
+    assert_nil principal.error
+    assert_equal "pending", principal.status
 
-    over = simulate_agreement(@customer, [ @nf1, @nf2 ], discounts: { "fees" => 6_000 })
-    assert_equal I18n.t("agreements.refused.discount_above", component: "honorários", cap: 50), over.error
+    fees = simulate_agreement(@customer, [ @nf1, @nf2 ], discounts: { "fees" => 6_000 })
+    assert_nil fees.error
+    assert_equal "pending", fees.status
+
+    assert_equal I18n.t("agreements.refused.discount_range"), simulate_agreement(@customer, [ @nf1, @nf2 ], discounts: { "fine" => 10_100 }).error
   end
 
-  test "R215: parcelas acima do máximo, parcelado sem parcelas e parcela abaixo da mínima" do
+  test "revisão 12: zero parcelas é parcela única, sem entrada, no valor do acordo" do
+    quote = simulate_agreement(@customer, [ @nf1, @nf2 ], installments: 0, down: nil)
+    assert_nil quote.error
+    assert_equal "cash", quote.mode
+    assert_equal 1, quote.schedule.size
+    assert_equal quote.value_cents, quote.schedule.first.amount_cents
+    assert_equal quote.value_cents, quote.total_cents
+    assert_equal "cash", Agreements::FormParams.input({ installments: "0", bill_ids: [ @nf1.id ] }.with_indifferent_access).mode
+    assert_equal "installments", Agreements::FormParams.input({ installments: "3", bill_ids: [ @nf1.id ] }.with_indifferent_access).mode
+  end
+
+  test "revisão 12: a soma das parcelas nunca fica abaixo da dívida, nem com honorários recalculados ou o dia recusado" do
+    Tier.catch_all_of(@alfa).update!(fees_pct: 10, fees_in_contract: true)
+    recalc_values(@alfa, today: AGREEMENT_DAY)
+    [ { installments: 0, down: nil }, { installments: 1, down: nil }, { installments: 6, down: nil }, { installments: 4, day: 0 } ].each do |caso|
+      quote = simulate_agreement(@customer, [ @nf1, @nf2 ], discounts: { "fine" => 5_000, "interest" => 5_000 }, **caso)
+      assert_operator quote.base_cents, :>, quote.rows.sum { |row| row.after.values.sum } + 2_000, "o desconto precisa existir"
+      assert_equal quote.value_cents, quote.net_cents, caso.inspect
+      assert_operator quote.schedule.sum(&:amount_cents), :>=, quote.value_cents, caso.inspect
+      assert_equal quote.base_cents - quote.discount_cents, quote.value_cents
+    end
+  end
+
+  test "R215: parcelas acima do máximo e parcela abaixo da mínima" do
     @alfa.setting.update!(installment_method: "price")
     assert_equal I18n.t("agreements.refused.installments_above", max: 12), simulate_agreement(@customer, [ @nf1, @nf2 ], installments: 13).error
-    assert_equal I18n.t("agreements.refused.installments_required"), simulate_agreement(@customer, [ @nf1, @nf2 ], installments: nil).error
     ok = simulate_agreement(@customer, [ @nf1, @nf2 ], down: 94_366, installments: 6)
     assert_nil ok.error
     small = simulate_agreement(@customer, [ @nf1, @nf2 ], down: 94_366, installments: 7)
@@ -110,7 +136,7 @@ class Agreements::SimulationTest < ActiveSupport::TestCase
     assert_equal quote.net_cents, quote.down_payment_cents
     assert_equal 1, quote.schedule.size
     assert_equal "cash", quote.mode
-    assert_equal I18n.t("agreements.refused.discount_above", component: "correção", cap: 30), simulate_agreement(@customer, [ @nf1, @nf2 ], mode: "cash", discounts: { "correction" => 3_100 }, down: nil, installments: nil).error
+    assert_nil simulate_agreement(@customer, [ @nf1, @nf2 ], mode: "cash", discounts: { "correction" => 3_100 }, down: nil, installments: nil).error
   end
 
   test "R215: todos os componentes com 100% de desconto é perdão total" do
@@ -137,6 +163,30 @@ class Agreements::SimulationTest < ActiveSupport::TestCase
     assert_equal I18n.t("agreements.refused.bill_not_open", number: "NF-1"), refuse_agreement { simulate_agreement(@customer, [ @nf1 ]) }
     other = make_bill(@alfa, number: "NF-9", amount_cents: 10_000, document: PaymentsHelper::JOAO, contract_code: "CT-9", due: ChargesTestHelper::DUE, name: "João")
     assert_equal I18n.t("agreements.refused.bill_unknown"), refuse_agreement { simulate_agreement(@customer, [ other ]) }
+  end
+
+  test "revisão 12: a faixa da entrada, as parcelas que a R215 aceita e os tetos dos descontos" do
+    limits = simulate_agreement(@customer, [ @nf1, @nf2 ]).limits
+
+    assert_equal 15_437, limits.down_min # 10% de R$ 1.543,66, para cima
+    assert_equal 144_366, limits.down_max # o valor líquido menos a parcela mínima de R$ 100,00
+    assert_equal (1..12).to_a, limits.installment_counts
+    assert_equal 50, limits.profile_discounts["fine"]
+    assert_equal 0, limits.profile_discounts["principal"]
+    assert_equal [ 1, 2 ], simulate_agreement(@customer, [ @nf1, @nf2 ], down: 134_366).limits.installment_counts # sobram R$ 200,00: três parcelas ficariam abaixo da mínima
+    assert_equal [ 1 ], simulate_agreement(@customer, [ @nf1, @nf2 ], down: 150_000).limits.installment_counts
+  end
+
+  test "revisão 12: sem a pessoa mexer, a entrada é a maior entre o mínimo do item e o do perfil" do
+    tier = Tier.catch_all_of(@alfa)
+    profile = memberships(:carlos_alfa).profile
+    AgreementLimit.for(profile, tier).update!(min_down_payment_pct: 30)
+    input = agreement_input([ @nf1, @nf2 ], down: nil).with(auto_down: true)
+    quote = Agreements::Simulation.new(user: users(:carlos), customer: @customer, input: input).call
+
+    assert_equal (154_366 * 30 + 99) / 100, quote.down_payment_cents
+    assert_equal 15_437, quote.limits.down_min
+    assert_equal quote.down_payment_cents, quote.limits.down_initial
   end
 
   test "R211: o limite de 100 títulos" do

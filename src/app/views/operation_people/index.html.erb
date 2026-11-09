@@ -21,10 +21,10 @@
                 <% if member.active? %>
                   <% if @linkable.any? %><%= abrir_painel "Criar vínculo", new_operation_person_link_path(member), variante: "modal", tamanho: "small" %><% end %>
                   <%= confirmar_no_painel (member.manager? ? "Desmarcar como gestor" : "Marcar como gestor"), titulo: (member.manager? ? "Desmarcar #{member.user.name} como gestor?" : "Marcar #{member.user.name} como gestor da operação?"),
-                                          mensagem: "O gestor cadastra e desativa as pessoas da operação.", acao: "Confirmar", url: operation_person_path(member, change: member.manager? ? "not_manager" : "manager"), metodo: :patch, perigoso: false %>
-                  <%= confirmar_no_painel "Desativar", titulo: "Desativar #{member.user.name}?", mensagem: "Ela perde o acesso a todos os credores na hora; os vínculos dela se encerram.", acao: "Desativar", url: operation_person_path(member, change: "deactivate"), metodo: :patch %>
+                                          mensagem: "O gestor cadastra e desativa as pessoas da operação.", acao: "Confirmar", url: operation_person_path(member, mudanca: member.manager? ? "not_manager" : "manager"), metodo: :patch, perigoso: false %>
+                  <%= confirmar_no_painel "Desativar", titulo: "Desativar #{member.user.name}?", mensagem: "Ela perde o acesso a todos os credores na hora; os vínculos dela se encerram.", acao: "Desativar", url: operation_person_path(member, mudanca: "deactivate"), metodo: :patch %>
                 <% else %>
-                  <%= confirmar_no_painel "Reativar", titulo: "Reativar #{member.user.name}?", mensagem: "Os vínculos encerrados não voltam: o credor (ou você) dá de novo.", acao: "Reativar", url: operation_person_path(member, change: "activate"), metodo: :patch, perigoso: false %>
+                  <%= confirmar_no_painel "Reativar", titulo: "Reativar #{member.user.name}?", mensagem: "Os vínculos encerrados não voltam: o credor (ou você) dá de novo.", acao: "Reativar", url: operation_person_path(member, mudanca: "activate"), metodo: :patch, perigoso: false %>
                 <% end %>
               <% end %>
             <% end %>

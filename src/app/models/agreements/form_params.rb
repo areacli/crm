@@ -7,12 +7,15 @@ module Agreements
     module_function
 
     def input(raw)
-      mode = raw[:mode].to_s
+      # A tela só manda as parcelas: zero é parcela única, à vista (revisão 12).
+      mode = raw[:mode].to_s.presence || (raw[:installments].to_i.zero? ? "cash" : "installments")
       raise Refused.new(I18n.t("agreements.refused.mode"), field: "mode") unless Agreement::MODES.include?(mode)
 
-      Simulation::Input.new(bill_ids: Array(raw[:bill_ids]).compact_blank, mode: mode, discounts_bp: discounts(raw[:discounts]), down_payment_cents: money(raw[:down_payment], "down_payment"),
+      # Revisão 12: enquanto a pessoa não mexe na entrada, o valor na tela é o inicial, e o servidor o recalcula para os títulos e descontos de agora.
+      auto = raw[:down_payment_auto].to_s == "1"
+      Simulation::Input.new(bill_ids: Array(raw[:bill_ids]).compact_blank, mode: mode, discounts_bp: discounts(raw[:discounts]), down_payment_cents: auto ? nil : money(raw[:down_payment], "down_payment"),
                             down_payment_on: date(raw[:down_payment_on], "down_payment_on"), installments: raw[:installments].to_s.strip.presence&.to_i, day: raw[:day].to_s.strip.presence&.to_i,
-                            replace: raw[:replace].to_s == "1", credit_cents: money(raw[:credit], "credit").to_i)
+                            replace: raw[:replace].to_s == "1", credit_cents: zero?(raw[:credit]) ? 0 : money(raw[:credit], "credit").to_i, auto_down: auto)
     end
 
     # { componente => centésimos de ponto }; vazio é zero.
@@ -26,6 +29,9 @@ module Agreements
         [ component, whole.to_i * 100 + fraction.to_s.ljust(2, "0").to_i ]
       end
     end
+
+    # O crédito a usar nasce em zero (revisão 12), que `Money.parse_cents` recusa por ser valor de pagamento.
+    def zero?(text) = text.to_s.strip.match?(/\A0+(,0{1,2})?\z/)
 
     def money(text, field)
       return nil if text.to_s.strip.empty?

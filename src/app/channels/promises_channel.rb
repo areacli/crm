@@ -1,5 +1,5 @@
 # Avisos de promessa: a lista de pendentes e o painel assinam o credor, a ficha assina o cliente. Só quem consulta a carteira no credor (MT-3).
-# O canal transmite um evento de invalidação pequeno ("promises-changed"); a tela refaz o trecho com htmx.
+# O canal transmite um evento de invalidação pequeno ("promises-changed"); a aba da casca refaz o trecho (`data-spa-vivo`).
 class PromisesChannel < ApplicationCable::Channel
   def subscribed
     stream = params[:customer_id].present? ? Customer.find_by(id: params[:customer_id]) : Tenant.find_by(id: params[:tenant_id])

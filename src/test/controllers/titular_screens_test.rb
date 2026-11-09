@@ -22,16 +22,16 @@ class TitularScreensTest < ActionDispatch::IntegrationTest
 
   test "R141: quem tem a 13 vê Exportar dados e Anonimizar na ficha; quem não tem não vê, e o envio direto é recusado e registrado" do
     entrar(users(:joana))
-    get customer_path(@maria)
-    assert_select "a[hx-get*=exportacao]", text: "Exportar dados"
-    assert_select "a[hx-get*=anonimizacao]", text: "Anonimizar"
+    get_ficha(@maria)
+    assert_select "a[data-spa-dialogo][href*=exportacao]", text: "Exportar dados"
+    assert_select "a[data-spa-dialogo][href*=anonimizacao]", text: "Anonimizar"
 
     reader = make_user(@alfa, [])
     delete session_path
     entrar(reader)
-    get customer_path(@maria)
-    assert_select "a[hx-get*=exportacao]", count: 0
-    assert_select "a[hx-get*=anonimizacao]", count: 0
+    get_ficha(@maria)
+    assert_select "a[href*=exportacao]", count: 0
+    assert_select "a[href*=anonimizacao]", count: 0
     get new_customer_anonymization_path(@maria), headers: painel
     assert_response :not_found
     assert_no_difference "Customer.identified.count" do
@@ -49,7 +49,7 @@ class TitularScreensTest < ActionDispatch::IntegrationTest
     entrar(users(:joana))
     post customer_data_export_path(@maria), params: { export: { reason: "pedido do titular por e-mail, protocolo 123" } }
     assert_response :see_other
-    follow_redirect!
+    seguir_redirecionamento!
     assert_response :success
 
     assert_select "h1", text: /Dados de Maria Souza mantidos por Escola Alfa/
@@ -62,7 +62,7 @@ class TitularScreensTest < ActionDispatch::IntegrationTest
     assert_no_match(/Maria disse/, change.attributes.values.join)
 
     json_path = css_select("a").find { |a| a.text.include?("Baixar em JSON") }["href"]
-    get json_path
+    get json_path, headers: TRECHO
     assert_response :success
     assert_match(/attachment; filename="dados-cliente-#{@maria.id}\.json"/, response.headers["Content-Disposition"])
     data = JSON.parse(response.body)
@@ -77,11 +77,10 @@ class TitularScreensTest < ActionDispatch::IntegrationTest
   test "R129: sem motivo a exportação é recusada e nada é registrado" do
     entrar(users(:joana))
     assert_no_difference "Change.count" do
-      post customer_data_export_path(@maria), params: { export: { reason: " " } }
+      post customer_data_export_path(@maria), params: { export: { reason: " " } }, headers: TRECHO
     end
-    assert_response :see_other
-    follow_redirect!
-    assert_select "[role=alert], .aviso", text: /Informe o motivo da exportação/
+    assert_response :unprocessable_content
+    assert_select "form.dialogo .aviso", text: /Informe o motivo da exportação/
   end
 
   test "exportação: o endereço assinado vale para quem pediu, para aquele cliente, e vence em 10 minutos" do
@@ -126,33 +125,35 @@ class TitularScreensTest < ActionDispatch::IntegrationTest
     Credit.create!(tenant: @alfa, contract: @maria.contracts.first, kind: :entry, reason: :excess, amount_cents: 5_000)
     entrar(users(:joana))
     get new_customer_anonymization_path(@maria), headers: painel
-    assert_select "[data-painel][data-variant=modal] .aviso", text: /Não é possível anonimizar: crédito do contrato CT-7 de R\$ 50,00 em aberto/
+    assert_select "form.dialogo .aviso", text: /Não é possível anonimizar: crédito do contrato CT-7 de R\$ 50,00 em aberto/
     assert_select "button[type=submit]", 0
 
-    post customer_anonymization_path(@maria), params: { anonymization: { reason: "x", document: "529.982.247-25" } }
-    follow_redirect!
-    assert_select "[role=alert], .aviso", text: /não é possível anonimizar: crédito do contrato CT-7 de R\$ 50,00 em aberto/i
+    # Na SPA, a recusa volta no diálogo (422) com a mensagem; o fim, no `X-CRM-Evento`, e a ficha se refaz.
+    post customer_anonymization_path(@maria), params: { anonymization: { reason: "x", document: "529.982.247-25" } }, headers: TRECHO
+    assert_response :unprocessable_content
+    assert_select ".aviso", text: /não é possível anonimizar: crédito do contrato CT-7 de R\$ 50,00 em aberto/i
 
     Credit.create!(tenant: @alfa, contract: @maria.contracts.first, kind: :entry, reason: :excess, amount_cents: -5_000)
-    post customer_anonymization_path(@maria), params: { anonymization: { reason: "pedido", document: "111.444.777-35" } }
-    follow_redirect!
-    assert_select "[role=alert], .aviso", text: /documento digitado não é o deste cliente/
-    post customer_anonymization_path(@maria), params: { anonymization: { reason: "pedido", document: "52998224725" } }
-    follow_redirect!
+    post customer_anonymization_path(@maria), params: { anonymization: { reason: "pedido", document: "111.444.777-35" } }, headers: TRECHO
+    assert_select ".aviso", text: /documento digitado não é o deste cliente/
+    post customer_anonymization_path(@maria), params: { anonymization: { reason: "pedido", document: "52998224725" } }, headers: TRECHO
+    assert_response :no_content
+    assert evento_da_spa["atualizar"]
+    get_ficha(@maria)
     assert_select "h1", text: /Cliente anonimizado nº #{@maria.id}/
-    assert_select "main", text: /Cliente anonimizado em #{Date.current.strftime('%d/%m/%Y')}/
-    assert_select "a[hx-get*=exportacao]"
-    assert_select "a[hx-get*=anonimizacao]", 0
-    assert_select "a[hx-get*='/nome/']", 0
-    assert_select "a[hx-get*='/contatos/']", 0
-    assert_select "#acionamentos form", 0
+    assert_select ".aviso", text: /Cliente anonimizado em #{Date.current.strftime('%d/%m/%Y')}/
+    assert_select "a[href*=exportacao]"
+    assert_select "a[href*=anonimizacao]", 0
+    assert_select "[data-inline]", 0
+    assert_select "a[href*='/contatos/']", 0
+    assert_select "a", text: "Registrar acionamento", count: 0
   end
 
   test "R141: exportar um cliente anonimizado traz só o que restou, sem dado pessoal" do
     Titular::Anonymizer.on_request(@maria, actor: users(:joana), reason: "pedido", document: @maria.document)
     entrar(users(:joana))
     post customer_data_export_path(@maria.reload), params: { export: { reason: "pedido" } }
-    follow_redirect!
+    seguir_redirecionamento!
 
     assert_select "main", text: /Cliente anonimizado em/
     assert_no_match(/Maria|52998224725|98765/, response.body)
@@ -181,7 +182,7 @@ class TitularScreensTest < ActionDispatch::IntegrationTest
     user.memberships.find_by!(tenant: @alfa).profile.update!(permissions: %w[view_portfolio handle_data_subject_rights change_settings])
     entrar(user)
 
-    get data_retention_path
+    get data_retention_path, headers: TRECHO
 
     assert_response :success
     assert_select "h2#prazo", text: /Prazo de guarda vigente/
@@ -191,17 +192,14 @@ class TitularScreensTest < ActionDispatch::IntegrationTest
     assert_select "section[aria-labelledby=retidos] td", text: /ação judicial nº 77/
     assert_select "section[aria-labelledby=execucoes] td", text: /Concluída/
     assert_no_match(/Clínica Beta|StatementInvalid/, response.body)
-    assert_select "#guarda[hx-trigger*='cable:retention-changed']"
-    assert_select "meta[name=cable-channels]" do |meta|
-      assert_includes meta.first["content"], "RetentionChannel"
-    end
+    assert_select "template.canais-do-trecho[data-canais*='RetentionChannel']"
   end
 
   test "R138 (revisão 3): quem tem a 13 mas não a 4 vê a frase em vez do link para o prazo" do
     user = make_user(@alfa, %w[handle_data_subject_rights])
     entrar(user)
 
-    get data_retention_path
+    get data_retention_path, headers: TRECHO
 
     assert_select "section[aria-labelledby=prazo]", text: /O prazo é definido nos dados do credor/
     assert_select "section[aria-labelledby=prazo] a", 0
@@ -210,27 +208,26 @@ class TitularScreensTest < ActionDispatch::IntegrationTest
   test "R140: quem não tem a 13 não vê o item do menu nem a página de guarda" do
     entrar(make_user(@alfa, []))
 
-    get data_retention_path
+    get data_retention_path, headers: TRECHO
     assert_response :not_found
-    get root_path
-    assert_select "nav a", text: "Guarda de dados", count: 0
+    assert_not_includes rotulos_do_menu, "Guarda de dados"
   end
 
-  test "R138: reter pela página some da previsão e aparece nos retidos; desfazer volta; o pedido do htmx traz só o trecho" do
+  test "R138: reter pela página some da previsão e aparece nos retidos; desfazer volta; o trecho vivo traz só a página" do
     @maria.bill.update!(paid_on: Date.current - 5.years + 10.days)
     @maria.payment.update!(paid_on: Date.current - 5.years + 10.days)
     entrar(users(:joana))
 
-    post customer_retention_path(@maria), params: { retention: { reason: "ação judicial" } }, headers: { "HTTP_REFERER" => data_retention_url }
-    assert_redirected_to data_retention_url
-    follow_redirect!
+    post customer_retention_path(@maria), params: { retention: { reason: "ação judicial" } }, headers: TRECHO.merge("HTTP_REFERER" => data_retention_url)
+    assert_response :no_content
+    get data_retention_path, headers: TRECHO
     assert_select "section[aria-labelledby=previstos] th", text: /Maria Souza/, count: 0
     assert_select "section[aria-labelledby=retidos] th", text: /Maria Souza/
 
     delete customer_retention_path(@maria), params: { retention: { reason: "encerrado" } }, headers: { "HTTP_REFERER" => data_retention_url }
-    get data_retention_path, headers: htmx
+    get data_retention_path, headers: TRECHO.merge("X-CRM-Fragmento" => "1")
     assert_select "section[aria-labelledby=previstos] th", text: /Maria Souza/
-    assert_no_match(/<html/, response.body)
+    assert_select "h1", count: 0
   end
 
   test "R138: retenção exige motivo, e reter anonimizado é recusado" do
@@ -249,27 +246,27 @@ class TitularScreensTest < ActionDispatch::IntegrationTest
     user.memberships.find_by!(tenant: @alfa).profile.update!(permissions: %w[view_portfolio handle_data_subject_rights])
     entrar(user)
 
-    get data_retention_path(tenant: @beta.id)
+    get data_retention_path(credor: @beta.id), headers: TRECHO
 
     assert_select "section[aria-labelledby=previstos] th", text: /Maria Souza/, count: 0
   end
 
   test "R136: o prazo de guarda é salvo com a 4 no credor, com histórico; valor inválido e credor sem a 4 são recusados" do
     entrar(users(:joana))
-    patch settings_retention_period_path, params: { tenant_id: @alfa.id, retention: { years: "7" } }
+    patch settings_retention_period_path, params: { credor: @alfa.id, retention: { years: "7" } }
     assert_redirected_to settings_tenant_registry_path
     assert_equal 7, @alfa.setting.reload.retention_years
     assert_equal [ "5", "7" ], Change.find_by!(subject_type: "settings", event: "retention_years_changed").slice(:before, :after).values
 
-    patch settings_retention_period_path, params: { tenant_id: @alfa.id, retention: { years: "0" } }
+    patch settings_retention_period_path, params: { credor: @alfa.id, retention: { years: "0" } }
     assert_equal 7, @alfa.setting.reload.retention_years
 
     delete session_path
     entrar(marta)
-    patch settings_retention_period_path, params: { tenant_id: @beta.id, retention: { years: "9" } }
+    patch settings_retention_period_path, params: { credor: @beta.id, retention: { years: "9" } }
     assert_response :not_found
     assert_equal 5, @beta.setting.reload.retention_years
-    get settings_tenant_registry_path
+    get settings_tenant_registry_path, headers: TRECHO
     assert_select "form[action='#{settings_retention_period_path}']", 1
   end
 

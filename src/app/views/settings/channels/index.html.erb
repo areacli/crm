@@ -5,24 +5,23 @@
 <% end %>
 <%= render "settings/modelo" %>
 
-<form class="filtros" role="search" action="<%= settings_channels_path %>" method="get"
-      hx-sync="this:replace" hx-get="<%= settings_channels_path %>" hx-trigger="input changed delay:300ms from:#q, change" hx-target="#resultado" hx-push-url="true" hx-swap="outerHTML">
+<form class="filtros" role="search" action="<%= settings_channels_path %>" method="get">
   <div class="campo">
     <label for="q" class="apenas-leitor-de-tela">Buscar por código ou descrição</label>
-    <input type="search" id="q" name="q" value="<%= params[:q] %>" autocomplete="off" placeholder="Código ou descrição">
+    <input type="search" id="q" name="busca" value="<%= params[:busca] %>" autocomplete="off" placeholder="Código ou descrição">
   </div>
   <% if @several_tenants %>
     <div class="campo">
       <label for="tenant">Credor</label>
-      <select id="tenant" name="tenant">
+      <select id="tenant" name="credor">
         <option value="">Todos</option>
-        <%= options_for_select(@tenants, params[:tenant]) %>
+        <%= options_for_select(@tenants, params[:credor]) %>
       </select>
     </div>
   <% end %>
   <div class="campo">
     <label for="per_page" class="apenas-leitor-de-tela">Por página</label>
-    <select id="per_page" name="per_page"><%= options_for_select(Pagination::PER_PAGE_OPTIONS, @pagination.per_page) %></select>
+    <select id="per_page" name="por_pagina"><%= options_for_select(Pagination::PER_PAGE_OPTIONS, @pagination.per_page) %></select>
   </div>
   <button type="submit" data-variant="secondary">Buscar</button>
 </form>

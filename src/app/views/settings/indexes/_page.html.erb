@@ -1,5 +1,5 @@
-<%# Refeita pelo htmx a cada evento do WebSocket (cable:indexes-changed). %>
-<div id="indices" class="pagina-em-secoes" hx-get="<%= settings_indexes_path(request.query_parameters) %>" hx-trigger="cable:indexes-changed from:body" hx-swap="outerHTML" hx-push-url="false" hx-disinherit="hx-swap hx-push-url">
+<%# Refeita pela SPA a cada evento do WebSocket (cable:indexes-changed). %>
+<div id="indices" class="pagina-em-secoes">
   <section class="cartao" aria-labelledby="situacao">
     <header>
       <h2 id="situacao">Situação da busca</h2>
@@ -8,7 +8,7 @@
           <% if @running %>
             <span role="status">Busca em andamento</span>
           <% else %>
-            <%= button_to "Buscar índices agora", settings_index_search_path, form: { "hx-boost": "false" }, data: { variant: "secondary", size: "small" } %>
+            <%= button_to "Buscar índices agora", settings_index_search_path, data: { variant: "secondary", size: "small" } %>
           <% end %>
         </div>
       <% end %>
@@ -49,7 +49,7 @@
     <section class="cartao" aria-labelledby="indices-<%= tenant.id %>">
       <header>
         <h2 id="indices-<%= tenant.id %>"><%= tenant.name %></h2>
-        <% if can_correct %><div class="acoes"><%= abrir_painel "Editar índice", new_settings_index_adjustment_path(tenant_id: tenant.id), variante: "secondary", tamanho: "small" %></div><% end %>
+        <% if can_correct %><div class="acoes"><%= abrir_painel "Editar índice", new_settings_index_adjustment_path(credor: tenant.id), variante: "secondary", tamanho: "small" %></div><% end %>
       </header>
       <div>
         <% unless @grid.empty? %>
@@ -92,9 +92,9 @@
           </div>
           <% if @grid.pages > 1 %>
             <nav class="paginacao" aria-label="Meses">
-              <% if @grid.page > 1 %><%= link_to "Meses mais novos", settings_indexes_path(page: @grid.page - 1) %><% end %>
+              <% if @grid.page > 1 %><%= link_to "Meses mais novos", settings_indexes_path(pagina: @grid.page - 1) %><% end %>
               <span>Página <%= @grid.page %> de <%= @grid.pages %></span>
-              <% if @grid.page < @grid.pages %><%= link_to "Meses anteriores", settings_indexes_path(page: @grid.page + 1) %><% end %>
+              <% if @grid.page < @grid.pages %><%= link_to "Meses anteriores", settings_indexes_path(pagina: @grid.page + 1) %><% end %>
             </nav>
           <% end %>
         <% end %>

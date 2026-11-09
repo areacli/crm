@@ -17,6 +17,7 @@ require_relative "support/efi_http_helper"
 require_relative "support/checkouts_helper"
 require_relative "support/webhooks_helper"
 require_relative "support/operations_test_helper"
+require_relative "support/spa_requests_helper"
 require_relative "test_helpers/session_test_helper"
 
 # Sem processos paralelos (poucos testes), o banco é o principal: o RLS entra nele também.
@@ -48,6 +49,7 @@ module ActiveSupport
     include CheckoutsHelper
     include WebhooksHelper
     include OperationsTestHelper
+    include SpaRequestsHelper
 
     # Nenhum teste chama a Efí real (12): o cliente padrão recusa; os testes da Efí trocam por um falso com respostas gravadas. O token fica só na memória do processo.
     setup do

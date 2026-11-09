@@ -24,7 +24,7 @@ class PaymentInstrumentsScreensTest < ActionDispatch::IntegrationTest
   test "sem sessão, nada é servido" do
     get payment_instrument_pdf_path(@boleto)
     assert_response :redirect
-    assert_redirected_to new_session_path
+    assert_redirected_to root_path
   end
 
   test "quem consulta a carteira do credor baixa o PDF com Cache-Control private, no-store e sem redirecionar (R275, R279)" do
@@ -103,7 +103,7 @@ class PaymentInstrumentsScreensTest < ActionDispatch::IntegrationTest
   test "o Active Storage não tem rota pública: o arquivo só sai pelos controladores autenticados" do
     paths = Rails.application.routes.routes.map { |route| route.path.spec.to_s }
     assert_empty paths.grep(/active_storage/), "rota pública do Active Storage"
-    get "/rails/active_storage/blobs/redirect/#{@boleto.boleto_pdf.blob.signed_id}/boleto.pdf"
+    get "/rails/active_storage/blobs/redirect/#{@boleto.boleto_pdf.blob.signed_id}/boleto.pdf", headers: TRECHO
     assert_response :not_found
   end
 end

@@ -26,6 +26,11 @@ class PaymentPromise < ApplicationRecord
   scope :holding, -> { where(state: HOLDING) }
   scope :recent, -> { order(created_at: :desc, id: :desc) }
 
+  # As promessas que prendem títulos de um cliente, para o cabeçalho da ficha (10, R203).
+  def self.holding_for(customer)
+    holding.where(contract_id: ContractCustomer.where(customer_id: customer.id).select(:contract_id)).includes(:customer, :contract, :tenant, promise_bills: :bill).order(:promised_on, :id).to_a
+  end
+
   # O último dia em que o pagamento ainda é esperado: a data prometida mais a tolerância congelada (DP12).
   def deadline = promised_on + policies.fetch("tolerance_days", 3).to_i.days
 

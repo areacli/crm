@@ -3,12 +3,12 @@
 class ReversalWaitsController < ApplicationController
   def index
     authorize ReversalWait
-    @pagination = Pagination.new(policy_scope(ReversalWait).waiting.oldest_first.includes(:tenant, :contract, payment: :channel, agreement: :customer), page: params[:page], per_page: params[:per_page])
+    @pagination = Pagination.new(policy_scope(ReversalWait).waiting.oldest_first.includes(:tenant, :contract, payment: :channel, agreement: :customer), page: params[:pagina], per_page: params[:por_pagina])
     @waits = @pagination.records.to_a
     @decided = policy_scope(ReversalWait).where(state: "decided").order(decided_at: :desc).limit(10).includes(:tenant, :decided_by, agreement: :customer).to_a
     @options = @waits.to_h { |wait| [ wait.id, Agreements::WaitDecision.new(Current.user).options(wait) ] }
     @cable = Current.user.tenant_ids_with("administer_agreements").map { |id| { channel: "AgreementsChannel", tenant_id: id } }.to_json
-    render partial: "reversal_waits/result" if htmx_fragment?
+    render partial: "reversal_waits/result" if fragment?
   end
 
   # A decisão (opção e motivo) se pede num modal pequeno.

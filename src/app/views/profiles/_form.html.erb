@@ -1,35 +1,65 @@
-<%# Formulário de perfil (no painel): nome, a marca de perfil disponível para operações (14, R310) e as permissões (R30). Locais: profile, tenants (só na criação), url, method, titulo. %>
-<%= formulario_de_painel(titulo: titulo, url: url, metodo: method, enviar: "Salvar o perfil", escopo: :profile, erro: @error || (profile.errors.full_messages.to_sentence.presence), voltar: profiles_path) do |form| %>
-  <% if local_assigns[:tenants] && tenants.size > 1 %>
-    <div class="campo">
-      <%= form.label :tenant_id, "Credor" %>
-      <%= form.select :tenant_id, tenants.map { |tenant| [ tenant.name, tenant.id ] }, { selected: profile.tenant_id }, required: true %>
+<%# Formulário de perfil (aba própria na SPA): o nome, o credor e a marca de perfil disponível para operações (14, R310) à esquerda, e as permissões (R30)
+    à direita, agrupadas como o menu (só apresentação: cada permissão continua valendo sozinha). Locais: profile, tenants (só na criação), url, method, titulo. %>
+<% grupos = { "Carteira e cobrança" => %w[view_portfolio record_contact_attempts edit_customer_registry handle_data_subject_rights cancel_payment_promises negotiate_agreements administer_agreements issue_payment_instruments],
+              "Financeiro e entrada de dados" => %w[upload_imports confirm_imports upload_payments confirm_payments],
+              "Distribuição" => %w[manage_operations distribute_portfolio view_operation_trail manage_queues],
+              "Administração e configuração" => %w[change_settings change_financial_policies manage_contact_results manage_users manage_profiles] } %>
+<% erro = @error || profile.errors.full_messages.to_sentence.presence %>
+<%# Na recusa (422), a SPA troca esta parte pela que o servidor refez, com a mensagem e o que foi marcado (`data-refazer-no-erro`). %>
+<div data-refazer-no-erro>
+  <%= form_with scope: :profile, url: url, method: method do |form| %>
+    <div class="ficha" data-lateral="esquerda">
+      <section class="cartao" aria-labelledby="perfil-dados">
+        <header><h2 id="perfil-dados">Perfil</h2></header>
+        <div class="campos-do-cartao">
+          <% if erro %><%= aviso(tom: :danger) { tag.p erro } %><% end %>
+          <% if local_assigns[:tenants] && tenants.size > 1 %>
+            <div class="campo">
+              <%= form.label :tenant_id, "Credor" %>
+              <%= form.select :tenant_id, tenants.map { |tenant| [ tenant.name, tenant.id ] }, { selected: profile.tenant_id } %>
+            </div>
+          <% else %>
+            <%= form.hidden_field :tenant_id, value: profile.tenant_id unless profile.persisted? %>
+            <dl class="dados"><dt>Credor</dt><dd><%= profile.tenant.name %></dd></dl>
+          <% end %>
+          <div class="campo">
+            <%= form.label :name, "Nome do perfil" %>
+            <%= form.text_field :name, value: profile.name, required: true, maxlength: 100 %>
+          </div>
+          <div class="campo">
+            <label>
+              <%= hidden_field_tag "profile[available_to_operations]", "0", id: nil %>
+              <%= check_box_tag "profile[available_to_operations]", "1", profile.available_to_operations?, id: "perfil-de-operacao", "aria-describedby": "ajuda-perfil-de-operacao" %>
+              Disponível para operações
+            </label>
+            <small id="ajuda-perfil-de-operacao">Pode ser dado a pessoas de operações credenciadas. Elas fazem o que o perfil permite, só sobre o que está distribuído à operação.</small>
+          </div>
+          <div class="acoes" data-rodape><button type="submit">Salvar o perfil</button></div>
+        </div>
+      </section>
+
+      <section class="cartao" aria-labelledby="perfil-permissoes">
+        <header>
+          <div>
+            <h2 id="perfil-permissoes">Permissões</h2>
+            <p>Todas exigem "Consultar a carteira"; "Administrar acordos" exige também "Negociar acordos".</p>
+          </div>
+        </header>
+        <div class="grupos-de-permissoes">
+          <%= hidden_field_tag "profile[permissions][]", "", id: nil %>
+          <% grupos.each do |titulo, chaves| %>
+            <fieldset>
+              <legend><%= titulo %></legend>
+              <% chaves.sort_by { Permission.number(_1) }.each do |key| %>
+                <label>
+                  <%= check_box_tag "profile[permissions][]", key, profile.permissions.include?(key), id: "permissao-#{key}" %>
+                  <%= Permission.number(key) %>. <%= Permission.label(key) %>
+                </label>
+              <% end %>
+            </fieldset>
+          <% end %>
+        </div>
+      </section>
     </div>
-  <% else %>
-    <%= form.hidden_field :tenant_id, value: profile.tenant_id unless profile.persisted? %>
-    <p>Credor: <strong><%= profile.tenant.name %></strong></p>
   <% end %>
-  <div class="campo">
-    <%= form.label :name, "Nome do perfil" %>
-    <%= form.text_field :name, value: profile.name, required: true, maxlength: 100 %>
-  </div>
-  <div class="campo">
-    <label>
-      <%= hidden_field_tag "profile[available_to_operations]", "0", id: nil %>
-      <%= check_box_tag "profile[available_to_operations]", "1", profile.available_to_operations?, id: "perfil-de-operacao", "aria-describedby": "ajuda-perfil-de-operacao" %>
-      Disponível para operações
-    </label>
-    <small id="ajuda-perfil-de-operacao">Pode ser dado a pessoas de operações credenciadas (14). Elas fazem o que o perfil permite, só sobre o que está distribuído à operação.</small>
-  </div>
-  <fieldset>
-    <legend>Permissões</legend>
-    <p><small>Todas exigem "Consultar a carteira"; "Administrar acordos" exige também "Negociar acordos".</small></p>
-    <%= hidden_field_tag "profile[permissions][]", "", id: nil %>
-    <% Permission::ALL.each do |key| %>
-      <label>
-        <%= check_box_tag "profile[permissions][]", key, profile.permissions.include?(key), id: "permissao-#{key}" %>
-        <%= Permission.number(key) %>. <%= Permission.label(key) %>
-      </label>
-    <% end %>
-  </fieldset>
-<% end %>
+</div>

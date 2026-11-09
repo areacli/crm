@@ -186,7 +186,7 @@ class Agreements::ProposalTest < ActiveSupport::TestCase
   end
 
   test "R211: a proposta não é gravada quando a simulação é recusada (R215)" do
-    assert_equal I18n.t("agreements.refused.discount_none", component: "principal"), refuse_agreement { create_proposal(@customer, [ @nf1, @nf2 ], discounts: { "principal" => 1_000 }) }
+    assert_equal I18n.t("agreements.refused.installments_above", max: 12), refuse_agreement { create_proposal(@customer, [ @nf1, @nf2 ], installments: 99) }
     assert_equal [ 0, 0, 0 ], [ Agreement.count, AgreementBill.count, AgreementEvent.count ]
     assert_equal 0, @alfa.setting.reload.agreement_sequence, "a sequência não anda quando a proposta não é gravada"
   end

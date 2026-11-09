@@ -1,10 +1,12 @@
 # Arquivo de acordos (11, R244): a lista das exportações dos credores em que o usuário tem "administrar acordos" (17), exportar (novidades desde a última exportação manual, ou
 # completo) e baixar. O arquivo do dia é gerado todos os dias pela tarefa diária. Os arquivos duram 30 dias. O que o usuário não alcança responde "não encontrado" (R33).
 class AgreementExportsController < ApplicationController
+  # Serve página ou arquivo direto, fora da casca (impressão, download, entrada).
+  skip_before_action :redirect_page_to_shell, only: :show
   def index
     authorize AgreementExport
     @tenants = Tenant.where(id: Current.user.tenant_ids_with("administer_agreements")).order(:name)
-    @pagination = Pagination.new(policy_scope(AgreementExport).includes(:tenant, :user).recent, page: params[:page], per_page: params[:per_page])
+    @pagination = Pagination.new(policy_scope(AgreementExport).includes(:tenant, :user).recent, page: params[:pagina], per_page: params[:por_pagina])
     @exports = @pagination.records
     @unseen = Agreements::UnseenEntries.for(@tenants)
   end

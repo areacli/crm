@@ -2,51 +2,61 @@
 <%= pagina "Dados do credor", subtitulo: "O cadastro que o termo de acordo, as mensagens e os documentos usam." %>
 <%= render "settings/modelo" %>
 
-<% @tenants.each do |registered| %>
-  <% tenant = @invalid && @invalid.id == registered.id ? @invalid : registered %>
-  <% last = @last_change[tenant.id] %>
-  <section class="cartao" aria-labelledby="credor-<%= tenant.id %>">
-    <header><h2 id="credor-<%= tenant.id %>"><%= registered.name %></h2></header>
-    <div>
-      <% if tenant.errors.any? %>
-        <%= aviso(tom: :danger) { safe_join(tenant.errors.full_messages.map { |message| tag.p(message) }) } %>
-      <% end %>
-      <%= form_with model: tenant, scope: :tenant, namespace: "credor#{tenant.id}", url: settings_tenant_registry_path, method: :patch, html: { "hx-boost": "false" } do |form| %>
-        <%= hidden_field_tag :tenant_id, tenant.id %>
-        <div class="grupo-de-campos">
-          <div class="campo"><%= form.label :cnpj, "CNPJ" %><%= form.text_field :cnpj, value: (tenant.cnpj.present? && tenant.cnpj.length == 14 ? Document.format(tenant.cnpj) : tenant.cnpj), maxlength: 18, autocomplete: "off" %><small>Numérico ou alfanumérico; único entre os credores.</small></div>
-          <div class="campo"><%= form.label :legal_name, "Razão social" %><%= form.text_field :legal_name, required: true, maxlength: 300 %></div>
-          <div class="campo"><%= form.label :trade_name, "Nome fantasia (opcional)" %><%= form.text_field :trade_name, maxlength: 300 %></div>
+<%# Modelo Configuração (design system, 9): um cartão por credor, campos em linha, o cadastro e o endereço lado a lado; o prazo de guarda é uma política à parte,
+    com o próprio Salvar. Na recusa (422), a SPA troca a lista inteira pela que o servidor refez, com o que foi digitado e a mensagem (`data-refazer-no-erro`). %>
+<div class="pagina-em-secoes" data-refazer-no-erro>
+  <% @tenants.each do |registered| %>
+    <% tenant = @invalid && @invalid.id == registered.id ? @invalid : registered %>
+    <% last = @last_change[tenant.id] %>
+    <% prefixo = "credor#{tenant.id}" %>
+    <section class="cartao" aria-labelledby="credor-<%= tenant.id %>">
+      <header>
+        <div>
+          <h2 id="credor-<%= tenant.id %>"><%= registered.name %></h2>
+          <p><%= last ? "Última alteração: #{last.user&.name || 'sistema'} em #{datetime_br(last.occurred_at)}." : "Cadastro ainda não preenchido." %></p>
         </div>
-        <fieldset>
-          <legend>Endereço</legend>
-          
-          <div class="grupo-de-campos">
-            <div class="campo"><%= form.label :street, "Logradouro" %><%= form.text_field :street, maxlength: 200 %></div>
-            <div class="campo"><%= form.label :number, "Número" %><%= form.text_field :number, maxlength: 20 %></div>
-            <div class="campo"><%= form.label :complement, "Complemento" %><%= form.text_field :complement, maxlength: 100 %></div>
-            <div class="campo"><%= form.label :district, "Bairro" %><%= form.text_field :district, maxlength: 100 %></div>
-            <div class="campo"><%= form.label :city, "Cidade" %><%= form.text_field :city, maxlength: 100 %></div>
-            <div class="campo"><%= form.label :state, "UF" %><%= form.select :state, Registry::Normalizer::UFS, include_blank: true %></div>
-            <div class="campo"><%= form.label :zip, "CEP" %><%= form.text_field :zip, value: (tenant.zip.to_s.length == 8 ? "#{tenant.zip[0, 5]}-#{tenant.zip[5, 3]}" : tenant.zip), maxlength: 9, inputmode: "numeric" %></div>
+      </header>
+      <div class="campos-do-cartao">
+        <% if tenant.errors.any? %>
+          <%= aviso(tom: :danger) { safe_join(tenant.errors.full_messages.map { |message| tag.p(message) }) } %>
+        <% end %>
+        <%= form_with model: tenant, scope: :tenant, namespace: prefixo, url: settings_tenant_registry_path, method: :patch, class: "campos-do-cartao" do |form| %>
+          <%= hidden_field_tag :credor, tenant.id, id: nil %>
+          <div class="colunas-de-configuracao">
+            <fieldset>
+              <legend>Cadastro e contato</legend>
+              <%= campo_em_linha "CNPJ", "#{prefixo}_tenant_cnpj", ajuda: "Numérico ou alfanumérico; único entre os credores." do %>
+                <%= form.text_field :cnpj, value: (tenant.cnpj.present? && tenant.cnpj.length == 14 ? Document.format(tenant.cnpj) : tenant.cnpj), maxlength: 18, autocomplete: "off" %>
+              <% end %>
+              <%= campo_em_linha("Razão social", "#{prefixo}_tenant_legal_name") { form.text_field :legal_name, required: true, maxlength: 300 } %>
+              <%= campo_em_linha("Nome fantasia (opcional)", "#{prefixo}_tenant_trade_name") { form.text_field :trade_name, maxlength: 300 } %>
+              <%= campo_em_linha("E-mail", "#{prefixo}_tenant_email") { form.text_field :email, type: "email", maxlength: 254 } %>
+              <%= campo_em_linha "Telefone", "#{prefixo}_tenant_phone", ajuda: "Um contato de cliente igual a este passa a inválido (\"é contato do credor\")." do %>
+                <%= form.text_field :phone, type: "tel", maxlength: 60 %>
+              <% end %>
+            </fieldset>
+            <fieldset>
+              <legend>Endereço</legend>
+              <%= campo_em_linha("CEP", "#{prefixo}_tenant_zip", tamanho: "data") { form.text_field :zip, value: (tenant.zip.to_s.length == 8 ? "#{tenant.zip[0, 5]}-#{tenant.zip[5, 3]}" : tenant.zip), maxlength: 9, inputmode: "numeric" } %>
+              <%= campo_em_linha("Logradouro", "#{prefixo}_tenant_street") { form.text_field :street, maxlength: 200 } %>
+              <%= campo_em_linha("Número", "#{prefixo}_tenant_number", tamanho: "data") { form.text_field :number, maxlength: 20 } %>
+              <%= campo_em_linha("Complemento", "#{prefixo}_tenant_complement") { form.text_field :complement, maxlength: 100 } %>
+              <%= campo_em_linha("Bairro", "#{prefixo}_tenant_district") { form.text_field :district, maxlength: 100 } %>
+              <%= campo_em_linha("Cidade", "#{prefixo}_tenant_city") { form.text_field :city, maxlength: 100 } %>
+              <%= campo_em_linha("UF", "#{prefixo}_tenant_state", tamanho: "curto") { tag.div(form.select(:state, Registry::Normalizer::UFS, include_blank: "Escolha")) } %>
+            </fieldset>
           </div>
-        </fieldset>
-        <div class="grupo-de-campos">
-          <div class="campo"><%= form.label :email, "E-mail" %><%= form.text_field :email, type: "email", maxlength: 254 %></div>
-          <div class="campo"><%= form.label :phone, "Telefone" %><%= form.text_field :phone, type: "tel", maxlength: 60 %><small>Um contato de cliente igual a este passa a inválido ("é contato do credor").</small></div>
-        </div>
-        <div class="acoes" data-rodape><button type="submit">Salvar dados do credor</button></div>
-      <% end %>
-      <% setting = registered.setting %>
-      <%= form_with scope: :retention, namespace: "guarda#{tenant.id}", url: settings_retention_period_path, method: :patch, html: { "hx-boost": "false" } do |form| %>
-        <%= hidden_field_tag :tenant_id, tenant.id %>
-        <fieldset>
-          <legend>Prazo de guarda dos dados</legend>
-          <div class="campo"><%= form.label :years, "Prazo, em anos" %><%= form.number_field :years, value: setting.retention_years, min: 1, max: 50, required: true %><small>Contados do fim da última relação em aberto; depois a tarefa diária anonimiza, salvo os retidos.</small></div>
-          <div class="acoes" data-rodape><button type="submit" data-variant="secondary">Salvar prazo de guarda</button></div>
-        </fieldset>
-      <% end %>
-      <p><small><%= last ? "Última alteração: #{last.user&.name || 'sistema'} em #{datetime_br(last.occurred_at)}." : "Cadastro ainda não preenchido." %></small></p>
-    </div>
-  </section>
-<% end %>
+          <div class="acoes" data-rodape><button type="submit">Salvar dados do credor</button></div>
+        <% end %>
+
+        <%= form_with scope: :retention, namespace: "guarda#{tenant.id}", url: settings_retention_period_path, method: :patch do |form| %>
+          <%= hidden_field_tag :credor, tenant.id, id: nil %>
+          <%= politica "Prazo de guarda dos dados", "guarda-#{tenant.id}", ajuda: "Contados do fim da última relação em aberto; depois a tarefa diária anonimiza, salvo os retidos." do %>
+            <%= form.number_field :years, value: tenant.setting.retention_years, min: 1, max: 50, required: true, "aria-label": "Prazo de guarda, em anos" %> anos
+            <button type="submit" data-variant="secondary">Salvar o prazo</button>
+          <% end %>
+        <% end %>
+      </div>
+    </section>
+  <% end %>
+</div>

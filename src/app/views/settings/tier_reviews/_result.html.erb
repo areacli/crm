@@ -2,9 +2,10 @@
     de onde para onde; avisos. Rodapé: Confirmar, Voltar e editar, Descartar. Em andamento, "Conferindo…" e o trecho se refaz quando o WebSocket
     avisa (e uma vez ao carregar, para o resultado que já ficou pronto). Locais: review, id, tenant. %>
 <% running = review["status"] == "running" %>
-<div id="conferencia" class="pagina-em-secoes" <% if running %>hx-get="<%= settings_tier_review_path(id) %>" hx-trigger="load delay:500ms, cable:tier-review-ready from:body" hx-swap="outerHTML" hx-push-url="false"<% end %>>
+<%# Na SPA, trecho vivo: o WebSocket avisa e só ele se refaz (`data-spa-vivo`), com uma conferência logo ao entrar em andamento (`data-spa-vivo-confere`). %>
+<div id="conferencia" data-spa-vivo="<%= settings_tier_review_path(id) %>"<% if running %> data-spa-vivo-confere<% end %>>
   <div class="ficha" data-lateral="formulario">
-    <div class="pagina-em-secoes">
+    <div class="pilha-de-cartoes">
       <section class="cartao" aria-labelledby="o-que-muda">
         <header><h2 id="o-que-muda">O que muda</h2></header>
         <div role="status" aria-live="polite">
@@ -105,12 +106,12 @@
 
       <section class="cartao">
         <div>
-          <%= form_with scope: :confirmation, url: settings_tier_confirmation_path, html: { "hx-boost": "false" } do |form| %>
-            <%= hidden_field_tag :tenant_id, tenant.id %>
+          <%= form_with scope: :confirmation, url: settings_tier_confirmation_path do |form| %>
+            <%= hidden_field_tag :credor, tenant.id, id: nil %>
             <%= form.hidden_field :token, value: review["token"] %>
             <div class="acoes" data-rodape>
-              <%= link_to "Descartar", settings_tiers_path, class: "botao", data: { variant: "secondary" } %>
-              <%= link_to "Voltar e editar", review["back"], class: "botao", data: { variant: "secondary" } %>
+              <%= link_to "Descartar", settings_tiers_path, class: "botao", data: { variant: "secondary", mesma_aba: true } %>
+              <%= link_to "Voltar e editar", review["back"], class: "botao", data: { variant: "secondary", mesma_aba: true } %>
               <button type="submit" <%= "disabled" if running || review["status"] == "failed" %>>Confirmar mudança</button>
             </div>
           <% end %>

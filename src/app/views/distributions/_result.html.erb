@@ -1,4 +1,4 @@
-<%# Trecho que o htmx refaz a cada filtro: tabela, contagem e paginação. %>
+<%# Trecho que a SPA refaz a cada filtro: tabela, contagem e paginação. %>
 <div id="resultado" aria-live="polite">
   <% if @distributions.empty? %>
     <p class="vazio">Nenhuma distribuição. Use "Distribuir" para entregar um cliente ou um contrato a uma operação credenciada.</p>
@@ -47,6 +47,6 @@
         </tbody>
       </table>
     </div>
-    <%= render "shared/paginacao", pagination: @pagination, unit: "distribuições", path: ->(page) { distributions_path(request.query_parameters.merge("page" => page)) } %>
+    <%= render "shared/paginacao", pagination: @pagination, unit: "distribuições", path: ->(page) { distributions_path(request.query_parameters.merge("pagina" => page)) } %>
   <% end %>
 </div>

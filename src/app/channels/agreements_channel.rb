@@ -1,5 +1,5 @@
 # Avisos de acordo: a lista de acordos e a de pendentes assinam o credor, a ficha assina o cliente. Só quem negocia acordos no credor (MT-3) e consulta a
-# carteira. O canal transmite um evento de invalidação pequeno ("agreements-changed"); a tela refaz o trecho com htmx.
+# carteira. O canal transmite um evento de invalidação pequeno ("agreements-changed"); a aba da casca refaz o trecho (`data-spa-vivo`).
 class AgreementsChannel < ApplicationCable::Channel
   def subscribed
     stream = params[:customer_id].present? ? Customer.find_by(id: params[:customer_id]) : Tenant.find_by(id: params[:tenant_id])

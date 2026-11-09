@@ -8,9 +8,11 @@ module Settings
     end
 
     def update
-      tenant = Tenant.find(params[:tenant_id])
+      tenant = Tenant.find(params[:credor])
       authorize tenant.setting, :update?, policy_class: TenantSettingPolicy
       Registry::TenantEditor.new(Current.user).update(tenant, params.expect(tenant: Tenant::REGISTRY_FIELDS).to_h)
+      return panel_finish(settings_tenant_registry_path, notice: t(".done", tenant: tenant.name), atualizar: true) if spa?
+
       redirect_to settings_tenant_registry_path, notice: t(".done", tenant: tenant.name), status: :see_other
     rescue ActiveRecord::RecordInvalid
       load_tenants

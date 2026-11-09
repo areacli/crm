@@ -1,5 +1,5 @@
-<%# Refeita pelo htmx a cada evento do WebSocket (cable:retention-changed). %>
-<div id="guarda" class="pagina-em-secoes" hx-get="<%= data_retention_path(request.query_parameters) %>" hx-trigger="cable:retention-changed from:body, cable:connected from:body" hx-swap="outerHTML" hx-push-url="false">
+<%# Refeita pela SPA a cada evento do WebSocket (cable:retention-changed). %>
+<div id="guarda" class="pagina-em-secoes">
   <section class="cartao" aria-labelledby="prazo">
     <header><h2 id="prazo">Prazo de guarda vigente</h2></header>
     <div>
@@ -40,7 +40,7 @@
           </tbody>
         </table>
       </div>
-      <%= render "shared/paginacao", pagination: @forecast, unit: "clientes", path: ->(page) { data_retention_path(request.query_parameters.merge(page: page)) } %>
+      <%= render "shared/paginacao", pagination: @forecast, unit: "clientes", path: ->(page) { data_retention_path(request.query_parameters.merge(pagina: page)) } %>
     <% end %>
   </section>
 
@@ -66,7 +66,7 @@
           </tbody>
         </table>
       </div>
-      <%= render "shared/paginacao", pagination: @retained, unit: "clientes", path: ->(page) { data_retention_path(request.query_parameters.merge(retained_page: page)) } %>
+      <%= render "shared/paginacao", pagination: @retained, unit: "clientes", path: ->(page) { data_retention_path(request.query_parameters.merge(pagina_retida: page)) } %>
     <% end %>
   </section>
 

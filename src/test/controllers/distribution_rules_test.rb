@@ -14,11 +14,13 @@ class DistributionRulesTest < ActionDispatch::IntegrationTest
     sign_in_as users(:joana)
   end
 
+  # Na SPA, o "Conferir o impacto" do diálogo leva a aba do enquadramento à conferência (`mesma_aba`), que a aba então pede.
   def include_segment
     perform_enqueued_jobs do
-      post settings_distribution_rules_url(tenant_id: @alfa.id), params: { rule: { segment_id: @segment.id, exposure: "overdue", position: 0, operation_ids: [ @recupera.id ] } }
+      post settings_distribution_rules_url(credor: @alfa.id), params: { rule: { segment_id: @segment.id, exposure: "overdue", position: 0, operation_ids: [ @recupera.id ] } }, headers: TRECHO
     end
-    follow_redirect!
+    assert evento_da_spa["mesma_aba"]
+    get evento_da_spa["navegar"], headers: TRECHO
   end
 
   test "incluir, conferir e confirmar: o contrato do segmento vai para a operação pela regra" do
@@ -26,7 +28,8 @@ class DistributionRulesTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "tbody tr", text: /Recupera.*1/m
     token = request.params[:token]
-    perform_enqueued_jobs { post confirm_settings_distribution_rules_url(tenant_id: @alfa.id, token: token) }
+    perform_enqueued_jobs { post confirm_settings_distribution_rules_url(credor: @alfa.id, token: token), headers: TRECHO }
+    assert_equal [ settings_distribution_rules_path(credor: @alfa.id), true ], evento_da_spa.values_at("navegar", "mesma_aba") # volta ao enquadramento
     distribution = Distribution.find_by!(contract: @old)
     assert_equal [ "rule", @recupera.id ], [ distribution.source, distribution.operation_id ]
     assert_nil Distribution.find_by(contract: @young)
@@ -40,21 +43,22 @@ class DistributionRulesTest < ActionDispatch::IntegrationTest
     include_segment
     token = request.params[:token]
     @alfa.setting.update!(distribution_rules_version: 99)
-    post confirm_settings_distribution_rules_url(tenant_id: @alfa.id, token: token)
-    assert_match "mudou depois", flash[:alert]
+    post confirm_settings_distribution_rules_url(credor: @alfa.id, token: token), headers: TRECHO
+    assert_match "mudou depois", evento_da_spa["aviso"]
+    assert_equal "danger", evento_da_spa["tom"]
   end
 
   test "R344: contrato distribuído à mão não é tocado pela regra" do
     Distributions::Distributor.new(users(:joana)).distribute(tenant: @alfa, operation: make_operation(@alfa, short_name: "Fale", cnpj: "11222333000181"), contract: @old)
     @alfa.setting.update!(operation_exclusive: false)
     include_segment
-    perform_enqueued_jobs { post confirm_settings_distribution_rules_url(tenant_id: @alfa.id, token: request.params[:token]) }
+    perform_enqueued_jobs { post confirm_settings_distribution_rules_url(credor: @alfa.id, token: request.params[:token]) }
     assert_nil Distribution.find_by(contract: @old, source: "rule")
   end
 
   test "com a exclusividade, um item não tem duas operações" do
     fale = make_operation(@alfa, short_name: "Fale", cnpj: "11222333000181")
-    post settings_distribution_rules_url(tenant_id: @alfa.id), params: { rule: { segment_id: @segment.id, exposure: "overdue", position: 0, operation_ids: [ @recupera.id, fale.id ] } }
+    post settings_distribution_rules_url(credor: @alfa.id), params: { rule: { segment_id: @segment.id, exposure: "overdue", position: 0, operation_ids: [ @recupera.id, fale.id ] } }, headers: TRECHO
     assert_response :unprocessable_content
     assert_includes response.body, "uma operação só"
   end

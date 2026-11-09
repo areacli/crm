@@ -7,8 +7,8 @@ module Settings
       @tenants = manageable_tenants
       @several_tenants = @tenants.size > 1
       scope = policy_scope(Accreditation).includes(:tenant, :operation).joins(:operation).order("operations.short_name")
-      scope = scope.where(tenant_id: params[:tenant]) if params[:tenant].present?
-      @pagination = Pagination.new(scope, page: params[:page], per_page: params[:per_page])
+      scope = scope.where(tenant_id: params[:credor]) if params[:credor].present?
+      @pagination = Pagination.new(scope, page: params[:pagina], per_page: params[:por_pagina])
       @accreditations = @pagination.records
       @linked = Membership.active.where.not(operation_id: nil).where(tenant_id: @accreditations.map(&:tenant_id))
                           .group(:tenant_id, :operation_id).count

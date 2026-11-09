@@ -4,12 +4,13 @@ module DistributionRules
   class Proposal
     Item = Data.define(:segment_id, :operation_ids, :exposure)
 
-    attr_reader :tenant, :items, :version
+    attr_reader :tenant, :items, :version, :started_at
 
-    def initialize(tenant, items, version)
+    def initialize(tenant, items, version, started_at: nil)
       @tenant = tenant
       @items = items
       @version = version
+      @started_at = started_at
     end
 
     def self.current(tenant)
@@ -23,12 +24,12 @@ module DistributionRules
       data = verifier.verify(token)
       raise Distributions::Refused, I18n.t("distribution_rules.stale") unless data["tenant_id"] == tenant.id
 
-      new(tenant, data["items"].map { |item| Item.new(item["segment_id"], item["operation_ids"], item["exposure"]) }, data["version"])
+      new(tenant, data["items"].map { |item| Item.new(item["segment_id"], item["operation_ids"], item["exposure"]) }, data["version"], started_at: data["started_at"])
     rescue ActiveSupport::MessageVerifier::InvalidSignature
       raise Distributions::Refused, I18n.t("distribution_rules.stale")
     end
 
-    def token = self.class.verifier.generate({ "tenant_id" => tenant.id, "version" => version, "items" => items.map(&:to_h).map { |item| item.transform_keys(&:to_s) } }, expires_in: 30.minutes)
+    def token = self.class.verifier.generate({ "tenant_id" => tenant.id, "version" => version, "started_at" => Time.current.iso8601, "items" => items.map(&:to_h).map { |item| item.transform_keys(&:to_s) } }, expires_in: 30.minutes)
 
     def with_included(segment_id, operation_ids, exposure, position) = changed { |list| list.insert(position.clamp(0, list.size), Item.new(segment_id.to_i, operation_ids.map(&:to_i).sort, exposure)) }
     def with_changed(index, operation_ids, exposure) = changed { |list| list[index] = Item.new(list[index].segment_id, operation_ids.map(&:to_i).sort, exposure) }

@@ -1,15 +1,19 @@
 <% orders = WorkQueue::ORDERS.map { [ t("queues.orders.#{_1}"), _1 ] } %>
+<%# Horas sem casa decimal quando inteiras (4, não 4.0). %>
+<% horas = ->(minutos) { (minutos / 60.0).round(1).then { _1 % 1 == 0 ? _1.to_i : _1 } } %>
 <%= formulario_de_painel(titulo: "Ordem e tempos de #{@queue.name}", url: queues_queue_setting_path(@queue), metodo: :patch, enviar: "Salvar", escopo: :queue,
-                         tamanho: :small, voltar: queues_work_queues_path(tenant_id: @queue.tenant_id), descricao: "Vale a partir do próximo pedido, sem conferência.") do |form| %>
+                         tamanho: :small, voltar: queues_work_queues_path(credor: @queue.tenant_id), descricao: "Vale a partir do próximo pedido, sem conferência.") do |form| %>
   <% if @queue.errors.any? %><%= aviso(tom: :danger) { @queue.errors.full_messages.to_sentence } %><% end %>
   <div class="campo"><%= form.label :order_by, "Critério da ordem" %><%= form.select :order_by, orders, selected: @queue.order_by %></div>
   <div class="campo"><%= form.label :order_tiebreak, "Desempate" %><%= form.select :order_tiebreak, [ [ "Nenhum", "" ] ] + orders, selected: @queue.order_tiebreak %></div>
-  <div class="campo"><%= form.label :lock_minutes, "Trava (minutos)" %><%= form.number_field :lock_minutes, value: @queue.lock_minutes, min: 1, max: 240, required: true %></div>
+  <div class="campo" data-tamanho="numero"><%= form.label :lock_minutes, "Trava (minutos)" %><%= form.number_field :lock_minutes, value: @queue.lock_minutes, min: 1, max: 240, required: true %></div>
   <fieldset>
     <legend>Volta à fila depois de um acionamento (horas)</legend>
-    <div class="campo"><%= form.label :interval_no_contact_hours, "Sem contato" %><%= form.number_field :interval_no_contact_hours, value: (@queue.interval_no_contact_minutes / 60.0).round(1), min: 0, step: 0.5 %></div>
-    <div class="campo"><%= form.label :interval_third_party_hours, "Falou com terceiro" %><%= form.number_field :interval_third_party_hours, value: (@queue.interval_third_party_minutes / 60.0).round(1), min: 0, step: 0.5 %></div>
-    <div class="campo"><%= form.label :interval_customer_hours, "Falou com o cliente" %><%= form.number_field :interval_customer_hours, value: (@queue.interval_customer_minutes / 60.0).round(1), min: 0, step: 0.5 %></div>
+    <div class="grupo-de-campos">
+      <div class="campo" data-tamanho="numero"><%= form.label :interval_no_contact_hours, "Sem contato" %><%= form.number_field :interval_no_contact_hours, value: horas.(@queue.interval_no_contact_minutes), min: 0, step: 0.5 %></div>
+      <div class="campo" data-tamanho="numero"><%= form.label :interval_third_party_hours, "Falou com terceiro" %><%= form.number_field :interval_third_party_hours, value: horas.(@queue.interval_third_party_minutes), min: 0, step: 0.5 %></div>
+      <div class="campo" data-tamanho="numero"><%= form.label :interval_customer_hours, "Falou com o cliente" %><%= form.number_field :interval_customer_hours, value: horas.(@queue.interval_customer_minutes), min: 0, step: 0.5 %></div>
+    </div>
     <small>Retorno combinado no acionamento substitui o intervalo: o cliente ou contrato espera até a hora dele.</small>
   </fieldset>
 <% end %>

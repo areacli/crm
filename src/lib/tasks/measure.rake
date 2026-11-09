@@ -993,4 +993,58 @@ namespace :crm do
     tenant.destroy
     puts "credor de medição apagado"
   end
+
+  desc "V4 da casca (SPA em EasyUI, fase 8): credor de medição com N clientes (dois títulos vencidos cada) e um gestor; o navegador mede com deploy/rails/v5/v4-casca.mjs: crm:measure_shell[clientes]"
+  task :measure_shell, %i[customers] => :environment do |_task, args|
+    abort "Recusado em produção." if Rails.env.production?
+
+    count = (args[:customers].presence || 200_000).to_i
+    tenant = Tenant.provision!("Medição da casca #{Time.current.strftime('%H%M%S')}")
+    password = SecureRandom.base58(16)
+    user = User.create!(name: "Medição da casca", email_address: "medicao-casca#{tenant.id}@exemplo.com.br", password: password)
+    Membership.create!(user: user, tenant: tenant, profile: tenant.profiles.find_by!(name: "Gestor"))
+    started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    MeasureData.portfolio(tenant.id, count, contract_age: ->(i) { i % 700 }, bills_per: 2,
+                          bill: ->(i, n) { { number: "NF-#{i}/#{n}", due_date: Date.current - (1 + (i * 37 + n * 11) % 400), amount_cents: 5000 + (i * 7919 + n * 131) % 250_000 } })
+    MeasureData.analyze("customers", "contracts", "bills", "contract_customers")
+    puts format("%d clientes (%d títulos vencidos) em %.0f s no credor %d", count, count * 2, Process.clock_gettime(Process::CLOCK_MONOTONIC) - started, tenant.id)
+    puts "V4_EMAIL=#{user.email_address} V4_SENHA=#{password}"
+    puts "Para apagar: bin/rails crm:measure_shell_clear[#{tenant.id}]"
+  end
+
+  desc "Apaga o credor de medição da V4 da casca: crm:measure_shell_clear[credor]"
+  task :measure_shell_clear, %i[tenant] => :environment do |_task, args|
+    abort "Recusado em produção." if Rails.env.production?
+
+    tenant = Tenant.find(args[:tenant])
+    abort "#{tenant.name} não é um credor de medição." unless tenant.name.start_with?("Medição da casca")
+    [ Change, TaskRun ].each { |model| model.unscoped.where(tenant_id: tenant.id).delete_all }
+    Bill.where(tenant_id: tenant.id).delete_all
+    ContractCustomer.where(customer_id: Customer.where(tenant_id: tenant.id)).delete_all
+    Customer.where(tenant_id: tenant.id).delete_all
+    # As chaves estrangeiras para `contracts` sem índice (decisão 0010: apagar contratos não é operação do produto) fariam uma varredura por contrato
+    # apagado; com 200 mil, mais de dez minutos. Índices temporários nessas colunas só durante a limpeza.
+    connection = ActiveRecord::Base.connection
+    sem_indice = connection.select_rows(<<~SQL)
+      select c.conrelid::regclass::text, a.attname from pg_constraint c join pg_attribute a on a.attrelid = c.conrelid and a.attnum = c.conkey[1]
+      where c.confrelid = 'contracts'::regclass and c.contype = 'f'
+        and not exists (select 1 from pg_index i where i.indrelid = c.conrelid and i.indkey[0] = a.attnum)
+    SQL
+    temporarios = sem_indice.map do |tabela, coluna|
+      nome = "medicao_casca_#{tabela}_#{coluna}"
+      connection.execute("create index #{connection.quote_column_name(nome)} on #{connection.quote_table_name(tabela)} (#{connection.quote_column_name(coluna)})")
+      nome
+    end
+    begin
+      Contract.where(tenant_id: tenant.id).delete_all
+    ensure
+      temporarios.each { |nome| connection.execute("drop index if exists #{connection.quote_column_name(nome)}") }
+    end
+    tenant.contact_results.delete_all
+    users = User.where(id: Membership.where(tenant_id: tenant.id).select(:user_id)).to_a
+    Membership.where(tenant_id: tenant.id).delete_all
+    users.each(&:destroy)
+    tenant.destroy
+    puts "credor de medição apagado"
+  end
 end

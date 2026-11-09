@@ -4,12 +4,12 @@
 <%= render "settings/modelo" %>
 <%= render "queue_boards/credores", rota: :queues_work_queues_path %>
 
-<div id="enquadramento-das-filas" hx-get="<%= queues_work_queues_path(tenant_id: @tenant.id) %>" hx-trigger="cable:queues-changed from:body" hx-select="#enquadramento-das-filas" hx-swap="outerHTML" hx-push-url="false" hx-disinherit="hx-select hx-swap hx-push-url">
+<div id="enquadramento-das-filas">
   <% @framings.each do |subject, framing| %>
     <section class="cartao" aria-labelledby="enquadramento-<%= subject %>">
       <header>
         <h2 id="enquadramento-<%= subject %>"><%= t("queues.subjects.#{subject}") %></h2>
-        <div class="acoes"><%= abrir_painel "Incluir item", new_queues_work_queue_path(tenant_id: @tenant.id, sujeito: subject), variante: "modal", tamanho: "small" %></div>
+        <div class="acoes"><%= abrir_painel "Incluir item", new_queues_work_queue_path(credor: @tenant.id, sujeito: subject), variante: "modal", tamanho: "small" %></div>
       </header>
       <div class="tabela" tabindex="0">
         <table>
@@ -30,10 +30,10 @@
                   <%= menu_de_linha("fila-#{queue.id}", "Ações de #{queue.name}") do %>
                     <% if queue.delivers %><%= abrir_painel "Editar ordem e tempos", edit_queues_queue_setting_path(queue), tamanho: "small" %><% end %>
                     <% unless queue.catch_all %>
-                      <%= abrir_painel "Editar item", edit_queues_work_queue_path(index, tenant_id: @tenant.id, sujeito: subject), variante: "modal", tamanho: "small" %>
-                      <% if index.positive? %><%= button_to "Mover para cima", move_queues_work_queue_path(index, tenant_id: @tenant.id, sujeito: subject, offset: -1), data: { variant: "secondary" } %><% end %>
-                      <% if index < items.size - 1 %><%= button_to "Mover para baixo", move_queues_work_queue_path(index, tenant_id: @tenant.id, sujeito: subject, offset: 1), data: { variant: "secondary" } %><% end %>
-                      <%= button_to "Excluir", queues_work_queue_path(index, tenant_id: @tenant.id, sujeito: subject), method: :delete, data: { variant: "danger-outline" } %>
+                      <%= abrir_painel "Editar item", edit_queues_work_queue_path(index, credor: @tenant.id, sujeito: subject), variante: "modal", tamanho: "small" %>
+                      <% if index.positive? %><%= button_to "Mover para cima", move_queues_work_queue_path(index, credor: @tenant.id, sujeito: subject, deslocamento: -1), data: { variant: "secondary" } %><% end %>
+                      <% if index < items.size - 1 %><%= button_to "Mover para baixo", move_queues_work_queue_path(index, credor: @tenant.id, sujeito: subject, deslocamento: 1), data: { variant: "secondary" } %><% end %>
+                      <%= button_to "Excluir", queues_work_queue_path(index, credor: @tenant.id, sujeito: subject), method: :delete, data: { variant: "danger-outline" } %>
                     <% end %>
                   <% end %>
                 </td>

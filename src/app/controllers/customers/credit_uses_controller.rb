@@ -7,7 +7,7 @@ module Customers
     def new
       authorize @customer, :show?
       authorize Agreement.new(tenant: @customer.tenant), :create?, policy_class: AgreementPolicy
-      @bill = Bill.where(customer_id: @customer.id).find(params[:bill_id])
+      @bill = Bill.where(customer_id: @customer.id).find(params[:titulo_id])
     end
 
     def create

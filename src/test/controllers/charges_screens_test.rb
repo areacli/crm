@@ -22,14 +22,14 @@ class ChargesScreensTest < ActionDispatch::IntegrationTest
   test "R174 e critério de aceite: a ficha mostra o atualizado e os componentes de Maria, e a memória de cálculo fica na página do título (revisão 7)" do
     on_the_day do
       entrar(users(:joana))
-      get customer_path(@bill.customer)
+      get_ficha(@bill.customer)
       assert_response :success
       assert_select "dt", text: "Atualizado"
       assert_select "dd", text: "R$ 1.057,56"
             assert_select "dl.composicao", 0 # padrões de interface, revisão 27: os componentes ficam na página do título
       assert_select "summary", text: "Ver memória de cálculo", count: 0
 
-      get bill_path(@bill)
+      get bill_path(@bill), headers: TRECHO
       assert_response :success
       assert_select "dl.composicao", text: /Principal corrigido\s*R\$ 1\.005,34\s*Multa\s*R\$ 20,11\s*Juros\s*R\$ 32,11\s*Honorários\s*R\$ 0,00\s*Atualizado\s*R\$ 1\.057,56/
       assert_select "h2", text: "Memória de cálculo"
@@ -43,7 +43,7 @@ class ChargesScreensTest < ActionDispatch::IntegrationTest
   test "R179: quem só consulta vê o atualizado e a memória, sem o link de índices nem a edição" do
     on_the_day do
       entrar(users(:carlos))
-      get bill_path(@bill)
+      get bill_path(@bill), headers: TRECHO
       assert_response :success
       assert_select "caption", text: /Memória de cálculo do título NF-1/
       assert_select "a", text: "Ver índices", count: 0
@@ -55,7 +55,7 @@ class ChargesScreensTest < ActionDispatch::IntegrationTest
     on_the_day do
       entrar(users(:joana))
       assert_difference -> { AccessEvent.where(event: "access_denied", user_id: users(:joana).id).count }, 1 do
-        get bill_path(other)
+        get bill_path(other), headers: TRECHO
         assert_response :not_found
       end
     end
@@ -64,10 +64,12 @@ class ChargesScreensTest < ActionDispatch::IntegrationTest
   test "R175: a lista de clientes tem a coluna Atualizado ao lado de Vencido, sem total" do
     on_the_day do
       entrar(users(:joana))
-      get customers_path
-      assert_select "th", text: "Atualizado"
-      assert_select "td", text: "R$ 1.057,56"
-      assert_select "tfoot", count: 0
+      # A coluna está na grade da lista (`index.html.erb`); o valor vem na página em JSON, sem total.
+      get customers_path, headers: TRECHO
+      assert_match(/"titulo":"Atualizado"/, CGI.unescapeHTML(response.body))
+      corpo = get_clientes
+      assert_includes corpo["rows"].map { |linha| linha["atualizado"] }, "R$ 1.057,56"
+      assert_not corpo.key?("totais")
     end
   end
 
@@ -77,7 +79,7 @@ class ChargesScreensTest < ActionDispatch::IntegrationTest
     recalc_values(@beta)
     on_the_day do
       entrar(users(:ana))
-      get root_path
+      get summary_path, headers: TRECHO
       assert_response :success
       assert_select "h2", text: /Escola Alfa|Clínica Beta/, count: 0
       assert_select "dt", text: /\AAtualizado/, count: 1
@@ -90,7 +92,7 @@ class ChargesScreensTest < ActionDispatch::IntegrationTest
 
   test "R160 e R292: o enquadramento financeiro mostra as regras de cada item numa linha, os parâmetros do credor e as cinco políticas" do
     entrar(users(:joana))
-    get settings_tiers_path
+    get settings_tiers_path, headers: TRECHO
     assert_response :success
     assert_select "tr.detalhe-da-linha p", text: "Encargos: multa 2% · juros 1% a.m. simples · IPCA · sem honorários."
     assert_select "legend", text: "Parâmetros de encargos do credor"
@@ -100,7 +102,7 @@ class ChargesScreensTest < ActionDispatch::IntegrationTest
   test "R163 e critério de aceite: mudar os juros de 1% para 2% mostra o valor antes e depois e a diferença; nada muda até confirmar; confirmado, recalcula" do
     on_the_day do
       entrar(users(:joana))
-      patch settings_charges_path, params: { tenant_id: @alfa.id, charges: { charge_interest_pct: "2" } }
+      patch settings_charges_path, params: { credor: @alfa.id, charges: { charge_interest_pct: "2" } }
       follow_review
       assert_select "h1", "Conferir o impacto"
       assert_select "h2", text: "Valor atualizado"
@@ -169,9 +171,9 @@ class ChargesScreensTest < ActionDispatch::IntegrationTest
   test "R160, R265: o Demais tem regras e as edita pela conferência; não sai do enquadramento" do
     demais = Tier.catch_all_of(@alfa)
     entrar(users(:joana))
-    get edit_settings_tier_path(demais)
+    get edit_settings_tier_path(demais), headers: TRECHO
     assert_response :success
-    assert_select "legend", text: "Encargos"
+    assert_select "h2", text: "Encargos"
     patch settings_tier_path(demais), params: { tier: { fine_pct: "3", fees_pct: "0", interest_kind: "fixed", promise_max_days: "30" } }
     follow_review
     confirm_review(@alfa)
@@ -184,10 +186,10 @@ class ChargesScreensTest < ActionDispatch::IntegrationTest
     marta = make_user(@alfa, %w[change_financial_policies])
     Membership.create!(user: marta, tenant: @beta, profile: Profile.create!(tenant: @beta, name: "Consulta", permissions: %w[view_portfolio]))
     entrar(marta)
-    patch settings_charges_path, params: { tenant_id: @alfa.id, charges: { charge_interest_pct: "2" } }
+    patch settings_charges_path, params: { credor: @alfa.id, charges: { charge_interest_pct: "2" } }
     assert_response :see_other
     assert_difference -> { AccessEvent.where(event: "access_denied", tenant_id: @beta.id, user_id: marta.id).count }, 1 do
-      patch settings_charges_path, params: { tenant_id: @beta.id, charges: { charge_interest_pct: "2" } }
+      patch settings_charges_path, params: { credor: @beta.id, charges: { charge_interest_pct: "2" } }
       assert_response :not_found
     end
     assert_equal 0, @beta.setting.reload.charge_interest_pct.to_f
@@ -196,21 +198,21 @@ class ChargesScreensTest < ActionDispatch::IntegrationTest
   test "R179: sem a 14 o envio direto dos encargos é recusado" do
     reader = make_user(@alfa, %w[change_settings])
     entrar(reader)
-    patch settings_charges_path, params: { tenant_id: @alfa.id, charges: { charge_interest_pct: "2" } }
+    patch settings_charges_path, params: { credor: @alfa.id, charges: { charge_interest_pct: "2" } }
     assert_response :not_found
   end
 
   test "valores inválidos nos parâmetros voltam à aba com o aviso, sem conferência" do
     entrar(users(:joana))
-    patch settings_charges_path, params: { tenant_id: @alfa.id, charges: { charge_fine_pct: "250" } }
+    patch settings_charges_path, params: { credor: @alfa.id, charges: { charge_fine_pct: "250" } }
     assert_redirected_to settings_tiers_path
-    patch settings_charges_path, params: { tenant_id: @alfa.id, charges: { negative_index_policy: "inventada" } }
+    patch settings_charges_path, params: { credor: @alfa.id, charges: { negative_index_policy: "inventada" } }
     assert_redirected_to settings_tiers_path
   end
 
   test "R180: mudar a política 'Índice negativo' passa pela conferência da base toda" do
     entrar(users(:joana))
-    patch settings_charges_path, params: { tenant_id: @alfa.id, charges: { negative_index_policy: "always" } }
+    patch settings_charges_path, params: { credor: @alfa.id, charges: { negative_index_policy: "always" } }
     follow_review
     assert_select "h3", text: /Encargos do credor/
     assert_select "h2", text: "Valor atualizado"
@@ -219,7 +221,7 @@ class ChargesScreensTest < ActionDispatch::IntegrationTest
 
   test "R182: a política da comparação dos acréscimos passa pela conferência sem mudar valores" do
     entrar(users(:joana))
-    patch settings_charges_path, params: { tenant_id: @alfa.id, charges: { surcharge_comparison_policy: "after" } }
+    patch settings_charges_path, params: { credor: @alfa.id, charges: { surcharge_comparison_policy: "after" } }
     follow_review
     assert_select "h2", text: "Valor atualizado", count: 0
     assert_select "strong", text: "Nenhum contrato muda de item."
@@ -230,7 +232,7 @@ class ChargesScreensTest < ActionDispatch::IntegrationTest
       header = CsvHelper::HEADER + %w[multa_credor]
       checked = run_portfolio_import([ csv_line("documento" => PaymentsHelper::JOAO, "nome" => "João", "contrato" => "CT-9", "titulo" => "NF-9", "vencimento" => "15/07/2026", "valor" => "1.000,00", "multa_credor" => "20,00") ], header: header)
       entrar(users(:joana))
-      get import_path(checked)
+      get import_path(checked), headers: TRECHO
       assert_select "h2", text: "Acréscimos informados e calculados pelo CRM"
       assert_select "tr", text: /Multa\s*R\$ 20,00\s*R\$ 20,11/
     end

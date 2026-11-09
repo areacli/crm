@@ -76,6 +76,12 @@ class Promises::LifecycleTest < ActiveSupport::TestCase
     settings.update_limits(@alfa, { @tier.id => { max_days: 90, limits: {} } })
     assert_equal [ 20, 20 ], PromiseLimit.where(tier: @tier, profile: [ profiles(:alfa_manager), profiles(:alfa_operator) ]).order(:id).pluck(:max_days)
     assert_equal I18n.t("promises.settings.invalid_limit", tier: "Demais"), refuse_message { settings.update_limits(@alfa, { @tier.id => { max_days: 30, limits: { profiles(:alfa_operator).id => 40 } } }) }
+
+    # A tela envia as alçadas como estavam junto com o prazo menor: elas acompanham o prazo, sem recusa.
+    alcada = PromiseLimit.find_by!(tier: @tier, profile: profiles(:alfa_operator))
+    settings.update_limits(@alfa, { @tier.id => { max_days: 90, limits: { profiles(:alfa_operator).id => "60" } } })
+    settings.update_limits(@alfa, { @tier.id => { max_days: 30, limits: { profiles(:alfa_operator).id => "60" } } })
+    assert_equal 30, alcada.reload.max_days
   end
 
   test "R187: mudar a alçada e as políticas não mexe nas promessas existentes" do

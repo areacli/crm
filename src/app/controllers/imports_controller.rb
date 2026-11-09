@@ -1,22 +1,22 @@
 # Importações de carteira, de pagamentos e de estornos (R10, R56): lista, envio do arquivo e acompanhamento. O andamento chega pelo
-# WebSocket (`cable:import-changed`), que faz o htmx refazer só o trecho da tela.
+# WebSocket (`cable:import-changed`), que faz a SPA refazer só o trecho da tela.
 class ImportsController < ApplicationController
   def index
     authorize Import
-    @pagination = Pagination.new(policy_scope(Import).includes(:tenant, :user).recent, page: params[:page], per_page: params[:per_page])
+    @pagination = Pagination.new(policy_scope(Import).includes(:tenant, :user).recent, page: params[:pagina], per_page: params[:por_pagina])
     @imports = @pagination.records
-    render partial: "imports/list" if htmx_fragment?
+    render partial: "imports/list" if fragment?
   end
 
   def show
     @import = Import.includes(:tenant, :user).find(params[:id])
     authorize @import
     @rejections = @import.rejections.order(:line).limit(50)
-    render partial: "imports/state", locals: { import: @import, rejections: @rejections } if htmx_fragment?
+    render partial: "imports/state", locals: { import: @import, rejections: @rejections } if fragment?
   end
 
   def new
-    @kind = kind_param(params[:kind])
+    @kind = kind_param(FilterValue.from_url(params[:tipo]))
     authorize Import.new(kind: @kind), :new?
     @tenants = uploadable_tenants(@kind)
   end
@@ -33,6 +33,9 @@ class ImportsController < ApplicationController
     return refuse(tenant, "Escolha o arquivo CSV.") if file.blank?
 
     import = start_import(tenant, file, mode)
+    # Na SPA (decisão 0028), a importação abre na aba dela, onde o andamento chega pelo tempo real.
+    return panel_finish(import_path(import), notice: "Arquivo recebido. A conferência começou.", navegar: true) if spa?
+
     redirect_to import, notice: "Arquivo recebido. A conferência começou."
   rescue Portfolio::ImportRefused => error
     refuse(tenant, "#{error.message.upcase_first}.")

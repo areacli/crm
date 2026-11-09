@@ -74,6 +74,8 @@
       <div class="tabela" tabindex="0">
         <table>
           <caption class="apenas-leitor-de-tela">Descontos e abatimentos concedidos em <%= agr[:label] %></caption>
+          <%# Sem o cabeçalho, a grade da SPA não tinha colunas e o cartão saía vazio (achado nas fotos da fase 8). %>
+          <thead><tr><th scope="col">Concessão</th><th scope="col" data-numerico><%= agr[:label] %></th></tr></thead>
           <tbody>
             <tr><th scope="row">Desconto concedido</th><td data-numerico><%= money(agr[:discount_total]) %></td></tr>
             <% agr[:discounts].each do |component, cents| %><tr><th scope="row">Desconto: <%= t("agreements.components.#{component}").downcase %></th><td data-numerico><%= money(cents) %></td></tr><% end %>

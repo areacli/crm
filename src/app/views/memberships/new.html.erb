@@ -3,8 +3,7 @@
   <% if @tenants.size > 1 %>
     <div class="campo">
       <%= form.label :tenant_id, "Credor" %>
-      <%= form.select :tenant_id, @tenants.map { |tenant| [ tenant.name, tenant.id ] }, { selected: @tenant.id }, required: true,
-                      "hx-get": new_membership_path, "hx-trigger": "change", "hx-target": "#campo-perfil", "hx-swap": "outerHTML", "hx-push-url": "false", "hx-include": "this" %>
+      <%= form.select :tenant_id, @tenants.map { |tenant| [ tenant.name, tenant.id ] }, { selected: @tenant.id }, required: true, data: { spa_dependentes: new_membership_path } %>
     </div>
   <% else %>
     <%= form.hidden_field :tenant_id, value: @tenant.id %>

@@ -31,6 +31,11 @@ class Agreement < ApplicationRecord
   scope :proposals, -> { where(state: PROPOSAL) }
   scope :recent, -> { order(created_at: :desc, id: :desc) }
 
+  # As propostas e os acordos em andamento de um cliente, para o cabeçalho da ficha (11, R241).
+  def self.running_for(customer)
+    where(customer_id: customer.id, state: PROPOSAL + RUNNING).includes(:tenant, agreement_bills: :bill).order(:created_at, :id).to_a
+  end
+
   def proposal? = PROPOSAL.include?(state)
 
   # Em andamento depois do aceite: aguardando efetivação, ativo (em dia ou em atraso) ou quebrado.

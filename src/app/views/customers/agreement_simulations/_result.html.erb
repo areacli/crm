@@ -1,16 +1,19 @@
 <%# Resultado da simulação (R211 a R216): a base e o desconto de cada título por componente, os totais, a entrada e a tabela de parcelas. Locais por variável de instância: @quote ou @problem. %>
 <div id="simulacao" aria-live="polite">
   <% if @quote.nil? %>
+    <%# As marcas `data-calculo` dizem ao cálculo à vista que falta dado ou que a regra recusou (design system, 7.2). %>
     <% if @problem %>
-      <%= aviso(tom: :warning) { tag.p @problem } %>
+      <div data-calculo="recusado"><%= aviso(tom: :warning) { tag.p @problem } %></div>
     <% else %>
-      <p class="vazio">Escolha os títulos e os termos para ver a simulação.</p>
+      <p class="vazio" data-calculo="incompleto">Escolha os títulos e os termos para ver a simulação.</p>
     <% end %>
   <% else %>
     <% quote = @quote %>
+    <%# Os limites destes títulos e termos: a faixa da entrada e do crédito, as opções de Parcelas (11, revisão 12; `spa/deslizantes`). %>
+    <%= tag.div hidden: true, data: { spa_limites: limites_da_simulacao(quote).to_json } %>
     <% quote.warnings.each do |text| %><%= aviso(tom: :warning) { tag.p text } %><% end %>
     <% if quote.error %>
-      <%= aviso(tom: :danger) { tag.p "Esta proposta não pode ser criada: #{quote.error}" } %>
+      <div data-calculo="recusado"><%= aviso(tom: :danger) { tag.p "Esta proposta não pode ser criada: #{quote.error}" } %></div>
     <% elsif quote.pending? %>
       <%= aviso(tom: :warning) { tag.p "Fora dos seus limites: a proposta nasce pendente de aprovação, e quem pode aprová-la é quem tem os limites que a cobririam. Item para negociar: #{quote.tier.name}." } %>
     <% else %>
@@ -59,7 +62,7 @@
           <% if quote.credit.rebate? %><div><dt>Crédito do contrato usado como abatimento</dt><dd><%= money(quote.credit.total) %></dd></div><% end %>
           <div><dt>Valor líquido do acordo</dt><dd><%= money(quote.net_cents) %></dd></div>
           <% if quote.credit.down_payment? %><div><dt>Crédito do contrato usado na entrada</dt><dd><%= money(quote.credit.total) %>, faltam <%= money(quote.down_payment_cents - quote.credit.total) %> da entrada</dd></div><% end %>
-          <div><dt>Entrada</dt><dd><%= money(quote.down_payment_cents) %> em <%= date_br(quote.down_payment_on) %></dd></div>
+          <div><dt><%= nome_da_primeira(quote.installments.size) %></dt><dd><%= money(quote.down_payment_cents) %> em <%= date_br(quote.down_payment_on) %></dd></div>
           <% if quote.installments.any? %>
             <div><dt>Método</dt><dd><%= t("agreements.methods.#{quote.method}") %><%= " a #{percent_decimal(quote.rate_pct)} ao mês" unless quote.method == "none" %></dd></div>
             <div><dt>Taxa efetiva anual</dt><dd><%= percent_decimal(quote.effective_annual_pct) %></dd></div>
@@ -70,11 +73,11 @@
         <div class="tabela" tabindex="0">
           <table>
             <caption class="apenas-leitor-de-tela">Entrada e parcelas do acordo</caption>
-            <thead><tr><th scope="col">Título de acordo</th><th scope="col">Vencimento</th><th scope="col" data-numerico>Valor</th><th scope="col" data-numerico>Juros do parcelamento</th><th scope="col" data-numerico>Amortização</th><th scope="col" data-numerico>Falta amortizar</th></tr></thead>
+            <thead><tr><th scope="col">Título de acordo</th><th scope="col">Vencimento</th><th scope="col" data-numerico>Valor</th><th scope="col" data-numerico>Juros</th><th scope="col" data-numerico>Amortização</th><th scope="col" data-numerico>Falta amortizar</th></tr></thead>
             <tbody>
               <% quote.schedule.each do |row| %>
                 <tr>
-                  <th scope="row"><%= row.number.zero? ? "Entrada" : "Parcela #{row.number}" %></th>
+                  <th scope="row"><%= row.number.zero? ? nome_da_primeira(quote.installments.size) : "Parcela #{row.number}" %></th>
                   <td><%= date_br(row.due) %></td>
                   <td data-numerico><%= money(row.amount_cents) %></td>
                   <td data-numerico><%= money(row.interest_cents) %></td>

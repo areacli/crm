@@ -17,7 +17,7 @@ module Settings
       @strategy.assign_attributes(mode: attributes[:mode], entries: entries + others, cursor: {})
       if @strategy.save
         Change.record!(@strategy, "queue_strategy_changed", tenant_id: @tenant.id, actor: Current.user, origin: "screen", before: before, after: describe)
-        redirect_to queues_queue_groups_path(tenant_id: @tenant.id), notice: t(".done"), status: :see_other
+        panel_finish(queues_queue_groups_path(credor: @tenant.id), notice: t(".done"), atualizar: true)
       else
         render :edit, status: :unprocessable_content
       end
@@ -26,7 +26,7 @@ module Settings
     private
       def set_user
         tenants = Tenant.where(id: Current.user.tenant_ids_with("manage_queues"))
-        @tenant = tenants.find_by(id: params[:tenant_id]) || tenants.first or raise Pundit::NotAuthorizedError
+        @tenant = tenants.find_by(id: params[:credor]) || tenants.first or raise Pundit::NotAuthorizedError
         authorize WorkQueue.new(tenant: @tenant), :create?
         @user = User.joins(:queue_group_users).merge(QueueGroupUser.where(queue_group_id: QueueGroup.where(tenant: @tenant).select(:id))).distinct.find(params[:id])
         @strategy = QueueStrategy.for(@user)

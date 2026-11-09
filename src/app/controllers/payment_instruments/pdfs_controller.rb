@@ -2,6 +2,8 @@ module PaymentInstruments
   # O PDF do boleto guardado aqui (12, R275). Nunca redireciona ao fornecedor nem a um endereço assinado do Active Storage: os bytes saem daqui,
   # depois de conferidos pelo SHA-256, para quem tem a permissão no credor do instrumento.
   class PdfsController < ApplicationController
+    # Serve página ou arquivo direto, fora da casca (impressão, download, entrada).
+    skip_before_action :redirect_page_to_shell
     def show
       instrument = PaymentInstrument.find(params[:payment_instrument_id])
       authorize instrument, :pdf?

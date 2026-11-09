@@ -10,8 +10,13 @@ module Customers
     def update
       authorize @customer, :edit_registry?
       Registry::ContactEditor.new(Current.user).rename(@customer, params.expect(customer: [ :name ])[:name])
+      # Na SPA, o nome se corrige no cartão "Dados do cliente" (design system, 7.1); a aba se refaz para o título e o cabeçalho mostrarem o nome novo.
+      return inline_finish(@customer.reload.name, atualizar: true, aviso: t(".done")) if inline?
+
       panel_finish(customer_path(@customer), notice: t(".done"), atualizar: true)
     rescue Registry::Refused => error
+      return inline_refuse(error.message) if inline?
+
       @error = error.message
       return redirect_to(customer_path(@customer), alert: error.message, status: :see_other) unless panel_request?
 

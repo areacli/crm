@@ -86,6 +86,8 @@ class User < ApplicationRecord
   # Operação da pessoa (14, R309) e o gestor dela (R310a).
   def operation = operation_member&.active? ? operation_member.operation : nil
   def operation_manager? = operation_member&.active? && operation_member.manager? && operation_member.operation.active?
+  # O gestor da operação sem carteira começa pelas pessoas dela.
+  def operation_landing? = operation_manager? && !permitted_anywhere?("view_portfolio")
 
   # Credores em que o vínculo é de operação e o credenciamento está suspenso: o aviso ao entrar (R308).
   def suspended_operation_tenants

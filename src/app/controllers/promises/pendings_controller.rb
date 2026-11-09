@@ -8,11 +8,11 @@ module Promises
       @tenant_ids = scope.distinct.pluck(:tenant_id)
       @tenants = Tenant.where(id: @tenant_ids).order(:name).pluck(:name, :id)
       @several_tenants = @tenants.size > 1
-      scope = scope.where(tenant_id: params[:tenant]) if params[:tenant].present?
-      @pagination = Pagination.new(scope.includes(:customer, :contract, :user, :tenant, promise_bills: :bill).order(:promised_on, :id), page: params[:page], per_page: params[:per_page])
+      scope = scope.where(tenant_id: params[:credor]) if params[:credor].present?
+      @pagination = Pagination.new(scope.includes(:customer, :contract, :user, :tenant, promise_bills: :bill).order(:promised_on, :id), page: params[:pagina], per_page: params[:por_pagina])
       @promises = @pagination.records.to_a
       @cable = Current.user.tenant_ids_with("record_contact_attempts").map { |id| { channel: "PromisesChannel", tenant_id: id } }.to_json
-      render partial: "promises/pendings/result" if htmx_fragment?
+      render partial: "promises/pendings/result" if fragment?
     end
   end
 end

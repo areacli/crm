@@ -1,61 +1,30 @@
-<% content_for :title, "Clientes" %>
-<%= pagina "Clientes" do %>
-  <%# 14, R316: o lote "da seleção" são os clientes do filtro atual da lista. %>
-  <% if Current.user.permitted_anywhere?("distribute_portfolio") %>
-    <%= link_to "Distribuir estes clientes", new_distribution_batch_path(request.query_parameters.slice(*DistributionBatchesController::FILTERS)), class: "botao", data: { variant: "secondary" } %>
+<%# Lista de clientes na SPA (decisão 0028): a mesma consulta do filtro, pela grade paginada no servidor. %>
+<div class="lista" data-titulo="Clientes">
+  <%= pagina "Clientes" do %>
+    <% if Current.user.permitted_anywhere?("distribute_portfolio") %>
+      <%= link_to "Distribuir estes clientes", new_distribution_batch_path(request.query_parameters.slice(*DistributionBatchesController::FILTERS)), class: "botao", data: { variant: "secondary", com_filtros: true } %>
+    <% end %>
   <% end %>
-<% end %>
-
-<form class="filtros" role="search" action="<%= customers_path %>" method="get"
-      hx-sync="this:replace" hx-get="<%= customers_path %>" hx-trigger="input changed delay:300ms from:#q, change" hx-target="#resultado" hx-push-url="true" hx-swap="outerHTML">
-  <div class="campo">
-    <label for="q" class="apenas-leitor-de-tela">Buscar por nome, documento ou contrato</label>
-    <input type="search" id="q" name="q" value="<%= params[:q] %>" autocomplete="off" placeholder="Nome, documento ou contrato">
-  </div>
-  <% if @several_tenants %>
-    <div class="campo">
-      <label for="tenant">Credor</label>
-      <select id="tenant" name="tenant">
-        <option value="">Todos</option>
-        <%= options_for_select(@tenants, params[:tenant]) %>
-      </select>
+  <form class="filtros-da-grade" role="search">
+    <div class="campo campo-busca">
+      <label for="q-<%= object_id %>">Buscar</label>
+      <input type="search" id="q-<%= object_id %>" name="busca" value="<%= params[:busca] %>" autocomplete="off" placeholder="Nome, documento ou contrato">
     </div>
-  <% end %>
-  <div class="campo">
-    <label for="bracket">Faixa de atraso</label>
-    <select id="bracket" name="bracket">
-      <option value="">Todas</option>
-      <%= options_for_select(@brackets, params[:bracket]) %>
-    </select>
-  </div>
-  <div class="campo">
-    <label for="segment">Segmento</label>
-    <select id="segment" name="segment">
-      <option value="">Todos</option>
-      <%= grouped_options_for_select(@segments, params[:segment]) %>
-    </select>
-  </div>
-  <div class="campo">
-    <label for="promise">Promessa</label>
-    <select id="promise" name="promise">
-      <option value="">Todas</option>
-      <%= options_for_select([ [ "Aberta", "open" ], [ "Pendente de aprovação", "pending" ], [ "Quebrada nos últimos 30 dias", "broken" ], [ "Sem promessa", "none" ] ], params[:promise]) %>
-    </select>
-  </div>
-  <% if Current.user.permitted_anywhere?("edit_customer_registry") %>
-    <div class="campo">
-      <label for="unrecognized_city">Cidade</label>
-      <select id="unrecognized_city" name="unrecognized_city">
-        <option value="">Todas</option>
-        <%= options_for_select([ [ "Cidade não reconhecida", "1" ] ], params[:unrecognized_city]) %>
-      </select>
-    </div>
-  <% end %>
-  <div class="campo">
-    <label for="per_page" class="apenas-leitor-de-tela">Por página</label>
-    <select id="per_page" name="per_page"><%= options_for_select(Pagination::PER_PAGE_OPTIONS, @pagination.per_page) %></select>
-  </div>
-  <button type="submit" data-variant="secondary">Buscar</button>
-</form>
-
-<%= render "customers/result" %>
+    <% if @several_tenants %>
+      <div class="campo"><%= label_tag "credor", "Credor" %><%= select_tag :credor, options_for_select([ [ "Todos", "" ] ] + @tenants, params[:credor]) %></div>
+    <% end %>
+    <div class="campo"><%= label_tag "faixa", "Faixa de atraso" %><%= select_tag :faixa, options_for_select([ [ "Todas", "" ] ] + @brackets, params[:faixa]) %></div>
+    <div class="campo"><%= label_tag "segmento", "Segmento" %><%= select_tag :segmento, options_for_select([ [ "Todos", "" ] ], params[:segmento]) + grouped_options_for_select(@segments, params[:segmento]) %></div>
+    <div class="campo"><%= label_tag "promessa", "Promessa" %><%= select_tag :promessa, opcoes_de_filtro([ [ "Todas", "" ], [ "Aberta", "open" ], [ "Pendente de aprovação", "pending" ], [ "Quebrada nos últimos 30 dias", "broken" ], [ "Sem promessa", "none" ] ], params[:promessa]) %></div>
+    <% if Current.user.permitted_anywhere?("edit_customer_registry") %>
+      <div class="campo"><%= label_tag "cidade_nao_reconhecida", "Cidade" %><%= select_tag :cidade_nao_reconhecida, options_for_select([ [ "Todas", "" ], [ "Cidade não reconhecida", "1" ] ], params[:cidade_nao_reconhecida]) %></div>
+    <% end %>
+  </form>
+  <%= grade url: customers_path(format: :json), ordem: "overdue_cents", vazio: "Nenhum cliente encontrado.", colunas: [
+        { campo: "name", titulo: "Cliente", largura: 260, tipo: "rico", ordena: true }, { campo: "documento", titulo: "Documento", largura: 130 },
+        ({ campo: "credor", titulo: "Credor", largura: 130 } if @several_tenants),
+        { campo: "bills_count", titulo: "Títulos", largura: 70, tipo: "numero", ordena: true }, { campo: "overdue_cents", titulo: "Vencido", largura: 110, tipo: "numero", ordena: true },
+        { campo: "atualizado", titulo: "Atualizado", largura: 110, tipo: "numero" }, { campo: "upcoming_cents", titulo: "A vencer", largura: 110, tipo: "numero", ordena: true },
+        { campo: "max_days_overdue", titulo: "Faixa (dias)", largura: 110, ordena: true }, { campo: "enquadramento", titulo: "Enquadramento", largura: 150 },
+        { campo: "acoes", titulo: "", largura: 44, tipo: "acoes" } ].compact %>
+</div>

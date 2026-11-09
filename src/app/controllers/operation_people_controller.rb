@@ -32,7 +32,7 @@ class OperationPeopleController < ApplicationController
     member = policy_scope(OperationMember).find(params[:id])
     authorize member
     people = Operations::People.new(Current.user)
-    case params[:change]
+    case params[:mudanca]
     when "activate" then people.set_active(member, true)
     when "deactivate" then people.set_active(member, false)
     when "manager" then people.set_manager(member, true)

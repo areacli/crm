@@ -12,24 +12,25 @@ class ContactAttemptsController < ApplicationController
     @several_tenants = @tenant_ids.size > 1
     @period = period
     scope = policy_scope(ContactAttempt).where(contacted_at: @period)
-    scope = scope.where(user_id: params[:operator]) if params[:operator].present?
-    scope = scope.where(channel: params[:channel]) if ContactAttempt::CHANNELS.include?(params[:channel])
-    scope = scope.where(result_id: params[:result]) if params[:result].present?
-    scope = scope.where(result_kind: params[:kind]) if ContactResult::KINDS.key?(params[:kind].to_s.to_sym)
-    scope = scope.where(tenant_id: params[:tenant]) if params[:tenant].present?
+    scope = scope.where(user_id: params[:operador]) if params[:operador].present?
+    scope = scope.where(channel: params[:metodo]) if ContactAttempt::CHANNELS.include?(params[:metodo])
+    scope = scope.where(result_id: params[:resultado]) if params[:resultado].present?
+    kind = FilterValue.from_url(params[:tipo])
+    scope = scope.where(result_kind: kind) if ContactResult::KINDS.key?(kind.to_s.to_sym)
+    scope = scope.where(tenant_id: params[:credor]) if params[:credor].present?
     load_origins(@tenant_ids)
     scope = apply_origin(scope)
-    @pagination = Pagination.new(scope.includes(:customer, :contract, :result, :user, :tenant, :operation).recent, page: params[:page], per_page: params[:per_page])
+    @pagination = Pagination.new(scope.includes(:customer, :contract, :result, :user, :tenant, :operation).recent, page: params[:pagina], per_page: params[:por_pagina])
     @attempts = @pagination.records
     load_filter_options
-    render partial: "contact_attempts/result" if htmx_fragment?
+    render partial: "contact_attempts/result" if fragment?
   end
 
   private
     # O período vem de duas datas; sem elas, os últimos 7 dias, e nunca mais de 92 dias por consulta (R78).
     def period
-      to = parse_date(params[:to]) || Date.current
-      from = parse_date(params[:from]) || to - DEFAULT_PERIOD_DAYS.days
+      to = parse_date(params[:ate]) || Date.current
+      from = parse_date(params[:de]) || to - DEFAULT_PERIOD_DAYS.days
       from = to - MAX_PERIOD_DAYS.days if (to - from) > MAX_PERIOD_DAYS
       @from, @to = from, to
       from.beginning_of_day..to.end_of_day

@@ -1,24 +1,33 @@
 <% content_for :title, "Configuração · Regras do item #{@tier.name}" %>
-<%= pagina "Regras do item #{@tier.name}", subtitulo: safe_join([ @tenant.name, " · ", link_to("Voltar para o enquadramento financeiro", settings_tiers_path) ]) %>
+<%= pagina "Regras do item #{@tier.name}", subtitulo: "#{@tenant.name} · Mudar a regra passa pela conferência do impacto antes de valer." %>
 <%= render "settings/modelo" %>
-<section class="cartao" aria-labelledby="regras">
-  <header><h2 id="regras">Encargos e promessa</h2><%= informacao "regras", "Campo vazio usa o parâmetro do credor. As variáveis e os limites de acordo ficam em Promessas e acordos.", "definicao-regras" %></header>
-  <div>
+<%# Modelo Configuração: os encargos e a promessa em cartões, um valor por linha; um Salvar só, que leva à conferência do impacto na mesma aba. Na recusa (422), a
+    SPA troca a tela pela refeita, com o que foi digitado e as mensagens junto dos campos (`data-refazer-no-erro`). %>
+<div class="pagina-em-secoes" data-refazer-no-erro>
+  <%= form_with model: @tier, scope: :tier, url: settings_tier_path(@tier), method: :patch, class: "pilha-de-cartoes" do |form| %>
     <% if @tier.errors.any? %><%= aviso(tom: :danger) { tag.p @tier.errors.full_messages.to_sentence } %><% end %>
-    <%= form_with model: @tier, scope: :tier, url: settings_tier_path(@tier), method: :patch, html: { "hx-boost": "false" } do |form| %>
-      <%= render "settings/tiers/charges", form: form, tier: @tier, raw: @raw, setting: @tenant.setting %>
-      <fieldset>
-        <legend>Promessa</legend>
-        <div class="campo">
-          <%= form.label :promise_max_days, "Prazo máximo da promessa (dias)" %>
-          <%= form.number_field :promise_max_days, value: (@raw&.key?(:promise_max_days) ? @raw[:promise_max_days] : @tier.promise_max_days), min: 1, max: 365, required: true %>
-          <small>Nenhuma promessa passa deste prazo, nem com aprovação. As alçadas por perfil ficam em Promessas e acordos.</small>
+    <section class="cartao" aria-labelledby="regras-encargos">
+      <header>
+        <div>
+          <h2 id="regras-encargos">Encargos</h2>
+          <p>Campo vazio usa o parâmetro do credor (multa <%= charge_pct(@tenant.setting.charge_fine_pct) %>, juros <%= charge_pct(@tenant.setting.charge_interest_pct) %> ao mês, <%= charge_label(:index, @tenant.setting.charge_index) %>).</p>
         </div>
-      </fieldset>
-      <div class="acoes" data-rodape>
-        <%= link_to "Cancelar", settings_tiers_path, class: "botao", data: { variant: "secondary" } %>
-        <button type="submit">Conferir o impacto</button>
+      </header>
+      <div><%= render "settings/tiers/charges", form: form, tier: @tier, raw: @raw, setting: @tenant.setting %></div>
+    </section>
+    <section class="cartao" aria-labelledby="regras-promessa">
+      <header>
+        <div>
+          <h2 id="regras-promessa">Promessa</h2>
+          <p>As alçadas por perfil e as variáveis e limites de acordo ficam em Promessas e acordos.</p>
+        </div>
+      </header>
+      <div>
+        <%= politica "Prazo máximo da promessa", "prazo", ajuda: "Nenhuma promessa passa deste prazo, nem com aprovação." do %>
+          <div class="em-linha"><%= form.number_field :promise_max_days, value: (@raw&.key?(:promise_max_days) ? @raw[:promise_max_days] : @tier.promise_max_days), min: 1, max: 365, required: true, class: "numero", "aria-label": "Prazo máximo da promessa, em dias" %> dias</div>
+        <% end %>
       </div>
-    <% end %>
-  </div>
-</section>
+    </section>
+    <div class="acoes" data-rodape><button type="submit">Conferir o impacto</button></div>
+  <% end %>
+</div>

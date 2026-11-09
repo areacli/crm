@@ -2,12 +2,16 @@
     conditions | timeout), subject, expression (a árvore conferida, para o texto de cada condição). Em andamento, o trecho se refaz quando o WebSocket avisa (e uma vez ao carregar, para o resultado
     que já ficou pronto). %>
 <% noun = ->(n) { n == 1 ? segment_t("subjects.#{subject}.one") : segment_t("subjects.#{subject}.other") } %>
-<div id="conferir" role="status" aria-live="polite"
-  <% if probe && probe["status"] == "running" %>hx-get="<%= probe_result_settings_segments_path(probe_id: probe['id']) %>" hx-trigger="load delay:400ms, cable:segment-probe-ready from:body" hx-swap="outerHTML" hx-push-url="false"<% end %>>
+<%# Em andamento, trecho vivo: o WebSocket avisa e só ele se refaz; `data-spa-vivo-confere` pede uma conferência logo ao entrar, para o resultado que ficou
+    pronto antes de a tela ouvir o aviso. %>
+<% running = probe && probe["status"] == "running" %>
+<div class="conferir" data-conferir role="status" aria-live="polite"<% if running %> data-spa-vivo="<%= probe_result_settings_segments_path(probe_id: probe['id']) %>" data-spa-vivo-confere<% end %>>
   <% if probe.nil? %>
     <p><small>"Conferir" mostra quantos <%= segment_t("subjects.#{subject}.other") %> o segmento pega hoje, sem gravar nada.</small></p>
   <% elsif probe["invalid"] %>
     <p><small>Corrija os erros do texto para conferir.</small></p>
+  <% elsif probe["status"] == "failed" %>
+    <%= aviso(tom: :danger) { tag.p t("segments.probe.failed") } %>
   <% elsif probe["timeout"] %>
     <%= aviso(tom: :warning) { tag.p "A contagem passou do tempo. O segmento é pesado: simplifique as condições ou use-o só no enquadramento." } %>
   <% elsif probe["status"] == "running" %>

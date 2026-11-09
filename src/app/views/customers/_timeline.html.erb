@@ -1,13 +1,12 @@
 <%# Linha do tempo (padrões de interface, revisão 24): na lateral da ficha, abaixo de "Em cobrança". Os eventos do cliente do passado até agora,
     o mais recente em cima, 10 por página, com o filtro por tipo (Todos, Atendimento, Distribuição). Entrada, saída e atendimento se distinguem pelo
-    texto e pelo marcador (quadrado no atendimento, cheio na entrada, vazado na saída), nunca só pela cor. Filtro e páginas são links para a ficha; com JavaScript, o htmx troca só este cartão.
+    texto e pelo marcador (quadrado no atendimento, cheio na entrada, vazado na saída), nunca só pela cor. Filtro e páginas trocam só este cartão (`data-trecho`).
     Locais: customer, timeline (`CustomerTimeline`) e base (os parâmetros da ficha que seguem: aba e contrato). %>
 <% href = ->(linha, pagina) { customer_path(customer, **base, linha: linha, linha_pagina: (pagina if pagina.to_i > 1)) } %>
 <% fragment = ->(linha, pagina) { customer_timeline_path(customer, **base, linha: linha, linha_pagina: (pagina if pagina.to_i > 1)) } %>
-<% link = ->(label, linha, pagina, **options) { link_to label, href.call(linha, pagina), **options, data: { hx_get: fragment.call(linha, pagina), hx_target: "#linha-do-tempo", hx_swap: "outerHTML" } } %>
+<% link = ->(label, linha, pagina, **options) { link_to label, href.call(linha, pagina), **options, data: { trecho: fragment.call(linha, pagina), trecho_alvo: "#linha-do-tempo" } } %>
 <%# Refeito quando chega um acionamento ou um acordo novo pelo WebSocket e quando uma assinatura conecta, na página e no filtro em que está. %>
-<section class="cartao" id="linha-do-tempo" aria-labelledby="linha-do-tempo-titulo" hx-get="<%= fragment.call(timeline.kind, timeline.page) %>"
-         hx-trigger="cable:contact-attempts-changed from:body, cable:agreements-changed from:body, cable:connected from:body" hx-swap="outerHTML">
+<section class="cartao" id="linha-do-tempo" aria-labelledby="linha-do-tempo-titulo">
   <header><h2 id="linha-do-tempo-titulo">Linha do tempo</h2></header>
   <div>
     <div class="filtro-em-pilulas" role="group" aria-label="Filtrar a linha do tempo">

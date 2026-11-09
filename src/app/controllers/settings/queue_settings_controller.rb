@@ -18,7 +18,9 @@ module Settings
       if @queue.save
         Change.record!(@queue, "queue_settings_changed", tenant_id: @queue.tenant_id, actor: Current.user, origin: "screen", before: before, after: describe(@queue))
         QueuesJob.perform_later(@queue.tenant)
-        redirect_back_or_to queues_work_queues_path(tenant_id: @queue.tenant_id), notice: t(".done"), status: :see_other
+        return panel_finish(queues_work_queues_path(credor: @queue.tenant_id), notice: t(".done"), atualizar: true) if spa?
+
+        redirect_back_or_to queues_work_queues_path(credor: @queue.tenant_id), notice: t(".done"), status: :see_other
       else
         render :edit, status: :unprocessable_content
       end
