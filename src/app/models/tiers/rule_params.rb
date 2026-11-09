@@ -13,7 +13,25 @@ module Tiers
       text.match?(PERCENT) ? BigDecimal(text.tr(",", ".")) : :invalid
     end
 
+    PERCENT_CHARGES = %w[charge_fine_pct charge_interest_pct].freeze
+
     module_function
+
+    # Parâmetros e políticas de encargos do credor (09, R160, R165): percentual digitado ou opção da lista; nil se algum campo é inválido.
+    def charges(raw)
+      raw.each_with_object({}) do |(field, value), parsed|
+        if PERCENT_CHARGES.include?(field)
+          number = RuleParams.percent(value)
+          return nil if number.nil? || number == :invalid || number > 100
+
+          parsed[field] = number.to_s("F")
+        else
+          return nil unless TenantSetting.defined_enums.fetch(field).key?(value.to_s)
+
+          parsed[field] = value.to_s
+        end
+      end
+    end
 
     # Regra de encargos (09, R160): vazio nos campos herdados fica nil (herda do credor); honorários vazio é zero. Forma, taxa legal e honorários
     # são só do item. Devolve [atributos, { campo => chave do erro }].

@@ -20,6 +20,7 @@ module Indexes
       end
 
       run = TaskRun.create!(name: NAME, started_at: Time.current)
+      Broadcast.changed
       written = revised = 0
       problems = []
       IndexRate::SERIES.each do |series|

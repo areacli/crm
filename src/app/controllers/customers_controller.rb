@@ -1,4 +1,4 @@
-# Lista de clientes (R21) e ficha (R22). A busca se refaz pelo htmx, sem recarregar a página.
+# Lista de clientes (R21) e ficha (R22), só na SPA (decisão 0028, fase 3): a lista responde a página da grade em JSON, e a ficha, o trecho dela e o de cada aba interna.
 class CustomersController < ApplicationController
   # Abas da ficha (modelo Ficha, revisão 4 do design system): cada uma tem endereço próprio (`?aba=`).
   TABS = %w[titulos acionamentos promessas pagamentos contatos historico].freeze
@@ -6,13 +6,7 @@ class CustomersController < ApplicationController
   def index
     authorize Customer
     query = Portfolio::Query.new(Current.user)
-    bracket = params[:bracket].presence&.to_i
-    @pagination = Pagination.new(query.customers(search: params[:q], bracket: bracket, segment: params[:segment], tenant_id: params[:tenant], sort: params[:sort], direction: params[:dir], promise: params[:promise], unrecognized_city: params[:unrecognized_city]),
-                                 page: params[:page], per_page: params[:per_page])
-    @customers = @pagination.records.includes(:tenant)
     @query = query
-    @tier_names = query.tier_names(@customers.map(&:id))
-    @updated_totals = query.updated_totals(@customers.map(&:id))
     @settings = query.settings_by_tenant
     @several_tenants = @settings.size > 1
     @tenants = Tenant.where(id: @settings.keys).order(:name).pluck(:name, :id)
@@ -21,16 +15,29 @@ class CustomersController < ApplicationController
     @segments = query.segment_options.group_by(&:subject).map do |subject, segments|
       [ "Segmentos de #{t("segments.subjects.#{subject}").downcase}", segments.map { |segment| [ @several_tenants ? "#{segment.name} (#{segment.tenant.name})" : segment.name, segment.id ] } ]
     end
-    @segment = Segment.find_by(id: params[:segment], tenant_id: @settings.keys) if params[:segment].present?
-    # 14, R320: a busca do usuário de operação fica na trilha (o texto buscado e quantos resultados).
-    Operations::Trail.record("search", user: Current.user, query: params[:q], results: @pagination.total) if params[:q].present?
-    render partial: "customers/result" if htmx_fragment?
+    # O trecho da aba traz só a barra de filtros e a grade; a consulta roda na página que a grade pede, em JSON.
+    return unless request.format.json?
+
+    @segment = Segment.find_by(id: params[:segmento], tenant_id: @settings.keys) if params[:segmento].present?
+    bracket = params[:faixa].presence&.to_i
+    @pagination = Pagination.new(query.customers(search: params[:busca], bracket: bracket, segment: params[:segmento], tenant_id: params[:credor], sort: params[:ordem], direction: params[:direcao], promise: FilterValue.from_url(params[:promessa]), unrecognized_city: params[:cidade_nao_reconhecida]),
+                                 page: params[:pagina], per_page: params[:por_pagina])
+    @customers = @pagination.records.includes(:tenant)
+    @tier_names = query.tier_names(@customers.map(&:id))
+    @updated_totals = query.updated_totals(@customers.map(&:id))
+    # 14, R320: a busca do usuário de operação fica na trilha (o texto buscado e quantos resultados), uma vez por página pedida.
+    Operations::Trail.record("search", user: Current.user, query: params[:busca], results: @pagination.total) if params[:busca].present?
+
+    # `nota`: o segmento do filtro e a leitura dele (13, R296), acima da grade; `aviso`: o segmento passou do limite de tempo.
+    render json: { total: @pagination.total, rows: @customers.map { |customer| customer_row(customer) }, aviso: (t("segments.errors.too_slow") if @query.segment_too_slow?),
+                   nota: (@segment && "Segmento #{@segment.name}: #{@segment.text.long_text}") }.compact
   end
 
   def show
     @customer = Customer.includes(:tenant).find(params[:id])
     authorize @customer
-    Operations::Trail.record("record_opened", user: Current.user, customer: @customer)
+    # 14, R320: a ficha aberta entra na trilha uma vez; a aba interna (`X-CRM-Secao`) é a mesma ficha.
+    Operations::Trail.record("record_opened", user: Current.user, customer: @customer) if request.headers["X-CRM-Secao"].blank?
     @setting = @customer.tenant.setting
     @brackets = Portfolio::AgingBrackets.from_stored(@setting.aging_brackets)
     # Padrões de interface, revisão 21: o contrato escolhido (`?contrato=`) recorta a ficha inteira. Consulta: `contract_customers (customer_id)`.
@@ -51,9 +58,25 @@ class CustomersController < ApplicationController
     load_agreements
     load_registry
     load_rights
+    # Aba interna da ficha na SPA: só o trecho da seção (decisão 0028).
+    render partial: "customers/tabs/#{@tab}" if request.headers["X-CRM-Secao"].present?
   end
 
   private
+    # Linha da lista de clientes para a grade da SPA: os valores já formatados; o `spa/formatos` escapa o texto.
+    def customer_row(customer)
+      recordable = @recordable ||= Current.user.tenant_ids_with("record_contact_attempts")
+      setting = @settings.fetch(customer.tenant_id)
+      actions = [ { texto: "Abrir ficha", href: customer_path(customer) } ]
+      actions << { texto: "Registrar acionamento", href: form_customer_contact_attempts_path(customer), dialogo: true } if recordable.include?(customer.tenant_id) && !customer.anonymized?
+      { id: customer.id, name: { texto: customer.name, href: customer_path(customer) }, documento: customer.masked_document, credor: customer.tenant.name,
+        bills_count: helpers.number_br(customer.bills_count), overdue_cents: helpers.money(customer.overdue_cents),
+        atualizado: @updated_totals.key?(customer.id) ? helpers.money(@updated_totals[customer.id]) : "—",
+        upcoming_cents: setting.upcoming_display == "detail_only" ? "—" : helpers.money(customer.upcoming_cents),
+        max_days_overdue: customer.bills_count.to_i.zero? ? "sem títulos em cobrança" : @query.bracket_label(customer.tenant_id, customer.max_days_overdue),
+        enquadramento: @tier_names[customer.id] || t("tiers.none"), acoes: actions }
+    end
+
     # Valor atualizado dos títulos vencidos (09, R174): o último recálculo gravado, com a data dele. Consulta: chave de `bill_valuations`.
     def load_valuations
       @valuations = BillValuation.where(bill_id: @bills.map(&:id)).index_by(&:bill_id)
@@ -104,7 +127,7 @@ class CustomersController < ApplicationController
 
     # Acionamentos (04): o histórico de 20 em 20 (R74) e o formulário, só para quem registra no credor do cliente (R76).
     def load_contact_attempts
-      @contact_history = ContactAttempt.history_for(@customer, page: params[:page], contract: @contract)
+      @contact_history = ContactAttempt.history_for(@customer, page: params[:pagina], contract: @contract)
       @contact_form = Contacts::Form.new(@customer) if !@customer.anonymized? && policy(ContactAttempt.new(tenant: @customer.tenant)).create?
     end
 

@@ -1,0 +1,4 @@
+<%# Trecho da SPA (decisão 0028): só o conteúdo, sem cabeçalho nem menu. Os módulos `spa/` põem o trecho na aba, na janela ou no diálogo; os canais do tempo real
+    que a tela declara (`content_for :cable_channels`) vão junto, e a aba os assina. %>
+<%= yield %>
+<%= tag.template(class: "canais-do-trecho", data: { canais: canais_do_trecho }) %>

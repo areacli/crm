@@ -22,7 +22,13 @@ class Distribution < ApplicationRecord
   scope :in_force, ->(on = Date.current) { open.where("starts_on <= ? AND (ends_on IS NULL OR ends_on >= ?)", on, on) }
 
   def target = customer || contract
-  def target_label = customer ? "cliente #{customer.name}" : "contrato #{contract.code}"
+  # O registro pode não estar pra quem pergunta (14, R313): a distribuição agendada ou encerrada da operação continua na lista dela, sem o nome.
+  def target_label
+    return "cliente #{customer.name}" if customer
+    return "contrato #{contract.code}" if contract
+
+    I18n.t("distributions.out_of_reach")
+  end
   def agendada? = ended_at.nil? && starts_on > Date.current
   def status_key = ended_at ? "ended" : (agendada? ? "scheduled" : (ends_on && ends_on < Date.current ? "ended" : "in_force"))
 

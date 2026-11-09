@@ -1,0 +1,18 @@
+<%# Avisos do sino na SPA (A5): os não lidos, numa janela presa à aba. Marcar como lido grava e refaz a janela. %>
+<% notices = unread_notices.to_a %>
+<div class="avisos-da-janela" data-titulo="Avisos">
+  <% if notices.empty? %>
+    <p class="vazio">Nenhum aviso novo.</p>
+  <% else %>
+    <ul>
+      <% notices.each do |notice| %>
+        <li>
+          <p><strong><%= notice_title(notice) %></strong></p>
+          <p><%= notice_body(notice) %></p>
+          <div><small><%= datetime_br(notice.created_at) %></small><%= button_to "Marcar como lido", notice_path(notice), method: :patch, data: { variant: "secondary", size: "small" } %></div>
+        </li>
+      <% end %>
+    </ul>
+    <%= button_to "Marcar todos como lidos", notices_reading_path, data: { variant: "secondary", size: "small" } %>
+  <% end %>
+</div>

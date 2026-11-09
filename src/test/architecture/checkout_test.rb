@@ -90,7 +90,7 @@ class CheckoutArchitectureTest < ActiveSupport::TestCase
   test "nada específico da Efí fora do adaptador: o resto conhece só o contrato" do
     allowed = %r{app/models/payments/providers/efi|app/javascript/payments/drivers/efi\.js|vendor/|config/importmap\.rb|config/initializers/payment_providers\.rb|config/locales/|config/credentials}
     pattern = /efi\b|efipay|sejaefi|gerencianet|clearsale|fpcs-monitor|payee_code/i
-    offenders = sources("{app,config,lib}/**/*").reject { |file| file.delete_prefix("#{ROOT}/").match?(allowed) || file.match?(/\.(enc|key|png|svg|woff2|ico)\z/) }
+    offenders = sources("{app,config,lib}/**/*").reject { |file| file.delete_prefix("#{ROOT}/").match?(allowed) || file.match?(/\.(enc|key|png|svg|webp|woff2|ico)\z/) }
                                                 .select { |file| File.read(file).match?(pattern) }
     assert_empty offenders.map { |file| file.delete_prefix("#{ROOT}/") }
   end

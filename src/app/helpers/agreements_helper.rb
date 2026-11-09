@@ -10,6 +10,50 @@ module AgreementsHelper
 
   def agreement_mode(agreement) = t("agreements.mode_names.#{agreement.mode}")
 
+  # A lista de Parcelas (11, revisão 12): acima do limite do perfil a opção avisa que a proposta nasce pendente (R216).
+  UMA_PARCELA_UNICA = "0 (parcela única)".freeze
+
+  # A primeira linha do acordo (revisão 12): sem parcelas, ela não é entrada, é a parcela única.
+  def nome_da_primeira(parcelas) = parcelas.to_i.zero? ? "Parcela única" : "Entrada"
+
+  def opcoes_de_parcelas(limits, atual = 1)
+    rotulo = ->(count) { "#{count} #{count == 1 ? 'parcela' : 'parcelas'}" }
+    unica = [ UMA_PARCELA_UNICA, 0 ]
+    return (atual.to_i.positive? ? [ unica, [ rotulo.call(atual.to_i), atual.to_i ] ] : [ unica, [ rotulo.call(1), 1 ] ]) unless limits
+
+    [ unica, *limits.installment_counts.map { |count| [ "#{rotulo.call(count)}#{' (pede aprovação)' if count > limits.profile_installments}", count ] } ]
+  end
+
+  # O que a simulação manda de volta à tela a cada cálculo (`spa/deslizantes`): a faixa da entrada e do crédito, as opções de Parcelas e os textos de ajuda.
+  def limites_da_simulacao(quote)
+    limits = quote.limits
+    descontos = limits.profile_discounts.keys.to_h { |component| [ "agreement[discounts][#{component}]", { minimo: 0, maximo: 10_000 } ] }
+    ajudas = limits.profile_discounts.keys.to_h { |component| [ "ajuda-desconto-#{component}", ajuda_do_desconto(limits, component) ] }
+    { deslizantes: { "agreement[down_payment]" => { minimo: limits.down_min, maximo: limits.down_max, inicial: limits.down_initial }, "agreement[credit]" => { minimo: 0, maximo: limits.credit_max } }.merge(descontos),
+      escolhas: { "agreement[installments]" => opcoes_de_parcelas(limits).map(&:reverse) },
+      textos: { "ajuda-entrada" => ajuda_da_entrada(limits), "ajuda-parcelas" => ajuda_das_parcelas(limits), "rotulo-vencimento" => "Vencimento da #{nome_da_primeira(quote.installments.size).downcase}" }.merge(ajudas) }
+  end
+
+  # O desconto vai a 100%; o limite do perfil diz até onde a proposta nasce aprovada (R216).
+  def ajuda_do_desconto(limits, component)
+    return "" unless limits
+
+    own = limits.profile_discounts.fetch(component, 0)
+    return "Dentro dos seus limites." if own >= 100
+
+    own.zero? ? "Qualquer desconto aqui pede aprovação." : "Até #{own}% nos seus limites; acima disso, a proposta pede aprovação."
+  end
+
+  def ajuda_da_entrada(limits) = limits ? "Mínimo de R$ #{Money.format(limits.down_min)}, até R$ #{Money.format(limits.down_max)}." : ""
+
+  def ajuda_das_parcelas(limits)
+    return "" unless limits
+
+    top = limits.installment_counts.last
+    minima = "Cada parcela, com juros, fica em R$ #{Money.format(limits.minimum_installment)} ou mais."
+    top > limits.profile_installments ? "#{minima} Até #{limits.profile_installments} nos seus limites; acima disso, a proposta pede aprovação." : minima
+  end
+
   def component_name(component) = t("agreements.components.#{component}")
 
   # As colunas de componentes que uma tabela mostra, da última à primeira (principal primeiro): os cinco do valor atualizado e, só quando algum título tem, os herdados do acordo

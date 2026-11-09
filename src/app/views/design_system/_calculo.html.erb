@@ -1,0 +1,8 @@
+<%# Resultado de mentira do cálculo à vista. Locais por variável: @situacao (incompleto, recusado ou nil) e @soma. %>
+<% if @situacao == :incompleto %>
+  <p class="vazio" data-calculo="incompleto">Preencha os dois valores para calcular.</p>
+<% elsif @situacao == :recusado %>
+  <%= aviso(tom: :warning) { tag.p "Os valores não podem ser negativos.", data: { calculo: "recusado" } } %>
+<% else %>
+  <dl class="kpis"><%= kpi "Soma", number_with_precision(@soma, precision: 2, separator: ",", delimiter: ".") %></dl>
+<% end %>

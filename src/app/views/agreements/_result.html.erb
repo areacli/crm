@@ -1,5 +1,5 @@
-<%# Trecho que o htmx refaz a cada filtro, página ou aviso do WebSocket: casos do gestor, contagem, tabela e paginação. %>
-<div id="resultado" aria-live="polite" hx-get="<%= agreements_path(request.query_parameters) %>" hx-trigger="cable:agreements-changed from:body, cable:connected from:body" hx-include="form.filtros" hx-sync="form.filtros:replace" hx-swap="outerHTML" hx-push-url="false">
+<%# Trecho que a SPA refaz a cada filtro, página ou aviso do WebSocket: casos do gestor, contagem, tabela e paginação. %>
+<div id="resultado" aria-live="polite">
   <% if @cases.present? %>
     <section class="cartao" id="casos" aria-labelledby="casos-do-gestor">
       <header><h2 id="casos-do-gestor">Casos que pedem o gestor</h2><%= informacao "casos do gestor", "Vistos só por quem administra acordos.", "definicao-casos" %></header>
@@ -63,6 +63,6 @@
         </tbody>
       </table>
     </div>
-    <%= render "shared/paginacao", pagination: @pagination, unit: "acordos", path: ->(page) { agreements_path(request.query_parameters.merge("page" => page)) } %>
+    <%= render "shared/paginacao", pagination: @pagination, unit: "acordos", path: ->(page) { agreements_path(request.query_parameters.merge("pagina" => page)) } %>
   <% end %>
 </div>

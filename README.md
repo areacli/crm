@@ -9,14 +9,18 @@ CRM de cobrança: um credor importa a carteira de clientes e títulos a partir d
 
 O projeto é desenvolvido por incrementos, cada um a partir de uma especificação aprovada antes do código. A discussão de cada incremento é contada na série [Criei um CRM](https://blog.areacli.com/criei-um-crm/), no Blog AreaCli.
 
+> [!WARNING]
+> **Só para uso não comercial.** O CRM é distribuído sob a licença PolyForm Noncommercial 1.0.0, e a interface usa o EasyUI for jQuery, que tem licença própria e mais restrita. Leia [Licença e EasyUI](#licença-e-easyui) antes de usar.
+
 ## Demonstração
 
 https://crm.areacli.com, com dados fictícios recriados todo dia às 4h (horário de Brasília). Os arquivos enviados são descartados sem ser lidos e trocados por arquivos fictícios; o que é digitado em campo livre é trocado por texto fictício; nenhum fornecedor de pagamento real é chamado.
 
 | Usuário | Senha | O que pode fazer |
 |---|---|---|
-| `gestor@demo.crm.areacli.com` | `demonstracao-gestor` | Gestor na Escola Alfa e operador na Clínica Beta: importar e confirmar carteira, pagamentos e estornos; registrar acionamentos; aprovar promessas e acordos; canais de recebimento, políticas de pagamento, segmentos e encargos; transferir crédito entre contratos; direitos do titular. Usuários, perfis, senhas, dados do credor e contas de pagamento ficam fechados (só leitura) |
+| `gestor@demo.crm.areacli.com` | `demonstracao-gestor` | Gestor na Escola Alfa e operador na Clínica Beta: importar e confirmar carteira, pagamentos e estornos; registrar acionamentos; aprovar promessas e acordos; métodos de recebimento, políticas de pagamento, segmentos e encargos; transferir crédito entre contratos; direitos do titular. Usuários, perfis, senhas, dados do credor e contas de pagamento ficam fechados (só leitura) |
 | `operador@demo.crm.areacli.com` | `demonstracao-operador` | Operador na Escola Alfa (a Clínica Beta não aparece): consultar clientes e fichas, registrar acionamentos, editar o cadastro do cliente e negociar acordos |
+| `operacao@demo.crm.areacli.com` | `demonstracao-operacao` | Pessoa de uma operação de cobrança parceira na Escola Alfa: vê só os clientes distribuídos à operação dela (Row-Level Security do PostgreSQL), com o nome da operação no cabeçalho, e não abre a configuração nem a distribuição |
 
 A carteira da Escola Alfa tem 10 mil clientes com títulos desde 2020, pagamentos, estornos, acionamentos, promessas nos oito estados, acordos nos estados principais, divergências de valor, um cliente anonimizado e instrumentos de pagamento do fornecedor falso. A página pública de pagamento de exemplo (sem login) fica em `/pagar/demonstracao-pagamento`; no cartão de teste, o último dígito do número escolhe o resultado (1 dados inválidos, 2 recusa, 3 recusa que pode repetir, qualquer outro aprova). A demonstração roda com `CRM_DEMO=1`; os dados vêm da tarefa `bin/rails crm:demo_data` (e `crm:demo_reset` recria tudo).
 
@@ -36,10 +40,10 @@ Estado atual da aplicação em Rails (fotos recriadas a cada incremento por `dep
 | Faixas de atraso e tratamento do a vencer, por credor | Usuários e seus perfis em cada credor |
 | ![Perfis de permissões](docs/telas/perfis.png) | ![Importar pagamentos](docs/telas/importar-pagamentos.png) |
 | Perfis com as 16 permissões | Envio da planilha de pagamentos (e a de estornos), com colunas e planilha-modelo |
-| ![Conferência de pagamentos](docs/telas/conferencia-de-pagamentos.png) | ![Canais de recebimento](docs/telas/canais-de-recebimento.png) |
-| Conferência antes de confirmar: quitados, baixas parciais, créditos, pendentes e ignorados | Canais de recebimento do credor, em uma aba da configuração |
-| ![Canal de recebimento](docs/telas/canal-de-recebimento.png) | ![Políticas de pagamento](docs/telas/politicas-de-pagamento.png) |
-| Canal: dados e webhook de pagamento assinado | Políticas de pagamento por credor |
+| ![Conferência de pagamentos](docs/telas/conferencia-de-pagamentos.png) | ![Métodos de recebimento](docs/telas/canais-de-recebimento.png) |
+| Conferência antes de confirmar: quitados, baixas parciais, créditos, pendentes e ignorados | Métodos de recebimento do credor (por onde o dinheiro entra), com as integrações no detalhe de cada um |
+| ![Método de recebimento](docs/telas/canal-de-recebimento.png) | ![Políticas de pagamento](docs/telas/politicas-de-pagamento.png) |
+| Método de recebimento: dados, webhook de pagamento assinado e integrações | Políticas de pagamento por credor |
 | ![Ficha com pagos e crédito](docs/telas/ficha-com-pagos-e-credito.png) | ![Ficha com acionamentos](docs/telas/ficha-com-acionamentos.png) |
 | Ficha: pagamentos aplicados e crédito por contrato, com transferência entre contratos | Ficha: formulário de acionamento e histórico |
 | ![Lista de acionamentos](docs/telas/acionamentos.png) | ![Resultados de acionamento](docs/telas/resultados-de-acionamento.png) |
@@ -90,10 +94,10 @@ Estado atual da aplicação em Rails (fotos recriadas a cada incremento por `dep
 
 | | |
 |---|---|
-| ![Contas de pagamento](docs/telas/contas-de-pagamento.png) | ![Nova conta de pagamento](docs/telas/nova-conta-de-pagamento.png) |
-| Contas de pagamento por credor, modalidade e ambiente, em uma aba da configuração | Cadastro montado pelo manifesto do fornecedor: segredos em branco, certificado enviado como arquivo |
-| ![Conta de pagamento](docs/telas/conta-de-pagamento.png) | |
-| Conta com certificado (titular, validade e impressão digital), teste de conexão, segredo do webhook e histórico sem valores | |
+| ![Integrações nos métodos de recebimento](docs/telas/contas-de-pagamento.png) | ![Nova integração](docs/telas/nova-conta-de-pagamento.png) |
+| As integrações com fornecedores ficam no detalhe de cada método de recebimento | Nova integração montada pelo manifesto do fornecedor: segredos em branco, certificado enviado como arquivo |
+| ![Integração](docs/telas/conta-de-pagamento.png) | |
+| Integração com certificado (titular, validade e impressão digital), teste de conexão, segredo do webhook e histórico sem valores | |
 | ![Pagamento do cliente](docs/telas/pagamento-do-cliente.png) | |
 | Página pública de pagamento do cliente (link com token, sem login): Pix com QR Code local, boleto e cartão por checkout transparente; os campos do cartão não são enviados ao servidor | |
 
@@ -121,22 +125,22 @@ Estado atual da aplicação em Rails (fotos recriadas a cada incremento por `dep
 | ![Próximo da fila](docs/telas/proximo-da-fila.png) | |
 | O "Próximo" no cabeçalho abre a ficha do cliente ou do contrato entregue, travado para o operador, com "Devolver" | |
 
-### Padrão de interface: denso, corporativo e com ações no painel
+### Padrão de interface: abas, janelas e diálogos
 
-Todas as telas seguem a revisão 4 do design system (decisão 0022): texto de 15 px (tabelas de 14 px), controles de 34 px e linhas de 36 px, cabeçalho de 56 px com busca global, barra de página com título, indicadores e ações, menu lateral de 256 px com contadores e a Configuração como submenu que abre e fecha (revisões 5 e 6), e quatro modelos de página (lista, ficha, configuração e entrada). A **regra de ação** diz onde cada ação abre: **sem dados, botão direto** (confirmação curta em modal pequeno só para o que é destrutivo); **um ou dois campos, modal pequeno**; **formulário médio, painel lateral de 480 px**, que mantém a página à vista; **fluxo rico, página própria** com formulário e resultado lado a lado (simular acordo); **edição de um valor, na própria linha**. Nunca há formulário aberto na página nem `<details>` com formulário (teste de arquitetura). Um só `<dialog>` no layout é preenchido pelo htmx e a mesma rota responde como página inteira sem JavaScript.
+A área interna é uma aplicação de página única feita com o EasyUI for jQuery: menu lateral por tipo de trabalho, que se recolhe; cada tela abre numa aba, que fica viva ao alternar (até 12 abas, e a 13ª pergunta qual fechar); o detalhe de consulta abre numa janela presa à aba (o título, a divergência); a ação curta abre num diálogo preso à aba; e a edição de um valor acontece na própria linha. O servidor monta cada tela, e só as listas chegam em JSON. Toda espera diz em palavras que o pedido começou, que terminou e como terminou, e a aba se refaz pelo WebSocket quando o que ela mostra muda (sem polling). Em tela pequena de toque aparece um aviso no lugar da aplicação.
 
 | | |
 |---|---|
-| ![Novo usuário no painel lateral](docs/telas/novo-usuario-no-painel.png) | ![Perfil no painel lateral](docs/telas/perfil-no-painel.png) |
-| Painel lateral: a lista continua à vista enquanto se preenche o formulário | Perfil com nome e as permissões no painel lateral |
-| ![Registrar aceite no painel](docs/telas/registrar-aceite-no-painel.png) | ![Quebrar o acordo no painel](docs/telas/quebrar-acordo-no-painel.png) |
-| Registrar o aceite do acordo no painel lateral | Quebra manual do acordo em modal pequeno (motivo e marca de fraude) |
-| ![Tratar divergência no painel](docs/telas/tratar-divergencia-no-painel.png) | ![Confirmar o descarte da importação](docs/telas/confirmar-descarte-da-importacao.png) |
-| Tratar a divergência de valor: nota e escolha em modal pequeno | Confirmação curta: o mesmo mecanismo do painel, com o destino num token assinado |
+| ![Novo usuário no diálogo](docs/telas/novo-usuario-no-dialogo.png) | ![Novo perfil](docs/telas/novo-perfil.png) |
+| Novo usuário: o diálogo fica preso à aba de usuários, que continua à vista | Novo perfil numa aba própria, com as permissões em quatro grupos |
+| ![Registrar aceite no diálogo](docs/telas/registrar-aceite-no-dialogo.png) | ![Quebrar o acordo no diálogo](docs/telas/quebrar-acordo-no-dialogo.png) |
+| Registrar o aceite do acordo num diálogo | Quebra manual do acordo: motivo e marca de fraude |
+| ![Tratar divergência no diálogo](docs/telas/tratar-divergencia-no-dialogo.png) | ![Confirmar o descarte da importação](docs/telas/confirmar-descarte-da-importacao.png) |
+| Tratar a divergência de valor: o diálogo sobre a janela da divergência | Confirmação curta antes de descartar a importação |
 
 ### Demonstração carregada
 
-Fotos da demonstração com os dados fictícios completos (10 mil clientes, pagamentos, promessas e acordos), tiradas pela V5 (`deploy/rails/v5/v5-demo.mjs`) em 25/10/2026.
+Fotos da demonstração com os dados fictícios completos (10 mil clientes, pagamentos, promessas e acordos), tiradas pela V5 (`deploy/rails/v5/v5-demo.mjs`) em 08/11/2026.
 
 | | |
 |---|---|
@@ -146,8 +150,8 @@ Fotos da demonstração com os dados fictícios completos (10 mil clientes, paga
 | Lista de acionamentos dos últimos 120 dias | Divergências de valor a tratar pelo financeiro |
 | ![Acordos](docs/telas/demonstracao-acordos.png) | ![Promessas pendentes](docs/telas/demonstracao-promessas-pendentes.png) |
 | Propostas e acordos nos estados principais, com os casos que pedem o gestor | Promessas pendentes de aprovação |
-| ![Segmentos e encargos](docs/telas/demonstracao-configuracao-segmentos.png) | ![Importações](docs/telas/demonstracao-importacoes.png) |
-| Segmentos de contratos e as regras de encargos | Importações, com a carga conferida à espera de confirmação |
+| ![Segmentos](docs/telas/demonstracao-configuracao-segmentos.png) | ![Importações](docs/telas/demonstracao-importacoes.png) |
+| Segmentos de clientes e de contratos, com as condições e onde cada um é usado | Importações, com a carga conferida à espera de confirmação |
 | ![Página de pagamento](docs/telas/demonstracao-pagar.png) | |
 | Página pública de pagamento de exemplo, com Pix (QR Code gerado aqui), boleto e cartão | |
 
@@ -175,7 +179,7 @@ O projeto foi refeito em Ruby on Rails 8.1 (decisão de 24/10/2026), um incremen
 
 ## Tecnologia
 
-Ruby 4.0 e Rails 8.1 "completamente semântico": HTML e CSS semânticos, sem classes utilitárias e sem empacotador (Propshaft e importmap), htmx 2 e Action Cable (as telas se atualizam por eventos do WebSocket, sem polling), PostgreSQL 19, Valkey com Sidekiq 8 para as filas, Pundit para autorização e o Row-Level Security do PostgreSQL para o que cada operação de cobrança vê (a aplicação entra no banco com um papel sem privilégios, que não lê a carteira sem declarar quem age), Minitest com testes de sistema (Capybara, Cuprite e axe-core, WCAG 2.2 AA). A interface é densa e corporativa (revisão 4 do design system): um só `<dialog>` compartilhado, preenchido por htmx, abre as ações em modal pequeno ou painel lateral, a confirmação curta usa um token assinado, e a mesma rota responde como página inteira sem JavaScript. `bin/ci` roda RuboCop, bundler-audit, Brakeman, os testes e os testes de sistema. A página pública de pagamento carrega só scripts do próprio sistema e o que o fornecedor de cartão declara (biblioteca `payment-token-efi` 3.4.1, fixada em `vendor/javascript`, sem CDN). Os segredos dos fornecedores de pagamento ficam cifrados (Active Record Encryption) com chaves em credenciais cifradas por ambiente; PDF de boleto e QR Code de Pix ficam em disco (Active Storage, sem rotas públicas) e o QR Code local usa a gem `rqrcode`. Os avisos dos fornecedores de pagamento chegam a uma rota por conta, são guardados uma vez por identificador (índice único) e processados na fila `webhooks` do Sidekiq, que consulta o fornecedor antes de mudar qualquer coisa; uma tarefa diária reprocessa os avisos que falharam e confere no fornecedor os instrumentos ativos (2.000 conferências com 200 baixas em cerca de 38 s). Tudo roda em contêineres Docker, com versões travadas. As promessas e os acordos se atualizam por eventos do WebSocket, e a tarefa diária (sidekiq-cron) quebra 3 mil promessas vencidas em cerca de 8 s e avalia 5 mil acordos em cerca de 13 s (processamento em lote, pelo Active Record); 2 mil pagamentos de parcela de acordo se confirmam em cerca de 18 s e 2 mil estornos de parcela em cerca de 28 s; um arquivo de 20 mil pagamentos com 2 mil de promessa se confirma em cerca de 145 s. O cálculo dos encargos é Ruby puro com tabelas de índices por dia (400 mil títulos recalculados em cerca de 14 s). As importações grandes são lotes em segundo plano com Active Record (nada de SQL escrito à mão para gravar): 200 mil pagamentos se conferem em cerca de 95 s e se confirmam em cerca de 23 minutos (143 linhas por segundo), e 20 mil estornos, em 12 s e 3 min 10 s (105 linhas por segundo), com a lista e o resumo respondendo em 1,1 s no meio do lote. Um milhão de acionamentos (carregados em cerca de 5 minutos por `insert_all!`): a ficha abre em 0,3 s, a lista em 0,03 s e o resumo em menos de 1 s. A tarefa diária de guarda de dados anonimiza 200 mil clientes em cerca de 100 s (10 mil em 5 s), e exportar ou anonimizar um cliente com 1.000 acionamentos leva menos de 1 s. A sessão acaba com 30 minutos sem atividade ou 8 horas. As importações são processamento em lote em segundo plano (Active Job com etapas retomáveis, Active Record e o mesmo histórico de alterações das telas): a carga de 200 mil linhas confere a mais de mil linhas por segundo e confirma a cerca de 70, sem travar as telas.
+Ruby 4.0 e Rails 8.1, sem empacotador (Propshaft e importmap) e sem Node. A área interna é uma aplicação de página única em EasyUI for jQuery 1.11.5 (com o jQuery, fixados em `vendor/`, sem CDN): o Rails monta cada tela como um trecho de HTML que a casca põe na aba, na janela ou no diálogo, as listas chegam em JSON, e o Action Cable avisa a aba quando o que ela mostra muda, para ela buscar o trecho de novo (sem polling). PostgreSQL 19, Valkey com Sidekiq 8 para as filas, Pundit para autorização e o Row-Level Security do PostgreSQL para o que cada operação de cobrança vê (a aplicação entra no banco com um papel sem privilégios, que não lê a carteira sem declarar quem age), Minitest com testes de sistema (Capybara e Cuprite; axe-core na página pública de pagamento e nas páginas para imprimir). `bin/ci` roda RuboCop, bundler-audit, Brakeman, os testes e os testes de sistema. A página pública de pagamento carrega só scripts do próprio sistema e o que o fornecedor de cartão declara (biblioteca `payment-token-efi` 3.4.1, fixada em `vendor/javascript`, sem CDN). Os segredos dos fornecedores de pagamento ficam cifrados (Active Record Encryption) com chaves em credenciais cifradas por ambiente; PDF de boleto e QR Code de Pix ficam em disco (Active Storage, sem rotas públicas) e o QR Code local usa a gem `rqrcode`. Os avisos dos fornecedores de pagamento chegam a uma rota por conta, são guardados uma vez por identificador (índice único) e processados na fila `webhooks` do Sidekiq, que consulta o fornecedor antes de mudar qualquer coisa; uma tarefa diária reprocessa os avisos que falharam e confere no fornecedor os instrumentos ativos (2.000 conferências com 200 baixas em cerca de 38 s). Tudo roda em contêineres Docker, com versões travadas. As promessas e os acordos se atualizam por eventos do WebSocket, e a tarefa diária (sidekiq-cron) quebra 3 mil promessas vencidas em cerca de 8 s e avalia 5 mil acordos em cerca de 13 s (processamento em lote, pelo Active Record); 2 mil pagamentos de parcela de acordo se confirmam em cerca de 18 s e 2 mil estornos de parcela em cerca de 28 s; um arquivo de 20 mil pagamentos com 2 mil de promessa se confirma em cerca de 145 s. O cálculo dos encargos é Ruby puro com tabelas de índices por dia (400 mil títulos recalculados em cerca de 14 s). As importações grandes são lotes em segundo plano com Active Record (nada de SQL escrito à mão para gravar): 200 mil pagamentos se conferem em cerca de 95 s e se confirmam em cerca de 23 minutos (143 linhas por segundo), e 20 mil estornos, em 12 s e 3 min 10 s (105 linhas por segundo), com a lista e o resumo respondendo em 1,1 s no meio do lote. Um milhão de acionamentos (carregados em cerca de 5 minutos por `insert_all!`): a ficha abre em 0,3 s, a lista em 0,03 s e o resumo em menos de 1 s. A tarefa diária de guarda de dados anonimiza 200 mil clientes em cerca de 100 s (10 mil em 5 s), e exportar ou anonimizar um cliente com 1.000 acionamentos leva menos de 1 s. A sessão acaba com 30 minutos sem atividade ou 8 horas. As importações são processamento em lote em segundo plano (Active Job com etapas retomáveis, Active Record e o mesmo histórico de alterações das telas): a carga de 200 mil linhas confere a mais de mil linhas por segundo e confirma a cerca de 70, sem travar as telas.
 
 ## Como rodar
 
@@ -207,8 +211,20 @@ Com `CRM_DEMO=1`, o Sidekiq agenda `crm:demo_reset` para as 4h. Verificação pe
 
 Os segredos de fornecedor de pagamento (Client Secret, certificado `.p12`, segredo de webhook) são cifrados com o Active Record Encryption do Rails, e as chaves ficam nas credenciais cifradas de cada ambiente. O repositório traz só as credenciais de teste (com a chave versionada de propósito). Para produção, gere as suas: `bin/rails credentials:edit --environment production` e `bin/rails db:encryption:init` (uma lista em `primary_key` permite a rotação: `bin/rails crm:encryption:rotate`), e guarde a chave mestra (`RAILS_MASTER_KEY`) fora do repositório.
 
-## Licença
+## Licença e EasyUI
 
-[GNU Affero General Public License v3.0](LICENSE).
+O CRM é distribuído sob a [PolyForm Noncommercial License 1.0.0](LICENSE). Ela permite usar, copiar, alterar e redistribuir o código para fins não comerciais, como estudo, pesquisa e projetos pessoais, e o uso por organizações sem fins comerciais. O uso comercial não é permitido. Esta não é uma licença de software livre, e o texto que vale é o do arquivo [LICENSE](LICENSE), em inglês.
+
+As versões publicadas antes sob a GNU Affero General Public License v3.0 continuam sob aquela licença para quem as obteve.
+
+> [!WARNING]
+> **O EasyUI não está coberto pela licença do CRM.** O [EasyUI for jQuery](https://www.jeasyui.com/) é software de terceiros, propriedade da EasyUI Team, usado aqui sob a [licença gratuita](https://www.jeasyui.com/license_freeware.php).
+>
+> - A licença gratuita vale só para projetos e sites sem fins lucrativos.
+> - Ela **exclui entidades governamentais**. A licença do CRM permite o uso por órgãos de governo; a do EasyUI, não. Nesse caso, é preciso a licença comercial do EasyUI.
+> - Qualquer uso com fins lucrativos precisa da [licença comercial](https://www.jeasyui.com/license_commercial.php), comprada da EasyUI Team, e de autorização do autor do CRM.
+> - Os avisos de direitos dos arquivos do EasyUI não podem ser alterados nem retirados.
+>
+> Quem usa o CRM é responsável por cumprir as duas licenças. Este resumo não substitui os textos delas nem é orientação jurídica.
 
 Os comentários do código citam regras (R1, R2…) e decisões das especificações. As especificações são documentos internos do projeto e não estão neste repositório; a série no blog conta cada uma.

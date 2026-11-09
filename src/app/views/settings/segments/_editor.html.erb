@@ -1,51 +1,53 @@
-<%# Editor do segmento (13, R301 a R305): à esquerda o nome e a caixa de texto na linguagem; à direita, fixa ao rolar, a coluna "Como fica" com a
-    leitura e os erros de cada linha (refeita pelo htmx a cada pausa na digitação, sem refazer a caixa), "Conferir" e onde o segmento é usado.
-    Locais: segment, source, parsed, probe. %>
+<%# Editor do segmento (13, R301 a R305): à esquerda o nome e a caixa de texto na linguagem; à direita a coluna "Como fica", com a leitura e os erros de cada
+    linha (cálculo à vista, design system 7.2: refeita a cada pausa na digitação, e o Salvar só se habilita com o texto lido sem erro), "Conferir" e onde o
+    segmento é usado. O formulário abraça as duas colunas, para o "Conferir" levar o texto sem depender de id. Na recusa (422), a SPA troca o editor pelo
+    refeito, com o que foi digitado e as mensagens. Locais: segment, source, parsed, probe. %>
 <% url = segment.persisted? ? settings_segment_path(segment) : settings_segments_path %>
-<% draft = draft_settings_segments_path(id: segment.id, tenant_id: segment.tenant_id) %>
-<div id="editor-segmento" class="ficha" data-lateral="formulario">
-  <%= form_with scope: :segment, url: url, method: (segment.persisted? ? :patch : :post), id: "formulario-segmento", html: { "hx-boost": "false" } do |f| %>
-    <%= hidden_field_tag :tenant_id, segment.tenant_id %>
-    <% if @show_errors && parsed && parsed.errors.any? %>
-      <%= aviso(tom: :danger) { tag.p "O texto tem erros; corrija o que está marcado em \"Como fica\" para salvar." } %>
-    <% end %>
-    <section class="cartao" aria-labelledby="passo-nome">
-      <header><h2 id="passo-nome">Nome</h2></header>
-      <div>
-        <div class="campo">
-          <%= f.label :name, "Nome do segmento" %>
-          <%= f.text_field :name, value: segment.name, maxlength: 100, required: true, "aria-describedby": "ajuda-nome#{' erro-nome' if segment.errors[:name].any?}" %>
-          <small id="ajuda-nome">Diga o público em poucas palavras, por exemplo "Contratos com atraso longo". Único no credor.</small>
-          <% segment.errors[:name].each do |message| %><small id="erro-nome" class="erro" role="alert"><%= message %></small><% end %>
-        </div>
-      </div>
-    </section>
-    <section class="cartao" aria-labelledby="passo-texto">
-      <header><h2 id="passo-texto">Condições</h2><%= informacao "condições", "Escreva uma condição por linha. Todas valem juntas; num grupo \"qualquer:\", basta uma das linhas de baixo, mais recuadas.", "definicao-condicoes" %></header>
-      <div>
-        <div class="campo campo-largo">
-          <%= f.label :source, "Texto do segmento" %>
-          <%= f.text_area :source, value: source, rows: 12, spellcheck: false, autocapitalize: "off", autocomplete: "off", class: "editor-de-segmento",
-                "aria-describedby": "como-escrever leitura-ao-vivo",
-                "hx-post": draft, "hx-trigger": "input changed delay:600ms", "hx-target": "#como-fica", "hx-swap": "outerHTML", "hx-include": "#formulario-segmento", "hx-push-url": "false" %>
-        </div>
-        <section id="como-escrever" class="ajuda-de-escrita" aria-label="Como escrever">
-          <h3>Como escrever</h3>
-          <ul>
-            <li>Primeira linha: <code>contratos</code> ou <code>clientes</code>.<%= " Ela não muda depois de criado." if segment.persisted? %></li>
-            <li>Uma condição por linha, recuada: <code>atraso &gt; 90</code>, <code>títulos vencidos &gt;= 3</code>, <code>sem contato válido</code>.</li>
-            <li>Comparações: <code>=</code> <code>≠</code> <code>&gt;</code> <code>&gt;=</code> <code>&lt;</code> <code>&lt;=</code> <code>entre 30 e 90</code> <code>em PF, misto</code>.</li>
-            <li>Coleções: <code>algum</code>, <code>todos os</code>, <code>nenhum</code>, <code>soma</code>, <code>maior</code>, <code>menor</code>, e <code>em 30 dias</code> no fim.</li>
-            <li>Para "ou": <code>qualquer:</code> e as linhas de baixo mais recuadas.</li>
-          </ul>
-          <p><small>Todos os termos, com exemplo: <%= link_to "glossário dos segmentos", settings_segment_glossary_path, target: "_blank", rel: "noopener" %> (abre em nova aba).</small></p>
+<% draft = draft_settings_segments_path(id: segment.id, credor: segment.tenant_id) %>
+<div data-refazer-no-erro>
+  <%= form_with scope: :segment, url: url, method: (segment.persisted? ? :patch : :post), **calculo_a_vista(draft) do |f| %>
+    <%= hidden_field_tag :credor, segment.tenant_id, id: nil %>
+    <div class="ficha" data-lateral="formulario">
+      <div class="pilha-de-cartoes">
+        <% if @show_errors && parsed && parsed.errors.any? %>
+          <%= aviso(tom: :danger) { tag.p "O texto tem erros; corrija o que está marcado em \"Como fica\" para salvar." } %>
+        <% end %>
+        <section class="cartao" aria-labelledby="passo-nome">
+          <header><h2 id="passo-nome">Nome</h2></header>
+          <div>
+            <div class="campo">
+              <%= f.label :name, "Nome do segmento" %>
+              <%= f.text_field :name, value: segment.name, maxlength: 100, required: true, "aria-describedby": "ajuda-nome#{' erro-nome' if segment.errors[:name].any?}" %>
+              <small id="ajuda-nome">Diga o público em poucas palavras, por exemplo "Contratos com atraso longo". Único no credor.</small>
+              <% segment.errors[:name].each do |message| %><small id="erro-nome" class="erro" role="alert"><%= message %></small><% end %>
+            </div>
+          </div>
+        </section>
+        <section class="cartao" aria-labelledby="passo-texto">
+          <header><h2 id="passo-texto">Condições</h2><%= informacao "condições", "Escreva uma condição por linha. Todas valem juntas; num grupo \"qualquer:\", basta uma das linhas de baixo, mais recuadas.", "definicao-condicoes" %></header>
+          <div class="campos-do-cartao">
+            <div class="campo">
+              <%= f.label :source, "Texto do segmento" %>
+              <%= f.text_area :source, value: source, rows: 12, spellcheck: false, autocapitalize: "off", autocomplete: "off", class: "editor-de-segmento", "aria-describedby": "como-escrever" %>
+            </div>
+            <section id="como-escrever" class="ajuda-de-escrita" aria-label="Como escrever">
+              <h3>Como escrever</h3>
+              <ul>
+                <li>Primeira linha: <code>contratos</code> ou <code>clientes</code>.<%= " Ela não muda depois de criado." if segment.persisted? %></li>
+                <li>Uma condição por linha, recuada: <code>atraso &gt; 90</code>, <code>títulos vencidos &gt;= 3</code>, <code>sem contato válido</code>.</li>
+                <li>Comparações: <code>=</code> <code>≠</code> <code>&gt;</code> <code>&gt;=</code> <code>&lt;</code> <code>&lt;=</code> <code>entre 30 e 90</code> <code>em PF, misto</code>.</li>
+                <li>Coleções: <code>algum</code>, <code>todos os</code>, <code>nenhum</code>, <code>soma</code>, <code>maior</code>, <code>menor</code>, e <code>em 30 dias</code> no fim.</li>
+                <li>Para "ou": <code>qualquer:</code> e as linhas de baixo mais recuadas.</li>
+              </ul>
+              <p><small>Todos os termos, com exemplo, no <%= link_to "glossário dos segmentos", settings_segment_glossary_path %>, que abre numa janela.</small></p>
+            </section>
+            <div class="acoes" data-rodape>
+              <button type="submit" name="acao" value="salvar" data-depende-do-calculo><%= segment.persisted? && segment.used? ? "Conferir o impacto" : "Salvar segmento" %></button>
+            </div>
+          </div>
         </section>
       </div>
-      <div class="acoes" data-rodape>
-        <%= link_to "Cancelar", settings_segments_path, class: "botao", data: { variant: "secondary" } %>
-        <button type="submit" name="acao" value="salvar"><%= segment.persisted? && segment.used? ? "Conferir o impacto" : "Salvar segmento" %></button>
-      </div>
-    </section>
+      <%= render "settings/segments/como_fica", segment: segment, source: source, parsed: parsed, probe: probe %>
+    </div>
   <% end %>
-  <%= render "settings/segments/como_fica", segment: segment, source: source, parsed: parsed, probe: probe %>
 </div>

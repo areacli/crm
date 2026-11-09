@@ -1,6 +1,7 @@
 <% content_for :title, "Conferir o impacto das filas" %>
 <% content_for :cable_channels, @cable %>
-<%= pagina "Conferir o impacto", subtitulo: safe_join([ "Enquadramento das filas de #{t("queues.subjects.#{@proposal.subject}").downcase} de #{@tenant.name}. Nada muda até você confirmar. ", link_to("Voltar", queues_work_queues_path(tenant_id: @tenant.id)) ]) %>
+<% descricao = "Enquadramento das filas de #{t("queues.subjects.#{@proposal.subject}").downcase} de #{@tenant.name}. Nada muda até você confirmar." %>
+<%= pagina "Conferir o impacto", subtitulo: descricao %>
 <section class="cartao" aria-labelledby="proposta">
   <header><h2 id="proposta">Como fica</h2></header>
   <div>

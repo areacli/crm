@@ -7,15 +7,16 @@ class ValueDiscrepanciesController < ApplicationController
     authorize ValueDiscrepancy
     @tenant_ids = Current.user.tenant_ids_with("confirm_payments")
     @several_tenants = @tenant_ids.size > 1
-    @status = STATUSES.include?(params[:status]) ? params[:status] : (params[:status] == "all" ? nil : "open")
+    status = FilterValue.from_url(params[:situacao])
+    @status = STATUSES.include?(status) ? status : (status == "all" ? nil : "open")
     scope = policy_scope(ValueDiscrepancy).includes(:bill, :tenant)
     scope = scope.where(status: @status) if @status
-    scope = scope.where(tenant_id: params[:tenant]) if params[:tenant].present?
-    @pagination = Pagination.new(scope.includes(bill: :customer).recent, page: params[:page], per_page: params[:per_page])
+    scope = scope.where(tenant_id: params[:credor]) if params[:credor].present?
+    @pagination = Pagination.new(scope.includes(bill: :customer).recent, page: params[:pagina], per_page: params[:por_pagina])
     @discrepancies = @pagination.records
     @tenants = Tenant.where(id: @tenant_ids).order(:name).pluck(:name, :id)
     @view_customer_tenants = Current.user.tenant_ids_with("view_portfolio")
-    render partial: "value_discrepancies/result" if htmx_fragment?
+    render partial: "value_discrepancies/result" if fragment?
   end
 
   def show

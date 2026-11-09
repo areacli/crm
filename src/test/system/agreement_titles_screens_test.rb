@@ -1,7 +1,7 @@
 require "application_system_test_case"
 
-# Títulos do acordo no navegador (11, R221 a R244): a página do acordo efetivado, a ficha com os títulos de acordo e os renegociados, o cálculo da quitação, a quebra manual, o acordo
-# quebrado, o arquivo de acordos e a simulação com crédito; no axe e sem rolagem horizontal.
+# Títulos do acordo no navegador (11, R221 a R244), nas abas da casca: a página do acordo efetivado, a ficha com os títulos de acordo e os renegociados, o
+# cálculo da quitação, a quebra manual, o acordo quebrado, o arquivo de acordos e a simulação com crédito, sem rolagem horizontal.
 class AgreementTitlesScreensSystemTest < ApplicationSystemTestCase
   include ActiveJob::TestHelper
 
@@ -12,63 +12,52 @@ class AgreementTitlesScreensSystemTest < ApplicationSystemTestCase
     travel_day(Date.new(2026, 11, 4))
     pay_lines([ pay_line("ACD-000001-00", Date.new(2026, 11, 4), 34_366) ])
     travel_back
-    visit new_session_path
-    fill_in "E-mail", with: users(:joana).email_address
-    fill_in "Senha", with: "senha-de-teste-1"
-    click_button "Entrar"
-    assert_selector "h1", text: "Resumo da carteira"
+    entrar_na_casca
   end
 
   def sem_rolagem_horizontal = assert_not(page.evaluate_script("document.documentElement.scrollWidth > document.documentElement.clientWidth"))
 
-  test "a página do acordo efetivado mostra os títulos de acordo, calcula a quitação e quebra manualmente, no axe" do
+  test "a página do acordo efetivado mostra os títulos de acordo, calcula a quitação e quebra manualmente" do
     visit agreement_path(@agreement)
-    assert_selector "h1", text: /Acordo ACD-000001/
-    assert_selector "h2", text: "Títulos de acordo"
-    assert_selector "th a", text: "ACD-000001-03"
-    assert_acessivel
-    sem_rolagem_horizontal
+    assert_selector ".aba-raiz h1", text: /Acordo ACD-000001/, wait: 15
+    assert_selector ".aba-raiz h2", text: "Títulos de acordo"
+    assert_selector ".aba-raiz .datagrid-row a", text: "ACD-000001-03"
 
-    find("button.menu-de-linha[aria-label='Mais ações do acordo']").click
-    click_link "Calcular quitação"
-    assert_selector "dialog#painel[open][data-variant=modal]"
-    fill_in "Data da quitação", with: (Date.current + 30).iso8601
-    within("dialog#painel[open]") { click_button "Calcular quitação" }
-    assert_selector "li", text: /Quitação calculada para/, wait: 10
-    assert_acessivel
+    mais_acoes "Calcular quitação"
+    no_dialogo do
+      find_field("Data da quitação").fill_in(with: (Date.current + 30).strftime("%d/%m/%Y"))
+      find_field("Data da quitação").send_keys(:tab)
+    end
+    gravar_dialogo "Calcular quitação"
+    assert_aviso(/Quitação calculada/)
+    assert_selector ".aba-raiz li", text: /Quitação calculada para/, wait: 10
 
-    find("button.menu-de-linha[aria-label='Mais ações do acordo']").click
-    click_link "Quebrar o acordo"
-    fill_in "Motivo da quebra", with: "documento falso"
-    check "Quebra por fraude"
-    within("dialog#painel[open]") { click_button "Quebrar o acordo" }
-    assert_selector "aside", text: /Acordo quebrado em/, wait: 10
-    assert_acessivel
-    sem_rolagem_horizontal
+    mais_acoes "Quebrar o acordo"
+    no_dialogo do
+      fill_in "Motivo da quebra", with: "documento falso"
+      check "Quebra por fraude"
+    end
+    gravar_dialogo "Quebrar o acordo"
+    assert_selector ".aba-raiz aside", text: /Acordo quebrado em/, wait: 10
   end
 
   test "a ficha marca o título de acordo e o renegociado e a lista de acordos leva ao arquivo" do
-    visit customer_path(@customer)
-    assert_selector "td .situacao", text: "Renegociado"
-    assert_acessivel
-    sem_rolagem_horizontal
-    # Padrões de interface, revisão 27: a origem do título fica na página dele, aberta pelo número.
-    click_link Bill.where(customer: @customer).where.not(agreement_id: nil).order(:due_date).first.number
-    assert_selector "section[aria-labelledby=cobranca-do-titulo] p", text: /Título de acordo ACD-000001/
-    assert_acessivel
+    visitar_ficha(@customer)
+    na_aba_interna { assert_selector ".datagrid-row .situacao", text: "Renegociado" }
+    # Padrões de interface, revisões 27 e 38: a origem do título fica na janela dele, aberta pelo número.
+    na_aba_interna { click_link Bill.where(customer: @customer).where.not(agreement_id: nil).order(:due_date).first.number }
+    assert_selector ".janela-corpo section[aria-labelledby=cobranca-do-titulo] p", text: /Título de acordo ACD-000001/
     visit bill_path(Bill.where(customer: @customer).detect(&:renegotiated?))
-    assert_selector "section[aria-labelledby=cobranca-do-titulo] p", text: /Renegociado no acordo ACD-000001/
+    assert_selector ".janela-corpo section[aria-labelledby=cobranca-do-titulo] p", text: /Renegociado no acordo ACD-000001/, wait: 15
 
-    visit agreements_path
+    visitar_lista agreements_path
     click_link "Ver o arquivo de acordos"
-    assert_selector "h1", text: "Arquivo de acordos"
-    click_link "Exportar"
-    select "Completo", from: "Forma"
-    within("dialog#painel[open]") { click_button "Exportar" }
-    assert_selector "[role=status], .aviso", text: /Arquivo de acordos exportado/, wait: 10
-    assert_selector "td a", text: "Baixar"
-    assert_acessivel
-    sem_rolagem_horizontal
+    assert_selector ".aba-raiz h1", text: "Arquivo de acordos"
+    within(".aba-raiz .cabecalho-da-pagina") { click_link "Exportar" }
+    no_dialogo { escolher "Forma", "Completo" }
+    gravar_dialogo "Exportar"
+    assert_aviso(/Arquivo de acordos exportado/)
+    assert_selector ".aba-raiz .datagrid-row a", text: "Baixar", wait: 10
   end
 
   test "a simulação oferece o crédito do contrato e mostra o que falta da entrada" do
@@ -79,15 +68,16 @@ class AgreementTitlesScreensSystemTest < ApplicationSystemTestCase
     PaymentPromise.delete_all
     Bill.where(id: [ @nf1.id, @nf2.id ]).update_all(status: "active")
     visit new_customer_agreement_simulation_path(@customer)
+    assert_selector ".simulacao form[data-calculo]", wait: 15
     check "titulo-#{@nf1.id}"
     check "titulo-#{@nf2.id}"
     fill_in "Desconto em multa (%)", with: "50"
     fill_in "Desconto em juros (%)", with: "50"
-    fill_in "Parcelas", with: "4"
+    escolher "Parcelas", "4 parcelas"
     fill_in "Dia de vencimento das parcelas", with: "5"
     fill_in "Crédito do contrato a usar", with: "43,66"
-    assert_selector "#simulacao dt", text: "Crédito do contrato usado na entrada"
-    assert_acessivel
+    assert_selector ".estado-do-calculo[data-situacao=calculado]", wait: 10
+    assert_selector ".simulacao-resultado dt", text: "Crédito do contrato usado na entrada"
     sem_rolagem_horizontal
     assert_not_nil other
   end

@@ -27,10 +27,12 @@ module Promises
           days = Integer(values[:max_days].to_s, exception: false)
           raise Refused, I18n.t("promises.settings.invalid_days", tier: tier.name) unless days&.between?(1, 365)
 
+          # A alçada que veio como estava não é uma escolha: o prazo menor já a baixou (R190), e a tela envia todas as alçadas junto com o prazo.
+          sent = PromiseLimit.where(tier_id: tier.id).pluck(:profile_id, :max_days).to_h
           lower_limits(tier, days) if days < tier.promise_max_days
           log_days(tier, tier.promise_max_days, days)
           tier.update!(promise_max_days: days)
-          values.fetch(:limits, {}).each { |profile_id, raw| set_limit(tier, profile_id.to_s.to_i, raw, days) }
+          values.fetch(:limits, {}).each { |profile_id, raw| set_limit(tier, profile_id.to_s.to_i, raw, days) unless raw.to_s == sent[profile_id.to_s.to_i].to_s }
         end
       end
     end

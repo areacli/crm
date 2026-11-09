@@ -1,6 +1,6 @@
 <% content_for :title, "Configuração · Segmento #{@segment.name}" %>
 <% text = @segment.text %>
-<%= pagina @segment.name, subtitulo: safe_join([ @segment.tenant.name, " · ", t("segments.subjects.#{@segment.subject}"), " · ", link_to("Voltar para os segmentos", settings_segments_path) ]) do %>
+<%= pagina @segment.name, subtitulo: safe_join([ @segment.tenant.name, " · ", t("segments.subjects.#{@segment.subject}") ]) do %>
   <% if policy(@segment).update? %><%= link_to "Editar", edit_settings_segment_path(@segment), class: "botao" %><% end %>
 <% end %>
 <%= render "settings/modelo" %>

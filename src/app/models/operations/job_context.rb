@@ -5,6 +5,7 @@ module Operations
   class JobContext
     include Sidekiq::ServerMiddleware
 
-    def call(_job_instance, _job, _queue, &) = Context.for_user(nil, &)
+    # Pelo nome completo: o Sidekiq guarda esta classe, e em desenvolvimento a recarga do código deixaria o `Context` do escopo antigo sem definição.
+    def call(_job_instance, _job, _queue, &) = Operations::Context.for_user(nil, &)
   end
 end

@@ -11,10 +11,10 @@ module OriginFilter
     end
 
     def apply_origin(scope)
-      case params[:origin].to_s
+      case FilterValue.from_url(params[:origem].to_s)
       when "" then scope
       when "team" then scope.where(operation_id: nil)
-      else scope.where(operation_id: params[:origin].to_i)
+      else scope.where(operation_id: params[:origem].to_i)
       end
     end
 

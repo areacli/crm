@@ -2,6 +2,7 @@
 <%= pagina "Promessas e acordos", subtitulo: "Políticas, prazos e alçadas; a mudança vale só para as promessas e propostas novas." %>
 <%= render "settings/modelo" %>
 
+<div class="pagina-em-secoes">
 <% @tenants.each do |tenant| %>
   <% setting = tenant.setting %>
   <% tiers = @tiers.fetch(tenant.id, []) %>
@@ -9,25 +10,20 @@
   <section class="cartao" aria-labelledby="politicas-<%= tenant.id %>">
     <header><h2 id="politicas-<%= tenant.id %>">Políticas — <%= tenant.name %></h2></header>
     <div>
-      <%= form_with url: settings_promise_policy_path, method: :patch, html: { "hx-boost": "false" } do |form| %>
-        <%= hidden_field_tag :tenant_id, tenant.id %>
-        <div class="grupo-de-campos">
-          <div class="campo">
-            <%= label_tag "dias-#{tenant.id}", "Tolerância de dias" %>
-            <%= number_field_tag "tenant_setting[promise_tolerance_days]", setting.promise_tolerance_days, id: "dias-#{tenant.id}", min: 0, max: 60, required: true, "aria-describedby": "ajuda-dias-#{tenant.id}" %>
-            <small id="ajuda-dias-<%= tenant.id %>">Dias que a promessa espera o arquivo de pagamentos antes de quebrar.</small>
-          </div>
-          <div class="campo">
-            <%= label_tag "carencia-#{tenant.id}", "Carência após quebra ou recusa (dias)" %>
-            <%= number_field_tag "tenant_setting[promise_grace_days]", setting.promise_grace_days, id: "carencia-#{tenant.id}", min: 0, max: 365, required: true, "aria-describedby": "ajuda-carencia-#{tenant.id}" %>
-            <small id="ajuda-carencia-<%= tenant.id %>">Após quebra, cancelamento, recusa ou não aprovação o título só entra em promessa nova depois deste prazo. Zero é sem carência.</small>
-          </div>
-          <div class="campo">
-            <%= label_tag "minimo-#{tenant.id}", "Cumprida a partir de (%)" %>
-            <%= number_field_tag "tenant_setting[promise_min_paid_pct]", setting.promise_min_paid_pct, id: "minimo-#{tenant.id}", min: 1, max: 99, "aria-describedby": "ajuda-minimo-#{tenant.id}" %>
-            <small id="ajuda-minimo-<%= tenant.id %>">Pagamento abaixo do valor. Vazio: só cumpre com 100%; o que faltou continua devido.</small>
-          </div>
-        </div>
+      <%= form_with url: settings_promise_policy_path, method: :patch do |form| %>
+        <%= hidden_field_tag :credor, tenant.id, id: nil %>
+        <%= politica("Tolerância", "dias-#{tenant.id}") do %>
+          <%= number_field_tag "tenant_setting[promise_tolerance_days]", setting.promise_tolerance_days, id: "dias-#{tenant.id}", min: 0, max: 60, required: true, "aria-label": "Tolerância, em dias", "aria-describedby": "ajuda-dias-#{tenant.id}" %>
+          <small id="ajuda-dias-<%= tenant.id %>">Dias que a promessa espera o arquivo de pagamentos antes de quebrar.</small>
+        <% end %>
+        <%= politica("Carência após quebra ou recusa", "carencia-#{tenant.id}") do %>
+          <%= number_field_tag "tenant_setting[promise_grace_days]", setting.promise_grace_days, id: "carencia-#{tenant.id}", min: 0, max: 365, required: true, "aria-label": "Carência após quebra ou recusa, em dias", "aria-describedby": "ajuda-carencia-#{tenant.id}" %>
+          <small id="ajuda-carencia-<%= tenant.id %>">Dias. Após quebra, cancelamento, recusa ou não aprovação, o título só entra em promessa nova depois deste prazo. Zero é sem carência.</small>
+        <% end %>
+        <%= politica("Cumprida a partir de", "minimo-#{tenant.id}") do %>
+          <%= number_field_tag "tenant_setting[promise_min_paid_pct]", setting.promise_min_paid_pct, id: "minimo-#{tenant.id}", min: 1, max: 99, "aria-label": "Cumprida a partir de, em porcentagem do valor", "aria-describedby": "ajuda-minimo-#{tenant.id}" %>
+          <small id="ajuda-minimo-<%= tenant.id %>">Porcentagem do valor prometido. Vazio: só cumpre com 100%; o que faltou continua devido.</small>
+        <% end %>
         <%= politica("Pagamentos que contam", "pol-1-#{tenant.id}") do %>
           <% TenantSetting::PROMISE_COUNTING.each do |value| %>
             <label><%= radio_button_tag "tenant_setting[promise_counting]", value, setting.promise_counting == value, id: "contam-#{tenant.id}-#{value}" %> <%= t("promises.policies.counting.#{value}") %></label>
@@ -51,8 +47,8 @@
   <section class="cartao" aria-labelledby="alcada-<%= tenant.id %>">
     <header><h2 id="alcada-<%= tenant.id %>">Prazo máximo e alçada — <%= tenant.name %></h2><%= informacao "prazo e alçada", "Dias entre o contato e a data prometida. O prazo máximo é do item do enquadramento financeiro e nenhuma promessa passa dele; a alçada é o que cada perfil dá sozinho, e acima dela a promessa espera aprovação. Baixar o prazo do item baixa as alçadas que passavam dele.", "definicao-alcada-#{tenant.id}" %></header>
     <div>
-      <%= form_with url: settings_promise_limits_path, method: :patch, html: { "hx-boost": "false" } do |form| %>
-        <%= hidden_field_tag :tenant_id, tenant.id %>
+      <%= form_with url: settings_promise_limits_path, method: :patch do |form| %>
+        <%= hidden_field_tag :credor, tenant.id, id: nil %>
         <div class="tabela" tabindex="0">
           <table>
             <caption class="apenas-leitor-de-tela">Prazo máximo do item e alçada de cada perfil em <%= tenant.name %></caption>
@@ -121,3 +117,4 @@
     <% end %>
   </section>
 <% end %>
+</div>

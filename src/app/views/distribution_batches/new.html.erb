@@ -1,39 +1,56 @@
 <% content_for :title, "Distribuir em lote" %>
-<%= pagina "Distribuir em lote", subtitulo: safe_join([ "Os clientes do filtro da lista, um segmento ou uma planilha. Nada muda até você confirmar a conferência. ", link_to("Voltar para a distribuição", distributions_path) ]) %>
-<% if @error %><%= aviso(tom: :danger) { tag.p @error } %><% end %>
+<%= pagina "Distribuir em lote", subtitulo: "Os clientes do filtro da lista, um segmento ou uma planilha. Nada muda até você confirmar a conferência." %>
 <% if @accreditations.empty? %>
-  <p class="vazio">Nenhuma operação credenciada e ativa. Credencie em <%= link_to "Configuração › Operações", settings_operations_path %>.</p>
+  <p class="vazio">Nenhuma operação credenciada e ativa. Credencie em <%= link_to "Operações credenciadas", settings_operations_path %>.</p>
 <% else %>
-  <%= form_with scope: :distribution_batch, url: distribution_batches_path, multipart: true, class: "cartao" do |form| %>
-    <div>
-      <div class="campo">
-        <%= form.label :accreditation_id, "Operação" %>
-        <%= form.select :accreditation_id, @accreditations.map { |item| [ "#{item.operation.short_name} (#{item.tenant.name})", item.id ] }, {}, required: true %>
+  <% kind = params.dig(:distribution_batch, :kind).presence || (@selection.present? ? "selection" : "segment") %>
+  <%# Na recusa (422), a SPA troca esta parte pela que o servidor refez, com a mensagem (`data-refazer-no-erro`). %>
+  <div class="ficha" data-lateral="esquerda" data-refazer-no-erro>
+    <section class="cartao" aria-labelledby="lote-novo">
+      <header><h2 id="lote-novo">Lote</h2></header>
+      <%= form_with scope: :distribution_batch, url: distribution_batches_path, multipart: true do |form| %>
+        <% if @error %><%= aviso(tom: :danger) { tag.p @error } %><% end %>
+        <div class="campo">
+          <%= form.label :accreditation_id, "Operação" %>
+          <%= form.select :accreditation_id, @accreditations.map { |item| [ "#{item.operation.short_name} (#{item.tenant.name})", item.id ] }, { include_blank: "Escolha a operação", selected: params.dig(:distribution_batch, :accreditation_id) || (@accreditations.first.id if @accreditations.one?) } %>
+        </div>
+        <fieldset>
+          <legend>De onde vem o lote</legend>
+          <% if @selection.present? %>
+            <label><%= form.radio_button :kind, "selection", checked: kind == "selection" %> Os clientes do filtro da lista de clientes</label>
+            <% @selection.each do |key, value| %><%= hidden_field_tag "distribution_batch[selection][#{key}]", value, id: nil %><% end %>
+          <% end %>
+          <label><%= form.radio_button :kind, "segment", checked: kind == "segment" %> Um segmento</label>
+          <label><%= form.radio_button :kind, "file", checked: kind == "file" %> Uma planilha</label>
+        </fieldset>
+        <div class="campo" data-mostrar-se-campo="distribution_batch[kind]" data-mostrar-se-valor="segment">
+          <%= form.label :segment_id, "Segmento" %>
+          <%= form.select :segment_id, @segments.map { |segment| [ "#{segment.name} (#{t("segments.subjects.#{segment.subject}")})", segment.id ] }, { include_blank: "Escolha o segmento", selected: params.dig(:distribution_batch, :segment_id) } %>
+        </div>
+        <div class="campo" data-mostrar-se-campo="distribution_batch[kind]" data-mostrar-se-valor="file">
+          <%= form.label :file, "Planilha" %>
+          <%= form.file_field :file, accept: ".csv,text/csv" %>
+          <small>CSV com uma coluna só: <code>documento</code> (clientes) ou <code>contrato</code> (contratos, pelo código).</small>
+        </div>
+        <div class="campo">
+          <%= form.label :exposure, "Exposição" %>
+          <%= form.select :exposure, Distribution::EXPOSURES.map { [ t("distributions.exposures.#{_1}"), _1 ] }, selected: params.dig(:distribution_batch, :exposure) %>
+        </div>
+        <div class="campo"><%= form.label :starts_on, "Início" %><%= form.date_field :starts_on, value: params.dig(:distribution_batch, :starts_on).presence || Date.current %></div>
+        <div class="campo"><%= form.label :ends_on, "Fim (opcional)" %><%= form.date_field :ends_on, value: params.dig(:distribution_batch, :ends_on) %></div>
+        <div class="acoes" data-rodape><button type="submit">Conferir o lote</button></div>
+      <% end %>
+    </section>
+
+    <section class="cartao" aria-labelledby="como-funciona">
+      <header><h2 id="como-funciona">Como o lote funciona</h2></header>
+      <div>
+        <ol class="passos">
+          <li><strong>Conferência.</strong> O sistema mostra quantos contratos vão, o saldo em cobrança e o que fica de fora (contratos que já estão com outra operação, linhas da planilha que não foram encontradas). Nada muda nesta etapa.</li>
+          <li><strong>Confirmação.</strong> As distribuições são criadas para a operação, com a exposição e o período escolhidos. A conferência vale por 30 minutos; depois disso, confira de novo.</li>
+        </ol>
+        <p>Na distribuição por cliente vão também os contratos em que ele é só responsável financeiro.</p>
       </div>
-      <fieldset>
-        <legend>De onde vem o lote</legend>
-        <% if @selection.present? %>
-          <label><%= form.radio_button :kind, "selection", checked: true %> Os clientes do filtro da lista de clientes</label>
-          <% @selection.each do |key, value| %><%= hidden_field_tag "distribution_batch[selection][#{key}]", value, id: nil %><% end %>
-        <% end %>
-        <label><%= form.radio_button :kind, "segment", checked: @selection.blank? %> Um segmento</label>
-        <label><%= form.radio_button :kind, "file" %> Uma planilha (CSV com uma coluna: <code>documento</code> ou <code>contrato</code>)</label>
-      </fieldset>
-      <div class="campo">
-        <%= form.label :segment_id, "Segmento" %>
-        <%= form.select :segment_id, @segments.map { |segment| [ "#{segment.name} (#{t("segments.subjects.#{segment.subject}")})", segment.id ] }, include_blank: "Escolha, se o lote for de um segmento" %>
-      </div>
-      <div class="campo">
-        <%= form.label :file, "Planilha" %>
-        <%= form.file_field :file, accept: ".csv,text/csv" %>
-      </div>
-      <div class="campo">
-        <%= form.label :exposure, "Exposição" %>
-        <%= form.select :exposure, Distribution::EXPOSURES.map { [ t("distributions.exposures.#{_1}"), _1 ] } %>
-      </div>
-      <div class="campo"><%= form.label :starts_on, "Início" %><%= form.date_field :starts_on, value: Date.current %></div>
-      <div class="campo"><%= form.label :ends_on, "Fim (opcional)" %><%= form.date_field :ends_on %></div>
-      <div class="acoes" data-rodape><%= form.submit "Conferir o lote" %></div>
-    </div>
-  <% end %>
+    </section>
+  </div>
 <% end %>

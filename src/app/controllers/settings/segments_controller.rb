@@ -1,7 +1,7 @@
 module Settings
   # Segmentos do credor (13, R252 a R264, R273, R288 a R290, R295, R301 a R305): lista, editor de texto na linguagem com "Como fica" ao vivo e
   # "Conferir", criar, editar, apagar o segmento sem uso. Mudar as condições de um segmento usado no enquadramento leva à conferência do impacto
-  # (R272). Sem JavaScript, "Conferir" e "Salvar" enviam o texto e a página volta com a leitura e os erros.
+  # (R272). O "Conferir" roda em segundo plano e chega pelo WebSocket; a leitura do texto é o cálculo à vista do editor.
   class SegmentsController < ApplicationController
     include TierReview
 
@@ -23,10 +23,10 @@ module Settings
 
     # Segmento novo: em branco, a partir de um exemplo pronto (R290) ou cópia de outro ("Duplicar").
     def new
-      @tenant = tenant_for_segments(params[:tenant_id])
-      source = params[:from].present? ? Segment.find_by(id: params[:from], tenant_id: @tenant.id) : nil
+      @tenant = tenant_for_segments(params[:credor])
+      source = params[:de].present? ? Segment.find_by(id: params[:de], tenant_id: @tenant.id) : nil
       example = ::Segments::Examples.find(params[:exemplo])
-      subject = source&.subject || example&.subject || params[:subject].presence_in(Segment::SUBJECTS) || "contracts"
+      subject = source&.subject || example&.subject || params[:sujeito].presence_in(Segment::SUBJECTS) || "contracts"
       @segment = Segment.new(tenant: @tenant, subject: subject, name: source ? "#{source.name} (cópia)" : example&.name.to_s)
       tree = source&.expression || example&.tree
       @source = tree ? ::Segments::Text.new(::Segments::Expression.new(tree.merge("subject" => subject))).short_text : "#{I18n.t("segment_language.subjects.#{subject}.short")}\n  "
@@ -34,10 +34,9 @@ module Settings
     end
 
     def create
-      @tenant = tenant_for_segments(params[:tenant_id])
+      @tenant = tenant_for_segments(params[:credor])
       @segment = Segment.new(tenant: @tenant)
       read_form
-      return render_editor(:new) if editing?
       return render_editor(:new, status: :unprocessable_content) unless @parsed.ok?
 
       if @segment.save
@@ -56,7 +55,6 @@ module Settings
     def update
       before = @segment.text.short_text
       read_form
-      return render_editor(:edit) if editing?
       return render_editor(:edit, status: :unprocessable_content) unless @parsed.ok? && @segment.valid?
       # R272: segmento usado no enquadramento muda só depois da conferência do impacto.
       return render_review(::Tiers::Proposal.current(@tenant).with_segment(@segment), back: edit_settings_segment_path(@segment)) if @segment.used?
@@ -74,17 +72,20 @@ module Settings
       redirect_to settings_segments_path, notice: t("segments.flash.destroyed", name: @segment.name), status: :see_other
     end
 
-    # Rascunho (htmx, enquanto o gestor escreve): só a coluna "Como fica", com a leitura e os erros de cada linha; a caixa de texto não é refeita.
+    # Rascunho (cálculo à vista da SPA, enquanto o gestor escreve): só a coluna "Como fica", com a leitura e os erros de cada linha; a caixa de texto não é refeita.
     def draft
-      @segment = params[:id].present? ? Segment.find(params[:id]).tap { |segment| authorize segment, :update? } : Segment.new(tenant: tenant_for_segments(params[:tenant_id]))
+      @segment = params[:id].present? ? Segment.find(params[:id]).tap { |segment| authorize segment, :update? } : Segment.new(tenant: tenant_for_segments(params[:credor]))
       @tenant = @segment.tenant
       read_form
+      # Na SPA, é o cálculo à vista do editor: só a leitura, que entra no lugar da anterior.
+      return render(partial: "settings/segments/leitura", locals: { segment: @segment, source: @source, parsed: @parsed }) if spa?
+
       render partial: "settings/segments/como_fica", locals: { segment: @segment, source: @source, parsed: @parsed, probe: nil }
     end
 
     # "Conferir" (R288, revisão 3): em segundo plano; devolve o trecho "Contando…", que se completa quando o WebSocket avisa.
     def probe
-      @segment = params[:id].present? ? Segment.find(params[:id]).tap { |segment| authorize segment, :update? } : Segment.new(tenant: tenant_for_segments(params[:tenant_id]))
+      @segment = params[:id].present? ? Segment.find(params[:id]).tap { |segment| authorize segment, :update? } : Segment.new(tenant: tenant_for_segments(params[:credor]))
       @tenant = @segment.tenant
       read_form
       probe = @parsed.ok? ? { "status" => "running", "id" => ::Segments::ProbeRun.start(@tenant, @segment.expression_object) } : { "invalid" => true }
@@ -126,19 +127,9 @@ module Settings
         @segment.expression = @parsed.tree
       end
 
-      def editing? = params[:acao] == "conferir"
-
       def render_editor(template, status: :ok)
         @show_errors = status != :ok
-        @probe = sync_probe if params[:acao] == "conferir"
         render template, status: status
-      end
-
-      # Sem JavaScript não há aviso pelo WebSocket: o "Conferir" do formulário comum calcula na própria requisição.
-      def sync_probe
-        return { "invalid" => true } unless @parsed.ok?
-
-        { "status" => "done" }.merge(::Segments::Probe.new(@tenant, @segment.expression_object).call.deep_stringify_keys)
       end
 
       def filtered(scope)

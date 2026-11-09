@@ -1,1 +1,3 @@
-<%= render "profiles/form", profile: @profile, tenants: @tenants, url: profiles_path, method: :post, titulo: "Novo perfil" %>
+<% content_for :title, "Novo perfil" %>
+<%= pagina "Novo perfil", subtitulo: "Um conjunto de permissões, dado a quem atua num credor" %>
+<%= render "profiles/form", profile: @profile, tenants: @tenants, url: profiles_path, method: :post %>

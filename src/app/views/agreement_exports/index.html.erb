@@ -1,6 +1,6 @@
 <% content_for :title, "Arquivo de acordos" %>
 <%# Arquivo de acordos (11, R244): exportar para o credor emitir a entrada e as parcelas, e a lista das exportações. Só os credores em que o usuário administra acordos. %>
-<%= pagina "Arquivo de acordos", subtitulo: safe_join([ "O que o credor precisa para emitir a entrada e as parcelas. ", link_to("Voltar para os acordos", agreements_path) ]) do %>
+<%= pagina "Arquivo de acordos", subtitulo: "O que o credor precisa para emitir a entrada e as parcelas." do %>
   <%= abrir_painel "Exportar", new_agreement_export_path %>
 <% end %>
 
@@ -28,12 +28,12 @@
               <td><%= t("agreements.export_forms.#{export.form}") %></td>
               <td data-numerico><%= number_br(export.lines) %></td>
               <td><%= export.user&.name || "Sistema" %></td>
-              <td><%= export.available? ? link_to("Baixar", agreement_export_path(export), "hx-boost": "false") : "Apagado (mais de 30 dias)" %></td>
+              <td><%= export.available? ? link_to("Baixar", agreement_export_path(export)) : "Apagado (mais de 30 dias)" %></td>
             </tr>
           <% end %>
         </tbody>
       </table>
     </div>
-    <%= render "shared/paginacao", pagination: @pagination, unit: "exportações", path: ->(page) { agreement_exports_path(request.query_parameters.merge("page" => page)) } %>
+    <%= render "shared/paginacao", pagination: @pagination, unit: "exportações", path: ->(page) { agreement_exports_path(request.query_parameters.merge("pagina" => page)) } %>
   <% end %>
 </section>

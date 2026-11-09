@@ -1,16 +1,27 @@
-<%# Campos do grupo. Local: form. %>
+<%# Campos do grupo: os usuários numa lista de caixas de marcar e as filas numa tabela curta, com a posição de cada uma no grupo. Local: form. %>
 <% if @group.errors.any? %><%= aviso(tom: :danger) { @group.errors.full_messages.to_sentence } %><% end %>
 <div class="campo"><%= form.label :name, "Nome" %><%= form.text_field :name, value: @group.name, required: true, maxlength: 100 %></div>
 <fieldset>
   <legend>Usuários</legend>
   <% if @users.empty? %><p class="vazio">Nenhum usuário com a permissão de registrar acionamentos neste credor.</p><% end %>
-  <% @users.each do |user| %><label><%= check_box_tag "group[user_ids][]", user.id, @group.users.include?(user), id: "usuario-#{user.id}" %> <%= user.name %></label><% end %>
+  <div class="lista-de-escolhas">
+    <% @users.each do |user| %><label><%= check_box_tag "group[user_ids][]", user.id, @group.users.include?(user), id: "usuario-#{user.id}" %> <%= user.name %></label><% end %>
+  </div>
 </fieldset>
 <fieldset>
   <legend>Filas e a ordem delas no grupo</legend>
   <small>Deixe em branco a fila que não é deste grupo.</small>
   <% positions = @group.queue_group_queues.to_h { [ _1.work_queue_id, _1.position ] } %>
-  <% @queues.each do |queue| %>
-    <div class="campo"><%= label_tag "fila-#{queue.id}", "#{queue.name} (#{t("queues.subjects.#{queue.subject}").downcase})" %><%= number_field_tag "group[queue_positions][#{queue.id}]", positions[queue.id], min: 1, id: "fila-#{queue.id}" %></div>
-  <% end %>
+  <table class="campos-em-tabela">
+    <caption class="apenas-leitor-de-tela">Posição de cada fila no grupo</caption>
+    <thead><tr><th scope="col">Fila</th><th scope="col">Posição</th></tr></thead>
+    <tbody>
+      <% @queues.each do |queue| %>
+        <tr>
+          <th scope="row"><%= label_tag "fila-#{queue.id}", queue.name %> <small><%= t("queues.subjects.#{queue.subject}").downcase %></small></th>
+          <td><%= number_field_tag "group[queue_positions][#{queue.id}]", positions[queue.id], min: 1, id: "fila-#{queue.id}" %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
 </fieldset>

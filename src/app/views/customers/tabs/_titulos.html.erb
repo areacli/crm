@@ -50,7 +50,7 @@
               <td data-acoes>
                 <% if can_use %>
                   <%= menu_de_linha("titulo-#{bill.id}", "Ações do título #{bill.number}") do %>
-                    <%= abrir_painel "Usar crédito (disponível #{money(@credit_totals[bill.contract_id])})", new_customer_credit_use_path(@customer, bill_id: bill.id) %>
+                    <%= abrir_painel "Usar crédito (disponível #{money(@credit_totals[bill.contract_id])})", new_customer_credit_use_path(@customer, titulo_id: bill.id) %>
                   <% end %>
                 <% end %>
               </td>

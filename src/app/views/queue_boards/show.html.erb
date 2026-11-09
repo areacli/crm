@@ -1,6 +1,7 @@
 <% content_for :title, "Fila · #{@queue.name}" %>
 <% content_for :cable_channels, @cable %>
-<%= pagina @queue.name, subtitulo: safe_join([ "#{t("queues.subjects.#{@queue.subject}")} em ordem: #{[ t("queues.orders.#{@queue.order_by}"), (t("queues.orders.#{@queue.order_tiebreak}") if @queue.order_tiebreak) ].compact.join("; empate, ")}. ", link_to("Voltar às filas", queues_board_path(tenant_id: @tenant.id)) ]) %>
+<% descricao = "#{t("queues.subjects.#{@queue.subject}")} em ordem: #{[ t("queues.orders.#{@queue.order_by}"), (t("queues.orders.#{@queue.order_tiebreak}") if @queue.order_tiebreak) ].compact.join("; empate, ")}." %>
+<%= pagina @queue.name, subtitulo: descricao %>
 <section class="cartao" aria-labelledby="sujeitos">
   <header><h2 id="sujeitos"><%= number_br(@placements.total) %> na fila</h2></header>
   <% if @placements.total.zero? %>
@@ -27,6 +28,6 @@
         </tbody>
       </table>
     </div>
-    <%= render "shared/paginacao", pagination: @placements, unit: "na fila", path: ->(page) { queues_board_queue_path(@queue, request.query_parameters.merge("page" => page)) } %>
+    <%= render "shared/paginacao", pagination: @placements, unit: "na fila", path: ->(page) { queues_board_queue_path(@queue, request.query_parameters.merge("pagina" => page)) } %>
   <% end %>
 </section>

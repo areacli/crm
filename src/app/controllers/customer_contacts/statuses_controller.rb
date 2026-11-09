@@ -6,7 +6,7 @@ module CustomerContacts
 
     def edit
       authorize @customer, :edit_registry?
-      @status = params[:status].presence_in(%w[invalid do_not_disturb valid]) || "invalid"
+      @status = FilterValue.from_url(params[:situacao]).presence_in(%w[invalid do_not_disturb valid]) || "invalid"
     end
 
     def update

@@ -1,0 +1,5 @@
+<%= formulario_de_painel(titulo: "Exemplo de diálogo", url: design_system_dialogo_path, enviar: "Salvar nota", escopo: :exemplo, variante: :modal, erro: @erro,
+                         descricao: "Vazio, o servidor recusa e o formulário volta com o erro; preenchido, o diálogo fecha com o aviso.") do |f| %>
+  <div class="campo"><%= f.label :nota, "Nota" %><%= f.text_area :nota, value: @nota, rows: 3 %></div>
+  <div class="campo"><%= f.label :demora, "Demora do servidor (s)" %><%= f.number_field :demora, value: 0, min: 0, max: 6 %></div>
+<% end %>

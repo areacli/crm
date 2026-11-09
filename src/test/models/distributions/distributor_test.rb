@@ -30,6 +30,8 @@ class Distributions::DistributorTest < ActiveSupport::TestCase
   end
 
   test "R317: recolher cancela a proposta não aceita da operação" do
+    # A entrada do cenário tem data fixa: sem isto o teste vence junto com ela.
+    travel_to AgreementsTestHelper::AGREEMENT_DAY.to_time + 10.hours
     customer, nf1, nf2 = agreement_scenario(@alfa)
     distribution = distributor.distribute(tenant: @alfa, operation: @recupera, contract: nf1.contract)
     proposal = create_proposal(customer, [ nf1, nf2 ])

@@ -1,7 +1,7 @@
 # Lote de distribuição (14, R316): os clientes do filtro da lista, um segmento ou uma planilha (coluna `documento` ou `contrato`); conferência e
 # confirmação em segundo plano, com o resultado avisado pelo WebSocket (sem polling).
 class DistributionBatchesController < ApplicationController
-  FILTERS = %w[q bracket segment tenant promise unrecognized_city].freeze
+  FILTERS = %w[busca faixa segmento credor promessa cidade_nao_reconhecida].freeze
 
   before_action :set_batch, only: %i[show confirm discard]
 
@@ -15,11 +15,14 @@ class DistributionBatchesController < ApplicationController
   def create
     @accreditations = accreditations
     attributes = params.expect(distribution_batch: [ :accreditation_id, :kind, :segment_id, :file, :exposure, :starts_on, :ends_on, selection: FILTERS ])
-    accreditation = @accreditations.find { |item| item.id == attributes[:accreditation_id].to_i } or return refuse(t("distributions.refused.target_required"))
+    accreditation = @accreditations.find { |item| item.id == attributes[:accreditation_id].to_i } or return refuse(t("distributions.refused.operation_required"))
     authorize Distribution.new(tenant: accreditation.tenant), :create?
     batch = build(accreditation, attributes)
     batch.save!
     DistributionBatchJob.perform_later(batch, "check")
+    # Na SPA (decisão 0028), o lote abre na aba dele, onde a conferência chega pelo tempo real.
+    return panel_finish(distribution_batch_path(batch), notice: t("distribution_batches.checking"), navegar: true) if spa?
+
     redirect_to distribution_batch_path(batch), status: :see_other
   rescue Distributions::Refused, ActiveRecord::RecordInvalid, CSV::MalformedCSVError => error
     refuse(error.respond_to?(:record) ? error.record.errors.full_messages.to_sentence : error.message)
@@ -27,20 +30,26 @@ class DistributionBatchesController < ApplicationController
 
   def show
     @cable = [ { channel: "DistributionsChannel", tenant_id: @batch.tenant_id } ].to_json
-    render partial: "distribution_batches/result", locals: { batch: @batch } if htmx_fragment?
+    render partial: "distribution_batches/result", locals: { batch: @batch } if fragment?
   end
 
   def confirm
-    return redirect_to(distribution_batch_path(@batch), alert: t("distribution_batches.expired"), status: :see_other) if @batch.expired? || !@batch.checked?
+    if @batch.expired? || !@batch.checked?
+      return panel_finish(distribution_batch_path(@batch), notice: t("distribution_batches.expired"), tom: :danger, atualizar: true) if spa?
+
+      return redirect_to(distribution_batch_path(@batch), alert: t("distribution_batches.expired"), status: :see_other)
+    end
 
     @batch.update!(summary: @batch.summary.merge("confirming" => true))
     DistributionBatchJob.perform_later(@batch, "confirm")
+    return panel_finish(distribution_batch_path(@batch), notice: t("distribution_batches.confirming"), atualizar: true) if spa?
+
     redirect_to distribution_batch_path(@batch), status: :see_other
   end
 
   def discard
     @batch.update!(status: "discarded") if @batch.checked? || @batch.failed?
-    redirect_to distributions_path, notice: t("distribution_batches.discarded"), status: :see_other
+    panel_finish(distributions_path, notice: t("distribution_batches.discarded"), atualizar: true)
   end
 
   private
@@ -68,8 +77,8 @@ class DistributionBatchesController < ApplicationController
         batch.summary = { "values" => values }
       when "selection"
         filters = attributes[:selection].to_h.symbolize_keys
-        query = Portfolio::Query.new(Current.user).customers(search: filters[:q], bracket: filters[:bracket], segment: filters[:segment], tenant_id: accreditation.tenant_id,
-                                                              promise: filters[:promise], unrecognized_city: filters[:unrecognized_city])
+        query = Portfolio::Query.new(Current.user).customers(search: filters[:busca], bracket: filters[:faixa], segment: filters[:segmento], tenant_id: accreditation.tenant_id,
+                                                              promise: FilterValue.from_url(filters[:promessa]), unrecognized_city: filters[:cidade_nao_reconhecida])
         batch.target = "customer"
         batch.summary = { "values" => query.reorder(nil).pluck("customers.id").uniq }
       else

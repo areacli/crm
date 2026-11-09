@@ -10,11 +10,8 @@ module TierReview
       changes = Tiers::Changes.describe(before || Tiers::Proposal.current(proposal.tenant), proposal)
       id = Tiers::Review.start(proposal, back: back || settings_tiers_path, changes: changes)
       url = settings_tier_review_path(id)
-      return redirect_to(url, status: :see_other) unless request.headers["HX-Request"]
-
-      # Do painel ("Incluir segmento") ou de outro pedido do htmx: navegação completa para a página da conferência.
-      response.headers["HX-Redirect"] = url
-      head :no_content
+      # Na SPA, o redirecionamento vira o fim de ação que leva a aba à conferência (`SpaResponses#redirect_to`).
+      redirect_to(url, status: :see_other)
     end
 
     def tenant_for_change(id)

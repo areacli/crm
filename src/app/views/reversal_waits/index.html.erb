@@ -1,13 +1,12 @@
 <% content_for :title, "Estornos à espera" %>
 <% content_for :cable_channels, @cable %>
 <%= pagina "Estornos à espera do gestor", subtitulo: "Sem efeito até você decidir: o título continua pago e o acordo não quita." do %>
-  <%= link_to "Voltar para os acordos", agreements_path, class: "botao", data: { variant: "secondary" } %>
 <% end %>
 
-<form class="filtros" action="<%= reversal_waits_path %>" method="get" hx-sync="this:replace" hx-get="<%= reversal_waits_path %>" hx-trigger="change" hx-target="#resultado" hx-push-url="true" hx-swap="outerHTML">
+<form class="filtros" action="<%= reversal_waits_path %>" method="get">
   <div class="campo">
     <label for="per_page">Por página</label>
-    <select id="per_page" name="per_page"><%= options_for_select(Pagination::PER_PAGE_OPTIONS, @pagination.per_page) %></select>
+    <select id="per_page" name="por_pagina"><%= options_for_select(Pagination::PER_PAGE_OPTIONS, @pagination.per_page) %></select>
   </div>
   <button type="submit" data-variant="secondary">Filtrar</button>
 </form>

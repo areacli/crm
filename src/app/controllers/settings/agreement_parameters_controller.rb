@@ -3,10 +3,10 @@ module Settings
   # multa dos títulos de acordo. Gravam sem conferência do impacto, com registro de antes e depois.
   class AgreementParametersController < ApplicationController
     def update
-      tenant = Tenant.find(params[:tenant_id])
+      tenant = Tenant.find(params[:credor])
       authorize tenant.setting, :update?, policy_class: AgreementSettingPolicy
       fields = %i[installment_rate_pct installment_method agreement_days_convention agreement_fine_base]
-      values = params.expect(credor: fields).to_h
+      values = params.expect(parametros: fields).to_h
       overrides = tenant.tiers.ids.filter_map do |id|
         row = params.dig(:tiers, id.to_s) or next
         [ id, row.permit(*fields).to_h ]

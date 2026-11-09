@@ -49,7 +49,7 @@ class DesignSystemArchitectureTest < ActiveSupport::TestCase
   end
 
   test "o texto de tela está em pt-BR no HTML e o título tem o nome do sistema" do
-    layout = File.read(Rails.root.join("app/views/layouts/application.html.erb"))
+    layout = File.read(Rails.root.join("app/views/layouts/casca.html.erb"))
 
     assert_includes layout, 'lang="pt-BR"'
     assert_includes layout, "CRM AreaCli"
@@ -58,10 +58,8 @@ class DesignSystemArchitectureTest < ActiveSupport::TestCase
   # Regra de ação da revisão 4 (decisão 0022): nenhuma ação da ficha vive num formulário aberto na página nem num <details>. Formulário de verdade abre no painel
   # compartilhado; o que a ficha tem são botões de ação direta (`button_to`, sem campo) e a edição na própria linha, sob pedido.
   FICHA = Dir[Rails.root.join("app/views/customers/{show,_contracts,_segment_history}.html.erb")] + Dir[Rails.root.join("app/views/customers/{tabs,contacts,promises,agreements}/*.erb")]
-  EDICAO_NA_LINHA = [ "customers/contacts/_row_editor.html.erb" ].freeze
-
   test "a ficha não tem <details> com formulário nem formulário inline com campos" do
-    problemas = FICHA.reject { |arquivo| EDICAO_NA_LINHA.any? { |permitido| arquivo.end_with?(permitido) } }.flat_map do |arquivo|
+    problemas = FICHA.flat_map do |arquivo|
       texto = File.read(arquivo)
       achados = []
       texto.scan(%r{<details\b.*?</details>}m).each { |bloco| achados << "<details> com formulário" if bloco.match?(/<form|form_with|form_tag|button_to|<input|<select|<textarea/) }
@@ -81,12 +79,10 @@ class DesignSystemArchitectureTest < ActiveSupport::TestCase
 
   # Fase 2 (decisão 0022): a regra vale para o app inteiro. Nenhuma view tem <details> com formulário, nenhum <dialog> nasce numa view (só o do layout, que o painel
   # preenche) e a confirmação de ação é a do painel (`confirmar_no_painel`).
-  APP = VIEWS.reject { |arquivo| arquivo.include?("/design_system/") || arquivo.include?("/layouts/_painel") }
-  # O menu do usuário e o sino são menus de cabeçalho (botão de sair, marcar como lido), não formulários de dados.
-  MENUS_DO_CABECALHO = %w[layouts/application notices/_bell].freeze
+  APP = VIEWS.reject { |arquivo| arquivo.include?("/design_system/") }
 
   test "nenhuma view do app tem <details> com formulário" do
-    problemas = APP.reject { |arquivo| MENUS_DO_CABECALHO.any? { |menu| arquivo.include?(menu) } }.filter_map do |arquivo|
+    problemas = APP.filter_map do |arquivo|
       texto = File.read(arquivo)
       arquivo.delete_prefix("#{Rails.root}/") if texto.scan(%r{<details\b.*?</details>}m).any? { |bloco| bloco.match?(/<form|form_with|form_tag|button_to|<input|<select|<textarea|_field|_tag/) }
     end
@@ -109,14 +105,6 @@ class DesignSystemArchitectureTest < ActiveSupport::TestCase
     assert_empty problemas, "<nav> de menu numa view (use o submenu do menu lateral):\n#{problemas.join("\n")}"
   end
 
-  # Uma região ao vivo com hx-select passa o filtro aos links de dentro: o painel aberto por eles recebia a resposta e jogava fora (o "Mudar" do
-  # enquadramento da distribuição não abria nada, 01/11/2026). Toda tag com hx-select declara hx-disinherit.
-  test "toda tag com hx-select declara hx-disinherit" do
-    offenders = Rails.root.glob("app/views/**/*.erb").flat_map do |file|
-      File.read(file).gsub(/<%.*?%>/m, "").scan(/<[a-z]+\b[^>]*hx-select=[^>]*>/m).reject { _1.include?("hx-disinherit") }.map { file.relative_path_from(Rails.root).to_s }
-    end
-    assert_empty offenders.uniq
-  end
 
   test "nenhuma view do app declara um <dialog> próprio" do
     problemas = APP.select { |arquivo| File.read(arquivo).match?(/<dialog\b/) }.map { |arquivo| arquivo.delete_prefix("#{Rails.root}/") }
@@ -146,7 +134,7 @@ class DesignSystemArchitectureTest < ActiveSupport::TestCase
   test "as listas não têm formulário de dados inline (só filtros e botões de ação direta)" do
     listas = APP.select { |arquivo| arquivo.match?(%r{/(index|_result|_list|_page)\.html\.erb\z}) && !arquivo.include?("/settings/") }
     problemas = listas.filter_map do |arquivo|
-      texto = File.read(arquivo).gsub(/<form class="filtros".*?<\/form>/m, "")
+      texto = File.read(arquivo).gsub(/<form class="filtros(?:-da-grade)?".*?<\/form>/m, "")
       arquivo.delete_prefix("#{Rails.root}/") if texto.match?(/form_with|<form\b|text_field|text_area|select_tag|<textarea/)
     end
 

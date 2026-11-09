@@ -1,13 +1,14 @@
 <% content_for :title, "Simular acordo · #{@customer.name}" %>
-<%# Simulação do acordo (11, R211 a R216): títulos, forma, descontos, entrada e parcelas. O resultado se refaz pelo htmx a cada mudança; "Criar proposta" grava (R215). %>
+<%# Simulação do acordo (11, R211 a R216): títulos, forma, descontos, entrada e parcelas à esquerda, e o resultado à direita, refeito à vista a cada mudança
+    (design system, 7.2); "Criar proposta" grava (R215) e só vale com o cálculo da tela pronto. Na SPA (decisão 0028), aba própria. %>
 <% form = @form || {} %>
-<% segment_hint = "Os tetos de cada componente aparecem na simulação, com o limite do seu perfil." %>
-<%= pagina "Simular acordo", subtitulo: safe_join([ @customer.name, " · ", @customer.tenant.name, " · ", link_to("Voltar para a ficha", customer_path(@customer, aba: "promessas")) ]) %>
+<% segment_hint = "O limite do seu perfil em cada componente aparece junto do campo: acima dele, a proposta nasce pendente de aprovação." %>
+<%= pagina "Simular acordo", subtitulo: "#{@customer.name} · #{@customer.tenant.name}" %>
 <% if @create_problem %><%= aviso(tom: :danger) { tag.p @create_problem } %><% end %>
 
-<div class="ficha" data-lateral="formulario">
-<%= form_with scope: :agreement, url: customer_agreements_path(@customer), method: :post,
-      html: { "hx-boost": "false", "hx-post": customer_agreement_simulations_path(@customer), "hx-trigger": "change", "hx-target": "#simulacao", "hx-swap": "outerHTML", "hx-push-url": "false" } do |f| %>
+<% recalcular = calculo_a_vista(customer_agreement_simulations_path(@customer)) %>
+<div class="simulacao" data-titulo="Simular acordo · <%= @customer.name %>" data-refazer-no-erro>
+<%= form_with scope: :agreement, url: customer_agreements_path(@customer), method: :post, class: "simulacao-formulario", html: recalcular do |f| %>
   <section class="cartao" aria-labelledby="titulos-do-acordo">
     <header><h2 id="titulos-do-acordo">Títulos do acordo</h2><%= informacao "títulos do acordo", "De 1 a 100 títulos do cliente em cobrança, vencidos ou a vencer. O acordo parte do valor atualizado de cada um, por componente.", "definicao-titulos-do-acordo" %></header>
     <div>
@@ -67,50 +68,52 @@
   <section class="cartao" aria-labelledby="termos-do-acordo">
     <header><h2 id="termos-do-acordo">Descontos, entrada e parcelas</h2><%= informacao "termos do acordo", segment_hint, "definicao-termos-do-acordo" %></header>
     <div>
-      <fieldset>
-        <legend>Forma</legend>
-        <label><%= radio_button_tag "agreement[mode]", "installments", form[:mode].to_s != "cash", id: "forma-parcelado" %> Parcelado</label>
-        <label><%= radio_button_tag "agreement[mode]", "cash", form[:mode].to_s == "cash", id: "forma-avista" %> À vista</label>
-      </fieldset>
-      <div class="grupo-de-campos">
+      <h3 class="subtitulo-do-formulario">Descontos por componente</h3>
+      <div class="grupo-de-campos descontos">
         <% shown = Agreements::Caps::COMPONENTS.reverse.reject { |component| Agreements::INHERITED.include?(component) && @bills.none? { |bill| bill.kind_agreement? || bill.kind_break? } } %>
         <% shown.each do |component| %>
           <div class="campo">
             <%= label_tag "desconto-#{component}", "Desconto em #{component_name(component).downcase} (%)" %>
-            <%= text_field_tag "agreement[discounts][#{component}]", form.dig(:discounts, component), id: "desconto-#{component}", inputmode: "decimal", autocomplete: "off" %>
+            <%= valor_com_deslizante "agreement[discounts][#{component}]", form.dig(:discounts, component), id: "desconto-#{component}", maximo: 10_000, descrito_por: "ajuda-desconto-#{component}", unidade: "percentual" %>
+            <small id="ajuda-desconto-<%= component %>"><%= ajuda_do_desconto(@quote&.limits, component) %></small>
             <% if @field == "discounts_#{component}" %><small data-erro><%= @problem %></small><% end %>
           </div>
         <% end %>
       </div>
+      <h3 class="subtitulo-do-formulario">Entrada e parcelas</h3>
+      <% limits = @quote&.limits %>
+      <%# Zero parcelas é parcela única: sem entrada e sem dia das parcelas (revisão 12). %>
+      <% so_parcelado = { mostrar_se_campo: "agreement[installments]", mostrar_se_valor: "!0" } %>
       <div class="grupo-de-campos">
-        <div class="campo">
+        <%= tag.div class: "campo campo-largo", data: so_parcelado do %>
           <%= label_tag "entrada-valor", "Valor da entrada" %>
-          <%= text_field_tag "agreement[down_payment]", form[:down_payment], id: "entrada-valor", inputmode: "decimal", autocomplete: "off", "aria-describedby": "ajuda-entrada" %>
-          <small id="ajuda-entrada">Em reais. Vazio vale a entrada mínima; no à vista, é o valor líquido.</small>
+          <%= valor_com_deslizante "agreement[down_payment]", form[:down_payment], id: "entrada-valor", minimo: limits&.down_min, maximo: limits&.down_max, descrito_por: "ajuda-entrada", auto: [ "agreement[down_payment_auto]", form[:down_payment_auto] ] %>
+          <small id="ajuda-entrada"><%= ajuda_da_entrada(limits) %></small>
           <% if @field == "down_payment" %><small data-erro><%= @problem %></small><% end %>
-        </div>
+        <% end %>
         <div class="campo">
-          <%= label_tag "entrada-vencimento", "Vencimento da entrada" %>
+          <%= label_tag "entrada-vencimento", "Vencimento da #{nome_da_primeira(@quote ? @quote.installments.size : form[:installments]).downcase}", id: "rotulo-vencimento" %>
           <%= date_field_tag "agreement[down_payment_on]", form[:down_payment_on], id: "entrada-vencimento" %>
           <small>Do dia útil seguinte até o prazo do item do enquadramento.</small>
           <% if @field == "down_payment_on" %><small data-erro><%= @problem %></small><% end %>
         </div>
         <div class="campo">
           <%= label_tag "parcelas", "Parcelas" %>
-          <%= number_field_tag "agreement[installments]", form[:installments], id: "parcelas", min: 1, max: 120 %>
+          <%= select_tag "agreement[installments]", options_for_select(opcoes_de_parcelas(limits, form[:installments]), form[:installments].to_i), id: "parcelas" %>
+          <small id="ajuda-parcelas"><%= ajuda_das_parcelas(limits) %></small>
         </div>
-        <div class="campo">
+        <%= tag.div class: "campo", data: so_parcelado do %>
           <%= label_tag "dia", "Dia de vencimento das parcelas" %>
           <%= number_field_tag "agreement[day]", form[:day], id: "dia", min: 1, max: 28 %>
           <small>De 1 a 28; a 1ª parcela vence no mês seguinte à entrada.</small>
-        </div>
+        <% end %>
       </div>
       <% offers = Agreements::CreditUse.available_by_contract(@customer.tenant.setting, @bills) %>
       <% if offers.any? %>
         <div class="grupo-de-campos">
-          <div class="campo">
+          <div class="campo campo-largo" data-some-sem-maximo>
             <%= label_tag "credito", "Crédito do contrato a usar" %>
-            <%= text_field_tag "agreement[credit]", form[:credit], id: "credito", inputmode: "decimal", autocomplete: "off", "aria-describedby": "ajuda-credito" %>
+            <%= valor_com_deslizante "agreement[credit]", form[:credit], id: "credito", minimo: 0, maximo: limits&.credit_max, descrito_por: "ajuda-credito" %>
             <small id="ajuda-credito">
               Disponível: <%= safe_join(offers.map { |contract, cents| "#{contract.label}, #{money(cents)}" }, "; ") %>.
               Entra como <%= Agreements::Policies.value(@customer.tenant.setting, "credit_entry") == "rebate" ? "abatimento do valor do acordo" : "pagamento da entrada" %>.
@@ -121,12 +124,12 @@
       <% end %>
       <% if @field == "mode" || @field == "bill_ids" %><%= aviso(tom: :danger) { tag.p @problem } %><% end %>
       <div class="acoes" data-rodape>
-        <button type="submit" formaction="<%= customer_agreement_simulations_path(@customer) %>" data-variant="secondary">Simular</button>
-        <button type="submit">Criar proposta</button>
+        <%# Na SPA, a simulação se refaz sozinha; "Criar proposta" espera o cálculo da tela (design system, 7.2). %>
+        <%= tag.button "Criar proposta", type: "submit", data: { depende_do_calculo: true } %>
       </div>
     </div>
   </section>
 <% end %>
 
-<%= render "customers/agreement_simulations/result" %>
+<aside class="simulacao-resultado" aria-label="Resultado da simulação"><%= resultado_do_calculo { render "customers/agreement_simulations/result" } %></aside>
 </div>

@@ -5,7 +5,7 @@ module Settings
     FIELDS = %i[max_installments min_down_payment_pct ceiling_discount ceiling_value].freeze
 
     def update
-      tenant = Tenant.find(params[:tenant_id])
+      tenant = Tenant.find(params[:credor])
       authorize tenant.setting, :update?, policy_class: AgreementSettingPolicy
       permitted = FIELDS + [ { caps: { installment: Agreements::Caps::COMPONENTS, cash: Agreements::Caps::COMPONENTS } } ]
       limits = tenant.tiers.ids.filter_map do |tier_id|

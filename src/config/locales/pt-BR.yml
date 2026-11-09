@@ -297,6 +297,9 @@ pt-BR:
       update:
         done: "Situação do contato alterada."
   settings:
+    portfolios:
+      update:
+        done: "Configuração de %{tenant} salva."
     retention_periods:
       update:
         done: "Prazo de guarda de %{tenant} salvo. Vale para a próxima execução da tarefa diária."
@@ -332,8 +335,12 @@ pt-BR:
       profile_required: "Escolha um perfil deste credor."
       name_required: "Informe o nome do novo usuário."
       linked: "%{name} (%{email}) foi ligado(a) a %{tenant}. A pessoa recebeu um aviso no sistema."
+      done: "Usuário %{name} criado."
     update:
       done: "Nome alterado."
+    password_resets:
+      create:
+        done: "Senha redefinida."
     profiles:
       update:
         done: "Perfil alterado."
@@ -351,6 +358,12 @@ pt-BR:
       done: "Perfil %{name} excluído."
   notices:
     kinds:
+      background_finished:
+        title: "%{what}: concluída"
+        body: "%{where}"
+      background_failed:
+        title: "%{what}: falhou"
+        body: "%{where} %{reason}"
       linked_to_tenant:
         title: "%{actor_name} ligou você a %{tenant_name}"
         body: "Perfil: %{profile_name}."

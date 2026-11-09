@@ -1,5 +1,5 @@
 # Andamento das importações de um credor: só quem tem alguma permissão de importação nele (MT-3). O canal transmite eventos de
-# invalidação pequenos; a tela refaz o trecho com htmx.
+# invalidação pequenos; a aba da casca refaz o trecho (`data-spa-vivo`).
 class ImportsChannel < ApplicationCable::Channel
   def subscribed
     tenant = Tenant.find_by(id: params[:tenant_id])

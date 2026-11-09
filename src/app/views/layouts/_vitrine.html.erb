@@ -1,0 +1,25 @@
+<%# Carrossel da entrada, só na demonstração: as telas do CRM com legenda, para quem chega ver o que vai encontrar. O comportamento fica em `spa/vitrine`. %>
+<% telas = [
+  [ "resumo", "Resumo da carteira", "O retrato da carteira: o que está vencido, o que entrou no mês e os acordos em andamento." ],
+  [ "ficha", "Ficha do cliente", "Tudo de um cliente numa tela: títulos, contatos, acionamentos e a linha do tempo." ],
+  [ "clientes", "Lista de clientes", "Milhares de clientes numa lista só, com filtros por atraso, segmento e promessa." ],
+  [ "simulacao", "Simulação de acordo", "Simule o acordo e veja a entrada, as parcelas e a alçada antes de gravar." ],
+  [ "segmentos", "Segmentos", "Segmentos escritos em português decidem encargos, filas e distribuição." ]
+] %>
+<section class="vitrine" aria-roledescription="carrossel" aria-label="Telas do CRM" data-vitrine>
+  <div class="vitrine-palco">
+    <% telas.each_with_index do |(arquivo, nome, legenda), indice| %>
+      <figure class="vitrine-tela" data-vitrine-tela aria-roledescription="tela" aria-label="<%= indice + 1 %> de <%= telas.size %>" <%= indice.zero? ? "data-atual" : 'aria-hidden="true"'.html_safe %>>
+        <%= image_tag "vitrine/#{arquivo}.webp", alt: nome, width: 1120, height: 630, loading: indice.zero? ? "eager" : "lazy", decoding: "async" %>
+        <figcaption><%= legenda %></figcaption>
+      </figure>
+    <% end %>
+  </div>
+  <div class="vitrine-controles">
+    <button type="button" data-vitrine-passo="-1" aria-label="Tela anterior">‹</button>
+    <% telas.each_with_index do |(_, nome, _), indice| %>
+      <button type="button" class="vitrine-ponto" data-vitrine-ir="<%= indice %>" aria-label="Mostrar: <%= nome %>"<%= ' aria-current="true"'.html_safe if indice.zero? %>></button>
+    <% end %>
+    <button type="button" data-vitrine-passo="1" aria-label="Próxima tela">›</button>
+  </div>
+</section>

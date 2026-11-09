@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_02_100000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_07_110000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -623,10 +623,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_02_100000) do
     t.index ["task_run_id"], name: "index_instrument_batches_on_task_run_id"
     t.index ["tenant_id", "created_at"], name: "index_instrument_batches_on_tenant_id_and_created_at"
     t.index ["tenant_id"], name: "index_instrument_batches_on_tenant_id"
-    t.check_constraint "due_mode::text = ANY (ARRAY['date'::character varying, 'days'::character varying]::text[])", name: "instrument_batches_due_mode"
-    t.check_constraint "object_kind::text = ANY (ARRAY['bills'::character varying, 'agreement_bills'::character varying, 'promises'::character varying]::text[])", name: "instrument_batches_object_kind"
-    t.check_constraint "payment_method::text = ANY (ARRAY['boleto'::character varying, 'pix'::character varying, 'card'::character varying]::text[])", name: "instrument_batches_payment_method"
-    t.check_constraint "status::text = ANY (ARRAY['checking'::character varying, 'checked'::character varying, 'confirmed'::character varying, 'discarded'::character varying, 'failed'::character varying]::text[])", name: "instrument_batches_status"
+    t.check_constraint "due_mode::text = ANY (ARRAY['date'::character varying::text, 'days'::character varying::text])", name: "instrument_batches_due_mode"
+    t.check_constraint "object_kind::text = ANY (ARRAY['bills'::character varying::text, 'agreement_bills'::character varying::text, 'promises'::character varying::text])", name: "instrument_batches_object_kind"
+    t.check_constraint "payment_method::text = ANY (ARRAY['boleto'::character varying::text, 'pix'::character varying::text, 'card'::character varying::text])", name: "instrument_batches_payment_method"
+    t.check_constraint "status::text = ANY (ARRAY['checking'::character varying::text, 'checked'::character varying::text, 'confirmed'::character varying::text, 'discarded'::character varying::text, 'failed'::character varying::text])", name: "instrument_batches_status"
   end
 
   create_table "memberships", force: :cascade do |t|
@@ -880,13 +880,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_02_100000) do
     t.bigint "replaced_by_id"
     t.index ["account_id", "external_id"], name: "index_payment_instruments_on_account_and_external_id", unique: true, where: "(external_id IS NOT NULL)"
     t.index ["account_id"], name: "index_payment_instruments_on_account_id"
-    t.index ["bill_id", "kind"], name: "index_payment_instruments_open_per_bill", unique: true, where: "(open AND ((kind)::text = ANY ((ARRAY['boleto'::character varying, 'pix'::character varying])::text[])))"
+    t.index ["bill_id", "kind"], name: "index_payment_instruments_open_per_bill", unique: true, where: "(open AND ((kind)::text = ANY (ARRAY[('boleto'::character varying)::text, ('pix'::character varying)::text])))"
     t.index ["bill_id"], name: "index_payment_instruments_on_bill_id"
     t.index ["checkout_id"], name: "index_payment_instruments_on_checkout_id", where: "(checkout_id IS NOT NULL)"
     t.index ["customer_id"], name: "index_payment_instruments_on_customer_id", where: "(customer_id IS NOT NULL)"
     t.index ["instrument_batch_id"], name: "index_payment_instruments_on_batch", where: "(instrument_batch_id IS NOT NULL)"
     t.index ["payment_id"], name: "index_payment_instruments_on_payment_id", where: "(payment_id IS NOT NULL)"
-    t.index ["promise_id", "kind"], name: "index_payment_instruments_open_per_promise", unique: true, where: "(open AND ((kind)::text = ANY ((ARRAY['boleto'::character varying, 'pix'::character varying])::text[])))"
+    t.index ["promise_id", "kind"], name: "index_payment_instruments_open_per_promise", unique: true, where: "(open AND ((kind)::text = ANY (ARRAY[('boleto'::character varying)::text, ('pix'::character varying)::text])))"
     t.index ["promise_id"], name: "index_payment_instruments_on_promise_id"
     t.index ["tenant_id", "canceled_at"], name: "index_payment_instruments_canceled", where: "((state)::text = 'canceled'::text)"
     t.index ["tenant_id", "custom_id"], name: "index_payment_instruments_on_tenant_id_and_custom_id", unique: true
@@ -895,8 +895,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_02_100000) do
     t.check_constraint "amount_cents > 0", name: "payment_instruments_amount"
     t.check_constraint "kind::text = ANY (ARRAY['boleto'::character varying::text, 'pix'::character varying::text, 'card'::character varying::text])", name: "payment_instruments_kind"
     t.check_constraint "num_nonnulls(bill_id, promise_id) = 1", name: "payment_instruments_one_object"
-    t.check_constraint "origin IS NULL OR (origin::text = ANY (ARRAY['customer_page'::character varying, 'registration'::character varying, 'batch'::character varying, 'rule'::character varying, 'reissue'::character varying, 'service'::character varying]::text[]))", name: "payment_instruments_origin"
-    t.check_constraint "state::text = ANY (ARRAY['emitting'::character varying, 'active'::character varying, 'paid'::character varying, 'expired'::character varying, 'canceled'::character varying, 'failed'::character varying, 'cancel_pending'::character varying]::text[])", name: "payment_instruments_state"
+    t.check_constraint "origin IS NULL OR (origin::text = ANY (ARRAY['customer_page'::character varying::text, 'registration'::character varying::text, 'batch'::character varying::text, 'rule'::character varying::text, 'reissue'::character varying::text, 'service'::character varying::text]))", name: "payment_instruments_origin"
+    t.check_constraint "state::text = ANY (ARRAY['emitting'::character varying::text, 'active'::character varying::text, 'paid'::character varying::text, 'expired'::character varying::text, 'canceled'::character varying::text, 'failed'::character varying::text, 'cancel_pending'::character varying::text])", name: "payment_instruments_state"
   end
 
   create_table "payment_promise_bills", force: :cascade do |t|

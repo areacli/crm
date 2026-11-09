@@ -12,21 +12,20 @@ class DemoModeTest < ActionDispatch::IntegrationTest
 
   def entrar(user) = post(session_path, params: { email_address: user.email_address, password: "senha-de-teste-1" })
 
-  test "a faixa avisa que os dados são fictícios e a tela de entrada lista os usuários públicos" do
-    get new_session_path
-    assert_select "aside.demonstracao", /fictícios e recriados todo dia às 04:00/
-    assert_select "code", text: Demo.email("gestor")
-    assert_select "code", text: Demo.password("operador")
+  test "a faixa da casca avisa que os dados são fictícios e a entrada lista os usuários públicos" do
+    get root_path
+    assert_select ".faixa", /fictícios e recriados todo dia às 04:00/
+    assert_select ".entrada-demonstracao code", text: Demo.email("gestor")
+    assert_select ".entrada-demonstracao code", text: Demo.password("operador")
     Rails.configuration.x.demo.enabled = false
-    get new_session_path
-    assert_select "aside.demonstracao", count: 0
+    get root_path
+    assert_select ".faixa", count: 0
   end
 
-  test "a faixa aparece nas telas e a troca de senha some do menu do usuário" do
+  test "a troca de senha some do menu do usuário" do
     entrar(users(:joana))
-    get root_path
-    assert_select "aside.demonstracao"
-    assert_select "a", text: "Trocar a senha", count: 0
+    get menu_path(format: :json)
+    assert_equal false, response.parsed_body["trocar_senha"]
   end
 
   test "usuários, perfis, senha e contas de pagamento recusam alteração com a mensagem da demonstração" do
@@ -40,8 +39,8 @@ class DemoModeTest < ActionDispatch::IntegrationTest
     assert_redirected_to root_path
     assert_not Profile.exists?(name: "Perfil novo")
 
-    get edit_password_path
-    assert_redirected_to root_path
+    get edit_password_path, headers: TRECHO
+    assert_select "h1", "Fechado na demonstração"
     patch password_path, params: { password: { current_password: "senha-de-teste-1", password: "uma-senha-nova-bem-longa", password_confirmation: "uma-senha-nova-bem-longa" } }
     assert_redirected_to root_path
     assert users(:joana).reload.authenticate("senha-de-teste-1"), "a senha não mudou"
@@ -54,9 +53,28 @@ class DemoModeTest < ActionDispatch::IntegrationTest
     assert_redirected_to root_path
   end
 
+  # A SPA não segue o redirecionamento (fase 7): a recusa chega como ela entende.
+  test "na SPA, a recusa da demonstração vem como fim de ação, junto do campo na edição na linha e no lugar da tela que só serve para alterar" do
+    entrar(users(:joana))
+    post profiles_path, params: { profile: { tenant_id: @alfa.id, name: "Perfil novo", permissions: [ "view_portfolio" ] } }, headers: TRECHO
+    assert_response :no_content
+    assert_equal [ Demo::Restrictions::MESSAGE, "danger" ], evento_da_spa.values_at("aviso", "tom")
+    assert_not Profile.exists?(name: "Perfil novo")
+
+    patch membership_profile_path(memberships(:carlos_alfa)), params: { membership: { profile_id: profiles(:alfa_manager).id } }, headers: TRECHO.merge("X-CRM-Inline" => "1")
+    assert_response :unprocessable_content
+    assert_equal Demo::Restrictions::MESSAGE, response.parsed_body["erro"]
+    assert_equal profiles(:alfa_operator), memberships(:carlos_alfa).reload.profile
+
+    get new_settings_payment_account_path, headers: TRECHO
+    assert_response :success
+    assert_select "h1", "Fechado na demonstração"
+    assert_select "aside", text: Demo::Restrictions::MESSAGE
+  end
+
   test "a lista dos métodos de recebimento, com as integrações, continua aberta para leitura (16, R373)" do
     entrar(users(:joana))
-    get settings_channels_path
+    get settings_channels_path, headers: TRECHO
     assert_response :success
   end
 
@@ -116,7 +134,7 @@ class DemoModeTest < ActionDispatch::IntegrationTest
   test "fora da demonstração nada é fechado nem trocado" do
     Rails.configuration.x.demo.enabled = false
     entrar(users(:joana))
-    get edit_password_path
+    get edit_password_path, headers: TRECHO
     assert_response :success
     assert_select "aside.demonstracao", count: 0
   end

@@ -8,22 +8,22 @@ class DistributionsController < ApplicationController
     @several_tenants = @tenants.size > 1
     @operations = Operation.joins(:accreditations).where(accreditations: { tenant_id: @tenants.map(&:id) }).distinct.order(:short_name)
     scope = policy_scope(Distribution).includes(:operation, :customer, :contract, :created_by, :tenant).order(created_at: :desc)
-    scope = scope.where(tenant_id: params[:tenant]) if params[:tenant].present?
-    scope = scope.where(operation_id: params[:operation]) if params[:operation].present?
-    scope = scope.where(source: params[:source]) if params[:source].present?
-    scope = case params[:status]
+    scope = scope.where(tenant_id: params[:credor]) if params[:credor].present?
+    scope = scope.where(operation_id: params[:operacao]) if params[:operacao].present?
+    scope = scope.where(source: FilterValue.from_url(params[:fonte])) if params[:fonte].present?
+    scope = case FilterValue.from_url(params[:situacao])
     when "in_force" then scope.in_force
     when "scheduled" then scope.open.where("starts_on > ?", Date.current)
     when "ended" then scope.where.not(ended_at: nil)
     else scope
     end
-    if params[:q].present?
-      term = "%#{Customer.sanitize_sql_like(params[:q].strip)}%"
-      scope = scope.left_joins(:customer, :contract).where("customers.name ILIKE :t OR customers.document = :d OR contracts.code ILIKE :t", t: term, d: Document.normalize(params[:q]))
+    if params[:busca].present?
+      term = "%#{Customer.sanitize_sql_like(params[:busca].strip)}%"
+      scope = scope.left_joins(:customer, :contract).where("customers.name ILIKE :t OR customers.document = :d OR contracts.code ILIKE :t", t: term, d: Document.normalize(params[:busca]))
     end
-    @pagination = Pagination.new(scope, page: params[:page], per_page: params[:per_page])
+    @pagination = Pagination.new(scope, page: params[:pagina], per_page: params[:por_pagina])
     @distributions = @pagination.records
-    render partial: "distributions/result" if htmx_fragment?
+    render partial: "distributions/result" if fragment?
   end
 
   def new
@@ -36,7 +36,7 @@ class DistributionsController < ApplicationController
     @tenants = manageable_tenants
     @accreditations = active_accreditations
     attributes = params.expect(distribution: %i[accreditation_id target value exposure starts_on ends_on])
-    accreditation = @accreditations.find { |item| item.id == attributes[:accreditation_id].to_i } or return refuse(t("distributions.refused.target_required"))
+    accreditation = @accreditations.find { |item| item.id == attributes[:accreditation_id].to_i } or return refuse(t("distributions.refused.operation_required"))
     authorize Distribution.new(tenant: accreditation.tenant)
     target = find_target(accreditation.tenant, attributes[:target], attributes[:value])
     distribution = Distributions::Distributor.new(Current.user).distribute(

@@ -3,37 +3,50 @@
 <% methods = Tier::INSTALLMENT_METHODS.map { |value| [ t("agreements.parameters.installment_methods.#{value}"), value ] } %>
 <% conventions = Tier::DAYS_CONVENTIONS.map { |value| [ t("agreements.parameters.conventions.#{value}"), value ] } %>
 <% fine_bases = Tier::FINE_BASES.map { |value| [ t("agreements.parameters.fine_bases.#{value}"), value ] } %>
-<%= form_with url: settings_agreement_parameters_path, method: :patch, html: { "hx-boost": "false" } do |form| %>
-  <%= hidden_field_tag :tenant_id, tenant.id %>
-  <fieldset>
-    <legend>Parâmetros dos acordos do credor</legend>
-    <p><small>Valem para os itens do enquadramento que não definem o próprio valor. Os acordos congelam o que valia na proposta: não muda título nem acordo e não passa pela conferência.</small></p>
-    <div class="grupo-de-campos">
-      <div class="campo"><%= label_tag "agr-rate-#{tenant.id}", "Juros do parcelamento (% ao mês)" %><%= text_field_tag "credor[installment_rate_pct]", charge_field_value(setting, nil, :installment_rate_pct), id: "agr-rate-#{tenant.id}", inputmode: "decimal", autocomplete: "off" %></div>
-      <div class="campo"><%= label_tag "agr-method-#{tenant.id}", "Método do parcelamento" %><%= select_tag "credor[installment_method]", options_for_select(methods, setting.installment_method), id: "agr-method-#{tenant.id}" %></div>
-      <div class="campo"><%= label_tag "agr-conv-#{tenant.id}", "Convenção de dias dos juros de atraso do título de acordo" %><%= select_tag "credor[agreement_days_convention]", options_for_select(conventions, setting.agreement_days_convention), id: "agr-conv-#{tenant.id}" %></div>
-      <div class="campo"><%= label_tag "agr-base-#{tenant.id}", "Base da multa do título de acordo" %><%= select_tag "credor[agreement_fine_base]", options_for_select(fine_bases, setting.agreement_fine_base), id: "agr-base-#{tenant.id}" %></div>
+<section class="cartao" aria-labelledby="acordos-<%= tenant.id %>">
+  <header>
+    <div>
+      <h2 id="acordos-<%= tenant.id %>">Parâmetros dos acordos — <%= tenant.name %></h2>
+      <p>Os acordos congelam o que valia na proposta: mudar aqui não muda título nem acordo e não passa pela conferência.</p>
     </div>
-  </fieldset>
-  <fieldset>
-    <legend>Valores próprios dos itens do enquadramento</legend>
-    <div class="tabela" tabindex="0">
-      <table>
-        <caption class="apenas-leitor-de-tela">Parâmetros dos acordos de cada item do enquadramento de <%= tenant.name %></caption>
-        <thead><tr><th scope="col">Item</th><th scope="col">Juros do parcelamento (% ao mês)</th><th scope="col">Método</th><th scope="col">Convenção de dias</th><th scope="col">Base da multa</th></tr></thead>
-        <tbody>
-          <% tiers.each do |tier| %>
-            <tr>
-              <th scope="row"><%= tier.name %></th>
-              <td><%= text_field_tag "tiers[#{tier.id}][installment_rate_pct]", charge_field_value(tier, nil, :installment_rate_pct), inputmode: "decimal", autocomplete: "off", "aria-label": "Juros do parcelamento de #{tier.name}, vazio herda do credor" %></td>
-              <td><%= select_tag "tiers[#{tier.id}][installment_method]", options_for_select(methods, tier.installment_method), include_blank: "Herda do credor", "aria-label": "Método do parcelamento de #{tier.name}" %></td>
-              <td><%= select_tag "tiers[#{tier.id}][agreement_days_convention]", options_for_select(conventions, tier.agreement_days_convention), include_blank: "Herda do credor", "aria-label": "Convenção de dias de #{tier.name}" %></td>
-              <td><%= select_tag "tiers[#{tier.id}][agreement_fine_base]", options_for_select(fine_bases, tier.agreement_fine_base), include_blank: "Herda do credor", "aria-label": "Base da multa de #{tier.name}" %></td>
-            </tr>
-          <% end %>
-        </tbody>
-      </table>
-    </div>
-  </fieldset>
-  <div class="acoes" data-rodape><button type="submit" data-variant="secondary">Salvar parâmetros dos acordos</button></div>
-<% end %>
+  </header>
+  <div>
+    <%= form_with url: settings_agreement_parameters_path, method: :patch, class: "campos-do-cartao" do |form| %>
+      <%= hidden_field_tag :credor, tenant.id, id: nil %>
+      <div>
+        <h3 class="subtitulo-do-cartao">Do credor</h3>
+        <%= politica("Juros do parcelamento", "agr-rate-#{tenant.id}") do %>
+          <div class="em-linha"><%= text_field_tag "parametros[installment_rate_pct]", charge_field_value(setting, nil, :installment_rate_pct), id: "agr-rate-#{tenant.id}", inputmode: "decimal", autocomplete: "off", class: "numero", "aria-label": "Juros do parcelamento, em porcentagem ao mês" %> % ao mês</div>
+        <% end %>
+        <%= politica("Método do parcelamento", "agr-method-#{tenant.id}") do %>
+          <div class="curto"><%= select_tag "parametros[installment_method]", options_for_select(methods, setting.installment_method), id: "agr-method-#{tenant.id}", "aria-label": "Método do parcelamento" %></div>
+        <% end %>
+        <%= politica("Convenção de dias dos juros de atraso do título de acordo", "agr-conv-#{tenant.id}") do %>
+          <div class="curto"><%= select_tag "parametros[agreement_days_convention]", options_for_select(conventions, setting.agreement_days_convention), id: "agr-conv-#{tenant.id}", "aria-label": "Convenção de dias dos juros de atraso do título de acordo" %></div>
+        <% end %>
+        <%= politica("Base da multa do título de acordo", "agr-base-#{tenant.id}") do %>
+          <div class="curto"><%= select_tag "parametros[agreement_fine_base]", options_for_select(fine_bases, setting.agreement_fine_base), id: "agr-base-#{tenant.id}", "aria-label": "Base da multa do título de acordo" %></div>
+        <% end %>
+      </div>
+      <div>
+        <h3 class="subtitulo-do-cartao">Valores próprios dos itens do enquadramento <small>(vazio herda do credor)</small></h3>
+        <table class="campos-em-tabela tabela-de-itens">
+          <caption class="apenas-leitor-de-tela">Parâmetros dos acordos de cada item do enquadramento de <%= tenant.name %></caption>
+          <thead><tr><th scope="col">Item</th><th scope="col">Juros (% ao mês)</th><th scope="col">Método</th><th scope="col">Convenção de dias</th><th scope="col">Base da multa</th></tr></thead>
+          <tbody>
+            <% tiers.each do |tier| %>
+              <tr>
+                <th scope="row"><%= tier.name %></th>
+                <td><%= text_field_tag "tiers[#{tier.id}][installment_rate_pct]", charge_field_value(tier, nil, :installment_rate_pct), inputmode: "decimal", autocomplete: "off", class: "numero", id: nil, "aria-label": "Juros do parcelamento de #{tier.name}, vazio herda do credor" %></td>
+                <td><%= select_tag "tiers[#{tier.id}][installment_method]", options_for_select(methods, tier.installment_method), include_blank: "Herda do credor", id: nil, "aria-label": "Método do parcelamento de #{tier.name}" %></td>
+                <td><%= select_tag "tiers[#{tier.id}][agreement_days_convention]", options_for_select(conventions, tier.agreement_days_convention), include_blank: "Herda do credor", id: nil, "aria-label": "Convenção de dias de #{tier.name}" %></td>
+                <td><%= select_tag "tiers[#{tier.id}][agreement_fine_base]", options_for_select(fine_bases, tier.agreement_fine_base), include_blank: "Herda do credor", id: nil, "aria-label": "Base da multa de #{tier.name}" %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+      <div class="acoes" data-rodape><button type="submit" data-variant="secondary">Salvar parâmetros dos acordos</button></div>
+    <% end %>
+  </div>
+</section>

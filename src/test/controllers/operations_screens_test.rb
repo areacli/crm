@@ -12,25 +12,25 @@ class OperationsScreensTest < ActionDispatch::IntegrationTest
 
   test "R306 e R325: o gestor do credor credencia pelo CNPJ e vê a senha temporária do gestor da operação uma vez" do
     sign_in_as users(:joana)
-    get settings_operations_url
+    assert_includes submenu_do_menu("Operações"), "Credenciadas"
+    get settings_operations_url, headers: TRECHO
     assert_response :success
-    assert_select "#menu-principal details.submenu[open] a[aria-current=page]", text: "Credenciadas"
+    # Na SPA, o credenciamento grava no diálogo e abre a ficha do credenciamento na aba dela, com a senha temporária uma vez.
     post settings_operations_url, params: { operation: { tenant_id: @alfa.id, cnpj: "11.444.777/0001-61", legal_name: "Recupera Cobranças Ltda", short_name: "Recupera",
-                                                          manager_name: "Lia", manager_email: "lia@recupera.com.br" } }
+                                                          manager_name: "Lia", manager_email: "lia@recupera.com.br" } }, headers: TRECHO
     accreditation = Accreditation.last
-    assert_redirected_to settings_operation_url(accreditation)
-    follow_redirect!
+    assert_equal settings_operation_path(accreditation), evento_da_spa["navegar"]
+    get settings_operation_url(accreditation), headers: TRECHO
     assert_select "h1", text: "Recupera"
     assert_includes response.body, "Senha temporária de lia@recupera.com.br"
-    get settings_operation_url(accreditation)
+    get settings_operation_url(accreditation), headers: TRECHO
     assert_not_includes response.body, "Senha temporária"
   end
 
   test "sem a permissão 18, Operações não aparece e o endereço é recusado" do
     sign_in_as users(:carlos)
-    get root_url
-    assert_select "#menu-principal .submenu a", text: "Credenciadas", count: 0
-    get settings_operations_url
+    assert_not_includes rotulos_do_menu, "Credenciadas"
+    get settings_operations_url, headers: TRECHO
     assert_response :not_found
   end
 
@@ -49,7 +49,7 @@ class OperationsScreensTest < ActionDispatch::IntegrationTest
     delete session_url
 
     entrar(caio)
-    assert_redirected_to root_url
+    assert_redirected_to root_url # a casca mostra o aviso da sessão (`menu.json`)
     assert_equal I18n.t("operations.sign_in.suspended", operation: "Recupera", tenants: @alfa.name), flash[:alert]
   end
 
@@ -58,7 +58,7 @@ class OperationsScreensTest < ActionDispatch::IntegrationTest
     caio = make_operation_user(operation, @alfa)
     Accreditation.find_by(tenant: @alfa, operation: operation).update!(status: "suspended")
     entrar(caio)
-    assert_redirected_to new_session_url
+    assert_redirected_to root_url
     assert_equal I18n.t("operations.sign_in.suspended", operation: "Recupera", tenants: @alfa.name), flash[:alert]
   end
 
@@ -79,9 +79,9 @@ class OperationsScreensTest < ActionDispatch::IntegrationTest
     lia = make_operation_user(operation, @alfa, email: "lia@recupera.com.br", name: "Lia", manager: true)
     make_operation_user(operation, @alfa)
     sign_in_as lia
-    get operation_people_url
+    assert_includes rotulos_do_menu, "Pessoas da operação"
+    get operation_people_url, headers: TRECHO
     assert_response :success
-    assert_select "#menu-principal a", text: "Pessoas da operação"
     assert_select "tbody tr", 2
     assert_not_includes response.body, "joana@exemplo.com.br"
     post operation_people_url, params: { operation_member: { name: "Davi", email_address: "davi@recupera.com.br", manager: "0" } }
@@ -100,7 +100,7 @@ class OperationsScreensTest < ActionDispatch::IntegrationTest
   test "pessoa de operação que não é gestora não abre Pessoas da operação" do
     operation = make_operation(@alfa)
     sign_in_as make_operation_user(operation, @alfa)
-    get operation_people_url
+    get operation_people_url, headers: TRECHO
     assert_response :not_found
   end
 

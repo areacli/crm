@@ -11,7 +11,7 @@ CI.run do
   step "Tests: Rails", "bin/rails test"
   step "Tests: Seeds", "env RAILS_ENV=test bin/rails db:seed:replant"
 
-  # Testes de sistema (navegador real, com o axe em cada tela)
+  # Testes de sistema (navegador real; o axe na página pública de pagamento, nas de impressão e nas de erro)
   step "Tests: System", "bin/rails test:system"
 
   # Optional: set a green GitHub commit status to unblock PR merge.

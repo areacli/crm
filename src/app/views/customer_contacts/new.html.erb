@@ -4,8 +4,8 @@
     <%= form.label :kind, "Tipo" %>
     <%= form.select :kind, CustomerContact.kinds.keys.map { |kind| [ contact_kind(kind), kind ] }, { selected: params.dig(:contact, :kind) }, required: true %>
   </div>
-  <div class="campo"><%= form.label :value, "Telefone ou e-mail" %><%= form.text_field :value, value: params.dig(:contact, :value), maxlength: 254, autocomplete: "off" %></div>
-  <fieldset>
+  <div class="campo" data-mostrar-se-campo="contact[kind]" data-mostrar-se-valor="!address"><%= form.label :value, "Telefone ou e-mail" %><%= form.text_field :value, value: params.dig(:contact, :value), maxlength: 254, autocomplete: "off" %></div>
+  <fieldset data-mostrar-se-campo="contact[kind]" data-mostrar-se-valor="address">
     <legend>Endereço</legend>
     <div class="grupo-de-campos">
       <div class="campo"><%= form.label :street, "Logradouro" %><%= form.text_field :street, value: params.dig(:contact, :street), maxlength: 200 %></div>

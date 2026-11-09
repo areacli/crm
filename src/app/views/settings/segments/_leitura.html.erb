@@ -1,0 +1,36 @@
+<%# Leitura de cada linha do segmento (13, R278, R302): a leitura por extenso ou o erro, com o número da linha, e o segmento inteiro por extenso. É o resultado do
+    cálculo à vista do editor (design system, 7.2): refeita a cada pausa na digitação; com erro, marca `recusado`, e sem texto, `incompleto`, e o Salvar espera.
+    Locais: segment, source, parsed. %>
+<% errors = parsed ? parsed.errors.group_by(&:first).transform_values { |list| list.map(&:last) } : {} %>
+<% text = parsed&.ok? ? Segments::Text.new(Segments::Expression.new(parsed.tree)) : nil %>
+<% subject = parsed&.subject || segment.subject || "contracts" %>
+<% if parsed.nil? %>
+  <p class="leitura" data-calculo="incompleto">Escreva as condições; a leitura de cada linha aparece aqui.</p>
+<% else %>
+  <ol class="linhas-do-segmento">
+    <% source.to_s.split(/\r?\n/).each_with_index do |line, index| %>
+      <% number = index + 1 %>
+      <% next if line.strip.empty? %>
+      <% node = parsed.nodes[number] %>
+      <li value="<%= number %>" <%= "data-erro" if errors[number] %>>
+        <code><%= line.strip %></code>
+        <% if errors[number] %>
+          <% errors[number].each do |message| %><p class="erro"><%= message %></p><% end %>
+        <% elsif number == 1 %>
+          <p class="leitura">Seleciona <%= segment_t("subjects.#{subject}.long") %>.</p>
+        <% elsif node == :group %>
+          <p class="leitura">Pelo menos uma das linhas de baixo.</p>
+        <% elsif node %>
+          <p class="leitura"><%= Segments::Text.new(Segments::Expression.new("grammar" => 1, "subject" => subject, "all" => [ node ])).long(node).upcase_first %>.</p>
+        <% end %>
+      </li>
+    <% end %>
+  </ol>
+  <% if text && text.long_text.present? %>
+    <p class="leitura"><strong><%= text.long_text %></strong></p>
+  <% elsif text %>
+    <p class="leitura" data-calculo="incompleto"><strong>Escreva pelo menos uma condição.</strong></p>
+  <% else %>
+    <p class="erro" role="status" data-calculo="recusado"><%= errors.size == 1 ? "1 linha com erro: corrija para salvar." : "#{errors.size} linhas com erro: corrija para salvar." %></p>
+  <% end %>
+<% end %>

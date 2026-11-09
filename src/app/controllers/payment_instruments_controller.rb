@@ -1,6 +1,8 @@
 # Dados de um instrumento emitido, em JSON, para quem monta a mensagem (12, R275): estado, valor, vencimento e as linhas em texto. Sem tela:
 # a emissão e a consulta ficam fora do back office. Permissão do credor do instrumento (404 registrado, V10).
 class PaymentInstrumentsController < ApplicationController
+  # Serve página ou arquivo direto, fora da casca (impressão, download, entrada).
+  skip_before_action :redirect_page_to_shell
   def show
     instrument = PaymentInstrument.find(params[:id])
     authorize instrument

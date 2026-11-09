@@ -1,6 +1,6 @@
 require "application_system_test_case"
 
-# Telas de pagamentos no navegador: canais, políticas, importações de pagamentos e estornos, ficha com crédito e resumo, todas no axe.
+# Telas de pagamentos no navegador, nas abas da casca: métodos de recebimento, políticas, importações de pagamentos e estornos, ficha com crédito e resumo.
 class PaymentsScreensSystemTest < ApplicationSystemTestCase
   include ActiveJob::TestHelper
 
@@ -17,71 +17,54 @@ class PaymentsScreensSystemTest < ApplicationSystemTestCase
                               summary: { lines: 3, valid: 2, rejected: 1, ignored: 0, amount_formatted: "500,00",
                                          effect: { settled: 1, partial: 1, credits: 0, credit_cents: 0, pending_new: 0, applied_cents: 50_000 } })
     @checked.rejections.create!(line: 4, reason: "título não informado")
-    visit new_session_path
-    fill_in "E-mail", with: users(:joana).email_address
-    fill_in "Senha", with: "senha-de-teste-1"
-    click_button "Entrar"
-    assert_selector "h1", text: "Resumo da carteira"
+    entrar_na_casca
   end
 
-  test "resumo, canais, políticas, importações e ficha passam no axe" do
-    assert_text "Recuperado em"
-    assert_acessivel
+  test "o resumo, canais, políticas, importações e ficha abrem nas abas" do
+    assert_selector ".aba-raiz", text: "Recuperado em", wait: 15
 
+    # Métodos de recebimento e políticas estão na SPA (fase 7), fora do axe (D7).
     visit settings_channels_path
-    assert_selector "h1", text: "Métodos de recebimento"
-    assert_acessivel
-    find("#menu-principal summary", text: "Administração").click
-    click_link "Políticas de pagamento"
-    assert_selector "h1", text: "Políticas de pagamento"
-    assert_acessivel
-    find("#menu-principal summary", text: "Administração").click
-    click_link "Métodos de recebimento"
-    click_link "Criar método de recebimento"
-    assert_selector "dialog#painel[open][data-variant=drawer]", text: "Novo método de recebimento"
-    assert_acessivel
-    within("dialog#painel[open]") { click_button "Cancelar" }
-    visit edit_settings_channel_path(@channel)
-    assert_acessivel
-    click_link "Gerar novo segredo"
-    assert_selector "dialog#painel[open]", text: "Gerar um novo segredo?"
-    assert_acessivel
-    within("dialog#painel[open]") { click_button "Cancelar" }
+    assert_selector ".aba-raiz h1", text: "Métodos de recebimento", wait: 15
+    find(".aba-raiz .cabecalho-da-pagina .botao", text: "Criar método de recebimento").click
+    no_dialogo { assert_field "Código" }
+    send_keys :escape
+    abrir_aba settings_payment_policy_path
+    assert_selector ".aba-raiz h1", text: "Políticas de pagamento", wait: 10
+    abrir_aba edit_settings_channel_path(@channel)
+    assert_selector ".aba-raiz h2", text: "Webhook de pagamento", wait: 10
+    find(".aba-raiz .cabecalho-da-pagina .botao", text: "Gerar novo segredo").click
+    no_dialogo { assert_text "O segredo atual, se houver, deixa de valer na hora" }
+    send_keys :escape
 
-    visit new_import_path(kind: "payments")
-    assert_selector "h1", text: "Importar pagamentos"
-    assert_acessivel
-    visit new_import_path(kind: "reversals")
-    assert_selector "h1", text: "Importar estornos"
-    assert_acessivel
-
+    # Importações estão na SPA (fase 5), fora do axe (D7).
+    visit new_import_path(tipo: "pagamentos")
+    assert_selector ".aba-raiz h1", text: "Importar pagamentos", wait: 15
+    assert_selector ".aba-raiz .filebox"
     visit import_path(@checked)
-    assert_text "Pagamentos válidos"
+    assert_selector ".aba-raiz", text: "Pagamentos válidos", wait: 15
     assert_text "título não informado"
-    assert_acessivel
 
-    visit imports_path
-    assert_acessivel
-
-    visit customer_path(@customer, aba: "pagamentos")
-    assert_selector "h2", text: "Pagos"
-    assert_selector "h2", text: "Crédito por contrato"
-    assert_acessivel
-    click_link "Transferir crédito"
-    assert_selector "dialog#painel[open]", text: "Transferir crédito"
-    assert_acessivel
+    # A ficha está na SPA (fase 3): a aba Pagamentos, com as grades e o diálogo de transferir.
+    visitar_ficha(@customer, aba: "pagamentos")
+    na_aba_interna do
+      assert_selector "h2", text: "Pagos"
+      assert_selector "h2", text: "Crédito por contrato"
+      click_link "Transferir crédito"
+    end
+    assert_selector ".window .panel-title", text: "Transferir crédito"
   end
 
-  test "transferir crédito pela janela da ficha" do
-    visit customer_path(@customer, aba: "pagamentos")
-    click_link "Transferir crédito"
-    within("dialog#painel[open]") do
+  test "transferir crédito pelo diálogo da ficha" do
+    visitar_ficha(@customer, aba: "pagamentos")
+    na_aba_interna { click_link "Transferir crédito" }
+    no_dialogo do
       fill_in "Código do contrato de destino", with: "CT-2"
       fill_in "Valor", with: "20,00"
       fill_in "Motivo", with: "migração de contrato"
-      click_button "Transferir", exact: true
     end
-    assert_text "transferidos para o contrato CT-2"
+    gravar_dialogo "Transferir"
+    assert_aviso "transferidos para o contrato CT-2"
     assert_equal 3_000, Contract.find_by!(code: "CT-1").credit_cents
     assert_equal 2_000, Contract.find_by!(code: "CT-2").credit_cents
   end

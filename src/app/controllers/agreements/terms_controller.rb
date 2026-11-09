@@ -1,6 +1,8 @@
 module Agreements
   # O termo do acordo para imprimir ou salvar pelo navegador (11, R219): o rascunho da proposta aprovada, ou o guardado no aceite. Quem abre o acordo (16 no credor).
   class TermsController < ApplicationController
+    # Serve página ou arquivo direto, fora da casca (impressão, download, entrada).
+    skip_before_action :redirect_page_to_shell
     def show
       @agreement = Agreement.includes(:tenant, :customer, agreement_bills: %i[bill contract]).find(params[:agreement_id])
       authorize @agreement, :term?

@@ -1,5 +1,6 @@
 <% content_for :title, "Termo do acordo #{@term['number']}" %>
 <% term = @term %>
+<% primeira = nome_da_primeira(term["schedule"].size - 1) %>
 <%# Termo do acordo (11, R219): texto-modelo do CRM, para imprimir ou salvar pelo navegador. Os textos e os números vêm do hash do termo, que o aceite guarda como estava. %>
 <article class="termo">
   <header>
@@ -17,7 +18,7 @@
 
   <section aria-labelledby="dividas">
     <h2 id="dividas">Dívidas renegociadas</h2>
-    <p>Os títulos abaixo são substituídos pela entrada e pelas parcelas deste acordo quando ele for efetivado. Valores atualizados na data da montagem, por componente.</p>
+    <p>Os títulos abaixo são substituídos pela <%= term["schedule"].size == 1 ? "parcela única" : "entrada e pelas parcelas" %> deste acordo quando ele for efetivado. Valores atualizados na data da montagem, por componente.</p>
     <table>
       <caption class="apenas-leitor-de-tela">Títulos renegociados</caption>
       <thead>
@@ -41,13 +42,13 @@
   </section>
 
   <section aria-labelledby="pagamento">
-    <h2 id="pagamento">Entrada e parcelas</h2>
+    <h2 id="pagamento"><%= term["schedule"].size == 1 ? primeira : "Entrada e parcelas" %></h2>
     <table>
-      <caption class="apenas-leitor-de-tela">Entrada e parcelas</caption>
+      <caption class="apenas-leitor-de-tela"><%= term["schedule"].size == 1 ? primeira : "Entrada e parcelas" %></caption>
       <thead><tr><th scope="col">Pagamento</th><th scope="col">Vencimento</th><th scope="col">Valor</th><th scope="col">Juros do parcelamento</th></tr></thead>
       <tbody>
         <% term["schedule"].each do |row| %>
-          <tr><th scope="row"><%= row["number"].to_i.zero? ? "Entrada" : "Parcela #{row['number']}" %></th><td><%= date_br(Date.iso8601(row["due"])) %></td><td><%= money(row["amount_cents"]) %></td><td><%= money(row["interest_cents"]) %></td></tr>
+          <tr><th scope="row"><%= row["number"].to_i.zero? ? primeira : "Parcela #{row['number']}" %></th><td><%= date_br(Date.iso8601(row["due"])) %></td><td><%= money(row["amount_cents"]) %></td><td><%= money(row["interest_cents"]) %></td></tr>
         <% end %>
       </tbody>
     </table>
@@ -63,8 +64,8 @@
     <% if term["late"] && term["late"]["applies"] %>
       <p><strong>Atraso (mora):</strong> parcela vencida e não paga tem multa de <%= charge_pct(term["late"]["fine_pct"]) %> e juros de mora de <%= charge_pct(term["late"]["interest_pct"]) %> ao mês (<%= t("agreements.parameters.conventions.#{term['late']['convention']}").downcase %>), sobre o principal e a correção do título, até o dia do pagamento.</p>
     <% end %>
-    <p><strong>Quebra:</strong> o acordo quebra se a entrada não for paga até o vencimento mais <%= term.dig("variables", "tolerance_days") %> dias de tolerância, ou se uma parcela ficar mais de <%= term.dig("variables", "break_days") %> dias em atraso. <%= term["policies"].find { |line| line["key"] == "break_form" }&.dig("text") %>.</p>
-    <p>O prazo para pagar a entrada é de até <%= term.dig("variables", "down_payment_days") %> dias da montagem.</p>
+    <p><strong>Quebra:</strong> o acordo quebra se a <%= primeira.downcase %> não for paga até o vencimento mais <%= term.dig("variables", "tolerance_days") %> dias de tolerância, ou se uma parcela ficar mais de <%= term.dig("variables", "break_days") %> dias em atraso. <%= term["policies"].find { |line| line["key"] == "break_form" }&.dig("text") %>.</p>
+    <p>O prazo para pagar a <%= primeira.downcase %> é de até <%= term.dig("variables", "down_payment_days") %> dias da montagem.</p>
     <% if term["policies"].any? %>
       <h3>Regras do credor que valem para este acordo</h3>
       <ul>

@@ -17,8 +17,8 @@ class PaymentsScreensTest < ActionDispatch::IntegrationTest
 
   test "operador não vê canais, políticas nem importação de pagamentos (404 registrado)" do
     entrar(users(:carlos))
-    [ settings_channels_path, settings_payment_policy_path, new_import_path(kind: "payments"), new_import_path(kind: "reversals") ].each do |path|
-      get path
+    [ settings_channels_path, settings_payment_policy_path, new_import_path(tipo: "pagamentos"), new_import_path(tipo: "estornos") ].each do |path|
+      get path, headers: TRECHO
       assert_response :not_found, path
     end
     assert_operator AccessEvent.where(event: "access_denied").count, :>=, 4
@@ -26,11 +26,11 @@ class PaymentsScreensTest < ActionDispatch::IntegrationTest
 
   test "lista de canais mostra só os credores da permissão 4 (V10) e o link direto de outro credor responde 404 registrado" do
     entrar(users(:joana))
-    get settings_channels_path
+    get settings_channels_path, headers: TRECHO
     assert_response :success
     assert_select "th a", text: @channel.code
     assert_select "th a", text: "BETA-1", count: 0
-    get edit_settings_channel_path(@beta_channel)
+    get edit_settings_channel_path(@beta_channel), headers: TRECHO
     assert_response :not_found
     assert_equal @beta.id, AccessEvent.where(event: "access_denied").last.tenant_id
     patch settings_channel_path(@beta_channel), params: { payment_channel: { description: "x", kind: "card", code: "Z", active: "1" } }
@@ -44,7 +44,7 @@ class PaymentsScreensTest < ActionDispatch::IntegrationTest
     user = make_user(@alfa, %w[change_settings])
     Membership.create!(user: user, tenant: @beta, profile: Profile.create!(tenant: @beta, name: "Cfg", permissions: %w[view_portfolio change_settings]))
     entrar(user)
-    get settings_channels_path
+    get settings_channels_path, headers: TRECHO
     assert_select "th a", text: "BETA-1"
     assert_select "th", text: "Credor"
   end
@@ -90,10 +90,10 @@ class PaymentsScreensTest < ActionDispatch::IntegrationTest
     entrar(users(:joana))
     post settings_channel_webhook_secret_path(@channel)
     assert_redirected_to edit_settings_channel_path(@channel)
-    follow_redirect!
+    seguir_redirecionamento!
     secret = @channel.reload.webhook_secret
     assert_includes response.body, secret
-    get edit_settings_channel_path(@channel)
+    get edit_settings_channel_path(@channel), headers: TRECHO
     assert_not_includes response.body, secret
     assert_equal "webhook_secret_generated", Change.where(subject_id: @channel.id).last.event
     assert_nil Change.where(subject_id: @channel.id).pluck(:before, :after).flatten.compact.find { |value| value.include?(secret) }
@@ -101,50 +101,48 @@ class PaymentsScreensTest < ActionDispatch::IntegrationTest
 
   test "políticas de pagamento: a permissão 14 é separada da 4 e cada mudança fica registrada" do
     entrar(make_user(@alfa, %w[change_settings]))
-    get settings_payment_policy_path
+    get settings_payment_policy_path, headers: TRECHO
     assert_response :not_found
 
     entrar(users(:joana))
-    get settings_payment_policy_path
+    get settings_payment_policy_path, headers: TRECHO
     assert_response :success
-    patch settings_payment_policy_path, params: { tenant_id: @alfa.id, tenant_setting: { partial_payment_policy: "credit", withdrawn_payment_policy: "credit",
+    patch settings_payment_policy_path, params: { credor: @alfa.id, tenant_setting: { partial_payment_policy: "credit", withdrawn_payment_policy: "credit",
                                                                                     withdrawn_reversal_policy: "withdrawn", reversal_month_policy: "payment" } }
     assert_redirected_to settings_payment_policy_path
     setting = @alfa.setting.reload
     assert_equal %w[credit credit withdrawn payment cancel_only deny], setting.values_at(*TenantSetting::PAYMENT_POLICIES).map(&:to_s)
     assert_equal 4, Change.where(subject_type: "settings", event: TenantSetting::PAYMENT_POLICIES.map { |f| "#{f}_changed" }).count
-    patch settings_payment_policy_path, params: { tenant_id: @beta.id, tenant_setting: { partial_payment_policy: "credit" } }
+    patch settings_payment_policy_path, params: { credor: @beta.id, tenant_setting: { partial_payment_policy: "credit" } }
     assert_response :not_found
     assert_predicate @beta.setting.reload, :partial_payment_policy_partial?
   end
 
-  test "o item Configuração do menu abre e fecha as seções que o usuário vê; aberto só nas páginas da configuração" do
+  # Na SPA (fase 7), o item marcado é da casca (`spa/aplicacao`); o `menu.json` traz o submenu Configuração com as seções que o usuário vê.
+  test "o item Configuração do menu traz as seções que o usuário vê, e a página delas responde como trecho" do
     entrar(make_user(@alfa, %w[change_financial_policies]))
-    get root_path
-    assert_select "#menu-principal details.submenu:not([open]) summary", text: "Configuração"
-    assert_select "#menu-principal .submenu a[href='#{settings_payment_policy_path}']", text: "Políticas de pagamento"
-    get settings_payment_policy_path
-    assert_select "#menu-principal details.submenu[open] a[aria-current=page]", text: "Políticas de pagamento"
-    assert_select "main[data-modelo=configuracao]"
-    # Com a 14 também aparecem as abas Contas de pagamento (12), Segmentos e Enquadramento financeiro (13), Promessas (10, R206) e Índices (08, R158).
-    assert_select "#menu-principal .submenu a", count: 6
+    # Com a 14 aparecem Métodos de recebimento (16), Políticas de pagamento, Segmentos e Enquadramento financeiro (13), Promessas e acordos (10, R206) e Índices (08, R158).
+    assert_equal [ "Métodos de recebimento", "Políticas de pagamento", "Segmentos", "Enquadramento financeiro", "Promessas e acordos", "Índices" ], submenu_do_menu("Configuração")
+    get settings_payment_policy_path, headers: TRECHO
+    assert_response :success
+    assert_select "h1", text: "Políticas de pagamento"
   end
 
   test "importar pagamentos exige a permissão 5; confirmar, a 6, também por link direto (R47)" do
     uploader = make_user(@alfa, %w[upload_payments])
     make_bill(@alfa)
     entrar(uploader)
-    get new_import_path(kind: "payments")
+    get new_import_path(tipo: "pagamentos"), headers: TRECHO
     assert_response :success
     assert_select "h1", "Importar pagamentos"
-    get new_import_path(kind: "portfolio")
+    get new_import_path(tipo: "carteira"), headers: TRECHO
     assert_response :not_found
     arquivo = fixture_file_upload(write_csv([ payment_line ], header: PaymentsHelper::PAYMENT_HEADER), "text/csv")
     assert_enqueued_with(job: CheckImportJob) { post imports_path, params: { import: { tenant_id: @alfa.id, kind: "payments", file: arquivo } } }
     import = Import.last
     assert_predicate import, :payments?
     perform_enqueued_jobs(only: CheckImportJob)
-    get import_path(import)
+    get import_path(import), headers: TRECHO
     assert_response :success
     assert_select "button", text: "Confirmar", count: 0
     post import_confirmation_path(import)
@@ -158,13 +156,13 @@ class PaymentsScreensTest < ActionDispatch::IntegrationTest
     make_bill(@alfa)
     import = run_payments_import([ payment_line ])
     entrar(make_user(@alfa, %w[upload_imports confirm_imports]))
-    get import_path(import)
+    get import_path(import), headers: TRECHO
     assert_response :not_found
     post import_confirmation_path(import)
     assert_response :not_found
 
     entrar(make_user(@alfa, %w[confirm_payments]))
-    get import_path(import)
+    get import_path(import), headers: TRECHO
     assert_select "a", text: "Confirmar"
     assert_enqueued_with(job: ConfirmImportJob) { post import_confirmation_path(import) }
   end
@@ -174,19 +172,19 @@ class PaymentsScreensTest < ActionDispatch::IntegrationTest
     run_payments_import([ payment_line ])
     beta_import = Import.create!(tenant: @beta, user: users(:ana), kind: :payments, mode: :incremental, status: :checked, original_name: "beta.csv")
     entrar(users(:joana))
-    get imports_path
+    get imports_path, headers: TRECHO
     assert_select "td", text: "Pagamentos"
     assert_select "td", text: "beta.csv", count: 0
-    get import_path(beta_import)
+    get import_path(beta_import), headers: TRECHO
     assert_response :not_found
   end
 
   test "as planilhas-modelo de pagamentos e de estornos são baixadas" do
     entrar(users(:joana))
-    get template_imports_path(kind: "payments")
+    get template_imports_path(tipo: "pagamentos")
     assert_response :success
     assert_includes response.body, "metodo_recebimento;identificador;documento;titulo;data_pagamento;valor;meio"
-    get template_imports_path(kind: "reversals")
+    get template_imports_path(tipo: "estornos")
     assert_includes response.body, "identificador_pagamento;identificador_estorno"
   end
 
@@ -195,11 +193,11 @@ class PaymentsScreensTest < ActionDispatch::IntegrationTest
     confirm_import(run_payments_import([ payment_line("valor" => "650,00") ]))
     customer = bill.customer
     entrar(users(:carlos))
-    get customer_path(customer, aba: "pagamentos")
+    get_ficha(customer, aba: "pagamentos")
     assert_response :success
     assert_select "h2", "Pagos"
     assert_select "h3", text: /CT-1: R\$ 150,00/
-    assert_select "a[hx-get*=transferencias-de-credito]", count: 0
+    assert_select "a[href*=transferencias-de-credito]", count: 0
     assert_no_match(/saldo de crédito/i, response.body)
   end
 
@@ -218,14 +216,14 @@ class PaymentsScreensTest < ActionDispatch::IntegrationTest
     assert_equal 1, AccessEvent.where(event: "access_denied").count
 
     entrar(users(:joana))
-    get customer_path(customer, aba: "pagamentos")
-    assert_select "a[hx-get*=transferencias-de-credito]", text: "Transferir crédito"
+    get_ficha(customer, aba: "pagamentos")
+    assert_select "a[data-spa-dialogo][href*=transferencias-de-credito]", text: "Transferir crédito"
     get new_customer_credit_transfer_path(customer), headers: painel
-    assert_select "[data-painel] form.painel select[name='credit_transfer[from_contract_id]']"
+    assert_select "form.dialogo select[name='credit_transfer[from_contract_id]']"
     post customer_credit_transfers_path(customer), params: params
     assert_redirected_to customer_path(customer, aba: "pagamentos")
     assert_equal [ 5_000, 15_000 ], [ from.credit_cents, to.credit_cents ]
-    follow_redirect!
+    get_ficha(customer, aba: "pagamentos")
     assert_select "h3", text: /CT-1: R\$ 50,00/
 
     post customer_credit_transfers_path(customer), params: params.deep_merge(credit_transfer: { reason: "" })
@@ -253,7 +251,7 @@ class PaymentsScreensTest < ActionDispatch::IntegrationTest
     confirm_import(run_payments_import([ payment_line("valor" => "1.050,00"), payment_line("identificador" => "P2", "titulo" => "NF-9", "valor" => "30,00", "meio" => "boleto") ]))
     Membership.create!(user: users(:joana), tenant: @beta, profile: profiles(:beta_operator))
     entrar(users(:joana))
-    get root_path
+    get summary_path, headers: TRECHO
     assert_select "dt", text: /Recuperado em/
     assert_select "h2", text: /Escola Alfa|Clínica Beta|Todos os credores/, count: 0
     assert_includes response.body, "R$ 1.000,00"
@@ -264,7 +262,7 @@ class PaymentsScreensTest < ActionDispatch::IntegrationTest
   test "resumo de quem só consulta a Alfa não mostra nada da Beta (V10)" do
     make_bill(@beta, amount_cents: 20_000)
     entrar(users(:joana))
-    get root_path
+    get summary_path, headers: TRECHO
     assert_select "h2", text: /Beta/, count: 0
   end
 
@@ -272,7 +270,6 @@ class PaymentsScreensTest < ActionDispatch::IntegrationTest
     make_bill(@alfa, amount_cents: 100_000)
     confirm_import(run_payments_import([ payment_line ]))
     entrar(users(:carlos))
-    get customers_path(q: "maria")
-    assert_select "td", text: "sem títulos em cobrança"
+    assert_equal [ "sem títulos em cobrança" ], linhas_de_clientes(busca: "maria").map { |linha| linha["max_days_overdue"] }
   end
 end

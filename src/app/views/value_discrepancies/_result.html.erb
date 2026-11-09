@@ -1,4 +1,4 @@
-<%# Trecho que o htmx refaz a cada filtro ou página: contagem, tabela e paginação. %>
+<%# Trecho que a SPA refaz a cada filtro ou página: contagem, tabela e paginação. %>
 <div id="resultado" aria-live="polite">
   <% if @discrepancies.empty? %>
     <p class="vazio"><%= @status == "open" ? "Nenhuma divergência aberta. Quando uma carga mudar o valor de um título com pagamento, ela aparece aqui." : "Nenhuma divergência encontrada." %></p>
@@ -42,6 +42,6 @@
         </tbody>
       </table>
     </div>
-    <%= render "shared/paginacao", pagination: @pagination, unit: "divergências", path: ->(page) { value_discrepancies_path(request.query_parameters.merge("page" => page)) } %>
+    <%= render "shared/paginacao", pagination: @pagination, unit: "divergências", path: ->(page) { value_discrepancies_path(request.query_parameters.merge("pagina" => page)) } %>
   <% end %>
 </div>

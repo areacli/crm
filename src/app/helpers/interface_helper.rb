@@ -40,28 +40,20 @@ module InterfaceHelper
     tag.aside(class: "aviso", role: papel, data: { tone: tom }) { icone(nome_do_icone) + tag.div(&conteudo) }
   end
 
-  # Barra de página (modelo de página, revisão 4): título, subtítulo, indicadores (selos) e as ações da página à direita. Primeiro bloco do `main`.
-  # `vivo: { url:, eventos: [...] }` refaz só os indicadores quando um evento de invalidação chega (o chip de promessas da ficha), sem recarregar a página.
-  def pagina(titulo, subtitulo: nil, indicadores: [], vivo: nil, &acoes)
+  # Barra de página (modelo de página, revisão 4): título, subtítulo, indicadores (selos) e as ações da página à direita. Primeiro bloco do trecho.
+  def pagina(titulo, subtitulo: nil, indicadores: [], &acoes)
     tag.header(class: "cabecalho-da-pagina") do
       partes = [ tag.div { safe_join([ tag.h1(titulo), (tag.p(subtitulo) if subtitulo) ].compact) } ]
-      if vivo
-        atualizacao = { id: "indicadores-da-pagina", "hx-get": vivo.fetch(:url), "hx-trigger": vivo.fetch(:eventos).map { |evento| "#{evento} from:body delay:250ms" }.join(", "),
-                        "hx-select": "#indicadores-da-pagina", "hx-target": "this", "hx-swap": "outerHTML", "hx-push-url": "false" }
-        partes << tag.div(safe_join(indicadores), class: "indicadores", **atualizacao)
-      elsif indicadores.any?
-        partes << tag.div(safe_join(indicadores), class: "indicadores")
-      end
+      partes << tag.div(safe_join(indicadores), class: "indicadores") if indicadores.any?
       partes << tag.div(capture(&acoes), class: "acoes") if acoes
       safe_join(partes)
     end
   end
 
-  # Botão (i) com a definição de um indicador num popover do HTML (atributo `popover`, sem JavaScript); o popover se ancora no botão.
-  def informacao(rotulo, texto, id = nil)
-    id ||= "definicao-#{rotulo.parameterize}"
-    safe_join([ tag.button("i", type: "button", class: "informacao", popovertarget: id, "aria-label": "Definição de #{rotulo}"),
-                tag.div(tag.p(texto), id: id, popover: "auto", class: "definicao") ])
+  # Botão (i) com a definição de um indicador num popover do HTML (atributo `popover`). Não há `id` fixo em trecho (duas fichas têm a mesma marcação): o
+  # `spa/navegacao` abre o popover vizinho. O `id` dos chamadores antigos fica sem uso.
+  def informacao(rotulo, texto, _id = nil)
+    safe_join([ tag.button("i", type: "button", class: "informacao", data: { spa_popover: true }, "aria-label": "Definição de #{rotulo}"), tag.div(tag.p(texto), popover: "auto", class: "definicao") ])
   end
 
   # Indicador do resumo (KPI): rótulo de 13 px, valor de 22 px, detalhe opcional e, com `definicao`, o (i) com o popover. Vai dentro de `<dl class="kpis">`.
@@ -87,14 +79,14 @@ module InterfaceHelper
     end
   end
 
-  # Menu de linha (⋯): botão e popover com as ações da linha (links e botões de abrir o painel, ou botões de ação direta).
-  def menu_de_linha(id, rotulo, &itens)
-    safe_join([ tag.button("⋯", type: "button", class: "menu-de-linha", popovertarget: id, "aria-label": rotulo, data: { acao_de_linha: true }),
-                tag.div(capture(&itens), id: id, popover: "auto", class: "menu") ])
+  # Menu de linha (⋯): botão e popover com as ações da linha (links que abrem diálogo ou aba, ou botões de ação direta), aberto pelo `spa/navegacao`. O `id` dos
+  # chamadores antigos fica sem uso.
+  def menu_de_linha(_id, rotulo, &itens)
+    safe_join([ tag.button("⋯", type: "button", class: "menu-de-linha", "aria-label": rotulo, data: { spa_popover: true }), tag.div(capture(&itens), popover: "auto", class: "menu") ])
   end
 
   # Linha com detalhe (padrões de interface, revisão 25, P26; design system, revisão 10): cada registro ocupa uma linha, e o resto vai numa faixa logo abaixo,
-  # fechada, que abre pela seta antes do conteúdo da primeira coluna. A tabela leva `data-detalhes`; sem JavaScript, os detalhes ficam abertos (`noscript` no layout).
+  # fechada, que abre pela seta antes do conteúdo da primeira coluna. A tabela leva `data-detalhes`, e a grade monta o detalhe pela `datagrid-detailview`.
   def alternar_detalhe(id, objeto)
     tag.button(icone("chevron-right"), type: "button", class: "alternar-detalhe", data: { alternar_detalhe: true, objeto: objeto },
                "aria-expanded": "false", "aria-controls": id, "aria-label": "Mostrar detalhes de #{objeto}")

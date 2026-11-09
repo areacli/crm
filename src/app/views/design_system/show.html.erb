@@ -1,138 +1,87 @@
-<% content_for :title, "Design system" %>
-<header class="cabecalho-da-pagina">
-  <div>
-    <h1>Design system</h1>
-    <p>Referência dos tokens e dos componentes, com todos os estados.</p>
+<%# Página de referência na SPA (design system, 18.5): os componentes do catálogo nos seus estados, com respostas de mentira para a espera (só em desenvolvimento e teste). %>
+<div class="referencia" data-titulo="Design system">
+  <%= pagina "Design system", subtitulo: "Componentes e estados da SPA em EasyUI (design system, revisão 18)" %>
+  <div class="referencia-corpo">
+    <section class="cartao">
+      <header><h2>Botões</h2></header>
+      <div class="exemplos">
+        <button type="button">Salvar</button>
+        <button type="button" data-variant="secondary">Cancelar</button>
+        <button type="button" data-variant="danger">Excluir</button>
+        <a class="botao" data-variant="danger-outline" href="#">Anonimizar</a>
+        <button type="button" disabled>Salvar</button>
+        <button type="button" class="carregando" disabled>Salvar</button>
+        <button type="button" data-size="small" data-variant="secondary">Ver</button>
+      </div>
+    </section>
+
+    <section class="cartao">
+      <header><h2>Situações e avisos</h2></header>
+      <div>
+        <p class="exemplos"><% { success: "Pago", warning: "Divergência", danger: "Vencido", info: "Em acordo", neutral: "Retirado" }.each do |tom, texto| %><%= situacao texto, tom: tom %><% end %></p>
+        <% %i[info success warning danger].each do |tom| %><%= aviso(tom: tom) { tag.p "Aviso no tom #{tom}." } %><% end %>
+        <p>Definição em popover <%= informacao "valor atualizado", "Principal corrigido, multa, juros e honorários até hoje." %></p>
+      </div>
+    </section>
+
+    <section class="cartao">
+      <header><h2>Campos</h2></header>
+      <div><form class="grupo-de-campos" action="#">
+        <div class="campo"><label for="ref-texto">Texto</label><input type="text" id="ref-texto" value="Maria Silva"></div>
+        <div class="campo"><label for="ref-escolha">Lista de escolha</label><select id="ref-escolha"><option>Telefone</option><option>E-mail</option><option>WhatsApp</option></select></div>
+        <div class="campo"><label for="ref-data">Data</label><input type="date" id="ref-data" name="ref_data" value="2026-11-10"></div>
+        <div class="campo"><label for="ref-numero">Número</label><input type="number" id="ref-numero" value="12"></div>
+        <div class="campo"><label for="ref-area">Texto longo</label><textarea id="ref-area" rows="2">Observação</textarea></div>
+        <div class="campo"><label><input type="checkbox" checked> Salvar este contato no cadastro</label></div>
+      </form></div>
+    </section>
+
+    <section class="cartao">
+      <header><h2>Edição inline (7.1)</h2></header>
+      <div><p>Nome do cliente: <%= campo_inline "Maria Silva", rotulo: "Nome", url: design_system_inline_path, nome: "nome" %></p><p><small>Vazio, o servidor recusa e a mensagem aparece junto ao campo.</small></p></div>
+    </section>
+
+    <section class="cartao">
+      <header><h2>Cálculo à vista (7.2)</h2></header>
+      <div>
+        <%= form_with url: design_system_calculo_path, **calculo_a_vista(design_system_calculo_path), class: "grupo-de-campos" do %>
+          <div class="campo"><label for="ref-a">Valor A</label><input type="number" id="ref-a" name="a" value="10"></div>
+          <div class="campo"><label for="ref-b">Valor B</label><input type="number" id="ref-b" name="b" value="5"></div>
+          <div class="campo"><label for="ref-demora">Demora do servidor (s)</label><input type="number" id="ref-demora" name="demora" value="1"></div>
+          <div class="campo"><label><input type="checkbox" name="falhar" value="1"> Falhar</label></div>
+          <div class="campo"><button type="button" data-depende-do-calculo>Usar o resultado</button></div>
+        <% end %>
+        <%= resultado_do_calculo do %><dl class="kpis"><%= kpi "Soma", "15,00" %></dl><% end %>
+      </div>
+    </section>
+
+    <section class="cartao">
+      <header><h2>Janela, diálogo e espera (7.2)</h2></header>
+      <div class="exemplos">
+        <%= link_to "Abrir janela", design_system_janela_path, class: "botao", data: { variant: "secondary" } %>
+        <%= abrir_painel "Abrir diálogo", design_system_dialogo_path, variante: "secondary" %>
+        <%= link_to "Ver resposta em 4 s", design_system_lento_path(segundos: 4), class: "botao", data: { variant: "secondary" } %>
+        <%= link_to "Ver falha", design_system_lento_path(falhar: 1), class: "botao", data: { variant: "secondary" } %>
+      </div>
+    </section>
+
+    <section class="cartao">
+      <header><h2>Grade, selos e menu da linha</h2></header>
+      <div class="referencia-grade">
+        <%= grade linhas: [
+              { cliente: { texto: "Maria Silva", href: "#", selos: [ { texto: "Em acordo", tom: "info" } ] }, valor: "R$ 1.814,12", situacao: [ { texto: "Vencido", tom: "danger" } ], acoes: [ { texto: "Abrir diálogo", href: design_system_dialogo_path, dialogo: true } ] },
+              { cliente: { texto: %q(<b data-invadido>Nome com marcação</b>) }, valor: "R$ 0,00", situacao: [ { texto: "Pago", tom: "success" } ], acoes: [] }
+            ], colunas: [ { campo: "cliente", titulo: "Cliente", largura: 260, tipo: "rico" }, { campo: "valor", titulo: "Valor", largura: 110, tipo: "numero" },
+                          { campo: "situacao", titulo: "Situação", largura: 110, tipo: "selos" }, { campo: "acoes", titulo: "", largura: 44, tipo: "acoes" } ] %>
+      </div>
+    </section>
+
+    <section class="cartao">
+      <header><h2>Abas da página e campo em linha</h2></header>
+      <div>
+        <%= abas_da_pagina "Exemplo de abas", [ [ "Títulos", "#", 4, true ], [ "Acionamentos", "#", 3, false ], [ "Histórico", "#", nil, false ] ] %>
+        <%= campo_em_linha "Dias para quebrar", "ref-dias", tamanho: "numero", ajuda: "Contados do vencimento." do %><input type="number" id="ref-dias" value="30"><% end %>
+      </div>
+    </section>
   </div>
-</header>
-
-<section class="cartao" aria-labelledby="cores">
-  <header><h2 id="cores">Cores</h2></header>
-  <ul class="amostras">
-    <% @cores.each do |cor| %>
-      <li><i data-cor="<%= cor %>"></i><span><%= cor %></span></li>
-    <% end %>
-  </ul>
-</section>
-
-<section class="cartao" aria-labelledby="tipografia">
-  <header><h2 id="tipografia">Tipografia</h2></header>
-  <div class="escala">
-    <h1>Título da página, 32 px</h1>
-    <p><strong>Título de seção, 24 px</strong></p>
-    <h2>Título de cartão, 20 px</h2>
-    <p>Corpo, 16 px: texto, campos e tabelas. R$ 1.234,56 · 12/10/2026 14:30</p>
-    <p><small>Legenda, 14 px: o piso do produto.</small></p>
-  </div>
-</section>
-
-<section class="cartao" aria-labelledby="botoes">
-  <header><h2 id="botoes">Botões</h2></header>
-  <div class="acoes">
-    <button type="button">Primário</button>
-    <button type="button" data-variant="secondary">Secundário</button>
-    <button type="button" data-variant="danger">Excluir</button>
-    <button type="button" data-variant="danger-outline" data-size="small">Anular</button>
-    <button type="button" data-variant="link">Link</button>
-    <button type="button" disabled>Desabilitado</button>
-    <button type="button" data-variant="secondary" data-size="small">Pequeno</button>
-  </div>
-</section>
-
-<section class="cartao" aria-labelledby="campos">
-  <header><h2 id="campos">Campos</h2></header>
-  <form action="<%= design_system_path %>" method="get">
-    <div class="campo">
-      <label for="exemplo-normal">Normal</label>
-      <input id="exemplo-normal" type="text" value="Texto digitado" aria-describedby="exemplo-normal-ajuda">
-      <small id="exemplo-normal-ajuda">Texto de ajuda em legenda.</small>
-    </div>
-    <div class="campo">
-      <label for="exemplo-erro">Com erro <span class="obrigatorio" aria-hidden="true">*</span><span class="apenas-leitor-de-tela"> (obrigatório)</span></label>
-      <input id="exemplo-erro" type="text" aria-invalid="true" aria-describedby="exemplo-erro-mensagem">
-      <p class="erro" id="exemplo-erro-mensagem" role="alert"><%= icone("exclamation-circle", tamanho: "small") %>Informe um valor válido.</p>
-    </div>
-    <div class="campo">
-      <label for="exemplo-desabilitado">Desabilitado</label>
-      <input id="exemplo-desabilitado" type="text" value="Somente leitura" disabled>
-    </div>
-    <div class="campo">
-      <label for="exemplo-lista">Lista</label>
-      <select id="exemplo-lista"><option>Primeira opção</option><option>Segunda opção</option></select>
-    </div>
-    <div class="campo">
-      <label for="exemplo-texto">Texto longo</label>
-      <textarea id="exemplo-texto"></textarea>
-    </div>
-    <fieldset>
-      <legend>Opções</legend>
-      <label><input type="checkbox"> Caixa de seleção</label>
-      <label><input type="radio" name="exemplo-opcao"> Primeira</label>
-      <label><input type="radio" name="exemplo-opcao"> Segunda</label>
-    </fieldset>
-  </form>
-</section>
-
-<section class="cartao" aria-labelledby="situacoes">
-  <header><h2 id="situacoes">Situações e avisos</h2></header>
-  <div class="acoes">
-    <%= situacao "Concluída", tom: :success %>
-    <%= situacao "Aguardando confirmação", tom: :warning %>
-    <%= situacao "Falhou", tom: :danger %>
-    <%= situacao "Em processamento", tom: :info %>
-    <%= situacao "Descartada" %>
-  </div>
-  <p></p>
-  <%= aviso(tom: :info) { tag.p "Informação para o usuário." } %>
-  <%= aviso(tom: :success) { tag.p "Operação concluída." } %>
-  <%= aviso(tom: :warning) { tag.p "Atenção: confira antes de confirmar." } %>
-  <%= aviso(tom: :danger) { tag.p "Erro: a importação foi recusada." } %>
-</section>
-
-<section class="cartao" aria-labelledby="tabela-exemplo">
-  <header><h2 id="tabela-exemplo">Tabela, valores e estado vazio</h2></header>
-  <div class="tabela" tabindex="0">
-    <table>
-      <caption>Títulos do contrato</caption>
-      <thead><tr><th scope="col">Título</th><th scope="col" data-numerico>Valor</th><th scope="col">Situação</th></tr></thead>
-      <tbody>
-        <tr><td>NF-1/1</td><td data-numerico>R$ 1.234,56</td><td><%= situacao "Vencido", tom: :danger %></td></tr>
-        <tr><td>NF-1/2</td><td data-numerico>R$ 99,00</td><td><%= situacao "Pago", tom: :success %></td></tr>
-      </tbody>
-    </table>
-  </div>
-  <dl class="valores">
-    <div><dt>Vencido</dt><dd>R$ 1.234,56</dd></div>
-    <div><dt>Faixa</dt><dd>mais de 360</dd></div>
-    <div><dt>Pagamentos</dt><dd>12<small>no mês</small></dd></div>
-  </dl>
-  <p class="vazio">Nenhum registro encontrado.</p>
-</section>
-
-<section class="cartao" aria-labelledby="abas-exemplo">
-  <header><h2 id="abas-exemplo">Abas, ícones e confirmação no painel</h2></header>
-  <nav class="abas" aria-label="Abas de exemplo">
-    <a href="<%= design_system_path %>" aria-current="page">Carteira</a>
-    <a href="<%= design_system_path %>">Canais</a>
-    <a href="<%= design_system_path %>">Pagamentos</a>
-  </nav>
-  <p><%= icone("bell", rotulo: "Avisos") %> <%= icone("check-circle", tamanho: "small") %> <%= icone("x-mark") %> <%= icone("chevron-down", tamanho: "small") %></p>
-  <div class="acoes">
-    <%= confirmar_no_painel "Excluir o exemplo", titulo: "Excluir o exemplo?", mensagem: "O exemplo é excluído e não volta.", acao: "Excluir", url: design_system_path, metodo: :get %>
-  </div>
-</section>
-
-<section class="cartao" aria-labelledby="segmentos-exemplo">
-  <header><h2 id="segmentos-exemplo">Editor de segmentos: texto, ajuda, leitura por linha e "Como fica"</h2></header>
-  <div class="campo campo-largo"><label for="ds-texto">Texto do segmento</label><textarea id="ds-texto" class="editor-de-segmento" rows="5" spellcheck="false">contratos
-  atraso &gt; 90
-  titulos vencidos 3</textarea></div>
-  <section class="ajuda-de-escrita" aria-label="Como escrever (exemplo)"><h3>Como escrever</h3><ul><li>Primeira linha: <code>contratos</code> ou <code>clientes</code>.</li></ul></section>
-  <aside class="como-fica" aria-label="Como fica (exemplo)">
-    <ol class="linhas-do-segmento">
-      <li value="2"><code>atraso &gt; 90</code><p class="leitura">O contrato tem atraso maior que 90 dias.</p></li>
-      <li value="3" data-erro><code>titulos vencidos 3</code><p class="erro">Linha 3: vem uma comparação: =, ≠, &gt;, &gt;=, &lt;, &lt;=, entre ou em.</p></li>
-    </ol>
-    <p><span class="carregando" aria-hidden="true"></span> Contando…</p>
-  </aside>
-</section>
+</div>

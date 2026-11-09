@@ -22,8 +22,7 @@ class AgreementTitlesScreensTest < ActionDispatch::IntegrationTest
 
   test "R221, R225: a página do acordo efetivado mostra os títulos de acordo, o devido de hoje e a situação" do
     entrar(users(:carlos))
-    get agreement_path(@agreement)
-
+    get agreement_path(@agreement), headers: TRECHO
     assert_response :success
     assert_select "h2", text: "Títulos de acordo"
     assert_select "table th a", text: "ACD-000001-02"
@@ -34,45 +33,45 @@ class AgreementTitlesScreensTest < ActionDispatch::IntegrationTest
 
   test "R225: a ficha mostra o título de acordo com a marca, os originais renegociados e o saldo do acordo" do
     entrar(users(:carlos))
-    get customer_path(@customer)
-
+    get_ficha(@customer)
     assert_response :success
     assert_select "td", text: "Renegociado"
     assert_select "td", text: "Pago"
     # Padrões de interface, revisão 27: a origem fica na página do título.
-    get bill_path(Bill.where(customer: @customer).where.not(agreement_id: nil).first)
+    get bill_path(Bill.where(customer: @customer).where.not(agreement_id: nil).first), headers: TRECHO
     assert_select "section[aria-labelledby=cobranca-do-titulo] p", text: /Título de acordo/
-    get bill_path(Bill.where(customer: @customer).detect(&:renegotiated?))
+    get bill_path(Bill.where(customer: @customer).detect(&:renegotiated?)), headers: TRECHO
     assert_select "section[aria-labelledby=cobranca-do-titulo] p", text: /Renegociado no acordo/
   end
 
   test "R230: 'Calcular quitação' grava o saldo para a data e a página o mostra" do
     entrar(users(:carlos))
-    post agreement_settlement_path(@agreement), params: { settlement: { on_date: "2026-12-31" } }
-    assert_redirected_to agreement_path(@agreement)
+    post agreement_settlement_path(@agreement), params: { settlement: { on_date: "2026-12-31" } }, headers: TRECHO
+    assert_response :no_content
+    assert_match(/Quitação calculada: R\$ [\d.,]+ para pagar até 31\/12\/2026/, evento_da_spa["aviso"])
+    get agreement_path(@agreement), headers: TRECHO
+    assert_select "li", text: /Quitação calculada para 31\/12\/2026/
 
     quote = @agreement.settlements.last
     assert_equal Date.new(2026, 12, 31), quote.on_date
-    follow_redirect!
-    assert_select "li", text: /Quitação calculada para 31\/12\/2026/
     post agreement_settlement_path(@agreement), params: { settlement: { on_date: "2020-01-01" } }
     assert_equal I18n.t("agreements.settlements.create.invalid_date"), flash[:alert]
   end
 
   test "R238, R245: a quebra manual é de quem administra acordos; quem só negocia não vê a ação e recebe 'não encontrado'" do
     entrar(users(:carlos))
-    get agreement_path(@agreement)
+    get agreement_path(@agreement), headers: TRECHO
     assert_select "a", text: "Quebrar o acordo", count: 0
     post agreement_break_path(@agreement), params: { break: { reason: "x", fraud: "1" } }
     assert_response :not_found
     delete session_path
 
     entrar(users(:joana))
-    get agreement_path(@agreement)
+    get agreement_path(@agreement), headers: TRECHO
     assert_select "a", text: "Quebrar o acordo"
     post agreement_break_path(@agreement), params: { break: { reason: "documento falso", fraud: "1" } }
     assert_predicate @agreement.reload, :state_broken?
-    follow_redirect!
+    get agreement_path(@agreement), headers: TRECHO
     assert_select "aside", text: /Acordo quebrado em/
   end
 
@@ -86,12 +85,12 @@ class AgreementTitlesScreensTest < ActionDispatch::IntegrationTest
 
   test "R244: o arquivo de acordos exporta as quatro linhas e fica registrado; só quem administra acordos vê e baixa" do
     entrar(users(:carlos))
-    get agreement_exports_path
+    get agreement_exports_path, headers: TRECHO
     assert_response :not_found
     delete session_path
 
     entrar(users(:joana))
-    get agreement_exports_path
+    get agreement_exports_path, headers: TRECHO
     assert_response :success
     post agreement_exports_path, params: { agreement_export: { tenant_id: @alfa.id, form: "full" } }
     assert_redirected_to agreement_exports_path
@@ -137,7 +136,7 @@ class AgreementTitlesScreensTest < ActionDispatch::IntegrationTest
   test "V10: o acordo de outro credor não abre, não calcula quitação, não quebra e não exporta" do
     outsider = make_user(@beta, %w[negotiate_agreements administer_agreements])
     entrar(outsider)
-    get agreement_path(@agreement)
+    get agreement_path(@agreement), headers: TRECHO
     assert_response :not_found
     post agreement_settlement_path(@agreement), params: { settlement: { on_date: "2026-12-31" } }
     assert_response :not_found
@@ -145,7 +144,7 @@ class AgreementTitlesScreensTest < ActionDispatch::IntegrationTest
     assert_response :not_found
     post agreement_exports_path, params: { agreement_export: { tenant_id: @alfa.id, form: "full" } }
     assert_response :not_found
-    get agreement_exports_path
+    get agreement_exports_path, headers: TRECHO
     assert_response :success
     assert_no_match(/ACD-000001/, response.body)
   end

@@ -1,13 +1,13 @@
 <% content_for :title, "Perfis" %>
 <%= pagina "Perfis", subtitulo: "Conjuntos de permissões de cada credor" do %>
-  <%= abrir_painel "Criar perfil", new_profile_path %>
+  <%= link_to "Criar perfil", new_profile_path, class: "botao" %>
 <% end %>
 
 <% if @several_tenants %>
   <form class="filtros" role="search" action="<%= profiles_path %>" method="get">
     <div class="campo">
       <label for="tenant">Credor</label>
-      <select id="tenant" name="tenant"><option value="">Todos</option><%= options_for_select(@tenants, params[:tenant]) %></select>
+      <select id="tenant" name="credor"><option value="">Todos</option><%= options_for_select(@tenants, params[:credor]) %></select>
     </div>
     <button type="submit" data-variant="secondary">Filtrar</button>
   </form>
@@ -32,13 +32,13 @@
         <% @profiles.each do |profile| %>
           <% users = @users_by_profile.fetch(profile.id, 0) %>
           <tr>
-            <th scope="row"><%= abrir_painel profile.name, edit_profile_path(profile), variante: "link" %></th>
+            <th scope="row"><%= link_to profile.name, edit_profile_path(profile) %></th>
             <% if @several_tenants %><td><%= profile.tenant.name %></td><% end %>
             <td data-numerico><%= profile.permissions.size %> de <%= Permission::ALL.size %></td>
             <td data-numerico><%= users %></td>
             <td data-acoes>
               <%= menu_de_linha("perfil-#{profile.id}", "Ações do perfil #{profile.name}") do %>
-                <%= abrir_painel "Editar", edit_profile_path(profile) %>
+                <%= link_to "Editar", edit_profile_path(profile), class: "botao" %>
                 <%= confirmar_no_painel "Excluir", titulo: "Excluir o perfil #{profile.name}?", acao: "Excluir o perfil", url: profile_path(profile), metodo: :delete,
                                         mensagem: users.positive? ? "O perfil está em uso por #{users} #{'usuário'.pluralize(users)} e não pode ser apagado." : "O perfil deixa de existir." %>
               <% end %>
@@ -48,5 +48,5 @@
       </tbody>
     </table>
   </div>
-  <%= render "shared/paginacao", pagination: @pagination, unit: "perfis", path: ->(page) { profiles_path(request.query_parameters.merge("page" => page)) } %>
+  <%= render "shared/paginacao", pagination: @pagination, unit: "perfis", path: ->(page) { profiles_path(request.query_parameters.merge("pagina" => page)) } %>
 <% end %>

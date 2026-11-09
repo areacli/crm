@@ -2,9 +2,9 @@
     Continuar leva à conferência do impacto. %>
 <%= formulario_de_painel titulo: "Incluir segmento", url: settings_tiers_path, enviar: "Conferir o impacto", escopo: :tier, variante: :modal,
       descricao: "Os contratos que o segmento pegar passam a ter as regras dele.", erro: @error, voltar: settings_tiers_path do |form| %>
-  <%= hidden_field_tag :tenant_id, @tenant.id %>
+  <%= hidden_field_tag :credor, @tenant.id, id: nil %>
   <% if @candidates.empty? %>
-    <p class="vazio">Nenhum segmento de contratos disponível. <%= link_to "Crie um segmento", new_settings_segment_path(tenant_id: @tenant.id, subject: "contracts") %> primeiro.</p>
+    <p class="vazio">Nenhum segmento de contratos disponível. <%= link_to "Crie um segmento", new_settings_segment_path(credor: @tenant.id, sujeito: "contracts") %> primeiro.</p>
   <% else %>
     <div class="campo">
       <%= form.label :segment_id, "Segmento" %>

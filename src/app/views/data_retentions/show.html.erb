@@ -6,7 +6,7 @@
   <form class="filtros" role="search" action="<%= data_retention_path %>" method="get">
     <div class="campo">
       <label for="tenant">Credor</label>
-      <select id="tenant" name="tenant"><option value="">Todos</option><%= options_for_select(@tenants.map { |t| [ t.name, t.id ] }, params[:tenant]) %></select>
+      <select id="tenant" name="credor"><option value="">Todos</option><%= options_for_select(@tenants.map { |t| [ t.name, t.id ] }, params[:credor]) %></select>
     </div>
     <button type="submit" data-variant="secondary">Filtrar</button>
   </form>

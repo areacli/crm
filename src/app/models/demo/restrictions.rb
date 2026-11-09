@@ -63,7 +63,8 @@ module Demo
         contact = params[:contact]
         return unless contact.respond_to?(:key?)
 
-        kind = contact[:kind].presence || CustomerContact.find_by(id: params[:id])&.kind
+        # Na correção vale o tipo do contato gravado: um `kind` forjado no pedido não escapa da troca.
+        kind = CustomerContact.find_by(id: params[:id])&.kind || contact[:kind].presence
         seed = SecureRandom.random_number(90_000_000)
         case kind
         when "phone" then contact[:value] = "(11) 9#{(10_000_000 + seed).to_s[0, 4]}-#{(1000 + seed % 9000)}"

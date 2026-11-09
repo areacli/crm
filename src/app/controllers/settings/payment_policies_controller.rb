@@ -8,7 +8,7 @@ module Settings
     end
 
     def update
-      tenant = Tenant.find(params[:tenant_id])
+      tenant = Tenant.find(params[:credor])
       authorize tenant.setting, :update?, policy_class: PaymentSettingPolicy
       values = params.expect(tenant_setting: TenantSetting::PAYMENT_POLICIES)
       Payments::PolicySettings.new(Current.user).update(tenant, values.to_h)

@@ -1,13 +1,12 @@
 <%# Registrar promessa (10, R183 a R186, R189 a R191): só aparece quando o resultado admite promessa (R184). Os títulos são de um contrato só (R183b);
     o valor de cada um na data prometida aparece antes de gravar, sem campo de isenção nem de desconto. Locais: form, oob. %>
-<% wrapper = { id: "promessa-do-acionamento" }.merge(local_assigns[:oob] ? { "hx-swap-oob": "true" } : {}) %>
-<% fields = "#bloco-promessa input, #bloco-promessa select" %>
+<% wrapper = { id: "promessa-do-acionamento" }.merge(local_assigns[:oob] ? { "data-fora-de-banda": "true" } : {}) %>
 <%= tag.div(**wrapper) do %>
   <% if form.promise_offered? %>
     <% contract = form.promise_contract %>
-    <fieldset id="bloco-promessa" aria-describedby="ajuda-promessa"
-              hx-get="<%= new_customer_contact_attempt_path(form.customer) %>" hx-trigger="change" hx-swap="none"
-              hx-include="[name='contact_attempt[channel]'], [name='contact_attempt[result_id]'], [name='contact_attempt[contract_id]'], [name='contact_attempt[contacted_at]'], <%= fields %>">
+    <%# O bloco pede ao servidor os campos que dependem dele pelo `spa/dialogos` (`data-spa-dependentes`). %>
+    <% refazer = { data: { spa_dependentes: new_customer_contact_attempt_path(form.customer) } } %>
+    <%= tag.fieldset(id: "bloco-promessa", "aria-describedby": "ajuda-promessa", **refazer) do %>
       <legend>Registrar promessa</legend>
       <p id="ajuda-promessa"><small>O cliente promete pagar títulos de um contrato por um meio até uma data. O valor sai dos títulos, com todos os encargos até a data prometida; a promessa não concede isenção nem desconto.</small></p>
       <div class="grupo-de-campos">
@@ -73,6 +72,6 @@
           </table>
         </div>
       <% end %>
-    </fieldset>
+    <% end %>
   <% end %>
 <% end %>

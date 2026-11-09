@@ -28,15 +28,15 @@ class AgreementsScreensTest < ActionDispatch::IntegrationTest
 
   test "R211: a ficha oferece 'Simular acordo' a quem negocia, no credor do cliente, e não a quem só consulta" do
     entrar(users(:carlos))
-    get customer_path(@customer)
+    get_ficha(@customer)
     assert_select "a", text: "Simular acordo"
 
     delete session_path
     viewer = make_user(@alfa, [])
     entrar(viewer)
-    get customer_path(@customer)
+    get_ficha(@customer)
     assert_select "a", text: "Simular acordo", count: 0
-    get new_customer_agreement_simulation_path(@customer)
+    get new_customer_agreement_simulation_path(@customer), headers: TRECHO
     assert_response :not_found
     post customer_agreement_simulations_path(@customer), params: { agreement: form }
     assert_response :not_found
@@ -45,7 +45,7 @@ class AgreementsScreensTest < ActionDispatch::IntegrationTest
 
   test "R212 a R214: a simulação mostra a base, os descontos, a entrada e a tabela de parcelas com os números da especificação" do
     entrar(users(:carlos))
-    get new_customer_agreement_simulation_path(@customer)
+    get new_customer_agreement_simulation_path(@customer), headers: TRECHO
     assert_response :success
     assert_select "input[type=checkbox][name='agreement[bill_ids][]']", 2
 
@@ -62,16 +62,26 @@ class AgreementsScreensTest < ActionDispatch::IntegrationTest
     assert_select "#simulacao aside", text: /Cidade não reconhecida: só feriados nacionais/
   end
 
-  test "R215: a simulação que viola o teto mostra a mensagem do limite e a proposta não é criada" do
+  test "R215: a simulação recusada mostra a mensagem do limite e a proposta não é criada" do
     entrar(users(:carlos))
-    post customer_agreement_simulations_path(@customer), params: { agreement: form(discounts: { principal: "5" }) }, headers: htmx
-    assert_select "#simulacao aside", text: /o item do enquadramento não permite desconto em principal/i
+    message = I18n.t("agreements.refused.installments_above", max: 12)
+    post customer_agreement_simulations_path(@customer), params: { agreement: form(installments: "99") }, headers: htmx
+    assert_select "#simulacao aside", text: /#{Regexp.escape(message)}/i
 
-    post customer_agreements_path(@customer), params: { agreement: form(discounts: { principal: "5" }) }
+    post customer_agreements_path(@customer), params: { agreement: form(installments: "99") }
     assert_response :unprocessable_content
-    assert_includes response.body, "O item do enquadramento não permite desconto em principal."
+    assert_includes response.body, message
     assert_select "input[name='agreement[down_payment]'][value='343,66']"
     assert_equal 0, Agreement.count
+  end
+
+  test "revisão 12: desconto acima do teto do item não recusa: a proposta nasce pendente" do
+    entrar(users(:carlos))
+    post customer_agreement_simulations_path(@customer), params: { agreement: form(discounts: { principal: "5" }) }, headers: htmx
+    assert_select "#simulacao aside", text: /a proposta nasce pendente/i
+    post customer_agreements_path(@customer), params: { agreement: form(discounts: { principal: "5" }) }, headers: TRECHO
+    assert_response :no_content
+    assert_predicate Agreement.sole, :state_pending?
   end
 
   test "R216: fora dos limites a simulação avisa que a proposta nasce pendente" do
@@ -96,16 +106,16 @@ class AgreementsScreensTest < ActionDispatch::IntegrationTest
     post customer_agreements_path(@customer), params: { agreement: form }
     agreement = Agreement.sole
     assert_redirected_to agreement_path(agreement)
-    follow_redirect!
+    get agreement_path(agreement), headers: TRECHO
     assert_select "h1", text: /Acordo ACD-000001/
     assert_select ".cabecalho-da-pagina .situacao", text: "Aprovada"
     assert_select "dd", text: "R$ 1.543,66"
     assert_select "table th", text: "Parcela 4"
     assert_select "button", text: "Aprovar proposta", count: 0
 
-    get customer_path(@customer)
+    get_ficha(@customer)
     assert_select "tbody th .situacao", text: "Em proposta"
-    get customer_path(@customer, aba: "promessas")
+    get_ficha(@customer, aba: "promessas")
     assert_select "#acordos tbody tr:not(.detalhe-da-linha)", 1
     assert_select "#acordos tbody th a", text: "ACD-000001"
     assert_select "#historico-de-acordos"
@@ -117,10 +127,10 @@ class AgreementsScreensTest < ActionDispatch::IntegrationTest
     post customer_agreements_path(@customer), params: { agreement: form(discounts: { fine: "100", interest: "50" }) }
     agreement = Agreement.sole
     assert_predicate agreement, :state_pending?
-    get agreement_path(agreement)
+    get agreement_path(agreement), headers: TRECHO
     assert_select "aside", text: /passou dos limites de quem a montou/
     assert_select "button", text: "Aprovar proposta", count: 0
-    get pending_agreements_path
+    get pending_agreements_path, headers: TRECHO
     assert_select "td", text: "Nenhuma", count: 0
     assert_select ".vazio", text: "Nenhuma proposta pendente para você aprovar."
     assert_difference -> { AccessEvent.where(event: "access_denied").count }, 1 do
@@ -130,9 +140,8 @@ class AgreementsScreensTest < ActionDispatch::IntegrationTest
 
     delete session_path
     entrar(users(:joana))
-    get root_path
-    assert_select "nav a", text: /Acordos pendentes\s*1/
-    get pending_agreements_path
+    assert_equal 1, item_do_menu("Acordos pendentes")["contador"]
+    get pending_agreements_path, headers: TRECHO
     assert_select "tbody tr", 1
     assert_select "tbody td", text: "R$ #{Money.format(agreement.value_cents)}"
     post agreement_approval_path(agreement)
@@ -151,14 +160,14 @@ class AgreementsScreensTest < ActionDispatch::IntegrationTest
 
     post agreement_refusal_path(agreement), params: { agreement: { reason: "Desconto alto demais" } }, headers: { "HTTP_REFERER" => agreement_url(agreement) }
     assert_predicate agreement.reload, :state_refused?
-    get agreement_path(agreement)
+    get agreement_path(agreement), headers: TRECHO
     assert_select "aside", text: /Motivo: Desconto alto demais/
   end
 
   test "R218: qualquer operador com a 16 cancela a proposta, com motivo; quem não tem a 16 não vê nem cancela" do
     agreement = create_proposal(@customer, [ @nf1, @nf2 ])
     entrar(users(:ana))
-    get agreement_path(agreement)
+    get agreement_path(agreement), headers: TRECHO
     assert_select "a", text: "Cancelar proposta"
     post agreement_cancellation_path(agreement), params: { agreement: { reason: "Cliente desistiu" } }, headers: { "HTTP_REFERER" => agreement_url(agreement) }
     assert_predicate agreement.reload, :state_canceled?
@@ -185,19 +194,19 @@ class AgreementsScreensTest < ActionDispatch::IntegrationTest
     assert_select "main", text: /Escola Alfa Ltda/
     assert_select "button[onclick]", 0
 
-    get agreement_path(agreement)
+    get agreement_path(agreement), headers: TRECHO
     assert_select "a", text: "Registrar aceite"
-    get new_agreement_acceptance_path(agreement)
+    get new_agreement_acceptance_path(agreement), headers: TRECHO
     assert_select "select[name='acceptance[accepted_by_customer_id]'] option", text: "Maria Souza, responsável financeiro"
     post agreement_acceptance_path(agreement), params: { acceptance: accept_params }
     assert_redirected_to agreement_path(agreement)
     assert_predicate agreement.reload, :state_awaiting_effectuation?
-    follow_redirect!
+    get agreement_path(agreement), headers: TRECHO
     assert_select "h2", text: "Aceite registrado"
     assert_select "dd", text: /Maria Souza, responsável financeiro/
     assert_select "a", text: "Registrar aceite", count: 0
 
-    get customer_path(@customer, aba: "promessas")
+    get_ficha(@customer, aba: "promessas")
     assert_select "#acordos tbody", text: /ACD-000001.*Aguardando efetivação.*NF-1 e NF-2/mi
   end
 
@@ -206,10 +215,10 @@ class AgreementsScreensTest < ActionDispatch::IntegrationTest
     @nf1.update!(amount_cents: 90_000)
     later!
     entrar(users(:carlos))
-    post agreement_acceptance_path(agreement), params: { acceptance: accept_params }
-    assert_redirected_to agreement_path(agreement)
-    follow_redirect!
-    assert_select "aside", text: /O valor do título NF-1 mudou\. Monte a proposta de novo\./
+    # Na SPA, a recusa volta no diálogo (422), com a mensagem.
+    post agreement_acceptance_path(agreement), params: { acceptance: accept_params }, headers: TRECHO
+    assert_response :unprocessable_content
+    assert_select ".aviso", text: /O valor do título NF-1 mudou\. Monte a proposta de novo\./
     assert_predicate agreement.reload, :state_approved?
   end
 
@@ -225,25 +234,25 @@ class AgreementsScreensTest < ActionDispatch::IntegrationTest
     approved = create_proposal(@customer, [ @nf1 ])
     pending = create_proposal(@customer, [ @nf2 ], user: users(:ana), discounts: { "fine" => 10_000 }, installments: 2, down: 20_000)
     entrar(users(:ana))
-    get agreements_path
+    get agreements_path, headers: TRECHO
     assert_response :success
     assert_select "tbody tr", 2
     assert_select "#casos", 0
     assert_select "th", text: "Credor", count: 0
 
-    get agreements_path(state: "pending")
+    get agreements_path(estado: "pendente"), headers: TRECHO
     assert_select "tbody tr", 1
     assert_select "tbody a", text: pending.number
-    get agreements_path(user: users(:carlos).id)
+    get agreements_path(usuario: users(:carlos).id), headers: TRECHO
     assert_select "tbody a", text: approved.number
     assert_select "tbody tr", 1
-    get agreements_path(from: "2026-11-01")
+    get agreements_path(de: "2026-11-01"), headers: TRECHO
     assert_select ".vazio", text: "Nenhuma proposta ou acordo com estes filtros."
 
     delete session_path
     Agreement.where(id: pending.id).update_all(user_id: users(:carlos).id)
     entrar(users(:joana))
-    get agreements_path
+    get agreements_path, headers: TRECHO
     assert_select "#casos tbody th", text: "Pendente que ninguém pode aprovar", count: 0
   end
 
@@ -252,7 +261,7 @@ class AgreementsScreensTest < ActionDispatch::IntegrationTest
     create_proposal(@customer, [ @nf2 ], user: users(:joana), discounts: { "fine" => 10_000 }, installments: 2, down: 20_000)
     Agreement.update_all(state: "pending")
     entrar(users(:joana))
-    get agreements_path
+    get agreements_path, headers: TRECHO
     assert_select "#casos tbody th", text: "Pendente que ninguém pode aprovar"
   end
 
@@ -265,46 +274,44 @@ class AgreementsScreensTest < ActionDispatch::IntegrationTest
     alfa_agreement = create_proposal(@customer, [ @nf1 ])
 
     entrar(users(:carlos))
-    get agreements_path
+    get agreements_path, headers: TRECHO
     assert_select "tbody tr", 1
     assert_select "tbody a", text: alfa_agreement.number
     assert_difference -> { AccessEvent.where(event: "access_denied").count }, 1 do
-      get agreement_path(beta_agreement)
+      get agreement_path(beta_agreement), headers: TRECHO
     end
     assert_response :not_found
     post agreement_acceptance_path(beta_agreement), params: { acceptance: accept_params }
     assert_response :not_found
     get agreement_term_path(beta_agreement)
     assert_response :not_found
-    get new_customer_agreement_simulation_path(beta_customer)
+    get new_customer_agreement_simulation_path(beta_customer), headers: TRECHO
     assert_response :not_found
 
     delete session_path
     entrar(users(:ana))
-    get agreements_path
+    get agreements_path, headers: TRECHO
     assert_select "th", text: "Credor"
     assert_select "tbody tr", 2
-    get agreements_path(tenant: @beta.id)
+    get agreements_path(credor: @beta.id), headers: TRECHO
     assert_select "tbody tr", 1
   end
 
   test "P1: o grupo Cobrança do menu traz Acordos e Promessas pendentes; o Operador padrão negocia acordos" do
     entrar(users(:carlos))
-    get root_path
-    # O Cobrança do operador só tem Acordos: vira link direto na barra (revisão 34).
-    assert_select "nav .menu-barra > li > a", text: "Acordos"
-    assert_select "nav h2", text: "Administração", count: 0
+    grupos = grupos_do_menu
+    assert_equal [ "Acordos" ], grupos["Cobrança"]
+    assert_nil grupos["Administração"]
     assert_includes Permission::OPERATOR, "negotiate_agreements"
 
     delete session_path
     viewer = make_user(@alfa, [])
     entrar(viewer)
-    get root_path
-    # Revisão 32: Clientes e Acionamentos ficam no primeiro nível; sem "negociar acordos" nem pendentes, o grupo Cobrança some.
-    assert_select "nav a", text: "Acordos", count: 0
-    assert_select "nav h2", text: "Cobrança", count: 0
-    assert_select "nav a", text: "Clientes"
-    get agreements_path
+    # Clientes e Acionamentos ficam no grupo Geral; sem "negociar acordos" nem pendentes, o grupo Cobrança some.
+    grupos = grupos_do_menu
+    assert_nil grupos["Cobrança"]
+    assert_includes grupos["Geral"], "Clientes"
+    get agreements_path, headers: TRECHO
     assert_response :not_found
   end
 
@@ -313,73 +320,71 @@ class AgreementsScreensTest < ActionDispatch::IntegrationTest
     other = make_bill(@alfa, number: "NF-7", amount_cents: 10_000, document: PaymentsHelper::JOAO, contract_code: "CT-7", due: ChargesTestHelper::DUE, name: "João Souza").customer
     other.contacts.create!(tenant: @alfa, kind: "address", key: "a1", value: "Rua A, 1", city: "São Paulo", state: "SP", origin: "screen")
     entrar(users(:joana))
-    get customers_path(unrecognized_city: "1")
-    assert_select "tbody a", text: "Maria Souza"
-    assert_select "tbody a", text: "João Souza", count: 0
+    assert_equal [ "Maria Souza" ], linhas_de_clientes(cidade_nao_reconhecida: "1").map { |linha| celula(linha, "name") }
 
-    get customer_path(@customer)
-    assert_select "aside", text: /Cidade não reconhecida: o endereço deste cliente não casa/
-    get customer_path(other)
-    assert_select "aside", text: /Cidade não reconhecida/, count: 0
+    get_ficha(@customer)
+    assert_select ".ficha-avisos", text: /Cidade não reconhecida: o endereço deste cliente não casa/
+    get_ficha(other)
+    assert_select ".ficha-avisos", text: /Cidade não reconhecida/, count: 0
 
     delete session_path
     entrar(make_user(@alfa, []))
-    get customer_path(@customer)
-    assert_select "aside", text: /Cidade não reconhecida: o endereço deste cliente/, count: 0
+    get_ficha(@customer)
+    assert_select ".ficha-avisos", text: /Cidade não reconhecida: o endereço deste cliente/, count: 0
   end
 
   test "R246, T6: a aba 'Promessas e acordos' tem as políticas, as variáveis e os limites, só com a 14, e grava com registro" do
     entrar(users(:carlos))
-    get settings_promises_path
+    get settings_promises_path, headers: TRECHO
     assert_response :not_found
 
     delete session_path
     entrar(users(:joana))
-    get settings_promises_path
+    assert_includes submenu_do_menu("Configuração"), "Promessas e acordos"
+    get settings_promises_path, headers: TRECHO
     assert_response :success
     assert_select "h1", text: "Promessas e acordos"
-    assert_select "#menu-principal .submenu a", text: "Promessas e acordos"
     assert_select "h2", text: /Políticas dos acordos/
     assert_select "h2", text: /Variáveis de acordo do enquadramento financeiro/
     assert_select "h2", text: /Limites de acordo por perfil/
     assert_select ".politica .titulo", text: /Tolerância de valor dos títulos de acordo/
     assert_select ".politica .titulo", text: /Mínimo para quebrar e efetivar/
 
-    patch settings_agreement_policies_path, params: { tenant_id: @alfa.id, tab: "agreements", policies: { break_form: "single_title", tolerance_agreement: { kind: "cents", value: "2,00" } } }
+    patch settings_agreement_policies_path, params: { credor: @alfa.id, tab: "agreements", policies: { break_form: "single_title", tolerance_agreement: { kind: "cents", value: "2,00" } } }
     assert_redirected_to settings_promises_path
     assert_equal "single_title", Agreements::Policies.value(@alfa.setting.reload, "break_form")
-    follow_redirect!
+    seguir_redirecionamento!
     assert_select ".politica small", text: /Última alteração/
 
-    patch settings_agreement_variables_path, params: { tenant_id: @alfa.id, tiers: { Tier.catch_all_of(@alfa).id => { max_installments: "8", min_installment: "100,00", min_down_payment_pct: "10",
+    patch settings_agreement_variables_path, params: { credor: @alfa.id, tiers: { Tier.catch_all_of(@alfa).id => { max_installments: "8", min_installment: "100,00", min_down_payment_pct: "10",
                                                                                                                      down_payment_days: "10", validity_days: "5", tolerance_days: "3", break_days: "30" } } }
     follow_review
     confirm_review(@alfa)
     assert_equal 8, Tier.catch_all_of(@alfa).reload.agreement_max_installments
 
-    patch settings_agreement_limits_path, params: { tenant_id: @alfa.id, limits: { Tier.catch_all_of(@alfa).id => { profiles(:alfa_operator).id => { max_installments: "3", min_down_payment_pct: "20" } } } }
+    patch settings_agreement_limits_path, params: { credor: @alfa.id, limits: { Tier.catch_all_of(@alfa).id => { profiles(:alfa_operator).id => { max_installments: "3", min_down_payment_pct: "20" } } } }
     assert_equal 3, AgreementLimit.find_by!(tier: Tier.catch_all_of(@alfa), profile: profiles(:alfa_operator)).max_installments
-    follow_redirect!
+    seguir_redirecionamento!
     assert_select "td", text: /Acordos: Tolerância de valor dos títulos de acordo|Acordos, Demais/
   end
 
   test "R246: parâmetros do acordo na aba 'Enquadramento financeiro' e crédito e tolerância na aba 'Pagamentos'" do
     entrar(users(:joana))
-    get settings_tiers_path
-    assert_select "legend", text: "Parâmetros dos acordos do credor"
-    patch settings_agreement_parameters_path, params: { tenant_id: @alfa.id, credor: { installment_rate_pct: "2", installment_method: "sac", agreement_days_convention: "thirty", agreement_fine_base: "corrected" },
+    get settings_tiers_path, headers: TRECHO
+    assert_select "h2", text: /\AParâmetros dos acordos — /
+    patch settings_agreement_parameters_path, params: { credor: @alfa.id, parametros: { installment_rate_pct: "2", installment_method: "sac", agreement_days_convention: "thirty", agreement_fine_base: "corrected" },
                                                         tiers: { Tier.catch_all_of(@alfa).id => { installment_rate_pct: "", installment_method: "", agreement_days_convention: "", agreement_fine_base: "" } } }
     assert_redirected_to settings_tiers_path
     assert_equal "sac", @alfa.setting.reload.installment_method
 
-    patch settings_agreement_parameters_path, params: { tenant_id: @alfa.id, credor: { installment_rate_pct: "999", installment_method: "sac", agreement_days_convention: "thirty", agreement_fine_base: "corrected" } }
+    patch settings_agreement_parameters_path, params: { credor: @alfa.id, parametros: { installment_rate_pct: "999", installment_method: "sac", agreement_days_convention: "thirty", agreement_fine_base: "corrected" } }
     assert_redirected_to settings_tiers_path
     assert_equal I18n.t("agreements.settings.invalid_params"), flash[:alert]
 
-    get settings_payment_policy_path
+    get settings_payment_policy_path, headers: TRECHO
     assert_select ".politica .titulo", text: /Tolerância de valor do pagamento direto de título/
     assert_select ".politica .titulo", text: /Uso do crédito do contrato/
-    patch settings_agreement_policies_path, params: { tenant_id: @alfa.id, tab: "payments", policies: { tolerance_direct: { kind: "cents", value: "0,50" }, credit_use: "record_only" } }
+    patch settings_agreement_policies_path, params: { credor: @alfa.id, tab: "payments", policies: { tolerance_direct: { kind: "cents", value: "0,50" }, credit_use: "record_only" } }
     assert_redirected_to settings_payment_policy_path
     assert_equal 50, Agreements::Policies.tolerance_cents(@alfa.setting.reload, "direct", 100_000)
   end
@@ -387,9 +392,9 @@ class AgreementsScreensTest < ActionDispatch::IntegrationTest
   test "R246, A7: quem tem só a permissão 4 não vê os parâmetros dos acordos nem grava" do
     manager_without_policies = make_user(@alfa, [ "change_settings" ])
     entrar(manager_without_policies)
-    get settings_segments_path
+    get settings_segments_path, headers: TRECHO
     assert_select "legend", text: "Parâmetros dos acordos do credor", count: 0
-    patch settings_agreement_parameters_path, params: { tenant_id: @alfa.id, credor: { installment_rate_pct: "2", installment_method: "sac", agreement_days_convention: "thirty", agreement_fine_base: "corrected" } }
+    patch settings_agreement_parameters_path, params: { credor: @alfa.id, parametros: { installment_rate_pct: "2", installment_method: "sac", agreement_days_convention: "thirty", agreement_fine_base: "corrected" } }
     assert_response :not_found
     assert_equal BigDecimal("1.5"), @alfa.setting.reload.installment_rate_pct
   end
@@ -398,13 +403,13 @@ class AgreementsScreensTest < ActionDispatch::IntegrationTest
     marta = make_user(@alfa, %w[change_financial_policies])
     Membership.create!(user: marta, tenant: @beta, profile: Profile.create!(tenant: @beta, name: "Consulta", permissions: %w[view_portfolio]))
     entrar(marta)
-    get settings_promises_path
+    get settings_promises_path, headers: TRECHO
     assert_select "h2", text: /Políticas dos acordos — #{@alfa.name}/
     assert_select "h2", text: /Políticas dos acordos — #{@beta.name}/, count: 0
 
     [ settings_agreement_policies_path, settings_agreement_variables_path, settings_agreement_limits_path, settings_agreement_parameters_path ].each do |path|
       assert_difference -> { AccessEvent.where(event: "access_denied").count }, 1 do
-        patch path, params: { tenant_id: @beta.id, policies: { break_form: "single_title" } }
+        patch path, params: { credor: @beta.id, policies: { break_form: "single_title" } }
       end
       assert_response :not_found
     end
@@ -425,5 +430,65 @@ class AgreementsScreensTest < ActionDispatch::IntegrationTest
         params: { contact_attempt: { result_id: result_of(@alfa, :promised).id, promise_contract_id: @nf1.contract_id, promise_on: (AGREEMENT_DAY + 3).iso8601 } }
     assert_response :success
     assert_includes response.body, "em proposta ou acordo ACD-000001"
+  end
+
+  # ---- SPA (decisão 0028, fase 4) ----
+
+  test "na SPA, a simulação é aba própria, recalcula à vista e diz no resultado se falta dado ou se a regra recusou" do
+    entrar(users(:carlos))
+    get new_customer_agreement_simulation_path(@customer), headers: TRECHO
+    assert_select ".simulacao[data-refazer-no-erro] form[data-calculo='#{customer_agreement_simulations_path(@customer)}']"
+    assert_select "button[data-depende-do-calculo]", text: "Criar proposta"
+    assert_select "button", text: "Simular", count: 0
+    # O primeiro carregamento vem pronto, com zero concessão (revisão 12).
+    assert_select "input[name='agreement[bill_ids][]'][checked]", 2
+    assert_select "input[name='agreement[discounts][fine]'][value='0']"
+    assert_select "input[name='agreement[down_payment_auto]'][value='1']"
+    assert_select "select[name='agreement[installments]'] option[selected][value='1']"
+    assert_select "aside.simulacao-resultado [data-resultado-do-calculo] [data-calculo]", 0
+    assert_select "aside.simulacao-resultado [data-spa-limites]"
+
+    post customer_agreement_simulations_path(@customer), params: { agreement: form }, headers: TRECHO.merge("X-CRM-Calculo" => "1")
+    assert_not_includes response.body, "<form"
+    assert_select "[data-calculo]", 0
+    assert_select "#simulacao td", text: "R$ 343,66"
+    post customer_agreement_simulations_path(@customer), params: { agreement: form(bill_ids: []) }, headers: TRECHO.merge("X-CRM-Calculo" => "1")
+    assert_select "[data-calculo=recusado]", text: /Escolha os títulos do acordo/
+  end
+
+  test "na SPA, criar a proposta abre o acordo numa aba; a recusa refaz a simulação com o que foi digitado" do
+    entrar(users(:carlos))
+    post customer_agreements_path(@customer), params: { agreement: form }, headers: TRECHO
+    assert_response :no_content
+    agreement = Agreement.sole
+    assert_equal agreement_path(agreement), evento_da_spa["navegar"]
+    assert_match(/#{agreement.number}/, evento_da_spa["aviso"])
+
+    post customer_agreements_path(@customer), params: { agreement: form(bill_ids: [ @nf1.id ]) }, headers: TRECHO
+    assert_response :unprocessable_content
+    assert_select ".simulacao[data-refazer-no-erro] .aviso"
+    assert_select "select[name='agreement[installments]'] option[selected][value='4']"
+  end
+
+  test "na SPA, aprovar a pendente termina no X-CRM-Evento, com o aviso e a tela refeita" do
+    agreement = create_proposal(@customer, [ @nf1 ], discounts: { "fine" => 10_000 })
+    assert_predicate agreement, :state_pending?
+    entrar(users(:joana))
+    post agreement_approval_path(agreement), headers: TRECHO
+    assert_response :no_content
+    assert evento_da_spa["atualizar"]
+    assert_match(/aprovada/, evento_da_spa["aviso"])
+    assert_predicate agreement.reload, :state_approved?
+  end
+
+  test "na SPA, a lista de acordos refaz só o trecho do resultado com os filtros (X-CRM-Fragmento)" do
+    create_proposal(@customer, [ @nf1, @nf2 ])
+    entrar(users(:joana))
+    get agreements_path(estado: "aprovado"), headers: TRECHO.merge("X-CRM-Fragmento" => "1")
+    assert_response :success
+    assert_select "form.filtros", 0
+    assert_select "#resultado tbody tr", minimum: 1
+    get agreements_path, headers: TRECHO
+    assert_select "form.filtros[action='#{agreements_path}']"
   end
 end

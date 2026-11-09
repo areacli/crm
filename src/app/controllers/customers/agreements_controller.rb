@@ -5,7 +5,7 @@ module Customers
     def index
       customer = Customer.includes(:tenant).find(params[:customer_id])
       authorize customer, :show?
-      return redirect_to(customer_path(customer, anchor: "acordos")) unless htmx_fragment?
+      return redirect_to(customer_path(customer, anchor: "acordos")) unless card_fragment?
 
       render partial: "customers/agreements/lines", locals: { customer: customer, agreements: Customers::AgreementsController.running_for(customer) }
     end
@@ -13,8 +13,11 @@ module Customers
     def create
       customer = Customer.includes(:tenant).find(params[:customer_id])
       authorize Agreement.new(tenant: customer.tenant, customer: customer), :create?
-      raw = params.fetch(:agreement, {}).permit(:mode, :down_payment, :down_payment_on, :installments, :day, :replace, :credit, bill_ids: [], discounts: Agreements::Caps::COMPONENTS).to_h.with_indifferent_access
+      raw = params.fetch(:agreement, {}).permit(:mode, :down_payment, :down_payment_auto, :down_payment_on, :installments, :day, :replace, :credit, bill_ids: [], discounts: Agreements::Caps::COMPONENTS).to_h.with_indifferent_access
       agreement = Agreements::Proposal.new(Current.user, customer).create(Agreements::FormParams.input(raw))
+      # Na SPA, o acordo criado abre na aba dele.
+      return panel_finish(agreement_path(agreement), notice: t(".done", number: agreement.number), navegar: true) if spa?
+
       redirect_to agreement_path(agreement), notice: t(".done", number: agreement.number), status: :see_other
     rescue Agreements::Refused => error
       # A recusa volta ao formulário, com o que foi digitado e a mensagem junto do campo.
@@ -25,6 +28,12 @@ module Customers
       @create_problem = error.message
       @field = error.field
       @problem = error.message
+      # Os limites da tela (11, revisão 12) saem da mesma conta; recusado antes dela (título preso, valor ilegível), a tela volta sem eles até a próxima mudança.
+      @quote = begin
+        Agreements::Simulation.new(user: Current.user, customer: customer, input: Agreements::FormParams.input(raw)).call
+      rescue Agreements::Refused
+        nil
+      end
       render "customers/agreement_simulations/new", status: :unprocessable_content
     end
 

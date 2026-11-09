@@ -25,8 +25,9 @@ module ContactsHelper
                            contacted_at: contacted_at, text: text)
   end
 
-  def htmx = { "HX-Request" => "true" }
+  # Pedido de um trecho, como a SPA faz (`X-CRM-Fragmento`); o nome ficou dos testes do tempo do htmx.
+  def htmx = { "X-CRM-Trecho" => "1", "X-CRM-Fragmento" => "1" }
 
-  # Pedido do painel compartilhado (design system, revisão 4): o htmx tem o #painel-conteudo como destino.
-  def painel = { "HX-Request" => "true", "HX-Target" => "painel-conteudo" }
+  # Pedido do diálogo, como a SPA faz (`X-CRM-Trecho`); o nome ficou dos testes do tempo do painel.
+  def painel = { "X-CRM-Trecho" => "1" }
 end

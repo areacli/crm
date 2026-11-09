@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <%# Sem esta linha o celular informa cerca de 980 px, e a consulta de mídia do aviso de tela pequena não funciona. %>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <title>CRM AreaCli</title>
+    <%= csrf_meta_tags %>
+    <meta name="spa-scripts" content="<%= [ asset_path("jquery.min.js"), asset_path("jquery.easyui.min.js"), asset_path("easyui-lang-pt_BR.js"), asset_path("datagrid-detailview.js") ].to_json %>">
+    <link rel="icon" href="<%= image_path("simbolo.svg") %>" type="image/svg+xml">
+    <%= stylesheet_link_tag "tema/easyui", "tema/timeline", "tema/icon", "casca" %>
+    <%= javascript_importmap_tags "spa/inicio" %>
+  </head>
+  <body>
+    <%# Aviso de tela pequena (padrões de interface, revisão 38): só HTML e CSS, aparece antes de qualquer JavaScript e antes da entrada. %>
+    <div id="aviso-tela">
+      <%= image_tag "logotipo-crm-negativo.svg", alt: "CRM AreaCli", width: 220 %>
+      <h1 id="aviso-titulo">O CRM foi feito para telas maiores</h1>
+      <p id="aviso-texto">Abra este endereço num computador.</p>
+      <% if Demo.enabled? %><p><a href="https://github.com/areacli/crm#readme">Veja as telas do CRM no GitHub</a></p><% end %>
+    </div>
+
+    <div id="app" hidden>
+      <div id="norte" region="north" border="false">
+        <% if Demo.enabled? %>
+          <div class="faixa">Demonstração: os dados são fictícios e recriados todo dia às <%= Demo.reset_at %>, horário de Brasília.</div>
+        <% end %>
+        <div class="barra-topo">
+          <button type="button" id="alternar-menu" class="botao-topo" aria-label="Recolher ou abrir o menu">≡</button>
+          <%= image_tag "logotipo-crm-negativo.svg", alt: "CRM AreaCli", height: 42 %>
+          <span class="topo-espaco"></span>
+          <input id="busca-global">
+          <%# 14, R324: o usuário de operação vê de qual operação ele é (o nome vem do `menu.json`). %>
+          <span id="operacao-atual" class="operacao-atual" hidden></span>
+          <button type="button" id="sino" class="botao-topo" aria-label="Avisos"><%= icone("bell") %><span class="contador" hidden></span></button>
+          <button type="button" id="usuario" class="botao-topo"></button>
+        </div>
+      </div>
+      <div id="oeste" region="west" border="true" split="false"><div id="menu"></div></div>
+      <div id="centro" region="center" border="false"><div id="abas"></div></div>
+    </div>
+
+    <div id="menu-usuario" hidden>
+      <div id="m-senha">Trocar a senha</div>
+      <div class="menu-sep"></div>
+      <div id="m-sair">Sair</div>
+    </div>
+
+    <p id="sem-conexao" role="status" hidden>Sem conexão em tempo real. Esta tela pode estar desatualizada.</p>
+
+    <div id="entrada" hidden>
+      <div class="entrada-conteudo">
+      <%# Primeiro acesso com a senha temporária (02, R38): a pessoa define a senha aqui, antes de qualquer aba. %>
+      <div id="definir-senha" class="entrada-cartao" hidden>
+        <%= image_tag "logotipo-crm.svg", alt: "CRM AreaCli", width: 220 %>
+        <h1 class="definir-senha-titulo"></h1>
+        <div class="definir-senha-conteudo"></div>
+      </div>
+      <form id="entrada-form" class="entrada-cartao">
+        <%= image_tag "logotipo-crm.svg", alt: "CRM AreaCli", width: 220 %>
+        <p id="entrada-mensagem">Entre com o seu e-mail e a sua senha.</p>
+        <div class="campo"><label for="entrada-email">E-mail</label><input type="email" id="entrada-email" name="email_address" required autocomplete="username"></div>
+        <div class="campo"><label for="entrada-senha">Senha</label><input type="password" id="entrada-senha" name="password" required maxlength="72" autocomplete="current-password"></div>
+        <button type="submit" id="entrada-botao">Entrar</button>
+        <% if Demo.enabled? %>
+          <dl class="entrada-demonstracao">
+            <% Demo::WHO.each do |who| %>
+              <dt><%= Demo::LABELS.fetch(who) %></dt>
+              <dd><code><%= Demo.email(who) %></code></dd>
+              <dd><code><%= Demo.password(who) %></code></dd>
+            <% end %>
+          </dl>
+        <% end %>
+      </form>
+      <% if Demo.enabled? %><%= render "layouts/vitrine" %><% end %>
+      </div>
+    </div>
+  </body>
+</html>

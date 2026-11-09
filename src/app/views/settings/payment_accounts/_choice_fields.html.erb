@@ -1,0 +1,24 @@
+<%# Campos que dependem da escolha do credor, do meio e do fornecedor (nova integração). Na SPA, a mudança da escolha pede só este bloco, que volta para o lugar
+    do atual (`fora_de_banda`). Locais: form (pode faltar no pedido do bloco), fora_de_banda. %>
+<div id="campos-da-integracao" class="campos-do-cartao"<% if local_assigns[:fora_de_banda] %> data-fora-de-banda="true"<% end %>>
+  <% if !@chosen %>
+    <p class="vazio"><%= @account.modality.present? && @account.provider.present? ? "Este fornecedor não atende este meio de pagamento. Escolha outro." : "Escolha o meio de pagamento e o fornecedor para ver os campos que ele pede." %></p>
+  <% else %>
+    <% if @channels.empty? %>
+      <%= aviso(tom: :warning) { tag.p { safe_join([ "O credor não tem método de recebimento ativo. ", link_to("Cadastre um método de recebimento", settings_channels_path), " antes." ]) } } %>
+    <% end %>
+    <div class="campo">
+      <%= label_tag "campo-nickname", "Apelido" %>
+      <%= text_field_tag "payment_account[nickname]", @account.nickname, id: "campo-nickname", required: true, maxlength: 100 %>
+    </div>
+    <div class="campo">
+      <%= label_tag "campo-environment", "Ambiente" %>
+      <%= select_tag "payment_account[environment]", options_for_select(PaymentAccount.environments.keys.map { |environment| [ t("payments.accounts.environments.#{environment}"), environment ] }, @account.environment), id: "campo-environment" %>
+    </div>
+    <div class="campo">
+      <%= label_tag "campo-channel", "Método de recebimento" %>
+      <%= select_tag "payment_account[channel_id]", options_for_select(@channels.map { |channel| [ "#{channel.code} · #{channel.description}", channel.id ] }, @account.channel_id), id: "campo-channel" %>
+    </div>
+    <%= render "settings/payment_accounts/fields", form: local_assigns[:form], account: @account %>
+  <% end %>
+</div>

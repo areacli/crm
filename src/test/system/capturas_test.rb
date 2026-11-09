@@ -1,6 +1,7 @@
 require "application_system_test_case"
 
-# Fotos do README (regra do Paulo, 24/10/2026): a cada incremento, recriar as capturas do estado atual da aplicação.
+# Fotos do README (regra do Paulo, 24/10/2026): a cada incremento, recriar as capturas do estado atual da aplicação, na casca da SPA em EasyUI (fase 8 do port):
+# o endereço de cada tela leva à casca, que abre a aba (ou a janela, no detalhe de consulta), e as ações abrem nos diálogos presos à aba.
 # Só roda com CAPTURAS=1; grava em tmp/capturas/<nome>.png (o script deploy/rails/capturas.sh as move para docs/telas).
 # Um incremento novo acrescenta aqui as suas telas, no fim de `TELAS`.
 class CapturasTest < ApplicationSystemTestCase
@@ -143,11 +144,7 @@ class CapturasTest < ApplicationSystemTestCase
     Charges::Recalculation.new(@tenant).apply(today: Date.current)
     TaskRun.create!(tenant: @tenant, name: "values_recalculation", status: "succeeded", started_at: Time.current.change(hour: 5, min: 31), finished_at: Time.current.change(hour: 5, min: 32), processed: BillValuation.where(tenant_id: @tenant.id).count)
     TaskRun.where(name: "values_recalculation", status: "running").delete_all # os jobs da carga de fotos não rodam: nada "em andamento" na foto
-    visit new_session_path
-    fill_in "E-mail", with: users(:joana).email_address
-    fill_in "Senha", with: "senha-de-teste-1"
-    click_button "Entrar"
-    assert_selector "h1", text: "Resumo da carteira"
+    entrar_na_casca users(:joana)
     # Incremento 10: uma promessa aberta, uma pendente de aprovação e uma quebrada, com o credor com encargos e a alçada do Operador de 30 dias.
     @promise_customer = Customer.order(:id).fourth
     [ @promise_customer, Customer.order(:id).fifth, @contacted_customer ].each { |customer| ContractCustomer.find_or_create_by!(contract: customer.bills.first.contract, customer: customer) }
@@ -259,7 +256,7 @@ class CapturasTest < ApplicationSystemTestCase
 
   # nome do arquivo => caminho (lambda para os que dependem de registros criados no setup)
   TELAS = {
-    "resumo" => -> { root_path },
+    "resumo" => -> { summary_path },
     "clientes" => -> { customers_path },
     "ficha-do-cliente" => -> { customer_path(Customer.order(:id).first) },
     "conferencia-da-carteira" => -> { import_path(Import.order(:id).last) },
@@ -268,7 +265,7 @@ class CapturasTest < ApplicationSystemTestCase
     "configuracao" => -> { settings_portfolio_path },
     "usuarios" => -> { memberships_path },
     "perfis" => -> { profiles_path },
-    "importar-pagamentos" => -> { new_import_path(kind: "payments") },
+    "importar-pagamentos" => -> { new_import_path(tipo: "pagamentos") },
     # Só uma importação por credor pode esperar confirmação: a da carteira já foi fotografada, então sai de cena.
     "conferencia-de-pagamentos" => -> { Import.where(kind: "portfolio").update_all(status: "discarded"); @payments_import.update!(status: :checked); import_path(@payments_import) },
     "canais-de-recebimento" => -> { settings_channels_path },
@@ -293,20 +290,21 @@ class CapturasTest < ApplicationSystemTestCase
     # Incremento 8: índices do Banco Central. Incremento 13: segmentos (filtros), editor, glossário, enquadramento financeiro e conferência.
     "indices" => -> { settings_indexes_path },
     "segmentos" => -> { settings_segments_path },
-    "novo-segmento" => -> { new_settings_segment_path(tenant_id: @tenant.id) },
+    "novo-segmento" => -> { new_settings_segment_path(credor: @tenant.id) },
     "editor-de-segmento" => lambda {
-      visit new_settings_segment_path(tenant_id: @tenant.id, exemplo: "promessa-quebrada")
+      na_casca new_settings_segment_path(credor: @tenant.id, exemplo: "promessa-quebrada")
       fill_in "Nome do segmento", with: "Contratos com promessa quebrada recente"
       fill_in "Texto do segmento", with: "contratos\n  alguma promessa \"quebrada\" em 90 dias\n  títulos vencidos >= 2\n  qualquer:\n    tipo = PF\n    saldo > R$ 5.000"
       assert_selector "li[value='6'] p.leitura", text: /saldo/, wait: 10
       click_button "Conferir"
-      assert_selector "#conferir", text: "Contando"
+      assert_selector "[data-conferir]", text: "Contando"
       perform_enqueued_jobs(only: SegmentProbeJob)
-      assert_selector "#conferir", text: "Pega", wait: 10
+      simular_evento({ channel: "SegmentsChannel", tenant_id: @tenant.id }, { event: "segment-probe-ready" })
+      assert_selector "[data-conferir]", text: "Pega", wait: 10
       :current
     },
     "editor-com-erro" => lambda {
-      visit new_settings_segment_path(tenant_id: @tenant.id)
+      na_casca new_settings_segment_path(credor: @tenant.id)
       fill_in "Texto do segmento", with: "contratos\n  atraso > 90\n  titulos vencidos 3\n  tipo = azul"
       assert_selector "li[data-erro]", count: 2, wait: 10
       :current
@@ -314,74 +312,79 @@ class CapturasTest < ApplicationSystemTestCase
     "glossario-dos-segmentos" => -> { settings_segment_glossary_path },
     "enquadramento-financeiro" => -> { settings_tiers_path },
     "incluir-segmento" => lambda {
-      visit settings_tiers_path
-      click_link "Incluir segmento", match: :first
-      assert_selector "dialog#painel[open]"
+      na_casca settings_tiers_path
+      find(".aba-raiz .botao", text: "Incluir segmento", match: :first).click
+      assert_selector ".dialogo-conteudo form.dialogo"
       :current
     },
     "conferencia-do-enquadramento" => lambda {
-      visit settings_tiers_path
-      find("button.menu-de-linha[aria-label='Ações de Muito vencido']").click
-      click_button "Mover para cima"
+      na_casca settings_tiers_path
+      menu_da_linha("Muito vencido", "Mover para cima")
       assert_text "Conferindo"
       perform_enqueued_jobs(only: TierReviewJob)
+      simular_evento({ channel: "SegmentsChannel", tenant_id: @tenant.id }, { event: "tier-review-ready" })
       assert_selector "h2", text: "Por item do enquadramento", wait: 10
       :current
     },
     "ficha-com-segmentos" => -> { customer_path(@contacted_customer, aba: "historico") },
     # Incremento 9: encargos e valor atualizado.
     "ficha-com-valor-atualizado" => lambda {
-      visit customer_path(@contacted_customer)
-      first("section[aria-labelledby=titulos] tbody th a").click # os componentes e a memória ficam na página do título (padrões de interface, revisão 27)
-      assert_selector "h2", text: "Memória de cálculo"
+      na_casca customer_path(@contacted_customer, aba: "titulos")
+      na_aba_interna { first(".datagrid-row a[href^='/titulos/']").click } # os componentes e a memória ficam na janela do título (padrões de interface, revisão 27)
+      assert_selector ".janela-corpo h2", text: "Memória de cálculo", wait: 10
       :current
     },
     "regra-de-encargos" => -> { edit_settings_tier_path(@varejo) },
     "conferencia-de-encargos" => lambda {
-      visit edit_settings_tier_path(@varejo)
+      na_casca edit_settings_tier_path(@varejo)
       fill_in "tier_interest_pct", with: "2,5"
       fill_in "tier_fees_pct", with: "8"
       check "O contrato prevê honorários"
       click_button "Conferir o impacto"
       assert_text "Conferindo"
       perform_enqueued_jobs(only: TierReviewJob)
+      simular_evento({ channel: "SegmentsChannel", tenant_id: @tenant.id }, { event: "tier-review-ready" })
       assert_selector "h2", text: "Valor atualizado", wait: 10
       :current
     },
     # Incremento 10: promessas.
     "ficha-com-promessas" => -> { customer_path(@promise_customer, aba: "promessas") },
     "formulario-de-promessa" => lambda {
-      visit customer_path(@contacted_customer)
-      click_link "Registrar acionamento"
-      assert_selector "dialog#painel[open] form.painel"
-      select "Prometeu pagar", from: "Resultado"
-      assert_no_selector ".htmx-request"
-      select "Telefone", from: "Canal"
-      assert_no_selector ".htmx-request"
-      select @contacted_customer.bills.first.contract.label, from: "Contrato da promessa"
-      assert_no_selector ".htmx-request"
-      2.times do |index|
-        all("#bloco-promessa input[type=checkbox]:not([disabled]):not(:checked)").first.check
-        assert_no_selector ".htmx-request"
-        assert_selector "#bloco-promessa input[type=checkbox]:checked", count: index + 1
+      na_casca customer_path(@contacted_customer)
+      find(".aba-raiz .cabecalho-da-pagina .botao", text: "Registrar acionamento").click
+      no_dialogo do
+        escolher "Resultado", "Prometeu pagar"
+        esperar_os_pedidos
+        escolher "Canal", "Telefone"
+        esperar_os_pedidos
+        escolher "Contrato da promessa", @contacted_customer.bills.first.contract.label
+        esperar_os_pedidos
+        2.times do |index|
+          all("#bloco-promessa input[type=checkbox]:not([disabled]):not(:checked)").first.check
+          esperar_os_pedidos
+          assert_selector "#bloco-promessa input[type=checkbox]:checked", count: index + 1
+        end
+        escolher "Meio de pagamento", "Pix"
+        esperar_os_pedidos
+        data = find_field("Data prometida")
+        data.fill_in(with: (Date.current + 9).strftime("%d/%m/%Y"))
+        data.send_keys(:tab)
+        esperar_os_pedidos
+        assert_selector "#bloco-promessa tfoot td", wait: 10
       end
-      select "Pix", from: "Meio de pagamento"
-      assert_no_selector ".htmx-request"
-      find("#contact_attempt_promise_on").set(Date.current + 9)
-      page.execute_script("document.getElementById('contact_attempt_promise_on').dispatchEvent(new Event('change', { bubbles: true }))")
-      assert_selector "#bloco-promessa tfoot td", wait: 10
       :current
     },
     "promessas-pendentes" => -> { pending_promises_path },
     "configuracao-de-promessas" => -> { settings_promises_path },
     "simulacao-de-acordo" => lambda {
-      visit new_customer_agreement_simulation_path(@agreement_customer)
+      na_casca new_customer_agreement_simulation_path(@agreement_customer)
       @agreement_bills.drop(1).each { |bill| check "titulo-#{bill.id}" }
       fill_in "Desconto em multa (%)", with: "50"
       fill_in "Desconto em juros (%)", with: "50"
-      fill_in "Parcelas", with: "4"
+      escolher "Parcelas", "4 parcelas"
       fill_in "Dia de vencimento das parcelas", with: "5"
-      assert_selector "#simulacao h2", text: "Entrada e parcelas"
+      assert_selector ".estado-do-calculo[data-situacao=calculado]", wait: 10
+      assert_selector ".aba-raiz h2", text: "Entrada e parcelas"
       :current
     },
     "proposta-de-acordo" => -> { agreement_path(@approved_agreement) },
@@ -400,60 +403,60 @@ class CapturasTest < ApplicationSystemTestCase
     "ficha-com-credito-por-estado" => -> { customer_path(@reversal_customer, aba: "pagamentos") },
     "estornos-a-espera" => -> { reversal_waits_path },
     "simulacao-de-acordo-sobre-acordo" => lambda {
-      visit new_customer_agreement_simulation_path(@renegotiation_customer)
+      na_casca new_customer_agreement_simulation_path(@renegotiation_customer)
       all("input[type=checkbox][id^=titulo-]:not([disabled])").each { |box| check box[:id] }
-      fill_in "Parcelas", with: "3"
+      escolher "Parcelas", "3 parcelas"
       fill_in "Dia de vencimento das parcelas", with: "5"
-      assert_selector "#simulacao h2", text: "Entrada e parcelas", wait: 10
+      assert_selector ".estado-do-calculo[data-situacao=calculado]", wait: 10
+      assert_selector ".aba-raiz h2", text: "Entrada e parcelas"
       :current
     },
     # Incremento 12, parte A: contas de pagamento.
-    "contas-de-pagamento" => -> { settings_payment_accounts_path },
-    "nova-conta-de-pagamento" => -> { new_settings_payment_account_path(tenant_id: @tenant.id, modality: "pix", provider: "efi") },
+    "contas-de-pagamento" => -> { settings_channels_path },
+    "nova-conta-de-pagamento" => -> { new_settings_payment_account_path(credor: @tenant.id, modalidade: "pix", fornecedor: "efi") },
     "conta-de-pagamento" => -> { edit_settings_payment_account_path(@pix_account) },
     # Incremento 12, parte C: a página pública de pagamento (sem login), com o token de exemplo da captura.
     "pagamento-do-cliente" => -> { checkout_path(@checkout) },
     # Redesenho, fase 2: as ações restantes no painel compartilhado (modal, confirmação e painel lateral).
-    "novo-usuario-no-painel" => lambda {
-      visit memberships_path
-      click_link "Criar usuário"
-      assert_selector "dialog#painel[open] form.painel"
+    "novo-usuario-no-dialogo" => lambda {
+      na_casca memberships_path
+      find(".aba-raiz .cabecalho-da-pagina .botao", text: "Criar usuário").click
+      assert_selector ".dialogo-conteudo form.dialogo"
       sleep 0.5
       :current
     },
-    "perfil-no-painel" => lambda {
-      visit profiles_path
-      click_link "Criar perfil"
-      assert_selector "dialog#painel[open] form.painel"
-      sleep 0.5
+    "novo-perfil" => lambda {
+      na_casca profiles_path
+      find(".aba-raiz .cabecalho-da-pagina .botao", text: "Criar perfil").click
+      assert_selector ".aba-raiz h1", text: "Novo perfil" # o perfil tem aba própria (fase 7)
+      esperar_os_pedidos
       :current
     },
     "confirmar-descarte-da-importacao" => lambda {
-      visit import_path(@payments_import)
-      click_link "Descartar"
-      assert_selector "dialog#painel[open] form.painel"
+      na_casca import_path(@payments_import)
+      find(".aba-raiz .botao", text: "Descartar", match: :first).click
+      assert_selector ".dialogo-conteudo form.dialogo"
       sleep 0.5
       :current
     },
-    "registrar-aceite-no-painel" => lambda {
-      visit agreement_path(@approved_agreement)
-      click_link "Registrar aceite"
-      assert_selector "dialog#painel[open] form.painel"
+    "registrar-aceite-no-dialogo" => lambda {
+      na_casca agreement_path(@approved_agreement)
+      find(".aba-raiz .botao", text: "Registrar aceite", match: :first).click
+      assert_selector ".dialogo-conteudo form.dialogo"
       sleep 0.5
       :current
     },
-    "quebrar-acordo-no-painel" => lambda {
-      visit agreement_path(@effectuated_agreement)
-      find("button.menu-de-linha[aria-label='Mais ações do acordo']").click
-      click_link "Quebrar o acordo"
-      assert_selector "dialog#painel[open] form.painel"
+    "quebrar-acordo-no-dialogo" => lambda {
+      na_casca agreement_path(@effectuated_agreement)
+      mais_acoes "Quebrar o acordo"
+      assert_selector ".dialogo-conteudo form.dialogo"
       sleep 0.5
       :current
     },
-    "tratar-divergencia-no-painel" => lambda {
-      visit value_discrepancy_path(@discrepancy)
-      click_link "Tratar divergência"
-      assert_selector "dialog#painel[open] form.painel"
+    "tratar-divergencia-no-dialogo" => lambda {
+      na_casca value_discrepancy_path(@discrepancy)
+      find(".janela-corpo .botao", text: "Tratar divergência", match: :first).click
+      assert_selector ".dialogo-conteudo form.dialogo"
       sleep 0.5
       :current
     },
@@ -462,41 +465,28 @@ class CapturasTest < ApplicationSystemTestCase
     "operacoes" => -> { prepare_operations && settings_operations_path },
     "credenciamento" => -> { settings_operation_path(@accreditation) },
     "distribuicao" => -> { distributions_path },
-    "enquadramento-da-distribuicao" => -> { settings_distribution_rules_path(tenant_id: @tenant.id) },
+    "enquadramento-da-distribuicao" => -> { settings_distribution_rules_path(credor: @tenant.id) },
     "trilha-das-operacoes" => -> { settings_operation_trails_path },
     "ficha-distribuida" => -> { customer_path(@distributed_customer) },
     "clientes-da-operacao" => lambda {
-      page.driver.clear_cookies
-      visit new_session_path
-      fill_in "E-mail", with: @operation_user.email_address
-      fill_in "Senha", with: "senha-de-teste-1"
-      click_button "Entrar"
-      assert_selector "body > header", text: "Recupera"
+      trocar_de_usuario @operation_user
+      assert_selector "#operacao-atual", text: "Recupera"
       customers_path
     },
     # Incremento 15 (filas): o enquadramento de contratos, os grupos, a visão do gestor, uma fila e o "Próximo" do operador com a faixa da entrega.
     "enquadramento-das-filas" => lambda {
-      page.driver.clear_cookies
       prepare_queues
-      visit new_session_path
-      fill_in "E-mail", with: users(:joana).email_address
-      fill_in "Senha", with: "senha-de-teste-1"
-      click_button "Entrar"
-      assert_selector "header .usuario"
-      queues_work_queues_path(tenant_id: @tenant.id)
+      trocar_de_usuario users(:joana)
+      queues_work_queues_path(credor: @tenant.id)
     },
-    "grupos-das-filas" => -> { queues_queue_groups_path(tenant_id: @tenant.id) },
-    "visao-das-filas" => -> { queues_board_path(tenant_id: @tenant.id) },
-    "fila-em-ordem" => -> { queues_board_queue_path(@late_queue, tenant_id: @tenant.id) },
+    "grupos-das-filas" => -> { queues_queue_groups_path(credor: @tenant.id) },
+    "visao-das-filas" => -> { queues_board_path(credor: @tenant.id) },
+    "fila-em-ordem" => -> { queues_board_queue_path(@late_queue, credor: @tenant.id) },
     "proximo-da-fila" => lambda {
-      page.driver.clear_cookies
-      visit new_session_path
-      fill_in "E-mail", with: users(:carlos).email_address
-      fill_in "Senha", with: "senha-de-teste-1"
-      click_button "Entrar"
-      # Sem o botão no cabeçalho (pedido do Paulo, 02/11/2026), o pedido do Próximo vai pelo mesmo POST.
-      page.execute_script("const f = document.createElement('form'); f.method = 'post'; f.action = arguments[0]; const m = document.querySelector('meta[name=csrf-token]'); if (m) { const t = document.createElement('input'); t.type = 'hidden'; t.name = 'authenticity_token'; t.value = m.content; f.append(t) } document.body.append(f); f.submit()", next_delivery_path)
-      assert_text "Da fila"
+      trocar_de_usuario users(:carlos)
+      # Sem o botão no cabeçalho (pedido do Paulo, 02/11/2026), o pedido do Próximo vai pelo mesmo POST, e a ficha entregue abre na aba.
+      page.execute_script("jQuery.ajax({ url: arguments[0], method: 'POST', headers: { 'X-CRM-Trecho': '1' } }).always((_d, _s, xhr) => { const e = JSON.parse((xhr.getResponseHeader ? xhr.getResponseHeader('X-CRM-Evento') : null) || '{}'); if (e.navegar) import('spa/abas').then((a) => a.abrir(e.navegar)) })", next_delivery_path)
+      assert_text "Da fila", wait: 10
       :current
     }
   }.freeze
@@ -542,144 +532,52 @@ class CapturasTest < ApplicationSystemTestCase
     true
   end
 
-  # Telas fotografadas com os blocos recolhidos (`<details>`) abertos, para mostrar o que há dentro.
-  ABERTAS = %w[ficha-com-contatos].freeze
-
   # Telas longas, fotografadas com a janela mais alta para mostrar o que importa (o histórico, o formulário).
   ALTAS = %w[editor-de-segmento editor-com-erro glossario-dos-segmentos enquadramento-financeiro conferencia-do-enquadramento ficha-com-acionamentos ficha-com-contatos formulario-de-promessa configuracao-de-promessas ficha-com-promessas politica-de-correcao exportacao-de-dados guarda-de-dados indices novo-segmento ficha-com-segmentos segmentos
              regra-de-encargos conferencia-de-encargos conferencia-da-carteira resumo ficha-com-valor-atualizado simulacao-de-acordo termo-do-acordo lista-de-acordos proposta-de-acordo acordo-efetivado acordo-quebrado ficha-com-titulos-de-acordo
              acordo-em-reversao ficha-com-credito-por-estado estornos-a-espera simulacao-de-acordo-sobre-acordo nova-conta-de-pagamento conta-de-pagamento pagamento-do-cliente].freeze
 
-  test "recria as fotos do README" do
-    TELAS.each do |nome, caminho|
-      page.driver.resize(1440, nome == "ficha-com-valor-atualizado" ? 3500 : (nome == "ficha-com-titulos-de-acordo" ? 3400 : (nome == "acordo-em-reversao" ? 2300 : (nome == "ficha-com-credito-por-estado" ? 4400 : (nome == "ficha-com-segmentos" ? 2900 : (ALTAS.include?(nome) ? 1700 : 900))))))
-      destino = instance_exec(&caminho)
-      visit destino unless destino == :current
-      assert_selector "h1"
-      page.execute_script("document.querySelectorAll('main details').forEach((d) => d.open = true)") if ABERTAS.include?(nome)
-      page.save_screenshot(Rails.root.join("tmp/capturas/#{nome}.png").to_s)
-    end
+  # Abre a tela pelo endereço, como um link de fora: a casca abre a aba (ou a janela) e a foto espera os pedidos terminarem. As abas da foto anterior saem
+  # (a casca guarda as abas abertas), para cada foto mostrar uma aba só, ao lado do Resumo.
+  def na_casca(caminho)
+    page.execute_script("try { localStorage.clear(); sessionStorage.clear() } catch (e) {}")
+    visit caminho
+    assert_selector ".aba-raiz h1, .janela-corpo, body > main h1", wait: 15
+    esperar_os_pedidos
   end
 
-  # Protótipo das telas da segmentação (13, R299) para o Paulo aprovar: cada tela a 1440, 1024 e 390 px, página inteira. Só roda com CAPTURAS=1
-  # CAPTURAS_SEGMENTACAO=1; grava em tmp/capturas-segmentacao.
-  test "capturas do protótipo da segmentação" do
-    skip "defina CAPTURAS_SEGMENTACAO=1" unless ENV["CAPTURAS_SEGMENTACAO"] == "1"
-    pasta = Rails.root.join("tmp/capturas-segmentacao")
-    FileUtils.mkdir_p(pasta)
-    telas = TELAS.slice("segmentos", "editor-de-segmento", "editor-com-erro", "glossario-dos-segmentos", "enquadramento-financeiro", "incluir-segmento", "conferencia-do-enquadramento",
-                        "regra-de-encargos", "ficha-com-segmentos").to_a
-    telas.insert(2, [ "novo-segmento-em-branco", -> { new_settings_segment_path(tenant_id: @tenant.id) } ])
-    telas << [ "lista-filtrada-por-segmento", -> { customers_path(segment: Segment.find_by!(tenant: @tenant, name: "Clientes sem contato válido").id) } ]
-    [ 1440, 1024, 390 ].each do |largura|
-      telas.each do |nome, caminho|
-        page.driver.resize(largura, 900)
+  def trocar_de_usuario(usuario)
+    page.driver.clear_cookies
+    page.execute_script("try { localStorage.clear(); sessionStorage.clear() } catch (e) {}")
+    entrar_na_casca usuario
+  end
+
+  # Páginas que o servidor ainda serve direto (impressão, pagamento): sem casca.
+  FORA_DA_CASCA = %r{/termo\z|/exportacao|/pagar/}
+
+  # Uma foto que falha não para as outras: as falhas se juntam e o teste falha no fim. `CAPTURAS_SO=nome,nome` refaz só algumas.
+  test "recria as fotos do README" do
+    so = ENV["CAPTURAS_SO"].to_s.split(",")
+    falhas = []
+    TELAS.each do |nome, caminho|
+      next if so.any? && !so.include?(nome)
+      page.driver.resize(1440, nome == "ficha-com-valor-atualizado" ? 3500 : (nome == "ficha-com-titulos-de-acordo" ? 3400 : (nome == "acordo-em-reversao" ? 2300 : (nome == "ficha-com-credito-por-estado" ? 4400 : (nome == "ficha-com-segmentos" ? 2900 : (ALTAS.include?(nome) ? 1700 : 900))))))
+      begin
         destino = instance_exec(&caminho)
-        visit destino unless destino == :current
-        assert_selector "h1"
-        page.save_screenshot(pasta.join("#{largura}-#{nome}.png").to_s, full: true)
+        if destino == :current
+          esperar_os_pedidos
+        elsif FORA_DA_CASCA.match?(destino)
+          visit destino
+          assert_selector "h1"
+        else
+          na_casca destino
+        end
+        page.save_screenshot(Rails.root.join("tmp/capturas/#{nome}.png").to_s)
+      rescue StandardError, Minitest::Assertion => erro
+        falhas << "#{nome}: #{erro.message.lines.first}"
+        page.save_screenshot(Rails.root.join("tmp/capturas/falha-#{nome}.png").to_s)
       end
     end
-  end
-
-  # Capturas do redesenho denso e corporativo (fase 2): todas as telas principais a 1440 x 900 e algumas a 390 px, para o Paulo. Só roda com CAPTURAS=1 CAPTURAS_REDESENHO2=1.
-  test "capturas do redesenho (fase 2)" do
-    skip "defina CAPTURAS_REDESENHO2=1" unless ENV["CAPTURAS_REDESENHO2"] == "1"
-    pasta = Rails.root.join("tmp/capturas-redesenho-fase-2")
-    FileUtils.mkdir_p(pasta)
-    # Só uma importação por credor pode esperar confirmação: a de pagamentos fica conferida e as outras saem de cena.
-    Import.where(tenant_id: @tenant.id).where.not(id: @payments_import.id).update_all(status: "discarded")
-    @payments_import.update!(status: :checked)
-    telas = [ [ "01-resumo", -> { root_path } ], [ "02-clientes", -> { customers_path } ], [ "03-ficha", -> { customer_path(@promise_customer) } ], [ "04-acionamentos", -> { contact_attempts_path } ],
-              [ "05-importacoes", -> { imports_path } ], [ "06-importar-carteira", -> { new_import_path } ], [ "07-conferencia-da-importacao", -> { import_path(@payments_import) } ],
-              [ "08-divergencias", -> { value_discrepancies_path } ], [ "09-divergencia", -> { value_discrepancy_path(@discrepancy) } ], [ "10-historico-do-titulo", -> { bill_path(@reduced_bill) } ],
-              [ "11-acordos", -> { agreements_path } ], [ "12-acordo", -> { agreement_path(@effectuated_agreement) } ], [ "13-acordos-pendentes", -> { pending_agreements_path } ],
-              [ "14-promessas-pendentes", -> { pending_promises_path } ], [ "15-estornos-a-espera", -> { reversal_waits_path } ], [ "16-arquivo-de-acordos", -> { agreement_exports_path } ],
-              [ "17-simulacao-de-acordo", -> { new_customer_agreement_simulation_path(@agreement_customer) } ], [ "18-usuarios", -> { memberships_path } ], [ "19-perfis", -> { profiles_path } ],
-              [ "20-guarda-de-dados", -> { data_retention_path } ], [ "21-config-dados-do-credor", -> { settings_tenant_registry_path } ], [ "22-config-carteira", -> { settings_portfolio_path } ],
-              [ "23-config-canais", -> { settings_channels_path } ], [ "24-config-politicas-de-pagamento", -> { settings_payment_policy_path } ], [ "25-config-contas", -> { settings_payment_accounts_path } ],
-              [ "26-config-segmentos", -> { settings_segments_path } ], [ "26b-config-enquadramento-financeiro", -> { settings_tiers_path } ], [ "27-config-promessas-e-acordos", -> { settings_promises_path } ], [ "28-config-indices", -> { settings_indexes_path } ],
-              [ "29-config-resultados", -> { settings_contact_results_path } ], [ "30-nova-conta", -> { new_settings_payment_account_path(tenant_id: @tenant.id, modality: "pix", provider: "efi") } ],
-              [ "31-editor-de-segmento", -> { new_settings_segment_path(tenant_id: @tenant.id, exemplo: "atraso-longo") } ] ]
-    telas.each do |nome, caminho|
-      page.driver.resize(1440, 900)
-      visit instance_exec(&caminho)
-      assert_selector "h1"
-      sleep 0.4
-      page.save_screenshot(pasta.join("#{nome}.png").to_s)
-    end
-    TELAS.slice("novo-usuario-no-painel", "perfil-no-painel", "confirmar-descarte-da-importacao", "registrar-aceite-no-painel", "quebrar-acordo-no-painel", "tratar-divergencia-no-painel").each do |nome, acao|
-      page.driver.resize(1440, 900)
-      instance_exec(&acao)
-      page.save_screenshot(pasta.join("32-#{nome}.png").to_s)
-    end
-    page.driver.resize(1440, 900)
-    visit new_session_path
-    [ [ "40-m-ficha", -> { customer_path(@promise_customer) } ], [ "41-m-acordo", -> { agreement_path(@effectuated_agreement) } ], [ "42-m-importacoes", -> { imports_path } ],
-      [ "43-m-config-promessas", -> { settings_promises_path } ], [ "44-m-simulacao", -> { new_customer_agreement_simulation_path(@agreement_customer) } ] ].each do |nome, caminho|
-      page.driver.resize(390, 900)
-      visit instance_exec(&caminho)
-      assert_selector "h1"
-      sleep 0.4
-      page.save_screenshot(pasta.join("#{nome}.png").to_s)
-    end
-    page.driver.resize(390, 900)
-    visit customers_path
-    find("button.botao-menu").click
-    sleep 0.4
-    page.save_screenshot(pasta.join("45-m-menu-com-busca.png").to_s)
-    page.driver.clear_cookies
-    page.driver.resize(390, 900)
-    visit checkout_path(@checkout)
-    assert_selector "h1"
-    page.save_screenshot(pasta.join("46-m-pagamento-do-cliente.png").to_s)
-    page.driver.resize(1440, 900)
-    page.save_screenshot(pasta.join("33-pagamento-do-cliente.png").to_s)
-  end
-
-  # Capturas do redesenho denso e corporativo (fase 1, decisão 0022): só roda com CAPTURAS=1 CAPTURAS_REDESENHO=1; grava em tmp/capturas-redesenho.
-  test "capturas do redesenho (fase 1)" do
-    skip "defina CAPTURAS_REDESENHO=1" unless ENV["CAPTURAS_REDESENHO"] == "1"
-    pasta = Rails.root.join("tmp/capturas-redesenho")
-    FileUtils.mkdir_p(pasta)
-    tirar = lambda do |nome, largura = 1440, altura = 900|
-      page.driver.resize(largura, altura)
-      page.save_screenshot(pasta.join("#{nome}.png").to_s)
-    end
-    page.driver.resize(1440, 900)
-    visit root_path
-    assert_selector "h1", text: "Resumo da carteira"
-    assert_selector ".kpi"
-    tirar.call("1-resumo")
-    visit customers_path
-    assert_selector "#resultado tbody tr"
-    tirar.call("2-lista-de-clientes")
-    visit customer_path(@promise_customer)
-    assert_selector "h1"
-    tirar.call("3-ficha-do-cliente")
-    visit customer_path(@promise_customer, aba: "promessas")
-    assert_selector "#promessas tbody tr"
-    tirar.call("3b-ficha-aba-promessas")
-    visit customer_path(@contacted_customer, aba: "acionamentos")
-    click_link "Registrar acionamento"
-    assert_selector "dialog#painel[open] form.painel"
-    sleep 0.5 # termina a animação do painel
-    tirar.call("4-ficha-com-painel-registrar-acionamento")
-    visit customer_path(@contacted_customer, aba: "contatos")
-    find("#contatos button.menu-de-linha", match: :first).click
-    sleep 0.3
-    tirar.call("4b-ficha-menu-de-linha")
-    visit settings_portfolio_path
-    assert_selector "ol.previa"
-    tirar.call("5-configuracao-da-carteira")
-    visit customer_path(@promise_customer)
-    tirar.call("6-ficha-390", 390, 900)
-    visit root_path
-    tirar.call("6b-resumo-390", 390, 900)
-    page.driver.clear_cookies
-    visit new_session_path
-    assert_selector "h1", text: "Entrar no CRM"
-    tirar.call("7-entrada")
-    tirar.call("8-entrada-390", 390, 900)
+    assert_empty falhas, "Fotos que falharam:\n#{falhas.join}"
   end
 end

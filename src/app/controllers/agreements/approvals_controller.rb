@@ -5,8 +5,13 @@ module Agreements
       agreement = Agreement.includes(:tenant).find(params[:agreement_id])
       authorize agreement, :approve?
       Agreements::Reviewer.new(Current.user).approve(agreement)
+      # Na SPA (decisão 0028), o fim vem no `X-CRM-Evento`: o aviso e a tela refeita (o acordo ou a lista de pendentes).
+      return panel_finish(agreement_path(agreement), notice: t(".done", number: agreement.number), atualizar: true) if spa?
+
       redirect_back_or_to agreement_path(agreement), notice: t(".done", number: agreement.number), status: :see_other
     rescue Agreements::Refused => error
+      return panel_refuse(agreement_path(agreement), error.message) if spa?
+
       redirect_back_or_to agreement_path(agreement), alert: error.message, status: :see_other
     end
   end

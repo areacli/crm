@@ -36,10 +36,10 @@ module Settings
       attributes = params.expect(rule: [ :exposure, operation_ids: [] ])
       review(DistributionRules::Proposal.current(@tenant).with_changed(params[:id].to_i, Array(attributes[:operation_ids]).compact_blank, attributes[:exposure]))
     rescue Distributions::Refused, IndexError => error
-      redirect_to settings_distribution_rules_path(tenant_id: @tenant.id), alert: error.message, status: :see_other
+      panel_finish(settings_distribution_rules_path(credor: @tenant.id), notice: error.message, tom: :danger, navegar: true, mesma_aba: true)
     end
 
-    def move = review(DistributionRules::Proposal.current(@tenant).with_moved(params[:id].to_i, params[:offset].to_i))
+    def move = review(DistributionRules::Proposal.current(@tenant).with_moved(params[:id].to_i, params[:deslocamento].to_i))
     def destroy = review(DistributionRules::Proposal.current(@tenant).with_removed(params[:id].to_i))
 
     def review_show
@@ -49,22 +49,22 @@ module Settings
       @segments = Segment.where(id: @proposal.items.map(&:segment_id)).pluck(:id, :name).to_h
       @operations = Operation.where(id: @proposal.items.flat_map(&:operation_ids)).pluck(:id, :short_name).to_h
       @cable = [ { channel: "DistributionsChannel", tenant_id: @tenant.id } ].to_json
-      render partial: "settings/distribution_rules/review", locals: { result: @result } if htmx_fragment?
+      render partial: "settings/distribution_rules/review", locals: { result: @result } if fragment?
     rescue Distributions::Refused => error
-      redirect_to settings_distribution_rules_path(tenant_id: @tenant.id), alert: error.message, status: :see_other
+      redirect_to settings_distribution_rules_path(credor: @tenant.id), alert: error.message, status: :see_other
     end
 
     def confirm
       DistributionRules::Applier.new(Current.user).confirm(@tenant, params[:token].to_s)
-      redirect_to settings_distribution_rules_path(tenant_id: @tenant.id), notice: t(".done"), status: :see_other
+      panel_finish(settings_distribution_rules_path(credor: @tenant.id), notice: t(".done"), navegar: true, mesma_aba: true)
     rescue Distributions::Refused => error
-      redirect_to settings_distribution_rules_path(tenant_id: @tenant.id), alert: error.message, status: :see_other
+      panel_finish(settings_distribution_rules_path(credor: @tenant.id), notice: error.message, tom: :danger, navegar: true, mesma_aba: true)
     end
 
     private
       def set_tenant
         tenants = Tenant.where(id: Current.user.tenant_ids_with("distribute_portfolio")).order(:name)
-        @tenant = tenants.find_by(id: params[:tenant_id]) || tenants.first or raise Pundit::NotAuthorizedError
+        @tenant = tenants.find_by(id: params[:credor]) || tenants.first or raise Pundit::NotAuthorizedError
         @tenants = tenants
         authorize Distribution.new(tenant: @tenant), :create?
       end
@@ -79,13 +79,9 @@ module Settings
       def review(proposal)
         token = proposal.token
         DistributionRulesJob.perform_later(@tenant, token: token)
-        url = review_settings_distribution_rules_path(tenant_id: @tenant.id, token: token)
-        if panel_request?
-          response.headers["HX-Redirect"] = url
-          head :no_content
-        else
-          redirect_to url, status: :see_other
-        end
+        url = review_settings_distribution_rules_path(credor: @tenant.id, token: token)
+        # Na SPA, a conferência toma o lugar do enquadramento na mesma aba; o "Confirmar" e o "Descartar" voltam a ele.
+        panel_finish(url, navegar: true, mesma_aba: true)
       end
   end
 end

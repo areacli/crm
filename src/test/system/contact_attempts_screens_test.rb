@@ -1,7 +1,9 @@
 require "application_system_test_case"
 
-# Acionamentos no navegador: ficha com o formulário que reage ao resultado, lista, resumo e resultados, todos no axe.
+# Acionamentos no navegador, nas abas da casca: na ficha, o diálogo que reage ao resultado; a lista, o resumo e os resultados.
 class ContactAttemptsScreensSystemTest < ApplicationSystemTestCase
+  include SpaTestHelper
+
   setup do
     @alfa = tenants(:alfa)
     @maria = make_customer(@alfa)
@@ -12,120 +14,111 @@ class ContactAttemptsScreensSystemTest < ApplicationSystemTestCase
     @pedro = pedro
     insert_attempt(@maria, user: users(:carlos), result: result_of(@alfa, :negotiating), text: "Quer parcelar em três vezes.\nRetornar na sexta.", contacted_at: 2.hours.ago)
     insert_attempt(@maria, user: users(:joana), result: result_of(@alfa, :voicemail), channel: "whatsapp", contacted_at: 5.hours.ago)
-    visit new_session_path
-    fill_in "E-mail", with: users(:joana).email_address
-    fill_in "Senha", with: "senha-de-teste-1"
-    click_button "Entrar"
-    assert_selector "h1", text: "Resumo da carteira"
   end
 
   def sem_rolagem_horizontal = assert_not(page.evaluate_script("document.documentElement.scrollWidth > document.documentElement.clientWidth"))
 
   def abrir_registro
     click_link "Registrar acionamento"
-    assert_selector "dialog#painel[open] form.painel"
+    assert_selector ".dialogo-conteudo form.dialogo"
+    esperar_os_pedidos
   end
 
-  test "ficha com acionamentos, o painel de registro, a lista, o resumo e os resultados passam no axe" do
-    visit customer_path(@maria, aba: "acionamentos")
-    assert_selector "h2", text: "Acionamentos"
-    assert_no_selector "form.painel" # nenhum formulário aberto na ficha
-    assert_text "Quer parcelar em três vezes."
-    assert_acessivel
-    sem_rolagem_horizontal
+  def ficha(customer)
+    entrar_na_casca
+    abrir_ficha(customer, aba: "acionamentos")
+  end
+
+  test "ficha com acionamentos e o diálogo de registro; a lista e os resultados nas abas, e o resumo" do
+    ficha(@maria)
+    na_aba_interna do
+      assert_selector "h2", text: "Acionamentos"
+      assert_selector ".datagrid-row", text: "Quer parcelar em três vezes."
+    end
+    assert_no_selector "form.dialogo" # nenhum formulário aberto na ficha
     abrir_registro
-    assert_acessivel
-    sem_rolagem_horizontal
-    page.send_keys(:escape)
-    assert_no_selector "dialog#painel[open]"
+    no_dialogo { click_button "Cancelar" }
+    assert_no_selector ".dialogo-conteudo"
 
-    visit contact_attempts_path
-    assert_selector "h1", text: "Acionamentos"
-    assert_selector "#resultado tbody tr", count: 2
-    assert_acessivel
-    sem_rolagem_horizontal
+    # A lista está na SPA (fase 4): o endereço antigo leva à aba, com a grade do resultado.
+    visitar_lista contact_attempts_path
+    assert_selector ".aba-raiz h1", text: "Acionamentos"
+    assert_linhas_do_resultado 2
 
-    visit root_path
-    assert_selector "h2", text: "Acionamentos"
-    assert_acessivel
+    visit summary_path # o endereço antigo leva à aba do resumo na casca
+    assert_selector ".aba-raiz h2", text: "Acionamentos", wait: 15
 
-    visit settings_contact_results_path
-    assert_selector "h1", text: "Resultados de acionamento"
-    assert_acessivel
-    click_link "Criar resultado"
-    assert_selector "dialog#painel[open][data-variant=drawer]", text: "Novo resultado de acionamento"
-    assert_acessivel
-    visit edit_settings_contact_result_path(result_of(@alfa, :voicemail))
-    assert_selector "dialog, h2, [data-painel], main", minimum: 1
-    assert_acessivel
+    # Os resultados estão na SPA (fase 7), fora do axe (D7): criar e editar em diálogos.
+    visit settings_contact_results_path # o endereço antigo leva à aba na casca
+    assert_selector ".aba-raiz h1", text: "Resultados de acionamento", wait: 15
+    find(".aba-raiz .cabecalho-da-pagina .botao", text: "Criar resultado").click
+    no_dialogo { assert_field "Nome" }
+    send_keys :escape
+    menu_da_linha("Caixa postal", "Editar")
+    no_dialogo { assert_field "Nome", with: "Caixa postal" }
   end
 
   test "o campo de retorno aparece conforme o resultado e o registro entra no histórico sem recarregar a página" do
-    visit customer_path(@pedro, aba: "acionamentos")
-    marcador = page.evaluate_script("window.__sem_recarregar = 1")
+    ficha(@pedro)
+    page.execute_script("window.__sem_recarregar = 1")
     abrir_registro
-    within("#painel") do
-      select "Telefone", from: "Canal"
-      select "Pediu para retornar depois", from: "Resultado"
-      assert_field "Retorno combinado", type: "datetime-local"
-      assert find_field("Retorno combinado")[:required]
+    no_dialogo do
+      escolher "Canal", "Telefone"
+      escolher "Resultado", "Pediu para retornar depois"
+      assert_field "Retorno combinado"
 
-      select "Número ou endereço inexistente", from: "Resultado"
+      escolher "Resultado", "Número ou endereço inexistente"
       assert_no_field "Retorno combinado"
 
-      select "Negociação em andamento", from: "Resultado"
+      escolher "Resultado", "Negociação em andamento"
       assert_field "Retorno combinado (opcional)"
 
-      select "CT-1", from: "Contrato (opcional)"
+      escolher "Contrato (opcional)", "CT-1"
       assert_text "O responsável financeiro deste contrato é Maria Souza"
       fill_in "Texto (opcional)", with: "Pediu o boleto\npor e-mail"
       fill_in "Contato usado (opcional)", with: "(11) 3333-4444"
-      click_button "Registrar acionamento"
     end
+    gravar_dialogo "Registrar acionamento"
 
-    assert_no_selector "dialog#painel[open]"
-    assert_text "Acionamento registrado."
+    assert_aviso "Acionamento registrado."
     assert_equal 1, page.evaluate_script("window.__sem_recarregar")
-    within("#historico-acionamentos") do
-      assert_text "Negociação em andamento"
-      find("button[data-alternar-detalhe]").click
-      assert_text "(11) 3333-4444"
-      assert_text "Contrato CT-1"
-      assert_text "Pediu o boleto"
+    na_aba_interna do
+      linha = linha_da_grade("Negociação em andamento")
+      find(".datagrid-view1 tr.datagrid-row[datagrid-row-index='#{linha['datagrid-row-index']}'] .datagrid-row-expander").click
+      assert_selector ".datagrid-row-detail", text: "(11) 3333-4444"
+      assert_selector ".datagrid-row-detail", text: "Contrato CT-1"
+      assert_selector ".datagrid-row-detail", text: "Pediu o boleto"
     end
     assert_equal 1, @pedro.contact_attempts.count
-    assert marcador
   end
 
-  test "resultado que exige retorno sem a data: o navegador pede a data e o servidor também recusa" do
-    visit customer_path(@pedro, aba: "acionamentos")
+  test "resultado que exige retorno sem a data: o servidor recusa e o formulário volta preenchido no diálogo" do
+    ficha(@pedro)
     abrir_registro
-    within("#painel") do
-      select "Telefone", from: "Canal"
-      select "Pediu para retornar depois", from: "Resultado"
+    no_dialogo do
+      escolher "Canal", "Telefone"
+      escolher "Resultado", "Pediu para retornar depois"
+      assert_field "Retorno combinado"
       fill_in "Texto (opcional)", with: "texto que fica"
-      # O atributo `required` barra o envio no navegador; tira-se para provar que o servidor recusa e devolve o formulário preenchido.
-      assert_selector "#contact_attempt_return_at" # o campo chega por htmx depois de escolher o resultado
-      page.execute_script("document.querySelector('#contact_attempt_return_at').required = false")
-      click_button "Registrar acionamento"
-
+    end
+    gravar_dialogo "Registrar acionamento", erro: true
+    no_dialogo do
       assert_text "Este resultado exige data de retorno."
       assert_equal "texto que fica", find_field("Texto (opcional)").value
     end
-    assert_selector "dialog#painel[open]" # o 422 refaz o formulário dentro do painel
     assert_equal 0, @pedro.contact_attempts.count
-    assert_acessivel
   end
 
   test "a lista pelo filtro por operador e canal" do
-    visit contact_attempts_path
-    # A lista se refaz quando o WebSocket conecta; filtrar antes disso deixava a conexão desfazer o filtro (corrida que a página mais leve passou a expor).
-    assert_selector "html[data-cable='conectado']"
-    select "Carlos Lima", from: "Operador"
-    assert_selector "#resultado tbody tr", count: 1
-    select "Todos", from: "Operador"
-    select "WhatsApp", from: "Canal"
-    assert_selector "#resultado tbody tr", count: 1
-    assert_text "Caixa postal"
+    entrar_na_casca
+    visitar_lista contact_attempts_path
+    assert_linhas_do_resultado 2
+    # Os filtros refazem só o trecho do resultado (`spa/lista`), e o filtro entra no endereço da aba.
+    escolher "Operador", "Carlos Lima"
+    assert_linhas_do_resultado 1
+    assert_includes page.evaluate_script("location.hash"), "operador=#{users(:carlos).id}"
+    escolher "Operador", "Todos"
+    escolher "Canal", "WhatsApp"
+    assert_linhas_do_resultado 1, text: "Caixa postal"
   end
 end

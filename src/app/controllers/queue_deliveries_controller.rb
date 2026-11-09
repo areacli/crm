@@ -21,6 +21,9 @@ class QueueDeliveriesController < ApplicationController
     delivery = QueueDelivery.open.find_by(user_id: Current.user.id)
     delivery&.finish!("returned")
     Queues::Broadcast.changed(delivery.tenant) if delivery
+    # Na ficha da SPA (decisão 0028), o fim vem no `X-CRM-Evento`: o aviso e a aba refeita, já sem a faixa.
+    return panel_finish(root_path, notice: t("queues.returned"), atualizar: true) if spa?
+
     redirect_back_or_to root_path, notice: t("queues.returned"), status: :see_other
   end
 

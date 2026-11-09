@@ -10,8 +10,13 @@ module Memberships
     def update
       profile = @membership.tenant.profiles.find(params.expect(membership: [ :profile_id ])[:profile_id])
       manager.change_profile(@membership, profile)
+      # Na ficha da SPA, o perfil se edita na linha (design system, 7.1); a recusa (R41, o credor sem gestão) fica junto da lista.
+      return inline_finish(profile.name, aviso: t(".done")) if inline?
+
       back_to_membership notice: t(".done")
     rescue Access::Refused => error
+      return inline_refuse(error.message) if inline?
+
       @profiles = @membership.tenant.profiles.order(:name)
       panel_error(error.message, membership_path(@membership), :edit)
     end

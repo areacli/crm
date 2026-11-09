@@ -47,9 +47,10 @@ class Agreements::RenegotiationTest < ActiveSupport::TestCase
     assert_equal 205, row.base["correction"]
   end
 
-  test "R250: o desconto nos componentes herdados vale o teto próprio do segmento, padrão 0%" do
-    refused = refuse_agreement { simulate_agreement(@customer, [ @break_title ], discounts: { "inherited_late" => 5_000 }, down: 30_000, down_on: Date.new(2027, 2, 9), installments: 3, day: 9).tap { |quote| raise Agreements::Refused, quote.error if quote.error } }
-    assert_includes refused, "encargos de atraso herdados"
+  test "R250: o desconto nos componentes herdados pede o limite próprio do perfil, padrão 0% (revisão 12: o teto do item não recusa)" do
+    pending = simulate_agreement(@customer, [ @break_title ], discounts: { "inherited_late" => 5_000 }, down: 30_000, down_on: Date.new(2027, 2, 9), installments: 3, day: 9)
+    assert_nil pending.error
+    assert_equal "pending", pending.status
 
     Tier.catch_all_of(@alfa).update!(agreement_caps: { "installment" => { "inherited_late" => 100, "fine" => 100, "interest" => 100 }, "cash" => {} })
     rebuild_agreement_limits(@alfa)

@@ -1,7 +1,6 @@
 /*
- * Estrutura da página (revisão 4): cabeçalho marinho de 56 px (marca, menu, busca global, sino e usuário; o menu na barra superior desde a
- * revisão 34 dos padrões de interface), barra de página de 48 px (título, indicadores e ações), conteúdo com a largura toda. Quatro modelos de
- * página: lista, ficha, configuração e entrada.
+ * Estrutura das páginas que ficam no servidor (fase 8 do port): a página pública de pagamento, as de erro e as de impressão. Cabeçalho marinho com a
+ * marca, barra de página (título e subtítulo) e o conteúdo. A área interna é a SPA, com o CSS dela (`casca.css` e o tema do EasyUI).
  */
 @layer layout {
   body {
@@ -39,68 +38,9 @@
   body > header :focus-visible { outline-color: var(--cor-amarelo); }
   body > header a { color: inherit; text-decoration: none; }
 
-  /* A marca é o elemento de maior peso do cabeçalho: logotipo de 40 px (sem margem interna) e o nome do produto em 28 px. */
-  .identidade { grid-column: 1; display: flex; align-items: center; gap: var(--espaco-2); min-width: 0; }
   .marca { display: flex; align-items: center; gap: var(--espaco-3); }
   .marca img { height: var(--altura-logotipo); width: auto; }
   .marca strong { font-size: var(--texto-marca); line-height: 1; font-weight: 700; }
-
-  /* Busca global de cliente (nome ou documento): formulário GET para a lista de clientes, sem regra nova. */
-  .busca input { padding-right: calc(var(--altura-controle) + var(--espaco-1)); }
-
-  .conta { grid-column: 5; justify-self: end; display: flex; align-items: center; gap: var(--espaco-2); }
-  /* Operação do usuário de operação (14, R324): selo claro sobre o marinho do cabeçalho. */
-  .operacao-atual { padding: 0 var(--espaco-2); border: 1px solid var(--cor-amarelo); border-radius: var(--raio-controle); color: var(--cor-amarelo); font-size: var(--texto-tabela); font-weight: 600; white-space: nowrap; }
-  .usuario, .avisos > details { position: relative; }
-  .usuario summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: var(--espaco-2); padding: var(--espaco-1); border-radius: var(--raio-controle); }
-  .usuario summary::-webkit-details-marker { display: none; }
-  .usuario summary:hover { background: var(--cor-azul-escuro); }
-  .iniciais { display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: 50%; background: var(--cor-amarelo); color: var(--cor-marinho); font-weight: 700; font-size: var(--texto-tabela); }
-
-  /* Menu na barra superior (padrões de interface, revisão 34, P1): links diretos e grupos (details) com a lista dos itens abaixo do botão; o grupo
-     da página atual leva o sublinhado amarelo de 2 px. O nav é um popover: na tela larga fica sempre à mostra na barra; abaixo de 1.200 px abre
-     pelo botão "Menu", na vertical. */
-  #menu-principal { grid-column: 2; display: block; position: static; inset: auto; width: auto; height: auto; min-width: 0; margin: 0; padding: 0; border: 0; overflow: visible; background: transparent; color: inherit; }
-  .menu-barra { list-style: none; margin: 0; padding: 0; display: flex; align-items: stretch; gap: 0; height: var(--altura-cabecalho); }
-  .menu-barra > li { position: relative; display: flex; }
-  .grupo { display: flex; }
-  .item-do-menu { list-style: none; cursor: pointer; display: flex; align-items: center; gap: var(--espaco-1); padding: 0 var(--espaco-2); color: var(--cor-branco); font-weight: 600; white-space: nowrap; text-decoration: none; }
-  .item-do-menu::-webkit-details-marker { display: none; }
-  .item-do-menu h2 { margin: 0; font: inherit; color: inherit; }
-  .item-do-menu:hover { background: var(--cor-azul-escuro); }
-  .item-do-menu[aria-current="page"], .grupo[data-atual] > .item-do-menu { box-shadow: inset 0 -2px 0 var(--cor-amarelo); }
-  .grupo > summary .icone { width: 1rem; height: 1rem; transition: transform 0.15s; }
-  .grupo[open] > summary .icone { transform: rotate(180deg); }
-  .menu-lista { position: absolute; top: 100%; left: 0; z-index: 50; min-width: 16rem; list-style: none; margin: 0; padding: var(--espaco-2); background: var(--cor-branco); color: var(--cor-texto); border-radius: var(--raio-controle); box-shadow: var(--sombra-menu); }
-  .menu-lista ul { list-style: none; margin: 0; }
-  .menu-lista a { display: flex; align-items: center; justify-content: space-between; gap: var(--espaco-2); min-height: var(--altura-item-menu); padding: 0 var(--espaco-3); border-radius: var(--raio-controle); color: var(--cor-texto); text-decoration: none; font-weight: 600; white-space: nowrap; }
-  .menu-lista a:hover { background: var(--cor-superficie); }
-  .menu-lista a[aria-current="page"] { background: var(--cor-marinho); color: var(--cor-branco); }
-
-  /* Usuário só com as iniciais abaixo de 1.440 px (o nome continua no menu dele): em 1366 px o menu inteiro só cabe assim. */
-  @media (max-width: 89.9375rem) {
-    .usuario summary > span:not(.iniciais) { position: absolute; left: 0; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-  }
-  /* Abaixo de 1.200 px o menu sai da barra: abre pelo botão "Menu" como painel vertical à direita, logo abaixo do cabeçalho. */
-  @media (max-width: 74.9375rem) {
-    #menu-principal:not(:popover-open) { display: none; }
-    #menu-principal:popover-open { position: fixed; inset: var(--altura-topo) 0 auto auto; width: min(22rem, 100vw); max-height: calc(100dvh - var(--altura-topo)); overflow-y: auto; overscroll-behavior: contain; z-index: 45; padding: var(--espaco-2); background: var(--cor-branco); color: var(--cor-texto); box-shadow: var(--sombra-menu); }
-    #menu-principal::backdrop { background: transparent; }
-    .menu-barra { flex-direction: column; height: auto; gap: 0; }
-    .menu-barra > li, .grupo { display: block; }
-    .item-do-menu { min-height: var(--altura-item-menu); color: var(--cor-texto); border-radius: var(--raio-controle); }
-    .item-do-menu:hover { background: var(--cor-superficie); }
-    .item-do-menu[aria-current="page"], .grupo[data-atual] > .item-do-menu { box-shadow: inset 3px 0 0 var(--cor-amarelo); }
-    .menu-lista { position: static; min-width: 0; padding: 0 0 0 var(--espaco-3); box-shadow: none; }
-  }
-  /* Submenu das seções da configuração (design system, revisão 5): o item abre e fecha; os subitens ficam recuados sob ele. */
-  .submenu summary { list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: var(--espaco-2); min-height: var(--altura-item-menu); padding: 0 var(--espaco-3); border-radius: var(--raio-controle); font-weight: 600; }
-  .submenu summary::-webkit-details-marker { display: none; }
-  .submenu summary:hover { background: var(--cor-superficie); }
-  .submenu summary .icone { transition: transform 0.15s; }
-  .submenu:not([open]) summary .icone { transform: rotate(-90deg); }
-  .submenu ul { margin: 0; padding-left: var(--espaco-3); }
-  .submenu a { font-weight: 400; }
 
   body > main {
     grid-area: conteudo;
@@ -117,11 +57,7 @@
   body > main:focus { outline: none; }
   body > main > * { min-width: 0; }
 
-  /* Avisos da página (confirmações do servidor e do painel): ficam logo abaixo da barra, que sempre é o primeiro bloco visível. */
-  #avisos-da-pagina { display: grid; gap: var(--espaco-2); }
-  #avisos-da-pagina:not(:has(*)) { display: none; }
   body > main > .cabecalho-da-pagina { order: -2; }
-  #avisos-da-pagina { order: -1; }
 
   .pular-para-o-conteudo { position: absolute; left: -999px; top: var(--espaco-2); z-index: 60; background: var(--cor-branco); padding: var(--espaco-2) var(--espaco-4); border-radius: var(--raio-controle); font-weight: 600; }
   .pular-para-o-conteudo:focus { left: var(--espaco-2); }
@@ -149,13 +85,7 @@
     :root:has(body > .demonstracao) { --altura-faixa: 0rem; }
     .demonstracao { position: static; height: auto; padding: var(--espaco-1) var(--espaco-4); }
     .demonstracao p { white-space: normal; text-align: center; }
-    /* Com o menu aberto, a faixa sai: o cabeçalho sobe ao topo e o menu, que abre logo abaixo dele, não cobre o botão de fechar. */
-    body:has(#menu-principal:popover-open) > .demonstracao { display: none; }
-    .conta { grid-column: 2; }
-    /* Aberto, o menu cobre a largura toda abaixo do cabeçalho. */
-    #menu-principal:popover-open { inset: var(--altura-cabecalho) 0 auto 0; width: auto; }
-    /* Cabeçalho estreito: só as iniciais no menu do usuário, para a marca, o sino e o menu caberem. */
-    .usuario summary > span:not(.iniciais) { position: absolute; left: 0; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
     .marca strong { white-space: nowrap; font-size: var(--texto-titulo); }
     .marca img { height: 2rem; }
     body > main { padding-inline: var(--espaco-3); }
@@ -166,81 +96,32 @@
 
 /* Menu do usuário e sino de avisos: <details> no cabeçalho; o conteúdo abre sobre a página. */
 @layer layout {
-  .usuario[open] > div, .avisos > details[open] > div { position: absolute; right: 0; top: calc(100% + var(--espaco-2)); z-index: 50; display: grid; gap: var(--espaco-2); padding: var(--espaco-3); background: var(--cor-branco); color: var(--cor-texto); border-radius: var(--raio-controle); box-shadow: var(--sombra-menu); }
-  .usuario[open] > div { width: max-content; min-width: 12rem; max-width: min(22rem, calc(100vw - 2 * var(--espaco-4))); }
-  .usuario[open] > div p { overflow-wrap: anywhere; }
-  .usuario > div p { margin: 0; }
 
-  /* Sino: o ícone, com o contador dos não lidos; o painel lista cada aviso com o botão de marcar como lido. */
-  .avisos summary { position: relative; list-style: none; cursor: pointer; display: grid; place-items: center; width: var(--altura-controle); height: var(--altura-controle); border-radius: var(--raio-controle); }
-  .avisos summary::-webkit-details-marker { display: none; }
-  .avisos summary:hover { background: var(--cor-azul-escuro); }
-  .avisos > details[open] > div { width: min(26rem, calc(100vw - 2rem)); max-height: 70vh; overflow-y: auto; }
-  .avisos ul { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--espaco-3); }
-  .avisos li { display: grid; gap: var(--espaco-1); padding-bottom: var(--espaco-3); border-bottom: 1px solid var(--cor-linha); }
-  .avisos li:last-child { border-bottom: 0; padding-bottom: 0; }
-  .avisos li p { margin: 0; }
-  .avisos li > div { display: flex; justify-content: space-between; align-items: center; gap: var(--espaco-3); }
 }
 
 /* Modelo Lista: filtros em uma linha, tabela densa com cabeçalho fixo, rodapé com paginação. */
 @layer layout {
-  .filtros { display: flex; flex-wrap: wrap; align-items: end; gap: var(--espaco-2) var(--espaco-3); }
-  .filtros .campo { margin: 0; }
+
   .duas-colunas { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 28rem), 1fr)); gap: var(--espaco-4); align-items: start; }
   .duas-colunas > * { min-width: 0; }
-  .duas-colunas.alinhados { align-items: stretch; }
-  .paginacao { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--espaco-4); padding: var(--espaco-2) var(--espaco-3); background: var(--cor-branco); border: 1px solid var(--cor-linha); border-top: 0; border-radius: 0 0 var(--raio-cartao) var(--raio-cartao); font-size: var(--texto-tabela); }
-  .paginacao [aria-disabled="true"] { color: var(--cor-texto-suave); }
-  .paginacao > :first-child { order: 0; }
+
   .apenas-leitor-de-tela { position: absolute; left: 0; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   progress { width: 100%; max-width: 20rem; height: var(--espaco-2); vertical-align: middle; accent-color: var(--cor-azul); }
 }
 
 /* Modelo Ficha: coluna principal com abas e coluna lateral fixa de 320 px com dados, totais e contatos. */
 @layer layout {
-  .ficha { display: grid; grid-template-columns: minmax(0, 1fr) var(--largura-lateral); gap: var(--espaco-4); align-items: start; }
-  .ficha > * { min-width: 0; }
-  /* Formulário à esquerda (24 rem) e a referência à direita: importar planilha. */
-  .ficha[data-lateral="esquerda"] { grid-template-columns: minmax(0, 24rem) minmax(0, 1fr); }
-  /* Formulário e resultado lado a lado (simulação de acordo): o resultado acompanha a rolagem do formulário. */
-  .ficha[data-lateral="formulario"] { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-  .ficha[data-lateral="formulario"] > #simulacao { display: grid; gap: var(--espaco-3); align-content: start; position: sticky; top: calc(var(--altura-topo) + var(--espaco-3)); }
-  .ficha-principal { display: grid; gap: var(--espaco-3); align-content: start; }
-  .ficha-lateral { display: grid; gap: var(--espaco-3); align-content: start; }
-  @media (max-width: 64rem) {
-    .ficha, .ficha[data-lateral="esquerda"], .ficha[data-lateral="formulario"] { grid-template-columns: minmax(0, 1fr); }
-    .ficha[data-lateral="formulario"] > #simulacao { position: static; }
-  }
+
 }
 
 /* Modelo Entrada: formulário à esquerda, centralizado na vertical (23,75 rem), e o painel de apresentação em marinho à direita; no celular, só o formulário. */
 @layer layout {
-  body > main.entrada { grid-area: conteudo; display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 0; padding: 0; max-width: none; align-content: stretch; }
-  .entrada-acesso { display: grid; align-content: center; justify-items: center; padding: var(--espaco-8) var(--espaco-6); background: var(--cor-branco); }
-  .entrada-formulario { width: min(var(--largura-entrada), 100%); display: grid; gap: var(--espaco-4); }
-  .entrada-formulario > header { display: none; }
-  .entrada-apresentacao { display: grid; align-content: center; gap: var(--espaco-6); padding: var(--espaco-8) clamp(var(--espaco-6), 6vw, 6rem); background: var(--cor-marinho); color: var(--cor-branco); }
-  .entrada-apresentacao img { width: min(20rem, 100%); height: auto; }
-  .entrada-apresentacao h2 { color: var(--cor-branco); font-size: var(--texto-titulo); }
-  .entrada-apresentacao > div > p { color: var(--cor-marinho-texto); }
-  .entrada-apresentacao ul { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--espaco-4); max-width: 34rem; }
-  .entrada-apresentacao li { display: grid; gap: var(--espaco-1); padding-left: var(--espaco-4); border-left: 3px solid var(--cor-amarelo); }
-  .entrada-apresentacao li span { color: var(--cor-marinho-texto); }
-  @media (max-width: 48rem) {
-    body > main.entrada { grid-template-columns: minmax(0, 1fr); }
-    .entrada-apresentacao { display: none; }
-    .entrada-acesso { align-content: start; padding: 0 0 var(--espaco-6); justify-items: stretch; }
-    .entrada-formulario { width: auto; padding-inline: var(--espaco-4); gap: var(--espaco-3); }
-    .entrada-formulario > header { display: block; margin-inline: calc(-1 * var(--espaco-4)); padding: var(--espaco-4); background: var(--cor-marinho); }
-    .entrada-formulario > header img { height: 2.5rem; width: auto; }
-  }
+
 }
 
 /* Páginas feitas de seções (guarda de dados) e a página para imprimir (07, R128): sem menu e sem botões ao imprimir. */
 @layer layout {
-  /* A tela da importação (refeita pelo htmx) e a da guarda de dados empilham os blocos com o mesmo espaço. */
-  #importacao { display: grid; gap: var(--espaco-3); }
+
   .pagina-em-secoes { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--espaco-4); }
   body[data-pagina="impressao"] { display: block; }
   /* Página pública de pagamento (12, parte C): uma coluna só, sem menu, para o celular do cliente. */

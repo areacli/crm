@@ -9,7 +9,7 @@ module Segments
 
     def start(tenant, expression)
       id = SecureRandom.uuid
-      Rails.cache.write(key(id), { "status" => "running", "tenant_id" => tenant.id, "tree" => expression.tree }, expires_in: TTL)
+      Rails.cache.write(key(id), { "status" => "running", "tenant_id" => tenant.id, "tree" => expression.tree, "started_at" => Time.current.iso8601 }, expires_in: TTL)
       SegmentProbeJob.perform_later(id)
       id
     end
@@ -20,8 +20,15 @@ module Segments
       data = fetch(id) or return
       tenant = Tenant.find(data["tenant_id"])
       result = Probe.new(tenant, Expression.new(data["tree"])).call
-      Rails.cache.write(key(id), data.merge("status" => "done").merge(result.deep_stringify_keys), expires_in: TTL)
+      Rails.cache.write(key(id), data.merge("status" => "done", "finished_at" => Time.current.iso8601).merge(result.deep_stringify_keys), expires_in: TTL)
       Tiers::Broadcast.probe_ready(tenant)
+    rescue StandardError
+      # Toda espera termina à vista (design system, 7.2): a tarefa que quebra não deixa a tela em "Contando…" para sempre.
+      if tenant
+        Rails.cache.write(key(id), data.merge("status" => "failed", "finished_at" => Time.current.iso8601), expires_in: TTL)
+        Tiers::Broadcast.probe_ready(tenant)
+      end
+      raise
     end
   end
 end

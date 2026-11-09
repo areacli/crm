@@ -8,6 +8,8 @@ module Settings
         result = Payments::AccountManager.new(Current.user).test_connection(account)
         message = t(".done", nickname: account.nickname, message: result.message)
         flash_type = result.ok == false ? :alert : :notice
+        return panel_finish(edit_settings_payment_account_path(account), notice: message, tom: (:danger if result.ok == false), atualizar: true) if spa?
+
         redirect_to edit_settings_payment_account_path(account), flash_type => message, status: :see_other
       end
     end

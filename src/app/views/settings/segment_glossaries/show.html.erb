@@ -1,5 +1,5 @@
 <% content_for :title, "Configuração · Glossário dos segmentos" %>
-<%= pagina "Glossário dos segmentos", subtitulo: safe_join([ "Cada termo da linguagem dos segmentos, com um exemplo e a leitura em português comum. ", link_to("Voltar para os segmentos", settings_segments_path) ]) %>
+<%= pagina "Glossário dos segmentos", subtitulo: "Cada termo da linguagem dos segmentos, com um exemplo e a leitura em português comum." %>
 <nav class="cartao" aria-label="Seções do glossário">
   <div><ul class="lista-de-acoes"><% @glossary.each_with_index do |section, index| %><li><a href="#secao-<%= index %>"><%= section.title %></a></li><% end %></ul></div>
 </nav>

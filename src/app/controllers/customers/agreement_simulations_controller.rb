@@ -1,17 +1,17 @@
 module Customers
   # Simulação do acordo na ficha (11, R211 a R216): quem tem "negociar acordos" no credor do cliente escolhe os títulos e os termos e vê a base, os descontos, a
-  # entrada e a tabela de parcelas antes de gravar. O formulário se refaz pelo htmx a cada mudança; nada é gravado aqui.
+  # entrada e a tabela de parcelas antes de gravar. O formulário se refaz pela SPA a cada mudança; nada é gravado aqui.
   class AgreementSimulationsController < ApplicationController
     before_action :set_customer
 
     def new
       @bills = open_bills
-      @form = {}
       @held = held_by_bill
+      @form = first_load
     end
 
     def create
-      @form = params.fetch(:agreement, {}).permit(:mode, :down_payment, :down_payment_on, :installments, :day, :replace, :credit, bill_ids: [], discounts: Agreements::Caps::COMPONENTS).to_h.with_indifferent_access
+      @form = params.fetch(:agreement, {}).permit(:mode, :down_payment, :down_payment_auto, :down_payment_on, :installments, :day, :replace, :credit, bill_ids: [], discounts: Agreements::Caps::COMPONENTS).to_h.with_indifferent_access
       @bills = open_bills
       @held = held_by_bill
       begin
@@ -21,7 +21,8 @@ module Customers
         @problem = error.message
         @field = error.field
       end
-      return render(partial: "customers/agreement_simulations/result") if htmx_fragment?
+      # O cálculo à vista da SPA (`spa/calculo`) pede só o resultado.
+      return render(partial: "customers/agreement_simulations/result") if fragment? || request.headers["X-CRM-Calculo"].present?
 
       render :new
     end
@@ -31,6 +32,22 @@ module Customers
         @customer = Customer.includes(:tenant).find(params[:customer_id])
         authorize Agreement.new(tenant: @customer.tenant, customer: @customer), :create?
         raise ActionController::RoutingError, "Not Found" if @customer.anonymized?
+      end
+
+      # Primeiro carregamento, com zero concessão (revisão 12): todos os títulos que podem entrar, sem desconto nem crédito, 1 parcela, entrada inicial no dia útil seguinte.
+      def first_load
+        ids = @bills.reject { |bill| @held[bill.id] || @ineligible[bill.id] }.first(Agreements::Simulation::BILLS_LIMIT).map(&:id)
+        return {} if ids.empty?
+
+        down_on = Agreements::Square.calendar_for(@customer, today: Date.current).next_business(Date.current + 1)
+        form = { bill_ids: ids.map(&:to_s), mode: "installments", discounts: Agreements::Caps::COMPONENTS.index_with("0"), down_payment_auto: "1", down_payment_on: down_on.iso8601,
+                 installments: "1", day: [ down_on.day, 28 ].min.to_s, credit: "0,00" }.with_indifferent_access
+        @quote = Agreements::Simulation.new(user: Current.user, customer: @customer, input: Agreements::FormParams.input(form)).call
+        form.merge(down_payment: Money.format(@quote.limits.down_initial))
+      rescue Agreements::Refused => error
+        @problem = error.message
+        @field = error.field
+        form
       end
 
       # Os títulos em cobrança: os comuns, os de estorno e os de acordo (R250); o que o acordo de origem não deixa renegociar aparece desabilitado, com o motivo.

@@ -41,14 +41,14 @@ class PromisesScreensTest < ActionDispatch::IntegrationTest
     post customer_contact_attempts_path(@customer), params: { contact_attempt: { channel: "phone", result_id: result_of(@alfa, :promised).id, promise_contract_id: @nf1.contract_id,
                                                                                  promise_payment_method: "pix", promise_on: PromisesTestHelper::PROMISED.iso8601, promise_bill_ids: [ @nf1.id, @nf2.id ] } }
     assert_response :redirect
-    get customer_path(@customer, aba: "promessas")
+    get_ficha(@customer, aba: "promessas")
     # Padrões de interface, revisão 25: uma linha por promessa (número, situação, valor, meio, data, pago) e os títulos no detalhe.
     assert_select "#promessas tbody tr:not(.detalhe-da-linha)", 1
     assert_select "#promessas tbody tr:not(.detalhe-da-linha)", text: /PRM-000001.*Aberta.*R\$ 1\.579,93.*Pix.*30\/10\/2026.*R\$ 0,00/m
     assert_select "#promessas tr.detalhe-da-linha[hidden]", text: /Títulos NF-1 e NF-2/
-    get customer_path(@customer)
+    get_ficha(@customer)
     assert_select "tbody th .situacao", text: "Em promessa"
-    get customer_path(@customer, aba: "acionamentos")
+    get_ficha(@customer, aba: "acionamentos")
     assert_select "tr.detalhe-da-linha p", text: /Promessa PRM-000001/
   end
 
@@ -65,7 +65,7 @@ class PromisesScreensTest < ActionDispatch::IntegrationTest
   test "R192: o gestor aprova a pendente; o operador que a registrou não vê o botão nem aprova por link direto" do
     promise = pending_promise
     entrar(users(:carlos))
-    get customer_path(@customer, aba: "promessas")
+    get_ficha(@customer, aba: "promessas")
     assert_select "#promessas tbody tr", text: /Pendente de aprovação/
     assert_select "button", text: "Aprovar promessa", count: 0
     assert_difference -> { AccessEvent.where(event: "access_denied").count }, 1 do
@@ -75,7 +75,7 @@ class PromisesScreensTest < ActionDispatch::IntegrationTest
 
     delete session_path
     entrar(users(:joana))
-    get customer_path(@customer, aba: "promessas")
+    get_ficha(@customer, aba: "promessas")
     assert_select "button", text: "Aprovar promessa"
     post promise_approval_path(promise)
     assert_predicate promise.reload, :state_open?
@@ -99,17 +99,17 @@ class PromisesScreensTest < ActionDispatch::IntegrationTest
   test "R200: só quem tem a permissão 15 cancela, com motivo; o operador não vê a opção e o envio direto é recusado" do
     promise = register_promise(@customer, [ @nf1 ])
     entrar(users(:carlos))
-    get customer_path(@customer, aba: "promessas")
-    assert_select "a[hx-get*=cancelamento]", count: 0
+    get_ficha(@customer, aba: "promessas")
+    assert_select "a[href*=cancelamento]", count: 0
     post promise_cancellation_path(promise), params: { promise: { reason: "x" } }
     assert_response :not_found
 
     delete session_path
     entrar(users(:joana))
-    get customer_path(@customer, aba: "promessas")
-    assert_select "a[hx-get*=cancelamento]", text: "Cancelar promessa"
+    get_ficha(@customer, aba: "promessas")
+    assert_select "a[data-spa-dialogo][href*=cancelamento]", text: "Cancelar promessa"
     get new_promise_cancellation_path(promise), headers: painel
-    assert_select "[data-painel][data-variant=modal] form.painel textarea, [data-painel][data-variant=modal] form.painel input[name='promise[reason]']"
+    assert_select "form.dialogo textarea, form.dialogo input[name='promise[reason]']"
     post promise_cancellation_path(promise), params: { promise: { reason: "" } }
     assert_equal "Informe o motivo do cancelamento.", flash[:alert]
     post promise_cancellation_path(promise), params: { promise: { reason: "Devedora pediu para negociar o contrato inteiro" } }
@@ -120,26 +120,29 @@ class PromisesScreensTest < ActionDispatch::IntegrationTest
     promise = register_promise(@customer, [ @nf1 ])
     Promises::Canceller.new(users(:joana)).cancel(promise, "Pediu para negociar")
     entrar(users(:joana))
-    get customer_path(@customer, aba: "promessas")
+    get_ficha(@customer, aba: "promessas")
     assert_select "#promessas table", 0
-    get customer_path(@customer, aba: "acionamentos")
+    get_ficha(@customer, aba: "acionamentos")
     assert_select "tr.detalhe-da-linha p", text: /Promessa PRM-000001.*Cancelada — Pediu para negociar/m
   end
 
   test "R204: a lista de pendentes traz as que o usuário aprova, com o número no menu; quem registrou não a vê" do
     pending_promise
     entrar(users(:carlos))
-    get pending_promises_path
+    get pending_promises_path, headers: TRECHO
     assert_response :success
     assert_select "tbody tr", 0
-    assert_select "nav[aria-label=Menu] a", text: /Promessas pendentes/, count: 0
+    assert_nil item_do_menu("Promessas pendentes")
 
     delete session_path
     entrar(users(:joana))
-    get pending_promises_path
+    get pending_promises_path, headers: TRECHO
     assert_select "tbody tr", 1
     assert_select "tbody tr", text: /Maria Souza.*NF-1 e NF-2.*R\$ 1\.597,92/m
-    assert_select "nav[aria-label=Menu] a", text: /Promessas pendentes\s*1/
+    # O contador do item no menu da SPA (`menu.json`).
+    get menu_path(format: :json)
+    itens = response.parsed_body["grupos"].flat_map { |grupo| grupo["itens"] }
+    assert_equal 1, itens.find { |item| item["rotulo"] == "Promessas pendentes" }["contador"]
   end
 
   test "R204 e MT-3 a MT-6: a lista mistura os credores em que pode aprovar e a Beta fica de fora para quem só consulta nela" do
@@ -154,7 +157,7 @@ class PromisesScreensTest < ActionDispatch::IntegrationTest
     assert_predicate beta_promise, :state_pending?
 
     entrar(marta)
-    get pending_promises_path
+    get pending_promises_path, headers: TRECHO
     assert_select "tbody tr", 1
     assert_select "th", text: "Credor", count: 0
     assert_difference -> { AccessEvent.where(event: "access_denied", tenant_id: @beta.id).count }, 1 do
@@ -174,10 +177,10 @@ class PromisesScreensTest < ActionDispatch::IntegrationTest
 
     PromiseLimit.where(tier: Tier.catch_all_of(@alfa), profile: profiles(:alfa_operator)).update_all(max_days: 60)
     entrar(users(:ana))
-    get pending_promises_path
+    get pending_promises_path, headers: TRECHO
     assert_select "tbody tr", 2
     assert_select "th", text: "Credor"
-    get pending_promises_path(tenant: @alfa.id)
+    get pending_promises_path(credor: @alfa.id), headers: TRECHO
     assert_select "tbody tr", 1
   end
 
@@ -185,12 +188,10 @@ class PromisesScreensTest < ActionDispatch::IntegrationTest
     register_promise(@customer, [ @nf1 ])
     other = make_customer(@alfa, document: PaymentsHelper::JOAO, name: "João Pereira", contract_code: "CT-7")
     entrar(users(:joana))
-    get customers_path(promise: "open")
-    assert_select "tbody th, tbody td", text: /Maria Souza/
-    assert_select "tbody", text: /João Pereira/, count: 0
-    get customers_path(promise: "none")
-    assert_select "tbody", text: /João Pereira/
-    assert_select "tbody", text: /Maria Souza/, count: 0
+    assert_equal [ "Maria Souza" ], linhas_de_clientes(promessa: "aberta").map { |linha| celula(linha, "name") }
+    nomes = linhas_de_clientes(promessa: "sem_promessa").map { |linha| celula(linha, "name") }
+    assert_includes nomes, "João Pereira"
+    assert_not_includes nomes, "Maria Souza"
     assert_equal other.tenant, @alfa
   end
 
@@ -198,7 +199,7 @@ class PromisesScreensTest < ActionDispatch::IntegrationTest
     register_promise(@customer, [ @nf1 ])
     insert_attempt(@customer, result: result_of(@alfa, :promised))
     entrar(users(:ana))
-    get root_path
+    get summary_path, headers: TRECHO
     assert_select "h2", text: "Promessas"
     assert_select "h2", text: /Promessas — /, count: 0
     assert_select "section[aria-labelledby=promessas] tr", text: /Promessas registradas\s*1/
@@ -206,21 +207,21 @@ class PromisesScreensTest < ActionDispatch::IntegrationTest
 
   test "R206: a aba Promessas mostra políticas, prazo e alçada; mudar vale e fica registrado; baixar o prazo baixa a alçada" do
     entrar(users(:joana))
-    get settings_promises_path
+    assert_includes submenu_do_menu("Configuração"), "Promessas e acordos"
+    get settings_promises_path, headers: TRECHO
     assert_response :success
-    assert_select "#menu-principal .submenu a", text: "Promessas e acordos"
     segment = Tier.catch_all_of(@alfa)
-    patch settings_promise_limits_path, params: { tenant_id: @alfa.id, tiers: { segment.id => { max_days: 20, limits: { profiles(:alfa_manager).id => 20, profiles(:alfa_operator).id => 20 } } } }
+    patch settings_promise_limits_path, params: { credor: @alfa.id, tiers: { segment.id => { max_days: 20, limits: { profiles(:alfa_manager).id => 20, profiles(:alfa_operator).id => 20 } } } }
     assert_equal 20, segment.reload.promise_max_days
     assert_equal [ 20, 20 ], PromiseLimit.where(tier: segment, profile: [ profiles(:alfa_manager), profiles(:alfa_operator) ]).pluck(:max_days)
     assert Change.exists?(subject_type: "promise_limit", subject_id: segment.id, event: "max_days_changed", before: "60", after: "20", user_id: users(:joana).id)
 
-    patch settings_promise_policy_path, params: { tenant_id: @alfa.id, tenant_setting: { promise_tolerance_days: 5, promise_counting: "also_direct", promise_min_paid_pct: "95",
+    patch settings_promise_policy_path, params: { credor: @alfa.id, tenant_setting: { promise_tolerance_days: 5, promise_counting: "also_direct", promise_min_paid_pct: "95",
                                                                                       promise_after_break: "stays_broken", promise_grace_days: 7, promise_partial: "r46" } }
     setting = @alfa.setting.reload
     assert_equal [ 5, "also_direct", 95, "stays_broken", 7, "r46" ], setting.values_at(:promise_tolerance_days, :promise_counting, :promise_min_paid_pct, :promise_after_break, :promise_grace_days, :promise_partial)
     assert Change.exists?(subject_type: "promise_settings", field: "promise_tolerance_days", before: "3", after: "5")
-    get settings_promises_path
+    get settings_promises_path, headers: TRECHO
     assert_select "td", text: "promise_tolerance_days", count: 0
   end
 
@@ -228,21 +229,21 @@ class PromisesScreensTest < ActionDispatch::IntegrationTest
     marta = make_user(@alfa, %w[change_financial_policies])
     Membership.create!(user: marta, tenant: @beta, profile: Profile.create!(tenant: @beta, name: "Consulta", permissions: %w[view_portfolio]))
     entrar(marta)
-    get settings_promises_path
+    get settings_promises_path, headers: TRECHO
     assert_select "h2", text: /Políticas — Escola Alfa/
     assert_select "h2", text: /Clínica Beta/, count: 0
     assert_difference -> { AccessEvent.where(event: "access_denied", tenant_id: @beta.id).count }, 1 do
-      patch settings_promise_policy_path, params: { tenant_id: @beta.id, tenant_setting: { promise_tolerance_days: 9, promise_counting: "promise_only", promise_after_break: "fulfilled", promise_grace_days: 0, promise_partial: "prevails" } }
+      patch settings_promise_policy_path, params: { credor: @beta.id, tenant_setting: { promise_tolerance_days: 9, promise_counting: "promise_only", promise_after_break: "fulfilled", promise_grace_days: 0, promise_partial: "prevails" } }
     end
     assert_equal 3, @beta.setting.reload.promise_tolerance_days
   end
 
   test "valores inválidos da política e da alçada são recusados" do
     entrar(users(:joana))
-    patch settings_promise_policy_path, params: { tenant_id: @alfa.id, tenant_setting: { promise_tolerance_days: 99, promise_counting: "promise_only", promise_after_break: "fulfilled", promise_grace_days: 0, promise_partial: "prevails" } }
+    patch settings_promise_policy_path, params: { credor: @alfa.id, tenant_setting: { promise_tolerance_days: 99, promise_counting: "promise_only", promise_after_break: "fulfilled", promise_grace_days: 0, promise_partial: "prevails" } }
     assert_equal 3, @alfa.setting.reload.promise_tolerance_days
     segment = Tier.catch_all_of(@alfa)
-    patch settings_promise_limits_path, params: { tenant_id: @alfa.id, tiers: { segment.id => { max_days: 0, limits: {} } } }
+    patch settings_promise_limits_path, params: { credor: @alfa.id, tiers: { segment.id => { max_days: 0, limits: {} } } }
     assert_equal 60, segment.reload.promise_max_days
   end
 
@@ -260,5 +261,15 @@ class PromisesScreensTest < ActionDispatch::IntegrationTest
   test "o canal de promessas só aceita quem consulta a carteira do credor" do
     # o teste de canal completo está em test/channels/promises_channel_test.rb
     assert_equal "PromisesChannel", PromisesChannel.name
+  end
+
+  test "na SPA, aprovar a pendente termina no X-CRM-Evento, com o aviso e a tela refeita" do
+    promise = pending_promise
+    entrar(users(:joana))
+    post promise_approval_path(promise), headers: TRECHO
+    assert_response :no_content
+    assert evento_da_spa["atualizar"]
+    assert_match(/aprovada/, evento_da_spa["aviso"])
+    assert_predicate promise.reload, :state_open?
   end
 end

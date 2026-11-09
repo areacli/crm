@@ -2,7 +2,7 @@
     e quem fez no detalhe, padrões de interface, revisão 25). "Aprovar promessa" é botão direto (não pede dados); "Recusar promessa" e "Cancelar promessa" pedem motivo e abrem num modal pequeno, pelo menu ⋯
     da linha. Refeita a cada evento do WebSocket e a cada assinatura que conecta (o aviso que chega antes de a assinatura das promessas se
     confirmar se perderia). Locais: customer, promises. %>
-<div id="promessas" hx-get="<%= customer_promises_path(customer) %>" hx-trigger="cable:promises-changed from:body, cable:connected from:body" hx-swap="outerHTML" hx-target="this">
+<div id="promessas">
   <% if promises.any? %>
     <div class="tabela" tabindex="0">
       <table data-detalhes>
@@ -26,7 +26,7 @@
               <td data-numerico><%= money(promise.paid_cents) %></td>
               <td data-acoes>
                 <% if policy.approve? %>
-                  <%= button_to "Aprovar promessa", promise_approval_path(promise), form: { "hx-boost": "false" }, data: { variant: "secondary", size: "small" } %>
+                  <%= button_to "Aprovar promessa", promise_approval_path(promise), data: { variant: "secondary", size: "small" } %>
                 <% end %>
                 <% if policy.approve? || policy.cancel? %>
                   <%= menu_de_linha("promessa-#{promise.id}", "Mais ações da promessa #{promise.label}") do %>

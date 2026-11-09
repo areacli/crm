@@ -1,4 +1,4 @@
-<%# Linha do contato na aba Contatos (um `tbody` por contato: a linha e o detalhe, padrões de interface, revisão 25; o htmx troca os dois juntos). As ações ficam no menu ⋯ da linha: corrigir (na própria linha, ou no painel para endereço) e mudar a situação (modal pequeno).
+<%# Linha do contato na aba Contatos (um `tbody` por contato: a linha e o detalhe, padrões de interface, revisão 25; a SPA troca os dois juntos). As ações ficam no menu ⋯ da linha: corrigir (na própria linha, ou no painel para endereço) e mudar a situação (modal pequeno).
     Locais: customer, contact, can_edit. %>
 <% detail_id = "detalhe-contato-#{contact.id}" %>
 <% notes = [ ("Mantido pelo credor." if contact.kept_by_tenant?), ("Veio na carga de #{date_br(contact.seen_in_import_at.to_date)}." if contact.seen_in_import_at),
@@ -6,7 +6,8 @@
 <tbody id="contato-<%= contact.id %>">
 <tr>
   <td><%= alternar_detalhe(detail_id, "contato #{contact.value}") %><%= contact_kind(contact.kind) %></td>
-  <th scope="row"><%= contact.value %><% if contact.no_area_code? %><%= situacao "Sem DDD", tom: :warning %><% end %></th>
+  <% inline = can_edit && !contact.address? && !contact.status_invalid? %>
+  <th scope="row"><%= inline ? campo_inline(contact.value, rotulo: contact.email? ? "E-mail" : "Telefone", url: customer_contact_path(customer, contact), nome: "contact[value]", maximo: contact.email? ? 254 : 60, botao: false) : contact.value %><% if contact.no_area_code? %><%= situacao "Sem DDD", tom: :warning %><% end %></th>
   <td><%= contact_status(contact) %></td>
   <td><%= contact_origin(contact.origin) %></td>
   <td><%= date_br(contact.updated_at.to_date) %></td>
@@ -15,17 +16,14 @@
     <% if can_edit %>
       <%= menu_de_linha("contato-menu-#{contact.id}", "Ações do contato #{contact.value}") do %>
         <% unless contact.status_invalid? %>
-          <% if contact.address? %>
-            <%= abrir_painel "Editar", edit_customer_contact_path(customer, contact) %>
-          <% else %>
-            <a href="<%= edit_customer_contact_path(customer, contact) %>" class="botao" hx-get="<%= edit_customer_contact_path(customer, contact) %>" hx-target="#contato-<%= contact.id %>" hx-swap="outerHTML" hx-push-url="false">Editar</a>
-          <% end %>
-          <%= abrir_painel "Marcar como inválido", edit_customer_contact_status_path(customer, contact, status: "invalid"), variante: "danger-outline" %>
+          <%# Design system, 7.1: telefone e e-mail na própria célula; o endereço, no detalhe da linha. %>
+          <%= contact.address? ? editar_no_detalhe(edit_customer_contact_path(customer, contact)) : editar_na_linha %>
+          <%= abrir_painel "Marcar como inválido", edit_customer_contact_status_path(customer, contact, situacao: FilterValue.to_url("invalid")), variante: "danger-outline" %>
         <% end %>
         <% if contact.status_valid? %>
-          <%= abrir_painel "Marcar como não perturbe", edit_customer_contact_status_path(customer, contact, status: "do_not_disturb") %>
+          <%= abrir_painel "Marcar como não perturbe", edit_customer_contact_status_path(customer, contact, situacao: FilterValue.to_url("do_not_disturb")) %>
         <% else %>
-          <%= abrir_painel "Marcar como válido", edit_customer_contact_status_path(customer, contact, status: "valid") %>
+          <%= abrir_painel "Marcar como válido", edit_customer_contact_status_path(customer, contact, situacao: FilterValue.to_url("valid")) %>
         <% end %>
       <% end %>
     <% end %>

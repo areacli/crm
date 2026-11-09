@@ -1,6 +1,6 @@
 <% content_for :title, "Filas · Grupos" %>
 <%= pagina "Grupos", subtitulo: "Os usuários de um grupo recebem, pelo \"Próximo\", das filas ligadas a ele. A estratégia de cada operador diz de qual fila sai cada entrega." do %>
-  <%= abrir_painel "Criar grupo", new_queues_queue_group_path(tenant_id: @tenant.id), tamanho: "small" %>
+  <%= abrir_painel "Criar grupo", new_queues_queue_group_path(credor: @tenant.id), tamanho: "small" %>
 <% end %>
 <%= render "settings/modelo" %>
 <%= render "queue_boards/credores", rota: :queues_queue_groups_path %>
@@ -17,7 +17,7 @@
           <% @groups.each do |group| %>
             <tr>
               <th scope="row"><%= group.name %></th>
-              <td><%= safe_join(group.users.sort_by(&:name).map { |user| abrir_painel(user.name, edit_queues_queue_strategy_path(user, tenant_id: @tenant.id), tamanho: "small", title: "Estratégia de #{user.name}", data: { variant: "link" }) }, ", ") %></td>
+              <td><%= safe_join(group.users.sort_by(&:name).map { |user| abrir_painel(user.name, edit_queues_queue_strategy_path(user, credor: @tenant.id), tamanho: "small", title: "Estratégia de #{user.name}", data: { variant: "link" }) }, ", ") %></td>
               <td><%= group.work_queues.map(&:name).join(" → ").presence || "—" %></td>
               <td data-acoes>
                 <%= menu_de_linha("grupo-#{group.id}", "Ações de #{group.name}") do %>

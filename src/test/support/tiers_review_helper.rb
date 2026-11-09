@@ -4,7 +4,7 @@ module TiersReviewHelper
     assert_response :see_other
     path = URI(response.location).path
     perform_enqueued_jobs(only: TierReviewJob)
-    get path
+    get path, headers: SpaRequestsHelper::TRECHO # a conferência está na SPA (fase 7): o endereço como página só levaria à casca
     assert_response :success
     path
   end
@@ -12,6 +12,6 @@ module TiersReviewHelper
   def review_token = css_select("input[name='confirmation[token]']").first["value"]
 
   def confirm_review(tenant)
-    post settings_tier_confirmation_path, params: { tenant_id: tenant.id, confirmation: { token: review_token } }
+    post settings_tier_confirmation_path, params: { credor: tenant.id, confirmation: { token: review_token } }
   end
 end

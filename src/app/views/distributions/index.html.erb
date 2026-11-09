@@ -4,28 +4,27 @@
   <%= abrir_painel "Distribuir", new_distribution_path %>
 <% end %>
 
-<form class="filtros" role="search" action="<%= distributions_path %>" method="get"
-      hx-sync="this:replace" hx-get="<%= distributions_path %>" hx-trigger="input changed delay:300ms from:#q, change" hx-target="#resultado" hx-push-url="true" hx-swap="outerHTML">
+<form class="filtros" role="search" action="<%= distributions_path %>" method="get">
   <div class="campo">
     <label for="q" class="apenas-leitor-de-tela">Buscar por cliente, documento ou contrato</label>
-    <input type="search" id="q" name="q" value="<%= params[:q] %>" autocomplete="off" placeholder="Cliente, documento ou contrato">
+    <input type="search" id="q" name="busca" value="<%= params[:busca] %>" autocomplete="off" placeholder="Cliente, documento ou contrato">
   </div>
   <div class="campo">
     <label for="operation">Operação</label>
-    <select id="operation" name="operation"><option value="">Todas</option><%= options_for_select(@operations.map { [ _1.short_name, _1.id ] }, params[:operation]) %></select>
+    <select id="operation" name="operacao"><option value="">Todas</option><%= options_for_select(@operations.map { [ _1.short_name, _1.id ] }, params[:operacao]) %></select>
   </div>
   <div class="campo">
     <label for="status">Situação</label>
-    <select id="status" name="status"><option value="">Todas</option><%= options_for_select(%w[in_force scheduled ended].map { [ t("distributions.statuses.#{_1}"), _1 ] }, params[:status]) %></select>
+    <select id="status" name="situacao"><option value="">Todas</option><%= opcoes_de_filtro(%w[in_force scheduled ended].map { [ t("distributions.statuses.#{_1}"), _1 ] }, params[:situacao]) %></select>
   </div>
   <div class="campo">
     <label for="source">Origem</label>
-    <select id="source" name="source"><option value="">Todas</option><%= options_for_select(Distribution::SOURCES.map { [ t("distributions.sources.#{_1}"), _1 ] }, params[:source]) %></select>
+    <select id="source" name="fonte"><option value="">Todas</option><%= opcoes_de_filtro(Distribution::SOURCES.map { [ t("distributions.sources.#{_1}"), _1 ] }, params[:fonte]) %></select>
   </div>
   <% if @several_tenants %>
     <div class="campo">
       <label for="tenant">Credor</label>
-      <select id="tenant" name="tenant"><option value="">Todos</option><%= options_for_select(@tenants.map { [ _1.name, _1.id ] }, params[:tenant]) %></select>
+      <select id="tenant" name="credor"><option value="">Todos</option><%= options_for_select(@tenants.map { [ _1.name, _1.id ] }, params[:credor]) %></select>
     </div>
   <% end %>
   <button type="submit" data-variant="secondary">Filtrar</button>

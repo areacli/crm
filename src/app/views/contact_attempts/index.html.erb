@@ -2,47 +2,46 @@
 <% content_for :cable_channels, contact_cable_channels(@tenant_ids) %>
 <%= pagina "Acionamentos", subtitulo: "Tentativas de contato dos credores que você consulta; por padrão, os últimos 7 dias." %>
 
-<form class="filtros" role="search" action="<%= contact_attempts_path %>" method="get"
-      hx-sync="this:replace" hx-get="<%= contact_attempts_path %>" hx-trigger="change, submit" hx-target="#resultado" hx-push-url="true" hx-swap="outerHTML">
+<form class="filtros" role="search" action="<%= contact_attempts_path %>" method="get">
   <div class="campo">
     <label for="from">De</label>
-    <input type="date" id="from" name="from" value="<%= @from.iso8601 %>">
+    <input type="date" id="from" name="de" value="<%= @from.iso8601 %>">
   </div>
   <div class="campo">
     <label for="to">Até</label>
-    <input type="date" id="to" name="to" value="<%= @to.iso8601 %>">
+    <input type="date" id="to" name="ate" value="<%= @to.iso8601 %>">
   </div>
   <div class="campo">
     <label for="operator">Operador</label>
-    <select id="operator" name="operator"><option value="">Todos</option><%= options_for_select(@operators, params[:operator]) %></select>
+    <select id="operator" name="operador"><option value="">Todos</option><%= options_for_select(@operators, params[:operador]) %></select>
   </div>
   <div class="campo">
     <label for="channel">Canal</label>
-    <select id="channel" name="channel"><option value="">Todos</option><%= options_for_select(ContactAttempt::CHANNELS.map { |channel| [ t("contacts.channels.#{channel}"), channel ] }, params[:channel]) %></select>
+    <select id="channel" name="metodo"><option value="">Todos</option><%= options_for_select(ContactAttempt::CHANNELS.map { |channel| [ t("contacts.channels.#{channel}"), channel ] }, params[:metodo]) %></select>
   </div>
   <div class="campo">
     <label for="result">Resultado</label>
-    <select id="result" name="result"><option value="">Todos</option><%= options_for_select(@result_options, params[:result]) %></select>
+    <select id="result" name="resultado"><option value="">Todos</option><%= options_for_select(@result_options, params[:resultado]) %></select>
   </div>
   <div class="campo">
     <label for="kind">Tipo</label>
-    <select id="kind" name="kind"><option value="">Todos</option><%= options_for_select(ContactResult::KINDS.keys.map { |kind| [ t("contacts.kinds.#{kind}"), kind ] }, params[:kind]) %></select>
+    <select id="kind" name="tipo"><option value="">Todos</option><%= opcoes_de_filtro(ContactResult::KINDS.keys.map { |kind| [ t("contacts.kinds.#{kind}"), kind ] }, params[:tipo]) %></select>
   </div>
   <% if @origins.present? %>
     <div class="campo">
       <label for="origin">Origem</label>
-      <select id="origin" name="origin"><option value="">Todas</option><%= options_for_select([ [ "Equipe do credor", "team" ] ] + @origins, params[:origin]) %></select>
+      <select id="origin" name="origem"><option value="">Todas</option><%= opcoes_de_filtro([ [ "Equipe do credor", "team" ] ] + @origins, params[:origem]) %></select>
     </div>
   <% end %>
   <% if @several_tenants %>
     <div class="campo">
       <label for="tenant">Credor</label>
-      <select id="tenant" name="tenant"><option value="">Todos</option><%= options_for_select(@tenants, params[:tenant]) %></select>
+      <select id="tenant" name="credor"><option value="">Todos</option><%= options_for_select(@tenants, params[:credor]) %></select>
     </div>
   <% end %>
   <div class="campo">
     <label for="per_page" class="apenas-leitor-de-tela">Por página</label>
-    <select id="per_page" name="per_page"><%= options_for_select(Pagination::PER_PAGE_OPTIONS, @pagination.per_page) %></select>
+    <select id="per_page" name="por_pagina"><%= options_for_select(Pagination::PER_PAGE_OPTIONS, @pagination.per_page) %></select>
   </div>
   <button type="submit" data-variant="secondary">Filtrar</button>
 </form>

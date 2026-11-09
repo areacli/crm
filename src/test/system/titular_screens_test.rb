@@ -1,7 +1,7 @@
 require "application_system_test_case"
 
-# Direitos do titular no navegador (07): ficha com as janelas de exportar e anonimizar, a página para imprimir, a guarda de dados e o prazo,
-# todos no axe, sem rolagem horizontal; a página de guarda se refaz sozinha pelo WebSocket quando a tarefa roda.
+# Direitos do titular no navegador (07), nas abas da casca: na ficha, os diálogos de exportar e anonimizar; a página para imprimir fica fora da casca, no axe;
+# a guarda de dados e o prazo numa aba que se refaz sozinha pelo WebSocket quando a tarefa roda.
 class TitularScreensSystemTest < ApplicationSystemTestCase
   include ActiveJob::TestHelper
 
@@ -11,83 +11,82 @@ class TitularScreensSystemTest < ApplicationSystemTestCase
     @joao = make_full_customer(@alfa, ended_on: Date.current - 9.years, document: PaymentsHelper::JOAO, name: "João Retido")
     Titular::Retainer.new(users(:joana)).retain(@joao, "ação judicial nº 77")
     TaskRun.create!(tenant: @alfa, name: "data_retention", status: "succeeded", started_at: 2.hours.ago, finished_at: 2.hours.ago, processed: 2)
-    visit new_session_path
-    fill_in "E-mail", with: users(:joana).email_address
-    fill_in "Senha", with: "senha-de-teste-1"
-    click_button "Entrar"
-    assert_selector "h1", text: "Resumo da carteira"
   end
 
   def sem_rolagem_horizontal = assert_not(page.evaluate_script("document.documentElement.scrollWidth > document.documentElement.clientWidth"))
 
-  # As ações do titular ficam no menu "Mais ações" da barra de página e abrem num modal pequeno.
+  # As ações do titular ficam no menu "⋯" da barra da página e abrem num diálogo de 400 px preso à aba.
   def abrir_acao(nome)
-    find("button.menu-de-linha[aria-label='Mais ações do cliente']").click
-    click_link nome
-    assert_selector "dialog#painel[open][data-variant=modal]"
+    entrar_na_casca
+    abrir_ficha(@maria)
+    mais_acoes nome
+    assert_selector ".dialogo-conteudo form.dialogo"
+    assert_equal 400, page.evaluate_script("document.querySelector('.dialogo-conteudo').closest('.window').offsetWidth").round(-1)
   end
 
-  test "a ficha com os modais de exportar e de anonimizar abertos passa no axe" do
-    visit customer_path(@maria)
+  test "os diálogos de exportar e de anonimizar abrem e fecham presos à aba" do
     abrir_acao "Exportar dados"
-    assert_acessivel
-    within("#painel") { click_button "Cancelar" }
-    assert_no_selector "dialog[open]"
-    abrir_acao "Anonimizar"
-    assert_acessivel
-    sem_rolagem_horizontal
+    no_dialogo { click_button "Cancelar" }
+    assert_no_selector ".dialogo-conteudo"
+    mais_acoes "Anonimizar"
+    no_dialogo { assert_field "Documento do cliente" }
   end
 
-  test "exportar abre a página para imprimir, que passa no axe" do
-    visit customer_path(@maria)
+  test "exportar termina com o link da página para imprimir, que abre noutra aba do navegador" do
     abrir_acao "Exportar dados"
-    within("#painel") do
-      fill_in "Motivo", with: "pedido do titular, protocolo 123"
-      click_button "Exportar dados"
-    end
+    no_dialogo { fill_in "Motivo", with: "pedido do titular, protocolo 123" }
+    gravar_dialogo "Exportar dados"
+    link = find(".messager-body a", text: "Abrir a página para imprimir")
+    assert_equal "_blank", link[:target]
+    visit link[:href]
     assert_selector "h1", text: /Dados de Maria Souza mantidos por/
     assert_link "Baixar em JSON"
     assert_acessivel
     sem_rolagem_horizontal
   end
 
-  test "anonimizar pela janela, digitando o documento, e a ficha passa a mostrar o aviso" do
-    visit customer_path(@maria)
+  test "anonimizar pelo diálogo, digitando o documento, e a ficha passa a mostrar o aviso" do
     abrir_acao "Anonimizar"
-    within("#painel") do
+    no_dialogo do
       fill_in "Motivo", with: "pedido do titular, protocolo 123"
       fill_in "Documento do cliente", with: "529.982.247-25"
-      click_button "Anonimizar cliente"
     end
-    assert_text "Cliente anonimizado em"
+    gravar_dialogo "Anonimizar cliente"
+    assert_selector ".aba-raiz .aviso", text: "Cliente anonimizado em"
+    assert_selector "#abas .tabs-selected .tabs-title", text: "Cliente anonimizado nº #{@maria.id}"
     assert_equal "Cliente anonimizado nº #{@maria.id}", @maria.reload.name
-    assert_acessivel
   end
 
-  test "a página de guarda passa no axe e se refaz sozinha quando a tarefa roda" do
-    visit data_retention_path
-    assert_selector "h2", text: "Anonimização prevista nos próximos 30 dias"
-    assert_selector "section[aria-labelledby=previstos] th", text: "Maria Souza"
-    assert_selector "section[aria-labelledby=retidos] th", text: "João Retido"
-    click_link "Reter", match: :first
-    assert_selector "dialog#painel[open][data-variant=modal]"
-    assert_acessivel
-    find("dialog#painel button", text: "Cancelar").click
+  # Na SPA (fase 7): a guarda numa aba, o reter num diálogo, e o aviso do canal refaz a aba; o axe saiu da área interna (plano, D7).
+  test "a página de guarda abre na aba e se refaz sozinha quando a tarefa roda" do
+    entrar_na_casca
+    visit data_retention_path # o endereço antigo leva à aba na casca
+    assert_selector ".aba-raiz h2", text: "Anonimização prevista nos próximos 30 dias", wait: 15
+    assert_selector "section[aria-labelledby=previstos] .datagrid-row", text: "Maria Souza"
+    assert_selector "section[aria-labelledby=retidos] .datagrid-row", text: "João Retido"
+    find("section[aria-labelledby=previstos] .botao", text: "Reter", match: :first).click
+    no_dialogo { assert_field "Motivo" }
+    send_keys :escape
+    assert_no_selector ".dialogo-conteudo"
     sem_rolagem_horizontal
 
-    # O evento do WebSocket refaz o trecho sem recarregar a página.
-    assert_selector "section[aria-labelledby=execucoes] tbody tr", count: 1
+    # O aviso do WebSocket refaz a aba sem recarregar a casca.
+    assert_selector "section[aria-labelledby=execucoes] tr.datagrid-row", count: 1
     Titular::RetentionRun.new(@alfa).call
-    assert_selector "section[aria-labelledby=execucoes] tbody tr", count: 2, wait: 10
+    sleep 1.6 # a aba que acabou de se refazer ignora avisos por 1,5 s (`spa/abas`, avisarMudanca): o da própria gravação não a refaz de novo
+    simular_evento({ channel: "RetentionChannel", tenant_id: @alfa.id }, { event: "retention-changed" })
+    assert_selector "section[aria-labelledby=execucoes] tr.datagrid-row", count: 2, wait: 10
   end
 
-  test "o prazo de guarda na aba Dados do credor passa no axe" do
+  test "o prazo de guarda, em Dados do credor, grava com o aviso e a aba refeita" do
+    entrar_na_casca
     visit settings_tenant_registry_path
-    assert_selector "legend", text: "Prazo de guarda dos dados"
-    fill_in "Prazo, em anos", with: "6"
-    click_button "Salvar prazo de guarda"
-    assert_text "Prazo de guarda de Escola Alfa salvo"
+    assert_selector ".aba-raiz .politica .titulo", text: "Prazo de guarda dos dados", wait: 15
+    within(find(".aba-raiz section.cartao", text: "Escola Alfa")) do
+      find("input[name='retention[years]']").fill_in(with: "6")
+      click_button "Salvar o prazo"
+    end
+    assert_aviso "Prazo de guarda de Escola Alfa salvo"
     assert_equal 6, @alfa.setting.reload.retention_years
-    assert_acessivel
   end
 end

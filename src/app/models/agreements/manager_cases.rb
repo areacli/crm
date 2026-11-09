@@ -40,7 +40,7 @@ module Agreements
         late = wait.agreement && days > wait.agreement.break_days
         text = I18n.t("agreements.cases.waiting_detail", days: days, amount: Money.format(wait.amount_cents)) + (late ? I18n.t("agreements.cases.waiting_late") : "")
         customer = wait.agreement&.customer || wait.payment.bill&.customer
-        Case.new("reversal_waiting", wait.agreement, customer, wait.tenant, text, Rails.application.routes.url_helpers.reversal_waits_path)
+        Case.new("reversal_waiting", wait.agreement, customer, wait.tenant, text, "/estornos-a-espera")
       end
     end
 
@@ -57,7 +57,7 @@ module Agreements
       Contract.where(id: sums.keys).includes(:tenant, :customers).map do |contract|
         customer = contract.customers.first
         Case.new("credit_awaiting", nil, customer, contract.tenant, I18n.t("agreements.cases.credit_detail", contract: contract.label, amount: Money.format(sums[contract.id])),
-                 customer ? Rails.application.routes.url_helpers.customer_path(customer, anchor: "credito") : nil)
+                 customer ? "/clientes/#{customer.id}#credito" : nil)
       end
     end
 

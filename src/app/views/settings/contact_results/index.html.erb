@@ -4,6 +4,7 @@
 <% end %>
 <%= render "settings/modelo" %>
 
+<div class="pagina-em-secoes">
 <% @tenants.each do |tenant| %>
   <% results = @results.fetch(tenant, []) %>
   <section class="cartao" aria-labelledby="credor-<%= tenant.id %>">
@@ -30,8 +31,8 @@
                 <td data-acoes>
                   <%= menu_de_linha("resultado-menu-#{result.id}", "Ações de #{result.name}") do %>
                     <%= abrir_painel "Editar", edit_settings_contact_result_path(result) %>
-                    <% if index.positive? %><%= button_to "Mover para cima", settings_contact_result_movement_path(result), params: { "movement[direction]": "up" }, form: { "hx-boost": "false" }, "aria-label": "Mover #{result.name} para cima" %><% end %>
-                    <% if index < results.size - 1 %><%= button_to "Mover para baixo", settings_contact_result_movement_path(result), params: { "movement[direction]": "down" }, form: { "hx-boost": "false" }, "aria-label": "Mover #{result.name} para baixo" %><% end %>
+                    <% if index.positive? %><%= button_to "Mover para cima", settings_contact_result_movement_path(result), params: { "movement[direction]": "up" }, "aria-label": "Mover #{result.name} para cima" %><% end %>
+                    <% if index < results.size - 1 %><%= button_to "Mover para baixo", settings_contact_result_movement_path(result), params: { "movement[direction]": "down" }, "aria-label": "Mover #{result.name} para baixo" %><% end %>
                     <% if result.active? %>
                       <%= confirmar_no_painel "Desativar", titulo: "Desativar #{result.name}?", mensagem: "O resultado deixa de aparecer ao registrar acionamentos; os antigos continuam.", acao: "Desativar", url: settings_contact_result_activation_path(result), metodo: :delete %>
                     <% else %>
@@ -47,3 +48,4 @@
     <% end %>
   </section>
 <% end %>
+</div>

@@ -1,0 +1,4 @@
+<%# Tela fechada na demonstração pública (Demo::Restrictions), aberta numa aba da SPA. %>
+<% content_for :title, "Fechado na demonstração" %>
+<%= pagina "Fechado na demonstração" %>
+<div class="pagina-em-secoes"><%= aviso(tom: :warning) { tag.p Demo::Restrictions::MESSAGE } %></div>

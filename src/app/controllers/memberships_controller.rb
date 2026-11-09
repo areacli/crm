@@ -6,14 +6,14 @@ class MembershipsController < ApplicationController
     @tenants = manageable_tenants.pluck(:name, :id)
     @several_tenants = @tenants.size > 1
     scope = policy_scope(Membership).joins(:user).includes(:user, :tenant, :profile).order("users.name", :id)
-    scope = scope.where(tenant_id: params[:tenant]) if params[:tenant].present?
-    if params[:q].present?
-      term = "%#{Membership.sanitize_sql_like(params[:q].strip)}%"
+    scope = scope.where(tenant_id: params[:credor]) if params[:credor].present?
+    if params[:busca].present?
+      term = "%#{Membership.sanitize_sql_like(params[:busca].strip)}%"
       scope = scope.where("users.name ILIKE :term OR users.email_address ILIKE :term", term: term)
     end
-    @pagination = Pagination.new(scope, page: params[:page], per_page: params[:per_page])
+    @pagination = Pagination.new(scope, page: params[:pagina], per_page: params[:por_pagina])
     @memberships = @pagination.records
-    render partial: "memberships/result" if htmx_fragment?
+    render partial: "memberships/result" if fragment?
   end
 
   def show
@@ -28,9 +28,10 @@ class MembershipsController < ApplicationController
   def new
     authorize Membership
     @tenants = manageable_tenants
-    @tenant = @tenants.find_by(id: params[:tenant_id]) || @tenants.first
+    @tenant = @tenants.find_by(id: params[:credor] || params.dig(:membership, :tenant_id)) || @tenants.first
     @profiles = @tenant.profiles.order(:name)
-    render partial: "memberships/profile_field" if htmx_fragment? && !panel_request?
+    # Na SPA, trocar o credor no diálogo pede só o campo do perfil, que volta para o lugar do atual (`data-spa-dependentes`).
+    render(partial: "memberships/profile_field", locals: { fora_de_banda: true }) if spa? && params[:membership].present?
   end
 
   def create
@@ -70,8 +71,13 @@ class MembershipsController < ApplicationController
     @membership = Membership.includes(:user, :tenant).find(params[:id])
     authorize @membership, :edit_personal?
     manager.rename(@membership, params.expect(user: [ :name ])[:name])
+    # Na ficha da SPA, o nome se edita na linha (design system, 7.1); o título e o subtítulo da aba mudam junto, e a aba se refaz.
+    return inline_finish(@membership.user.reload.name, atualizar: true, aviso: t(".done")) if inline?
+
     panel_finish(membership_path(@membership), notice: t(".done"), atualizar: true)
   rescue ActiveRecord::RecordInvalid => error
+    return inline_refuse(error.record.errors.full_messages.to_sentence) if inline?
+
     panel_error(error.record.errors.full_messages.to_sentence, membership_path(@membership), :edit)
   end
 

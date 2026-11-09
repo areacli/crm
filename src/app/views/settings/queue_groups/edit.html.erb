@@ -1,3 +1,3 @@
-<%= formulario_de_painel(titulo: "Editar #{@group.name}", url: queues_queue_group_path(@group), metodo: :patch, enviar: "Salvar", escopo: :group, tamanho: :small, voltar: queues_queue_groups_path(tenant_id: @tenant.id)) do |form| %>
+<%= formulario_de_painel(titulo: "Editar #{@group.name}", url: queues_queue_group_path(@group), metodo: :patch, enviar: "Salvar", escopo: :group, tamanho: :small, voltar: queues_queue_groups_path(credor: @tenant.id)) do |form| %>
   <%= render "settings/queue_groups/form", form: form %>
 <% end %>

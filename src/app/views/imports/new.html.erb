@@ -9,16 +9,17 @@
 <% content_for :title, titles.fetch(@kind) %>
 <% content_for :cable_channels, import_cable_channels %>
 <%= pagina titles.fetch(@kind), subtitulo: "CSV com ponto e vírgula. O sistema confere o arquivo e só grava depois da confirmação." do %>
-  <%= link_to "Baixar planilha modelo", template_imports_path(kind: @kind), class: "botao", data: { variant: "secondary" }, "hx-boost": "false" %>
+  <%= link_to "Baixar planilha modelo", template_imports_path(tipo: FilterValue.to_url(@kind)), class: "botao", data: { variant: "secondary" }, download: "" %>
 <% end %>
 <% if Demo.enabled? %>
   <%= aviso(tom: :warning) { tag.p "Demonstração: o arquivo que você enviar é descartado sem ser lido e trocado por um arquivo fictício de exemplo." } %>
 <% end %>
 
-<div class="ficha" data-lateral="esquerda">
+<%# Na recusa (422), a SPA troca esta parte pela que o servidor refez, com a mensagem (`data-refazer-no-erro`). %>
+<div class="ficha" data-lateral="esquerda" data-refazer-no-erro>
   <section class="cartao" aria-labelledby="envio">
     <header><h2 id="envio">Arquivo</h2></header>
-    <%= form_with scope: :import, url: imports_path, multipart: true, html: { "hx-boost": "false" } do |form| %>
+    <%= form_with scope: :import, url: imports_path, multipart: true do |form| %>
       <% if @error %><%= aviso(tom: :danger) { tag.p @error } %><% end %>
       <%= form.hidden_field :kind, value: @kind %>
       <% if @tenants.size > 1 %>
@@ -28,12 +29,13 @@
         </div>
       <% else %>
         <%= form.hidden_field :tenant_id, value: @tenants.first&.id %>
-        <p><strong><%= @tenants.first&.name %></strong></p>
+        <dl class="dados"><dt>Credor</dt><dd><%= @tenants.first&.name %></dd></dl>
       <% end %>
       <div class="campo">
         <%= form.label :file, "Arquivo CSV" %>
         <%= form.file_field :file, accept: ".csv,text/csv", required: true %>
         <small>Até 50 MB e 200 mil linhas. Obrigatórias: <%= columns.select { |_, required, _, _| required }.map(&:first).to_sentence(two_words_connector: " e ", last_word_connector: " e ") %>.</small>
+        <small>O andamento da conferência aparece na aba da importação, que abre quando o envio termina.</small>
       </div>
       <% if @kind == "portfolio" %>
         <fieldset>

@@ -1,5 +1,5 @@
-<%# Refeito pelo htmx sempre que o WebSocket avisa que uma importação mudou (cable:import-changed). %>
-<div id="importacoes" hx-get="<%= imports_path(request.query_parameters) %>" hx-trigger="cable:import-changed from:body delay:250ms, cable:connected from:body" hx-swap="outerHTML">
+<%# Refeito pela SPA sempre que o WebSocket avisa que uma importação mudou (cable:import-changed). %>
+<div id="importacoes" data-spa-vivo="<%= imports_path(request.query_parameters) %>">
   <% if @imports.empty? %>
     <p class="vazio">Nenhuma importação ainda.</p>
   <% else %>
@@ -34,6 +34,6 @@
         </tbody>
       </table>
     </div>
-    <%= render "shared/paginacao", pagination: @pagination, unit: "importações", path: ->(page) { imports_path(request.query_parameters.merge("page" => page)) } %>
+    <%= render "shared/paginacao", pagination: @pagination, unit: "importações", path: ->(page) { imports_path(request.query_parameters.merge("pagina" => page)) } %>
   <% end %>
 </div>

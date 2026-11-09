@@ -72,7 +72,8 @@ class WebhooksArchitectureTest < ActiveSupport::TestCase
   end
 
   test "não há polling na conciliação: nenhuma tela nem canal consulta o fornecedor" do
-    views = Dir[ROOT.join("app/{views,javascript}/**/*")].reject { |file| File.directory?(file) }
+    # O carrossel da entrada só troca a imagem na tela e não faz pedido nenhum ao servidor: não é polling.
+    views = Dir[ROOT.join("app/{views,javascript}/**/*")].reject { |file| File.directory?(file) || file.end_with?("spa/vitrine.js") }
     views.each { |file| assert_no_match(/setInterval|hx-trigger="every/, File.read(file), file) }
   end
 end

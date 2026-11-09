@@ -2,24 +2,27 @@
 <%= pagina "Carteira", subtitulo: "Faixas de atraso e políticas da carteira, por credor." %>
 <%= render "settings/modelo" %>
 
+<%# Modelo Configuração (design system, 9): um cartão por credor; as faixas numa tabela curta de campos, com as salvas ao lado, e cada política na sua linha.
+    Na recusa (422), a SPA troca a lista pela que o servidor refez, com as faixas digitadas e a mensagem (`data-refazer-no-erro`). %>
+<div class="pagina-em-secoes" data-refazer-no-erro>
 <% @settings.each do |setting| %>
   <% tenant = setting.tenant %>
   <% error = @error if @error && @error[:tenant_id] == tenant.id %>
   <section class="cartao" aria-labelledby="credor-<%= tenant.id %>">
     <header><h2 id="credor-<%= tenant.id %>"><%= tenant.name %></h2></header>
-    <div>
+    <div class="campos-do-cartao">
       <% if error %><%= aviso(tom: :danger) { tag.p error[:message] } %><% end %>
 
-      <%= form_with url: settings_portfolio_path, method: :patch, html: { "hx-boost": "false" } do |form| %>
-        <%= hidden_field_tag :tenant_id, tenant.id %>
-        <%= hidden_field_tag :section, "brackets" %>
+      <%= form_with url: settings_portfolio_path, method: :patch do |form| %>
+        <%= hidden_field_tag :credor, tenant.id, id: nil %>
+        <%= hidden_field_tag :section, "brackets", id: nil %>
         <fieldset>
           <legend>Faixas de atraso (dias)</legend>
-          <% rows = setting.aging_brackets.map { |bracket| [ bracket["from"], bracket["to"] ] } %>
+          <% rows = error && @rows ? @rows : setting.aging_brackets.map { |bracket| [ bracket["from"], bracket["to"] ] } %>
           <% rows += Array.new([ 7 - rows.size, 2 ].max) { [ nil, nil ] } %>
           <div class="faixas-edicao">
-            <div class="tabela tabela-editavel">
-              <table>
+            <div>
+              <table class="campos-em-tabela">
                 <caption class="apenas-leitor-de-tela">Faixas de atraso de <%= tenant.name %></caption>
                 <thead><tr><th scope="col">De</th><th scope="col">Até</th><th scope="col">Remover</th></tr></thead>
                 <tbody>
@@ -34,12 +37,12 @@
               </table>
             </div>
             <div>
-              <p><small>A primeira começa em 1 dia, sem buraco nem sobreposição, e a última não tem fim. Linha em branco não é usada.</small></p>
               <% saved = Portfolio::AgingBrackets.from_stored(setting.aging_brackets) %>
-              <h3>Pré-visualização das faixas salvas</h3>
+              <h3 class="subtitulo-do-cartao">Faixas salvas</h3>
               <ol class="previa" aria-label="Faixas de atraso salvas de <%= tenant.name %>">
-                <% saved.labels.each do |label| %><li><%= label %><small>dias</small></li><% end %>
+                <% saved.labels.each do |label| %><li><%= label %> dias</li><% end %>
               </ol>
+              <p><small>A primeira começa em 1 dia, sem buraco nem sobreposição, e a última não tem fim. Linha em branco não é usada.</small></p>
             </div>
           </div>
         </fieldset>
@@ -69,9 +72,9 @@
         <% end %>
       <% end %>
       <% if can_change_policy %>
-        <%= form_with url: settings_portfolio_path, method: :patch, html: { "hx-boost": "false" } do |form| %>
-          <%= hidden_field_tag :tenant_id, tenant.id %>
-          <%= hidden_field_tag :section, "discrepancy" %>
+        <%= form_with url: settings_portfolio_path, method: :patch do |form| %>
+          <%= hidden_field_tag :credor, tenant.id, id: nil %>
+          <%= hidden_field_tag :section, "discrepancy", id: nil %>
           <%= policy_body %>
           <div class="acoes" data-rodape><button type="submit">Salvar política de divergência</button></div>
         <% end %>
@@ -81,9 +84,9 @@
 
       <%# Correção na tela ou carga: qual vale (06, R117): cartão de política com o efeito e o exemplo de cada opção. %>
       <% last_correction = Change.where(subject_type: "settings", subject_id: tenant.id, field: "correction_policy").includes(:user).order(occurred_at: :desc, id: :desc).first %>
-      <%= form_with url: settings_portfolio_path, method: :patch, html: { "hx-boost": "false" } do |form| %>
-        <%= hidden_field_tag :tenant_id, tenant.id %>
-        <%= hidden_field_tag :section, "correction" %>
+      <%= form_with url: settings_portfolio_path, method: :patch do |form| %>
+        <%= hidden_field_tag :credor, tenant.id, id: nil %>
+        <%= hidden_field_tag :section, "correction", id: nil %>
         <%= politica("Correção na tela ou carga: qual vale", "pol-2-#{tenant.id}", ajuda: "Quando a pessoa corrige o nome ou um contato de um cliente na tela e a carga seguinte traz outro valor. Vale para as cargas seguintes; a carga nunca apaga um contato.") do %>
           <% TenantSetting.defined_enums.fetch("correction_policy").each_key do |value| %>
             <label>
@@ -97,16 +100,17 @@
         <div class="acoes" data-rodape><button type="submit">Salvar política de correção</button></div>
       <% end %>
 
-      <%= form_with url: settings_portfolio_path, method: :patch, html: { "hx-boost": "false" } do |form| %>
-        <%= hidden_field_tag :tenant_id, tenant.id %>
-        <%= hidden_field_tag :section, "upcoming" %>
+      <%= form_with url: settings_portfolio_path, method: :patch do |form| %>
+        <%= hidden_field_tag :credor, tenant.id, id: nil %>
+        <%= hidden_field_tag :section, "upcoming", id: nil %>
         <%= politica("Títulos a vencer", "pol-3-#{tenant.id}") do %>
           <% { "separate" => "Mostrar à parte do vencido", "summed" => "Somar ao vencido, mostrando o vencido em separado", "detail_only" => "Só na ficha do cliente, fora dos totais" }.each do |value, label| %>
-            <label><%= radio_button_tag :upcoming_display, value, setting.upcoming_display == value %> <%= label %></label>
+            <label><%= radio_button_tag :upcoming_display, value, setting.upcoming_display == value, id: "upcoming-#{tenant.id}-#{value}" %> <%= label %></label>
           <% end %>
         <% end %>
-        <div class="acoes" data-rodape><button type="submit">Salvar</button></div>
+        <div class="acoes" data-rodape><button type="submit">Salvar a exibição dos títulos a vencer</button></div>
       <% end %>
     </div>
   </section>
 <% end %>
+</div>

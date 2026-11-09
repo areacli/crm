@@ -20,12 +20,12 @@ module Settings
 
     # Incluir segmento (R293): modal pequeno com o segmento e a posição; as regras vêm de um item escolhido (SG15).
     def new
-      @tenant = tenant_for_change(params[:tenant_id])
+      @tenant = tenant_for_change(params[:credor])
       load_inclusion
     end
 
     def create
-      @tenant = tenant_for_change(params[:tenant_id])
+      @tenant = tenant_for_change(params[:credor])
       raw = params.expect(tier: %i[segment_id before_id copy_from_id])
       segment = Segment.active_ones.find_by(id: raw[:segment_id], tenant_id: @tenant.id, subject: "contracts")
       unless segment && !Tier.financial.where(tenant_id: @tenant.id, segment_id: segment.id, active: true).exists?

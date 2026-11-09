@@ -1,11 +1,11 @@
 require "test_helper"
 
-# Fase 2 do redesenho (decisão 0022): as ações restantes pelo painel compartilhado. Cada rota de formulário responde só o conteúdo do painel (modal ou painel lateral)
-# ao pedido do htmx, a validação volta em 422 dentro do painel e o sucesso responde 204 com o gatilho `painel:concluido`.
+# As ações em diálogo (decisão 0028; antes, o painel compartilhado da decisão 0022): cada rota de formulário responde o formulário do diálogo (modal ou lateral)
+# ao pedido da SPA, a validação volta em 422 dentro dele e o sucesso responde 204 com o fim de ação no `X-CRM-Evento`.
 class PanelActionsTest < ActionDispatch::IntegrationTest
   include ActiveJob::TestHelper
 
-  PAINEL = { "HX-Request" => "true", "HX-Target" => "painel-conteudo" }.freeze
+  PAINEL = SpaRequestsHelper::TRECHO
 
   setup do
     @alfa = tenants(:alfa)
@@ -19,27 +19,26 @@ class PanelActionsTest < ActionDispatch::IntegrationTest
 
   teardown { travel_back }
 
-  def gatilho = JSON.parse(response.headers["HX-Trigger"]).fetch("painel:concluido")
+  def gatilho = evento_da_spa
 
-  test "o formulário abre como conteúdo do painel (modal ou painel lateral) e como página inteira sem o cabeçalho do htmx" do
-    { new_agreement_reversion_path(@agreement) => "modal", new_agreement_break_path(@agreement) => "modal", new_agreement_settlement_path(@agreement) => "modal",
-      new_membership_path => "drawer", new_profile_path => "drawer", new_settings_channel_path => "drawer", new_settings_contact_result_path => "drawer",
-      new_agreement_export_path => "modal" }.each do |caminho, variante|
+  test "o formulário abre como diálogo (modal de 400 px ou lateral de 480 px); o endereço como página leva à casca" do
+    { new_agreement_reversion_path(@agreement) => "400", new_agreement_break_path(@agreement) => "400", new_agreement_settlement_path(@agreement) => "400",
+      new_membership_path => "480", new_settings_channel_path => "480", new_settings_contact_result_path => "480",
+      new_agreement_export_path => "400" }.each do |caminho, largura|
       get caminho, headers: PAINEL
       assert_response :success, caminho
-      assert_select "[data-painel][data-variant=#{variante}] form.painel", 1, caminho
+      assert_select "form.dialogo[data-largura-do-dialogo='#{largura}']", 1, caminho
       assert_no_match(/<html/, response.body, caminho)
 
       get caminho
-      assert_response :success, caminho
-      assert_select "main form", minimum: 1
+      assert_redirected_to "/##{caminho}"
     end
   end
 
   test "a reversão: o motivo em branco volta em 422 dentro do painel, e com motivo responde 204 com o gatilho" do
     post agreement_reversion_path(@agreement), params: { reversion: { reason: " " } }, headers: PAINEL
     assert_response :unprocessable_content
-    assert_select "[data-painel] form.painel [role=alert], [data-painel] .aviso"
+    assert_select "form.dialogo .aviso"
     assert_not_predicate @agreement.reload, :reversing?
 
     post agreement_reversion_path(@agreement), params: { reversion: { reason: "devedor errado" } }, headers: PAINEL
@@ -57,7 +56,7 @@ class PanelActionsTest < ActionDispatch::IntegrationTest
     token = Confirmation.sign(titulo: "Apagar?", mensagem: "Some.", acao: "Apagar", url: "/perfis/1", metodo: :delete, perigoso: true)
     get confirmation_path(token), headers: PAINEL
     assert_response :success
-    assert_select "[data-painel][data-variant=modal] form[action='/perfis/1']"
+    assert_select "form.dialogo[data-largura-do-dialogo='400'][action='/perfis/1']"
     assert_select "button[data-variant=danger]", text: "Apagar"
 
     get confirmation_path("#{token}x"), headers: PAINEL
@@ -86,7 +85,7 @@ class PanelActionsTest < ActionDispatch::IntegrationTest
 
     delete profile_path(profiles(:alfa_operator)), headers: PAINEL
     assert_response :no_content
-    assert_equal "danger", JSON.parse(response.headers["HX-Trigger"]).dig("painel:concluido", "tom") if Profile.exists?(profiles(:alfa_operator).id)
+    assert_equal "danger", evento_da_spa["tom"] if Profile.exists?(profiles(:alfa_operator).id)
   end
 
   test "canais: criar pelo painel e a validação em 422" do
@@ -95,7 +94,7 @@ class PanelActionsTest < ActionDispatch::IntegrationTest
 
     post settings_channels_path, params: { payment_channel: { tenant_id: @alfa.id, kind: "account", code: "", description: "" } }, headers: PAINEL
     assert_response :unprocessable_content
-    assert_select "[data-painel] form.painel"
+    assert_select "form.dialogo"
   end
 
   test "a exportação do arquivo de acordos e a correção de índice abrem pelo painel" do
@@ -103,13 +102,13 @@ class PanelActionsTest < ActionDispatch::IntegrationTest
     assert_response :no_content
     assert_equal 1, AgreementExport.count
 
-    get new_settings_index_adjustment_path(tenant_id: @alfa.id), headers: PAINEL
-    assert_select "[data-painel][data-variant=drawer] input[name='adjustment[month]']"
-    post settings_index_adjustments_path(tenant_id: @alfa.id), params: { adjustment: { series: "ipca", month: "", value: "1,5", reason: "x" } }, headers: PAINEL
+    get new_settings_index_adjustment_path(credor: @alfa.id), headers: PAINEL
+    assert_select "form.dialogo[data-largura-do-dialogo='480'] input[name='adjustment[month]']"
+    post settings_index_adjustments_path(credor: @alfa.id), params: { adjustment: { series: "ipca", month: "", value: "1,5", reason: "x" } }, headers: PAINEL
     assert_response :unprocessable_content
   end
 
-  test "sem o cabeçalho do painel, a ação volta à página com o aviso (sem JavaScript)" do
+  test "sem o cabeçalho da SPA, a ação volta ao destino com o aviso" do
     post agreement_reversion_path(@agreement), params: { reversion: { reason: " " } }
     assert_redirected_to agreement_path(@agreement)
     assert_match(/./, flash[:alert].to_s)

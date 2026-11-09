@@ -5,7 +5,7 @@ module Customers
 
     def new
       authorize @customer, :show?
-      @contract = @customer.contracts.find(params[:contract_id])
+      @contract = @customer.contracts.find(params[:contrato_id])
       authorize @contract, :create?, policy_class: CreditTransferPolicy
       load_bills
     end

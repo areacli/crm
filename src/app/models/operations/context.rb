@@ -31,6 +31,20 @@ module Operations
       end
     end
 
+    # Trecho de uma tarefa que responde por quem a pediu (14, R314): o usuário de operação só resolve o que está pra ele, como na requisição. A
+    # equipe do credor não muda de papel.
+    def acting_as(user)
+      operation = user&.operation or return yield
+
+      previous = Thread.current[:crm_db_role]
+      apply("crm_operation", operation.id, user.id)
+      begin
+        yield
+      ensure
+        previous ? apply(*previous) : reset
+      end
+    end
+
     # Console, `runner` e tarefas rake (decisão 0024): com a entrada sem privilégios (produção), declaram a equipe, como o sistema; com a do
     # dono, nada.
     def declare_entry_role!

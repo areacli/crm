@@ -1,5 +1,5 @@
 # Avisos de acionamento: a lista assina o credor, a ficha assina o cliente (para refazer o histórico só quando é o dela). Só quem consulta a
-# carteira no credor (MT-3). O canal transmite um evento de invalidação pequeno ("contact-attempts-changed"); a tela refaz o trecho com htmx.
+# carteira no credor (MT-3). O canal transmite um evento de invalidação pequeno ("contact-attempts-changed"); a aba da casca refaz o trecho (`data-spa-vivo`).
 class ContactAttemptsChannel < ApplicationCable::Channel
   def subscribed
     stream = params[:customer_id].present? ? Customer.find_by(id: params[:customer_id]) : Tenant.find_by(id: params[:tenant_id])

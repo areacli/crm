@@ -1,5 +1,5 @@
-// Verifica que o sino do cabeçalho se atualiza sozinho (Action Cable, sem polling; decisão 0020): entra com o usuário público, espera a assinatura do
-// canal de avisos, imprime PRONTO e espera o contador do sino aparecer. Quem roda cria o aviso em outro terminal (sino-check.sh).
+// Verifica que o sino da casca se atualiza sozinho (Action Cable, sem polling; decisões 0020 e 0028): entra com o usuário público na casca, espera a conexão do
+// WebSocket, imprime PRONTO e espera o contador do sino aparecer. Quem roda cria o aviso em outro terminal (sino-check.sh).
 //
 //   BASE_URL=... V5_EMAIL=... V5_SENHA=... node sino-check.mjs
 import { chromium } from 'playwright';
@@ -7,17 +7,20 @@ import { chromium } from 'playwright';
 const BASE = process.env.BASE_URL ?? process.argv[2];
 const navegador = await chromium.launch();
 const pagina = await (await navegador.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1440, height: 900 } })).newPage();
-await pagina.goto(BASE + '/session/new');
-await pagina.fill('#email_address', process.env.V5_EMAIL);
-await pagina.fill('#password', process.env.V5_SENHA);
-await pagina.click('button[type=submit]');
-await pagina.waitForURL(BASE + '/');
-// Espera a assinatura do canal de avisos do usuário antes de dizer que está pronto.
-await pagina.waitForFunction(() => document.documentElement.dataset.cable === 'conectado' && window.cable?.canais?.some((c) => c.channel === 'NoticesChannel'), null, { timeout: 30000 });
+await pagina.goto(BASE + '/');
+await pagina.locator('#entrada:not([hidden])').waitFor();
+await pagina.fill('#entrada-email', process.env.V5_EMAIL);
+await pagina.fill('#entrada-senha', process.env.V5_SENHA);
+await pagina.click('#entrada-botao');
+await pagina.locator('#abas .tabs-title').first().waitFor();
+// A assinatura do canal de avisos sai com o menu; a faixa de conexão caída escondida e a rede parada dizem que ela está de pé.
+await pagina.waitForFunction(() => document.querySelector('#sem-conexao')?.hidden !== false && window.jQuery && jQuery.active === 0, null, { timeout: 30000 });
 await pagina.waitForLoadState('networkidle');
+await pagina.waitForTimeout(1500);
+const antes = await pagina.locator('#sino .contador').textContent();
 console.log('PRONTO');
 try {
-    await pagina.locator('#sino .contador').first().waitFor({ timeout: Number(process.env.SINO_TIMEOUT ?? 60) * 1000 });
+    await pagina.waitForFunction((anterior) => { const c = document.querySelector('#sino .contador'); return c && !c.hidden && c.textContent !== anterior }, antes, { timeout: Number(process.env.SINO_TIMEOUT ?? 60) * 1000 });
     console.log('OK: o sino mostrou o aviso sem recarregar a página');
     await navegador.close();
 } catch {

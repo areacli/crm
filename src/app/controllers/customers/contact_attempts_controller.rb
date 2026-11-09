@@ -1,22 +1,22 @@
 module Customers
   # Acionamentos de um cliente, na ficha dele (04): o histórico (R74), o formulário que reage ao resultado e ao contrato (R73, R69c) e o
   # registro (R69 a R73). A permissão 7 (e a 1) vale no credor do cliente (R76); sem ela a recusa vira 404 registrado (R33).
-  # O formulário e o histórico são trechos do htmx; sem JavaScript, o registro volta para a ficha.
+  # O formulário e o histórico são trechos da SPA.
   class ContactAttemptsController < ApplicationController
     before_action :set_customer
 
     # Trecho do histórico, refeito na paginação e a cada evento do WebSocket.
     def index
       authorize @customer, :show?
-      return redirect_to(customer_path(@customer, aba: "acionamentos", page: params[:page], contrato: params[:contrato].presence)) unless htmx_fragment?
+      return redirect_to(customer_path(@customer, aba: "acionamentos", pagina: params[:pagina], contrato: params[:contrato].presence)) unless card_fragment?
 
       # O contrato escolhido na ficha (padrões de interface, revisão 21) continua valendo na paginação e no refazer pelo WebSocket.
       contract = @customer.contracts.find_by(id: params[:contrato]) if params[:contrato].present?
-      @history = ContactAttempt.history_for(@customer, page: params[:page], contract: contract)
+      @history = ContactAttempt.history_for(@customer, page: params[:pagina], contract: contract)
       render partial: "customers/contact_attempts/history", locals: { customer: @customer, history: @history }
     end
 
-    # Formulário de registro, no painel lateral (ou como página inteira, sem JavaScript).
+    # Formulário de registro, no diálogo lateral.
     def form
       authorize ContactAttempt.new(tenant: @customer.tenant), :create?
       @form = Contacts::Form.new(@customer)
@@ -25,7 +25,7 @@ module Customers
     # Campos que dependem da escolha (retorno, aviso do responsável financeiro): dois trechos trocados fora de banda.
     def new
       authorize ContactAttempt.new(tenant: @customer.tenant), :create?
-      return redirect_to(form_customer_contact_attempts_path(@customer)) unless htmx_fragment?
+      return redirect_to(form_customer_contact_attempts_path(@customer)) unless fragment? || spa?
 
       form = Contacts::Form.new(@customer, params.fetch(:contact_attempt, {}).permit(*Contacts::Form::PERMITTED))
       render partial: "customers/contact_attempts/dependents", locals: { form: form }

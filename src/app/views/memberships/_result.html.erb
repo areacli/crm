@@ -1,5 +1,7 @@
-<%# Trecho que o htmx refaz a cada busca: tabela, contagem e paginação. %>
+<%# Trecho que a busca refaz: a senha temporária do usuário recém-criado, a tabela, a contagem e a paginação. A senha fica aqui dentro porque, na SPA, o fim
+    da criação refaz só este trecho (`spa/lista`); ela vem uma vez, na resposta que segue a criação. %>
 <div id="resultado" aria-live="polite">
+  <% if flash[:temporary_password] %><%= render "memberships/temporary_password", data: flash[:temporary_password] %><% end %>
   <% if @memberships.empty? %>
     <p class="vazio">Nenhum usuário encontrado.</p>
   <% else %>
@@ -44,6 +46,6 @@
         </tbody>
       </table>
     </div>
-    <%= render "shared/paginacao", pagination: @pagination, unit: "usuários", path: ->(page) { memberships_path(request.query_parameters.merge("page" => page)) } %>
+    <%= render "shared/paginacao", pagination: @pagination, unit: "usuários", path: ->(page) { memberships_path(request.query_parameters.merge("pagina" => page)) } %>
   <% end %>
 </div>

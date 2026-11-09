@@ -17,11 +17,11 @@ class AgreementsController < ApplicationController
     scope = scope.where(built_on: @filters[:from]..) if @filters[:from]
     scope = scope.where(built_on: ..@filters[:to]) if @filters[:to]
     @operators = User.where(id: policy_scope(Agreement).select(:user_id)).order(:name).pluck(:name, :id)
-    @pagination = Pagination.new(scope.recent, page: params[:page], per_page: params[:per_page])
+    @pagination = Pagination.new(scope.recent, page: params[:pagina], per_page: params[:por_pagina])
     @agreements = @pagination.records.to_a
-    @cases = Agreements::ManagerCases.for(Current.user) if params[:page].blank?
+    @cases = Agreements::ManagerCases.for(Current.user) if params[:pagina].blank?
     @cable = Current.user.tenant_ids_with("negotiate_agreements").map { |id| { channel: "AgreementsChannel", tenant_id: id } }.to_json
-    render partial: "agreements/result" if htmx_fragment?
+    render partial: "agreements/result" if fragment?
   end
 
   def show
@@ -40,7 +40,7 @@ class AgreementsController < ApplicationController
 
   private
     def filters
-      { tenant: params[:tenant].presence, state: params[:state].presence, user: params[:user].presence, from: parse_date(params[:from]), to: parse_date(params[:to]) }
+      { tenant: params[:credor].presence, state: FilterValue.from_url(params[:estado].presence), user: params[:usuario].presence, from: parse_date(params[:de]), to: parse_date(params[:ate]) }
     end
 
     def parse_date(text)

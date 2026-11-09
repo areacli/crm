@@ -1,4 +1,4 @@
-<%= formulario_de_painel(titulo: "Editar #{@item.name}", url: queues_work_queue_path(@index, tenant_id: @tenant.id, sujeito: @subject), metodo: :patch,
-                         enviar: "Conferir o impacto", escopo: :queue, variante: :modal, tamanho: :small, voltar: queues_work_queues_path(tenant_id: @tenant.id)) do |form| %>
+<%= formulario_de_painel(titulo: "Editar #{@item.name}", url: queues_work_queue_path(@index, credor: @tenant.id, sujeito: @subject), metodo: :patch,
+                         enviar: "Conferir o impacto", escopo: :queue, variante: :modal, tamanho: :small, voltar: queues_work_queues_path(credor: @tenant.id)) do |form| %>
   <%= render "settings/work_queues/form_fields", form: form, item: @item %>
 <% end %>

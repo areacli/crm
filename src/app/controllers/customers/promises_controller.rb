@@ -1,11 +1,11 @@
 module Customers
-  # Promessas abertas e pendentes na ficha do cliente (10, R203, P17): as dos contratos em que ele figura, com quem prometeu. Trecho do htmx, refeito a cada
+  # Promessas abertas e pendentes na ficha do cliente (10, R203, P17): as dos contratos em que ele figura, com quem prometeu. Trecho da SPA, refeito a cada
   # evento do WebSocket. Quem pode consultar a carteira no credor do cliente.
   class PromisesController < ApplicationController
     def index
       customer = Customer.includes(:tenant).find(params[:customer_id])
       authorize customer, :show?
-      return redirect_to(customer_path(customer, anchor: "promessas")) unless htmx_fragment?
+      return redirect_to(customer_path(customer, anchor: "promessas")) unless card_fragment?
 
       render partial: "customers/promises/lines", locals: { customer: customer, promises: Customers::PromisesController.holding_for(customer) }
     end

@@ -8,8 +8,8 @@ class ProfilesController < ApplicationController
     @tenants = manageable_tenants.pluck(:name, :id)
     @several_tenants = @tenants.size > 1
     scope = policy_scope(Profile).includes(:tenant).order(:name, :id)
-    scope = scope.where(tenant_id: params[:tenant]) if params[:tenant].present?
-    @pagination = Pagination.new(scope, page: params[:page], per_page: params[:per_page])
+    scope = scope.where(tenant_id: params[:credor]) if params[:credor].present?
+    @pagination = Pagination.new(scope, page: params[:pagina], per_page: params[:por_pagina])
     @profiles = @pagination.records
     @users_by_profile = Membership.where(profile_id: @profiles.map(&:id)).group(:profile_id).count
   end
@@ -17,7 +17,7 @@ class ProfilesController < ApplicationController
   def new
     authorize Profile
     @tenants = manageable_tenants
-    @profile = Profile.new(tenant: @tenants.find_by(id: params[:tenant_id]) || @tenants.first, permissions: %w[ view_portfolio ])
+    @profile = Profile.new(tenant: @tenants.find_by(id: params[:credor]) || @tenants.first, permissions: %w[ view_portfolio ])
   end
 
   def create
@@ -28,7 +28,8 @@ class ProfilesController < ApplicationController
     @profile = manager.create(tenant: tenant, name: attributes[:name], permissions: attributes[:permissions], available_to_operations: attributes[:available_to_operations] == "1")
 
     if @profile.persisted?
-      panel_finish(profiles_path, notice: t(".done", name: @profile.name), atualizar: true)
+      # A aba do formulário volta à lista de perfis (ou dá lugar à aba da lista, se já estiver aberta).
+      panel_finish(profiles_path, notice: t(".done", name: @profile.name), atualizar: true, navegar: spa?, mesma_aba: true)
     else
       render :new, status: :unprocessable_content
     end
@@ -46,7 +47,7 @@ class ProfilesController < ApplicationController
     manager.update(@profile, name: attributes[:name], permissions: attributes[:permissions], available_to_operations: attributes[:available_to_operations] == "1")
 
     if @profile.errors.empty?
-      panel_finish(profiles_path, notice: t(".done", name: @profile.name), atualizar: true)
+      panel_finish(profiles_path, notice: t(".done", name: @profile.name), atualizar: true, navegar: spa?, mesma_aba: true)
     else
       render :edit, status: :unprocessable_content
     end

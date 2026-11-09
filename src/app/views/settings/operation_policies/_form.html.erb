@@ -1,39 +1,33 @@
-<%# Políticas das operações do credor (14, R319). Local: tenant. %>
+<%# Políticas das operações do credor (14, R319): uma política por linha, como as demais políticas (design system, modelo Configuração). Local: tenant. %>
 <% setting = tenant.setting %>
 <section class="cartao" aria-labelledby="politicas-operacoes-<%= tenant.id %>">
   <header><h2 id="politicas-operacoes-<%= tenant.id %>">Políticas das operações — <%= tenant.name %></h2></header>
-  <%= form_with scope: :policies, url: settings_operation_policies_path(tenant_id: tenant.id), method: :patch do |form| %>
-    <div class="grupo-de-campos">
-      <fieldset>
-        <legend>Exclusividade</legend>
-        <label><%= form.radio_button :operation_exclusive, true, checked: setting.operation_exclusive %> Uma operação por contrato <small>Distribuir a uma segunda é recusado.</small></label>
+  <div>
+    <%= form_with scope: :policies, url: settings_operation_policies_path(credor: tenant.id), method: :patch do |form| %>
+      <%= politica("Exclusividade", "exclusividade-#{tenant.id}") do %>
+        <label><%= form.radio_button :operation_exclusive, true, checked: setting.operation_exclusive %> Uma operação por contrato: distribuir a uma segunda é recusado</label>
         <label><%= form.radio_button :operation_exclusive, false, checked: !setting.operation_exclusive %> Várias operações no mesmo contrato</label>
-      </fieldset>
-      <div class="campo">
-        <%= form.label :operation_default_exposure, "Exposição padrão" %>
-        <%= form.select :operation_default_exposure, Distribution::EXPOSURES.map { [ t("distributions.exposures.#{_1}"), _1 ] }, selected: setting.operation_default_exposure %>
-      </div>
-      <div class="campo">
-        <%= form.label :operation_exposure_business_days, "Dias úteis antes de uma fatura vencida ir para a operação" %>
-        <%= form.number_field :operation_exposure_business_days, value: setting.operation_exposure_business_days, min: 0, max: 30, "aria-describedby": "ajuda-dias-uteis-#{tenant.id}" %>
+      <% end %>
+      <%= politica("Exposição padrão", "exposicao-#{tenant.id}") do %>
+        <div class="curto"><%= form.select :operation_default_exposure, Distribution::EXPOSURES.map { [ t("distributions.exposures.#{_1}"), _1 ] }, { selected: setting.operation_default_exposure }, "aria-labelledby": "exposicao-#{tenant.id}-titulo" %></div>
+      <% end %>
+      <%= politica("Dias úteis antes de uma fatura vencida ir para a operação", "dias-uteis-#{tenant.id}") do %>
+        <%= form.number_field :operation_exposure_business_days, value: setting.operation_exposure_business_days, min: 0, max: 30, "aria-labelledby": "dias-uteis-#{tenant.id}-titulo", "aria-describedby": "ajuda-dias-uteis-#{tenant.id}" %>
         <small id="ajuda-dias-uteis-<%= tenant.id %>">Para o pagamento feito no vencimento chegar antes da cobrança.</small>
-      </div>
-      <fieldset>
-        <legend>Promessas e acordos de outra origem</legend>
-        <label><%= form.radio_button :operation_sees_other_deals, false, checked: !setting.operation_sees_other_deals %> A operação não vê <small>A fatura aparece só como "já está em promessa ou acordo".</small></label>
+      <% end %>
+      <%= politica("Promessas e acordos de outra origem", "outros-acordos-#{tenant.id}") do %>
+        <label><%= form.radio_button :operation_sees_other_deals, false, checked: !setting.operation_sees_other_deals %> A operação não vê: a fatura aparece só como "já está em promessa ou acordo"</label>
         <label><%= form.radio_button :operation_sees_other_deals, true, checked: setting.operation_sees_other_deals %> A operação vê</label>
-      </fieldset>
-      <fieldset>
-        <legend>Acionamentos de outra origem</legend>
+      <% end %>
+      <%= politica("Acionamentos de outra origem", "outros-acionamentos-#{tenant.id}") do %>
         <label><%= form.radio_button :operation_other_contact_attempts, "summary", checked: setting.operation_other_contact_attempts == "summary" %> A operação vê, sem o texto livre e sem quem registrou</label>
         <label><%= form.radio_button :operation_other_contact_attempts, "hidden", checked: setting.operation_other_contact_attempts == "hidden" %> A operação não vê</label>
-      </fieldset>
-      <fieldset>
-        <legend>Vínculos das pessoas da operação</legend>
+      <% end %>
+      <%= politica("Vínculos das pessoas da operação", "vinculos-#{tenant.id}") do %>
         <label><%= form.radio_button :operation_manager_links, false, checked: !setting.operation_manager_links %> Só o credor dá vínculos</label>
         <label><%= form.radio_button :operation_manager_links, true, checked: setting.operation_manager_links %> O gestor da operação também dá, com os perfis disponíveis para operações</label>
-      </fieldset>
-    </div>
-    <div class="acoes" data-rodape><%= form.submit "Salvar políticas" %></div>
-  <% end %>
+      <% end %>
+      <div class="acoes" data-rodape><button type="submit">Salvar políticas</button></div>
+    <% end %>
+  </div>
 </section>

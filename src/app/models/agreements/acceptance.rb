@@ -16,6 +16,14 @@ module Agreements
       Parties.acceptors(contracts, agreement.frozen_policy("who_accepts") || "financial_or_holder")
     end
 
+    # 14, R318: as promessas de uma operação que o aceite vai cancelar (11, R222), para a confirmação dizer.
+    def self.undone_promises(agreement, user)
+      Operations::Context.system do
+        PaymentPromise.where(id: PaymentPromiseBill.where(bill_id: agreement.agreement_bills.select(:bill_id), held: true, removed_at: nil).select(:promise_id),
+                             state: PaymentPromise::HOLDING).where.not(operation_id: [ nil, user.operation&.id ]).includes(:operation).to_a
+      end
+    end
+
     def call(agreement, input, now: Time.current)
       ApplicationRecord.transaction do
         agreement.lock!

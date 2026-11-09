@@ -1,16 +1,18 @@
-<%# Resultado do lote, refeito pelo htmx quando o WebSocket avisa que a conferência ou a confirmação terminou. Local: batch. %>
+<%# Resultado do lote, refeito quando o WebSocket avisa que a conferência ou a confirmação terminou: só este trecho (`data-spa-vivo`). Local: batch. %>
 <% running = batch.checking? || (batch.checked? && batch.summary["confirming"]) %>
-<div id="lote" <% if running %>hx-get="<%= distribution_batch_path(batch) %>" hx-trigger="cable:distribution-batch-ready from:body" hx-swap="outerHTML" hx-push-url="false"<% end %>>
+<div id="lote" data-spa-vivo="<%= distribution_batch_path(batch) %>">
   <% summary = batch.summary %>
   <% if running %>
     <p class="carregando" role="status"><%= batch.checking? ? "Conferindo o lote…" : "Confirmando o lote…" %></p>
+  <% elsif batch.discarded? %>
+    <p class="vazio">Lote descartado. Nenhuma distribuição foi criada.</p>
   <% elsif batch.failed? %>
     <%= aviso(tom: :danger) { tag.p(summary["error"].presence || t("distribution_batches.failed")) } %>
   <% else %>
     <section class="cartao" aria-labelledby="resumo-lote">
       <header><h2 id="resumo-lote"><%= batch.confirmed? ? "Lote confirmado" : "O que vai" %></h2></header>
       <div>
-        <p><strong>Vão <%= number_br(summary["contracts"].to_i) %> contratos</strong> (<%= number_br(summary["targets"].to_i) %> <%= batch.target == "customer" ? "clientes" : "contratos" %>), <%= money(summary["balance_cents"].to_i) %> em cobrança.
+        <p><strong>Vão <%= number_br(summary["contracts"].to_i) %> contratos</strong><% if batch.target == "customer" %> (<%= number_br(summary["targets"].to_i) %> clientes)<% end %>, <%= money(summary["balance_cents"].to_i) %> em cobrança.
           <% if summary["extra_contracts"].to_i.positive? %>A distribuição por cliente leva <%= number_br(summary["extra_contracts"]) %> contratos em que o cliente é só responsável financeiro.<% end %></p>
         <% if summary["refused_contracts"].to_i.positive? %>
           <p><%= number_br(summary["refused_contracts"]) %> contratos ficam de fora: já estão com outra operação (exclusividade).</p>

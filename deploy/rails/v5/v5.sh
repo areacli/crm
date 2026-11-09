@@ -3,7 +3,7 @@
 # Uso: deploy/rails/v5/v5.sh <script.mjs> [url base] [gestor|operador]
 #      deploy/rails/v5/v5.sh v5-demo.mjs http://127.0.0.1:3220
 #      deploy/rails/v5/v5.sh rolagem.mjs https://crm.areacli.com operador        (LARGURA=390 para a tela estreita)
-# O usuário é o gestor público da demonstração; com "operador" no terceiro argumento, o operador público.
+# O usuário é o gestor público da demonstração; com "operador" no terceiro argumento, o operador público. A V4 da casca usa V4_EMAIL e V4_SENHA (credor de medição).
 # Em http://127.0.0.1:<porta> a aplicação assume TLS (como atrás do nginx): um terminador TLS autoassinado (tls-proxy.mjs) sobe dentro do contêiner e o
 # navegador usa https://127.0.0.1:3443 (CRM_ORIGINS precisa listar essa origem para o WebSocket).
 set -e
@@ -25,5 +25,5 @@ esac
 # V5_ADD_HOST=nome:ip fixa o endereço no contêiner (quando o resolvedor do servidor falha em nome público).
 exec docker run --rm --network host ${V5_ADD_HOST:+--add-host $V5_ADD_HOST} -v "$PWD:/src:ro" -v "$TELAS:/telas" \
     -e BASE_URL="$BASE" -e V5_EMAIL="${WHO}@${DOMAIN}" -e V5_SENHA="demonstracao-${WHO}" -e V5_TELAS=/telas -e LARGURA="${LARGURA:-1440}" \
-    -e V5_CHECKOUT="${V5_CHECKOUT:-demonstracao-pagamento}" \
+    -e V5_CHECKOUT="${V5_CHECKOUT:-demonstracao-pagamento}" ${V4_EMAIL:+-e V4_EMAIL="$V4_EMAIL" -e V4_SENHA="$V4_SENHA"} \
     crm-rails-v5:1.55.0 sh -c "cp /src/*.mjs /w/ && cd /w && $PROXY node $SCRIPT"

@@ -17,7 +17,7 @@ module Queues
         moves = Hash.new(0)
         after.each { |id, name| moves[[ before[id], name ]] += 1 if before[id] != name }
         rows = moves.map { |(from, to), count| { "from" => from, "to" => to, "count" => count } }.sort_by { |row| -row["count"] }
-        Rails.cache.write(key(token), { "rows" => rows, "total" => rows.sum { _1["count"] } }, expires_in: 30.minutes)
+        Rails.cache.write(key(token), { "rows" => rows, "total" => rows.sum { _1["count"] }, "finished_at" => Time.current.iso8601 }, expires_in: 30.minutes)
       end
     end
 

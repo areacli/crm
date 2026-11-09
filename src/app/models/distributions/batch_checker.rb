@@ -1,14 +1,15 @@
 module Distributions
   # Conferência do lote (14, R316): resolve quem vai (clientes ou contratos), conta os contratos que a distribuição por cliente leva, o saldo
   # em cobrança, recusa por contrato o que a exclusividade não deixa (listado com a operação) e lista as linhas da planilha não encontradas.
-  # Nada é gravado em distribuição; o resultado fica no lote, para a confirmação. Roda como o sistema (fora do papel da requisição).
+  # Nada é gravado em distribuição; o resultado fica no lote, para a confirmação. Roda como o sistema (fora do papel da requisição), menos a
+  # pergunta de quem vai: para o usuário de operação, ela é a da R313, e o que não está pra ele conta como não encontrado.
   class BatchChecker
     SAMPLE = 100
 
     def initialize(batch) = @batch = batch
 
     def call
-      ids, missing = resolve
+      ids, missing = Operations::Context.acting_as(@batch.user) { resolve }
       raise Refused, I18n.t("distribution_batches.too_many", max: DistributionBatch::MAX) if ids.size > DistributionBatch::MAX
 
       contracts_by_target = contracts_for(ids)

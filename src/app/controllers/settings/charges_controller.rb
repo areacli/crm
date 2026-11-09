@@ -7,7 +7,7 @@ module Settings
     PERCENT_FIELDS = %w[charge_fine_pct charge_interest_pct].freeze
 
     def update
-      tenant = tenant_for_change(params[:tenant_id])
+      tenant = tenant_for_change(params[:credor])
       changes = parse(params.expect(charges: TenantSetting::CHARGE_FIELDS.map(&:to_sym)).to_h)
       return redirect_to(settings_tiers_path, alert: t("charges.flash.invalid"), status: :see_other) unless changes
 
