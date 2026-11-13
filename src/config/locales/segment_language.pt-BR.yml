@@ -29,6 +29,7 @@ pt-BR:
         updated_value: { short: "atualizado", long: "valor atualizado", definition: "Soma do valor atualizado (com encargos) dos títulos em cobrança, do último recálculo.", unit: money }
         return_days: { short: "dias para o retorno", long: "dias para o retorno", definition: "Dias entre hoje e o retorno combinado no último acionamento do contrato; negativo se já passou, vazio se não há retorno.", unit: days }
         return_user: { short: "retorno de", long: "retorno combinado por", definition: "Quem registrou o último acionamento do contrato, quando ele tem retorno combinado." }
+        system: { short: "sistema", long: "sistema", definition: "O sistema do credor de onde o contrato veio, pelo nome dado no cadastro de sistemas." }
       customers:
         person_type: { short: "tipo", long: "tipo", definition: "PF ou PJ, pelo documento do cliente." }
         customer_days: { short: "cliente há", long: "tempo como cliente", definition: "Dias desde que o cliente entrou no CRM.", unit: days }
@@ -64,14 +65,14 @@ pt-BR:
         in_arrears: { one: "em atraso", other: "em atraso" }
         in_collection: { one: "em cobrança", other: "em cobrança" }
     fields:
-      bills: { overdue_days: "atraso", balance: "saldo", amount: "valor", product: "produto", kind: "tipo" }
+      bills: { overdue_days: "atraso", balance: "saldo", amount: "valor", product: "produto", kind: "tipo", system: "sistema" }
       contact_attempts: { result: "resultado", result_kind: "tipo do resultado", channel: "canal" }
       contacts: { status: "situação", kind: "tipo", origin: "origem", state: "UF", city: "cidade" }
       promises: { state: "situação" }
       agreements: { state: "situação", mode: "modalidade" }
       payments: { method: "meio", amount: "valor" }
-      contracts: { overdue_days: "atraso", balance: "saldo", overdue_percent: "% vencido", age_days: "idade", product: "produto", product_largest: "produto maior saldo", broke_agreement: "quebrou acordo", in_arrears: "em atraso", in_collection: "em cobrança", return_days: "dias para o retorno", return_user: "retorno de" }
-      other_contracts: { overdue_days: "atraso", balance: "saldo", overdue_percent: "% vencido", age_days: "idade", product: "produto", product_largest: "produto maior saldo", broke_agreement: "quebrou acordo", in_arrears: "em atraso", in_collection: "em cobrança", return_days: "dias para o retorno", return_user: "retorno de" }
+      contracts: { overdue_days: "atraso", balance: "saldo", overdue_percent: "% vencido", age_days: "idade", product: "produto", product_largest: "produto maior saldo", broke_agreement: "quebrou acordo", in_arrears: "em atraso", in_collection: "em cobrança", return_days: "dias para o retorno", return_user: "retorno de", system: "sistema" }
+      other_contracts: { overdue_days: "atraso", balance: "saldo", overdue_percent: "% vencido", age_days: "idade", product: "produto", product_largest: "produto maior saldo", broke_agreement: "quebrou acordo", in_arrears: "em atraso", in_collection: "em cobrança", return_days: "dias para o retorno", return_user: "retorno de", system: "sistema" }
       customers: { person_type: "tipo" }
     aggregates:
       count: { short: "quantidade", long: "quantidade" }
@@ -121,6 +122,7 @@ pt-BR:
       method: { pix: "Pix", boleto: "boleto", credit_card: "cartão de crédito", debit_card: "cartão de débito", transfer: "transferência", cash: "dinheiro", other: "outro" }
     unknown_result: "resultado removido"
     unknown_user: "usuário removido"
+    unknown_system: "sistema removido"
     errors:
       subject: "Escolha o que o segmento seleciona: clientes ou contratos."
       grammar: "Versão da linguagem desconhecida."
@@ -157,6 +159,7 @@ pt-BR:
       option: "\"%{text}\" não é uma opção. Use: %{options}."
       result: "não há resultado de acionamento chamado \"%{text}\" neste credor."
       user: "não há usuário chamado \"%{text}\" neste credor."
+      system: "não há sistema chamado \"%{text}\" neste credor."
       quotes: "o valor entre aspas não fechou."
       with: "depois da coleção vem o valor entre aspas, \"com\" e um campo, ou nada."
       field: "o campo não existe nesta coleção. Use: %{fields}."

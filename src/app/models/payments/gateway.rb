@@ -11,7 +11,8 @@ module Payments
     class InvalidPayload < StandardError; end
 
     # id: identificador do evento no provedor (a chave da idempotência); payment: dados do pagamento, ou nil quando o evento não é de
-    # pagamento recebido (é guardado e ignorado). Os dados: identifier, document, bill_number, paid_on (Date), amount_cents, payment_method.
+    # pagamento recebido (é guardado e ignorado). Os dados: identifier, document, bill_number, paid_on (Date), amount_cents, payment_method, system
+    # (o nome do sistema do credor; 17, R417c) e external_bill_id.
     Event = Data.define(:id, :kind, :payment)
 
     ADAPTERS = { "signed_json" => "Payments::Gateway::SignedJson" }.freeze

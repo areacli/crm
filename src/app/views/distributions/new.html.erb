@@ -16,6 +16,15 @@
       <%= form.label :value, "Documento ou código" %>
       <%= form.text_field :value, value: params.dig(:distribution, :value), required: true, maxlength: 100 %>
     </div>
+    <% if @candidates.present? %>
+      <%# 17, R421: o código casa com mais de um contrato do credor, um por sistema. A pessoa escolhe. %>
+      <fieldset>
+        <legend>Qual contrato</legend>
+        <% @candidates.each do |contract| %>
+          <label><%= form.radio_button :contract_id, contract.id, required: true %> <%= Contracts::CodeLookup.option(contract) %></label>
+        <% end %>
+      </fieldset>
+    <% end %>
     <div class="campo">
       <%= form.label :exposure, "Exposição" %>
       <%= form.select :exposure, Distribution::EXPOSURES.map { [ t("distributions.exposures.#{_1}"), _1 ] }, { selected: params.dig(:distribution, :exposure) || @tenants.first&.setting&.operation_default_exposure }, "aria-describedby": "ajuda-exposicao" %>

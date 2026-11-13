@@ -10,20 +10,22 @@ namespace :crm do
     offset = args[:offset].to_i
     today = Date.current
     File.open(args.fetch(:path), "wb") do |file|
-      file.write "documento;nome;telefone;email;contrato;titulo;vencimento;valor;descricao\n"
+      ids = ENV["IDS"] == "1" # colunas de id remoto (17, R401), para o sistema de id próprio
+      file.write "documento;nome;telefone;email;contrato;titulo;vencimento;valor;descricao#{';id_titulo;id_contrato;id_cliente' if ids}\n"
       lines.times do |i|
         customer = offset + i / per
         days = 1 + ((customer * 37 + i * 11) % 500)
         cents = 5000 + ((i * 7919) % 250_000)
         file.write [ FakeData.cpf(customer), FakeData.name(customer), "(11) 9#{(customer % 100_000_000).to_s.rjust(8, '0')}",
                      "cliente#{customer}@exemplo.com.br", "CT-#{customer.to_s.rjust(7, '0')}", "NF-#{customer}/#{i % per + 1}",
-                     (today - (days - 20)).strftime("%d/%m/%Y"), Money.format(cents), "Mensalidade" ].join(";") + "\n"
+                     (today - (days - 20)).strftime("%d/%m/%Y"), Money.format(cents), "Mensalidade",
+                     *([ "LAN-#{customer}-#{i % per + 1}", "MAT-#{customer}", "ALU-#{customer}" ] if ids) ].join(";") + "\n"
       end
     end
     puts "#{lines} linhas gravadas em #{args[:path]}"
   end
 
-  desc "V4-lote: importa uma carteira fictícia e mede vazão (linhas/s) e tempo total da conferência e da confirmação, e as telas durante o lote: crm:measure_import[linhas,títulos_por_cliente]"
+  desc "V4-lote: importa uma carteira fictícia e mede vazão (linhas/s) e tempo total da conferência e da confirmação, e as telas durante o lote: crm:measure_import[linhas,títulos_por_cliente] (SISTEMAS=2: por um sistema de id próprio)"
   task :measure_import, %i[lines per_customer] => :environment do |_task, args|
     abort "Recusado em produção." if Rails.env.production?
 
@@ -46,10 +48,13 @@ namespace :crm do
       result
     end
 
+    # SISTEMAS=2 (17): a carteira entra por um segundo sistema, de id próprio, com as colunas de id.
+    erp = SourceSystem.create!(tenant: tenant, name: "ERP de medição", key_kind: "own_id") if ENV["SISTEMAS"] == "2"
+    ENV["IDS"] = "1" if erp
     Rake::Task["crm:fake_csv"].invoke(lines.to_s, path, per.to_s)
     service = Portfolio::ImportService.new
     ActiveJob::Base.queue_adapter = :test
-    import = measure.call("envio e gravação do arquivo") { service.start(tenant: tenant, user: user, file: path, mode: :incremental) }
+    import = measure.call("envio e gravação do arquivo#{' (sistema de id próprio)' if erp}") { service.start(tenant: tenant, user: user, file: path, mode: :incremental, source_system: erp) }
     rate = ->(label, seconds) { puts format("  vazão %-12s %8.1f linhas/s (mínimo do requisito: 50)", label, lines / seconds) }
     started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     measure.call("conferência de #{lines} linhas") { Portfolio::ImportChecker.new.run(import) }
@@ -88,6 +93,7 @@ namespace :crm do
     ImportRow.where(import_id: import.id).delete_all
     [ BillValueVersion, ReportedSurcharge, ValueDiscrepancy, Change ].each { |model| model.where(tenant_id: tenant.id).delete_all }
     ContractCustomer.where(customer_id: Customer.where(tenant_id: tenant.id)).delete_all
+    CustomerIdentity.where(tenant_id: tenant.id).delete_all
     Bill.where(tenant_id: tenant.id).delete_all
     Customer.where(tenant_id: tenant.id).delete_all
     Contract.where(tenant_id: tenant.id).delete_all
@@ -97,7 +103,7 @@ namespace :crm do
     puts "credor de medição apagado"
   end
 
-  desc "V4 de pagamentos: carteira fictícia de uma linha por cliente, importa pagamentos e estornos e mede: crm:measure_payments[pagamentos,estornos]"
+  desc "V4 de pagamentos: carteira fictícia de uma linha por cliente, importa pagamentos e estornos e mede: crm:measure_payments[pagamentos,estornos] (SISTEMAS=2: metade dos títulos num sistema de id próprio)"
   task :measure_payments, %i[payments reversals] => :environment do |_task, args|
     abort "Recusado em produção." if Rails.env.production?
 
@@ -147,12 +153,21 @@ namespace :crm do
     measure.call("carteira de #{count} títulos (insert_all! dos modelos)") do
       MeasureData.portfolio(tenant.id, count, from: 0, bill: ->(index, _n) { { number: "NF-#{index}", due_date: Date.current - 30, amount_cents: 10_000 + ((index * 7919) % 200_000) } })
     end
+    # SISTEMAS=2 (17): os títulos de número ímpar passam a um segundo sistema, de id próprio; a planilha diz o sistema de cada linha (R416) e paga os do
+    # segundo sistema só pelo id do título (R417).
+    erp = SourceSystem.create!(tenant: tenant, name: "ERP de medição", key_kind: "own_id") if ENV["SISTEMAS"] == "2"
+    if erp
+      odd = "in ('1','3','5','7','9')"
+      Contract.where(tenant_id: tenant.id).where("right(code, 1) #{odd}").update_all([ "source_system_id = ?, external_id = 'MAT-' || substr(code, 4)", erp.id ])
+      Bill.where(tenant_id: tenant.id).where("right(number, 1) #{odd}").update_all([ "source_system_id = ?, external_id = 'LAN-' || substr(number, 4)", erp.id ])
+      puts "  dois sistemas: #{Bill.where(tenant_id: tenant.id, source_system_id: erp.id).count} títulos no de id próprio"
+    end
     MeasureData.analyze("bills", "customers")
 
     methods = %w[pix boleto cartão\ de\ crédito transferência]
     payments_path = Rails.root.join("tmp", "pagamentos-#{tenant.id}.csv").to_s
     File.open(payments_path, "wb") do |file|
-      file.write "metodo_recebimento;identificador;documento;titulo;data_pagamento;valor;meio\n"
+      file.write "metodo_recebimento;identificador;documento;titulo;data_pagamento;valor;meio#{';sistema;id_titulo' if erp}\n"
       count.times do |index|
         amount = 10_000 + ((index * 7919) % 200_000)
         # 60% quitam, 20% parciais, 10% a mais, 10% de título inexistente.
@@ -162,7 +177,9 @@ namespace :crm do
         when 8 then [ amount + 5_000, "NF-#{index}" ]
         else [ amount, "NF-X#{index}" ]
         end
-        file.write [ channel.code, "ID-#{index}", FakeData.cpf(index), number, (Date.current - 1).strftime("%d/%m/%Y"), Money.format(value), methods[index % 4] ].join(";") + "\n"
+        system = (index.odd? ? [ erp.name, number.sub("NF-", "LAN-") ] : [ SourceSystem::DEFAULT_NAME, "" ]) if erp
+        number = "" if erp && index.odd?
+        file.write [ channel.code, "ID-#{index}", FakeData.cpf(index), number, (Date.current - 1).strftime("%d/%m/%Y"), Money.format(value), methods[index % 4], *system ].join(";") + "\n"
       end
     end
     service = Portfolio::ImportService.new
@@ -176,11 +193,12 @@ namespace :crm do
     # Estornos de pagamentos que quitaram (índice múltiplo de 10), 30% do valor de cada um.
     reversals_path = Rails.root.join("tmp", "estornos-#{tenant.id}.csv").to_s
     File.open(reversals_path, "wb") do |file|
-      file.write "metodo_recebimento;identificador_pagamento;identificador_estorno;data_estorno;valor;motivo\n"
+      file.write "metodo_recebimento;identificador_pagamento;identificador_estorno;data_estorno;valor;motivo#{';sistema' if erp}\n"
       reversal_count.times do |position|
         index = position * 10
         amount = 10_000 + ((index * 7919) % 200_000)
-        file.write [ channel.code, "ID-#{index}", "EST-#{index}", Date.current.strftime("%d/%m/%Y"), Money.format(amount * 3 / 10), "contestação" ].join(";") + "\n"
+        # Os estornados são os de índice múltiplo de 10, do sistema padrão: a coluna `sistema` é a do pagamento estornado.
+        file.write [ channel.code, "ID-#{index}", "EST-#{index}", Date.current.strftime("%d/%m/%Y"), Money.format(amount * 3 / 10), "contestação", *(SourceSystem::DEFAULT_NAME if erp) ].join(";") + "\n"
       end
     end
     reversal = measure.call("envio do arquivo de #{reversal_count} estornos") { service.start(tenant: tenant, user: user, file: reversals_path, mode: :incremental, kind: "reversals") }
@@ -950,10 +968,11 @@ namespace :crm do
     measure.call("carteira de #{count} títulos e #{count} instrumentos Pix ativos (lote)") do
       Customer.insert_all!((0...count).map { |i| { tenant_id: tenant.id, document: FakeData.cpf(i), name: FakeData.name(i) } })
       customers = Customer.where(tenant_id: tenant.id).pluck(:document, :id).to_h
-      Contract.insert_all!((0...count).map { |i| { tenant_id: tenant.id, code: "CT-#{i}" } })
+      system_id = MeasureData.system_id(tenant.id)
+      Contract.insert_all!((0...count).map { |i| { tenant_id: tenant.id, source_system_id: system_id, code: "CT-#{i}" } })
       contracts = Contract.where(tenant_id: tenant.id).pluck(:code, :id).to_h
       ContractCustomer.insert_all!((0...count).map { |i| { contract_id: contracts["CT-#{i}"], customer_id: customers[FakeData.cpf(i)] } })
-      Bill.insert_all!((0...count).map { |i| { tenant_id: tenant.id, contract_id: contracts["CT-#{i}"], customer_id: customers[FakeData.cpf(i)], number: "NF-#{i}", due_date: Date.current - 30, amount_cents: 50_000, status: "active" } })
+      Bill.insert_all!((0...count).map { |i| { tenant_id: tenant.id, source_system_id: system_id, contract_id: contracts["CT-#{i}"], customer_id: customers[FakeData.cpf(i)], number: "NF-#{i}", due_date: Date.current - 30, amount_cents: 50_000, status: "active" } })
       bills = Bill.where(tenant_id: tenant.id).pluck(:number, :id).to_h
       PaymentInstrument.insert_all!((0...count).map do |i|
         { tenant_id: tenant.id, account_id: account.id, provider: "fake", customer_id: customers[FakeData.cpf(i)], kind: "pix", state: "active", amount_cents: 50_000, due_on: Date.current + 5,

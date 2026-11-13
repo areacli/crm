@@ -1,0 +1,30 @@
+<% content_for :title, "Simular acordo · #{@customer.name}" %>
+<%# 17, R420: um acordo só reúne títulos de um mesmo sistema. O cliente tem títulos que podem entrar em mais de um: a tela pergunta o sistema antes da
+    simulação (SI3), com quantos títulos e quanto de saldo há em cada um. %>
+<% totals = @choice.totals(@bills) %>
+<%= pagina "Simular acordo", subtitulo: "#{@customer.name} · #{@customer.tenant.name}" %>
+<div data-titulo="Simular acordo · <%= @customer.name %>">
+  <section class="cartao" aria-labelledby="sistema-do-acordo">
+    <header><h2 id="sistema-do-acordo">De qual sistema são os títulos do acordo?</h2><%= informacao "sistema do acordo", "Um acordo só reúne títulos de um mesmo sistema do credor. Para negociar títulos de dois sistemas, faça um acordo em cada um.", "definicao-sistema-do-acordo" %></header>
+    <div>
+      <p>Este cliente tem títulos em cobrança em mais de um sistema. Escolha o sistema para ver os títulos dele e simular.</p>
+      <div class="tabela" tabindex="0">
+        <table>
+          <caption class="apenas-leitor-de-tela">Sistemas com títulos em cobrança do cliente</caption>
+          <thead><tr><th scope="col">Sistema</th><th scope="col" data-numerico>Títulos em cobrança</th><th scope="col" data-numerico>Saldo</th><th scope="col"><span class="apenas-leitor-de-tela">Ação</span></th></tr></thead>
+          <tbody>
+            <% @choice.systems.each do |system| %>
+              <% count, cents = totals.fetch(system.id, [ 0, 0 ]) %>
+              <tr>
+                <th scope="row"><%= system.name %></th>
+                <td data-numerico><%= number_br(count) %></td>
+                <td data-numerico><%= money(cents) %></td>
+                <td><%= link_to "Simular", new_customer_agreement_simulation_path(@customer, sistema: system.id), class: "botao", data: { variant: "secondary" }, "aria-label": "Simular acordo com os títulos do #{system.name}" %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</div>

@@ -7,6 +7,8 @@ class Import < ApplicationRecord
 
   belongs_to :user, optional: true
   belongs_to :confirmed_by, class_name: "User", optional: true
+  # O sistema da carga de carteira (17, R400); pagamentos e estornos não têm, porque o sistema vem em cada linha (R416).
+  belongs_to :source_system, optional: true
   has_many :rejections, class_name: "ImportRejection", dependent: :delete_all
   has_many :warnings, class_name: "ImportWarning", dependent: :delete_all
 
@@ -22,6 +24,8 @@ class Import < ApplicationRecord
   scope :in_progress, -> { where(status: IN_PROGRESS) }
   scope :recent, -> { order(id: :desc) }
 
+  # Enquanto o envio não escolhe o sistema, a carteira entra pelo sistema padrão do credor.
+  before_validation(on: :create) { self.source_system ||= SourceSystem.default_of(tenant_id) if portfolio? && tenant_id }
   after_commit :announce_change, on: %i[create update]
 
   # Caminho do arquivo guardado (relativo a storage/), enquanto a importação o precisa.

@@ -57,6 +57,8 @@ module Operations
         OR (bills.contract_id IN (#{OP_CONTRACTS} AND mode = 'overdue') AND bills.due_date < crm_cutoff(bills.tenant_id))
       SQL
       "customer_contacts" => "customer_contacts.customer_id IN (#{OP_CUSTOMERS})",
+      # Identidade remota do cliente (17, R407): acompanha o cliente.
+      "customer_identities" => "customer_identities.customer_id IN (#{OP_CUSTOMERS})",
       "contact_attempts" => <<~SQL.squish,
         contact_attempts.customer_id IN (#{OP_CUSTOMERS})
         AND (contact_attempts.contract_id IS NULL OR contact_attempts.contract_id IN (#{OP_CONTRACTS}))

@@ -10,7 +10,7 @@ class ActionGlossaryTest < ActiveSupport::TestCase
   VERBS = %w[
     Abrir Alocar Anonimizar Anular Aprovar Ativar Baixar Buscar Calcular Cancelar Concluir Conferir Confirmar Continuar Credenciar Criar Decidir
     Desativar Descartar Desfazer Desistir Desmarcar Devolver Distribuir Duplicar Editar Emitir Entrar Enviar Estornar Excluir Exportar Filtrar Gerar Importar Incluir
-    Liberar Marcar Mostrar Esconder Mover Próximo Quebrar Reativar Recolher Recusar Redefinir Reemitir Registrar Reter Reverter Sair Salvar Simular Testar Transferir Tratar Trocar Usar Ver Voltar
+    Liberar Marcar Mostrar Esconder Mover Pausar Próximo Quebrar Reativar Recolher Recusar Redefinir Reemitir Registrar Reter Reverter Sair Salvar Simular Testar Transferir Tratar Trocar Usar Ver Voltar
   ].freeze
   RETIRED = %w[Mudar Alterar Apagar Tirar Novo Nova Cadastrar Subir Descer Remover Acrescentar Corrigir Dar].freeze
   # A página do design system mostra as variantes de botão pelo nome (Primário, Secundário...).

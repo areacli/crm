@@ -9,6 +9,8 @@ class Tenant < ApplicationRecord
   has_many :contact_results, dependent: :destroy
   has_many :tiers, dependent: :destroy
   has_many :segments, dependent: :destroy
+  # Sistemas do credor (17, R396). Apagados sem callback junto com o credor: a recusa de excluir o CRM e o Planilha vale para a tela, não para o fim do credor.
+  has_many :source_systems, dependent: :delete_all
 
   REGISTRY_FIELDS = %i[cnpj legal_name trade_name street number complement district city state zip email phone].freeze
   ADDRESS_FIELDS = %i[street number complement district city state zip].freeze
@@ -21,8 +23,8 @@ class Tenant < ApplicationRecord
   before_validation :normalize_registry
   before_save :compute_contact_keys
 
-  # Cria o credor com a configuração inicial, os perfis Gestor (todas as permissões) e Operador (MT-21) e a lista inicial de resultados de
-  # acionamento (R68). Com CNPJ, o cadastro (R106) é validado: CNPJ inválido ou já usado por outro credor recusa a criação.
+  # Cria o credor com a configuração inicial, os perfis Gestor (todas as permissões) e Operador (MT-21), a lista inicial de resultados de
+  # acionamento (R68) e os sistemas CRM e Planilha (17, R396). Com CNPJ, o cadastro (R106) é validado: CNPJ inválido ou já usado por outro credor recusa a criação.
   def self.provision!(name, cnpj: nil, legal_name: nil)
     transaction do
       new(name: name, cnpj: cnpj.presence, legal_name: legal_name.presence).tap do |tenant|
@@ -32,6 +34,7 @@ class Tenant < ApplicationRecord
         tenant.profiles.create!(name: "Operador", permissions: Permission::OPERATOR)
         Contacts::InitialResults.create_for(tenant)
         Tier.create_catch_all!(tenant)
+        SourceSystem.create_defaults!(tenant)
       end
     end
   end

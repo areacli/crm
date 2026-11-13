@@ -30,7 +30,7 @@ class ProfilesControllerTest < ActionDispatch::IntegrationTest
     assert_select "tbody tr", 2
     assert_select "th", text: "Credor", count: 0
     assert_select "tbody tr", text: /Operador.*3/m
-    assert_select "tbody tr", text: /Gestor.*21 de 21.*1/m
+    assert_select "tbody tr", text: /Gestor.*22 de 22.*1/m
   end
 
   test "quem gerencia perfis em dois credores vê os dois, com a coluna Credor (MT-6)" do
@@ -60,13 +60,14 @@ class ProfilesControllerTest < ActionDispatch::IntegrationTest
     assert_equal [ @beta.id ], AccessEvent.where(event: "access_denied", user: users(:joana)).pluck(:tenant_id).uniq
   end
 
-  test "R30: o formulário traz as 21 permissões (16, as 3 da especificação 14, a da 15 e a da 16)" do
+  test "R30: o formulário traz as 22 permissões (16, as 3 da especificação 14, a da 15, a da 16 e a da 17)" do
     sign_in_as users(:joana)
 
     get new_profile_url, headers: TRECHO
 
-    assert_select "input[type=checkbox][name='profile[permissions][]']", 21
+    assert_select "input[type=checkbox][name='profile[permissions][]']", 22
     assert_select "label", text: /10\. Gerenciar usuários/
+    assert_select "label", text: /23\. Configurar integração/
   end
 
   test "cria o perfil Analista de carga e o atribui; o usuário vê Importar, mas não Configuração nem Usuários" do

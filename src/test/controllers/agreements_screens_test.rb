@@ -491,4 +491,46 @@ class AgreementsScreensTest < ActionDispatch::IntegrationTest
     get agreements_path, headers: TRECHO
     assert_select "form.filtros[action='#{agreements_path}']"
   end
+
+
+  test "17, R420: com títulos em mais de um sistema a tela pergunta o sistema antes, mostra só os dele e recusa a mistura" do
+    sap = SourceSystem.create!(tenant: @alfa, name: "SAP", key_kind: "natural")
+    contract = Contract.create!(tenant: @alfa, source_system: sap, code: "K-5")
+    ContractCustomer.create!(contract: contract, customer: @customer)
+    nf3 = Bill.create!(tenant: @alfa, contract: contract, customer: @customer, number: "NF-3", due_date: Date.new(2026, 9, 15), amount_cents: 30_000, status: :active)
+    entrar(users(:carlos))
+
+    get new_customer_agreement_simulation_path(@customer), headers: TRECHO
+    assert_response :success
+    assert_select "h2", text: /De qual sistema são os títulos do acordo\?/
+    assert_select "tbody tr", 2
+    assert_select "tbody tr", text: /Planilha\s+2\s+R\$ 1\.500,00/
+    assert_select "tbody tr", text: /SAP\s+1\s+R\$ 300,00/
+    assert_select "a[href='#{new_customer_agreement_simulation_path(@customer, sistema: sap.id)}']", text: "Simular"
+    assert_select "input[name='agreement[bill_ids][]']", count: 0
+
+    # Escolhido o sistema, a tela é a de sempre, só com os títulos dele, e a troca volta à pergunta.
+    get new_customer_agreement_simulation_path(@customer, sistema: sap.id), headers: TRECHO
+    assert_select "input[type=checkbox][name='agreement[bill_ids][]']", 1
+    assert_select "input[type=checkbox][name='agreement[bill_ids][]'][value='#{nf3.id}'][checked]"
+    assert_select "input[type=hidden][name=sistema][value='#{sap.id}']"
+    assert_select "a[href='#{new_customer_agreement_simulation_path(@customer)}']", text: "Trocar de sistema"
+
+    # A mistura é recusada com os nomes dos sistemas, na simulação e na gravação, e a tela volta no sistema em que estava.
+    message = I18n.t("agreements.refused.mixed_systems", systems: "Planilha e SAP")
+    mixed = form(bill_ids: [ @nf1.id, nf3.id ])
+    post customer_agreement_simulations_path(@customer), params: { sistema: sap.id, agreement: mixed }, headers: htmx
+    assert_select "#simulacao aside", text: /#{Regexp.escape(message)}/
+    post customer_agreements_path(@customer), params: { sistema: sap.id, agreement: mixed }
+    assert_response :unprocessable_content
+    assert_includes response.body, message
+    assert_select "input[type=checkbox][name='agreement[bill_ids][]']", 1
+    assert_equal 0, Agreement.count
+
+    # Com títulos que podem entrar num sistema só, nada muda: a simulação abre direto.
+    nf3.update_columns(paid_cents: 30_000)
+    get new_customer_agreement_simulation_path(@customer), headers: TRECHO
+    assert_select "input[type=checkbox][name='agreement[bill_ids][]']", 2
+    assert_select "a", text: "Trocar de sistema", count: 0
+  end
 end

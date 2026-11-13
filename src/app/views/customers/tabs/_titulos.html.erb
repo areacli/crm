@@ -2,6 +2,8 @@
     (padrões de interface, revisão 27): os selos dizem o que prende o título, e o número leva à página dele, com os componentes, a origem e a memória de cálculo. %>
 <%# A coluna "Contrato" só aparece quando informa algo: mais de um contrato e nenhum escolhido (padrões de interface, revisão 21). %>
 <% show_contract = @all_contracts.size > 1 && !@contract %>
+<%# 17, R422: com mais de um sistema além do CRM no credor, o sistema pai do título (o título de acordo é do CRM, R406); o id dele no sistema fica na página do título. %>
+<% systems = system_names(@customer.tenant_id) %>
 <section class="cartao" aria-labelledby="titulos">
   <header><h2 id="titulos">Títulos</h2></header>
   <% if @bills.empty? %>
@@ -12,7 +14,7 @@
         <caption class="apenas-leitor-de-tela">Títulos do cliente</caption>
         <thead>
           <tr>
-            <th scope="col">Número</th><% if show_contract %><th scope="col">Contrato</th><% end %><th scope="col">Vencimento</th>
+            <th scope="col">Número</th><% if show_contract %><th scope="col">Contrato</th><% end %><% if systems %><th scope="col">Sistema</th><% end %><th scope="col">Vencimento</th>
             <th scope="col" data-numerico>Valor</th><th scope="col" data-numerico>Pago</th><th scope="col" data-numerico>Saldo</th>
             <th scope="col" data-numerico>Atraso (dias)</th><th scope="col" data-numerico>Atualizado</th><th scope="col">Situação</th><th scope="col"><span class="apenas-leitor-de-tela">Ações</span></th>
           </tr>
@@ -32,6 +34,7 @@
                 <% if discrepancy %><%= situacao "Divergência", tom: :warning %><% end %>
               </th>
               <% if show_contract %><td><%= bill.contract.code.presence || "—" %></td><% end %>
+              <% if systems %><td><%= systems[bill.source_system_id] %></td><% end %>
               <td><%= date_br(bill.due_date) %></td>
               <td data-numerico><%= money(bill.amount_cents) %></td>
               <td data-numerico><%= money(bill.paid_cents) %></td>

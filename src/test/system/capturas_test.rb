@@ -488,8 +488,52 @@ class CapturasTest < ApplicationSystemTestCase
       page.execute_script("jQuery.ajax({ url: arguments[0], method: 'POST', headers: { 'X-CRM-Trecho': '1' } }).always((_d, _s, xhr) => { const e = JSON.parse((xhr.getResponseHeader ? xhr.getResponseHeader('X-CRM-Evento') : null) || '{}'); if (e.navegar) import('spa/abas').then((a) => a.abrir(e.navegar)) })", next_delivery_path)
       assert_text "Da fila", wait: 10
       :current
+    },
+    # Incremento 17 (sistemas e identidade): o credor com um segundo sistema, de id próprio; o envio que pergunta o sistema, as mudanças a confirmar da
+    # conferência, a ficha que diz de que sistema é cada contrato e a simulação de acordo que pergunta o sistema.
+    "sistemas" => -> { prepare_systems && source_systems_path },
+    "novo-sistema-no-dialogo" => lambda {
+      na_casca source_systems_path
+      find(".aba-raiz .cabecalho-da-pagina .botao", text: "Criar sistema").click
+      assert_selector ".dialogo-conteudo form.dialogo"
+      sleep 0.5
+      :current
+    },
+    "ficha-com-sistemas" => -> { customer_path(@system_customer) },
+    "simulacao-pergunta-o-sistema" => -> { new_customer_agreement_simulation_path(@system_customer) },
+    "mudancas-a-confirmar" => -> { import_path(@held_import) },
+    "envio-com-sistema" => lambda {
+      Import.where(tenant: @tenant, status: %w[received checking checked confirming]).update_all(status: "discarded")
+      na_casca new_import_path
+      escolher "Sistema", "ERP Acadêmico"
+      :current
     }
   }.freeze
+
+  # Sistemas (17) para as fotos: o "ERP Acadêmico", de id próprio, com a carteira de dois clientes que o Planilha já tinha (um cliente só, duas identidades) e
+  # uma segunda carga, só conferida, em que um título troca de devedor (a mudança a confirmar).
+  def prepare_systems
+    trocar_de_usuario users(:joana)
+    Import.where(tenant: @tenant, status: %w[received checking checked confirming]).update_all(status: "discarded")
+    erp = SourceSystems::Manager.new(users(:joana)).create(tenant: @tenant, name: "ERP Acadêmico", key_kind: "own_id")
+    @system_customer, other = Customer.where(tenant: @tenant).order(:id).offset(10).limit(2).to_a
+    header = CsvHelper::HEADER + %w[id_titulo id_contrato id_cliente]
+    line = lambda do |customer, number, id_cliente, due|
+      csv_line("documento" => Document.format(customer.document), "nome" => customer.name, "telefone" => "", "email" => "", "contrato" => "CL-0000#{number[0]}", "titulo" => "CL-#{number}",
+               "vencimento" => due.strftime("%d/%m/%Y"), "valor" => "480,00", "descricao" => "Curso livre", "id_titulo" => "LAN-#{number}", "id_contrato" => "MAT-#{number[0]}", "id_cliente" => id_cliente)
+    end
+    service = Portfolio::ImportService.new
+    load = lambda do |lines|
+      import = service.start(tenant: @tenant, user: users(:joana), file: write_csv(lines, header: header), mode: :incremental, original_name: "carteira-erp-academico.csv", source_system: erp)
+      perform_enqueued_jobs(only: CheckImportJob)
+      import.reload
+    end
+    first = [ line.call(@system_customer, "1/1", "ALU-1001", Date.current - 75), line.call(@system_customer, "1/2", "ALU-1001", Date.current - 45), line.call(other, "2/1", "ALU-1002", Date.current - 60) ]
+    service.confirm(load.call(first))
+    2.times { perform_enqueued_jobs(only: ConfirmImportJob) }
+    @held_import = load.call([ first.first, first.second, line.call(@system_customer, "2/1", "ALU-1001", Date.current - 60) ])
+    true
+  end
 
   # Filas (15) para as fotos: "Promessa ou acordo em dia" sem fila, o callback e o atraso, o grupo da manhã e uma entrega aberta.
   def prepare_queues

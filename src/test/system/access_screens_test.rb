@@ -37,8 +37,8 @@ class AccessScreensSystemTest < ApplicationSystemTestCase
     assert_selector ".aba-raiz h1", text: "Perfis", wait: 10
     find(".aba-raiz .cabecalho-da-pagina .botao", text: "Criar perfil").click
     assert_selector ".aba-raiz h1", text: "Novo perfil", wait: 10
-    # 21 permissões, em quatro grupos, e a marca "disponível para operações" (14, R310).
-    assert_selector ".aba-raiz input[type=checkbox]", count: 22
+    # 22 permissões, em quatro grupos, e a marca "disponível para operações" (14, R310).
+    assert_selector ".aba-raiz input[type=checkbox]", count: 23
     assert_selector ".aba-raiz .grupos-de-permissoes legend", count: 4
   end
 

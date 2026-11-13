@@ -84,6 +84,9 @@ pt-BR:
         cidade: "Cidade do endereço"
         uf: "Sigla de um dos 27 estados"
         cep: "8 dígitos, com ou sem hífen"
+        id_titulo: "Id do título no sistema, até 100 caracteres; obrigatório em sistema de id próprio e ignorado em chave natural"
+        id_contrato: "Id do contrato no sistema, até 100 caracteres; obrigatório em sistema de id próprio e ignorado em chave natural"
+        id_cliente: "Id do cliente no sistema, até 100 caracteres; opcional"
   payments:
     sheet:
       payments:
@@ -95,6 +98,9 @@ pt-BR:
         valor: "Reais, com vírgula nos centavos, maior que zero"
         meio: "pix, pix recorrente, boleto, cartão de crédito, cartão de débito, transferência, dinheiro ou outro"
         estado_final: "Opcional: quitado dá o título por pago, com a diferença como abatimento do credor; parcial é só informativo"
+        titulo_ou_id: "Número do título pago; pode ficar vazio na linha que traz id_titulo"
+        sistema: "Nome do sistema de onde o pagamento vem; obrigatório no credor com mais de um sistema, menos na linha com número de promessa (PRM-) ou de acordo (ACD-)"
+        id_titulo: "Id do título no sistema, até 100 caracteres; vale em sistema de id próprio e é ignorado em chave natural"
       reversals:
         metodo_recebimento: "Código de um método de recebimento cadastrado (pode estar desativado)"
         identificador_pagamento: "Identificador do pagamento estornado, no método de recebimento"
@@ -102,6 +108,7 @@ pt-BR:
         data_estorno: "Data dd/mm/aaaa, não futura nem anterior ao pagamento"
         valor: "Reais, com vírgula nos centavos; até o que falta estornar"
         motivo: "Texto, até 300 caracteres"
+        sistema: "Nome do sistema do pagamento estornado; obrigatório no credor com mais de um sistema, menos no estorno de pagamento de promessa, de acordo ou de instrumento emitido pelo CRM"
     abatement_kinds:
       creditor: "do credor (estado final quitado)"
       tolerance: "por tolerância de valor"
@@ -287,6 +294,7 @@ pt-BR:
       create:
         done: "R$ %{amount} transferidos para o contrato %{to}."
         destination_not_found: "Contrato de destino não encontrado neste credor."
+        destination_ambiguous: "Há mais de um contrato com o código %{code} neste credor. Escolha o de destino."
   customer_contacts:
     create:
       done: "Contato criado."
@@ -471,6 +479,7 @@ pt-BR:
     view_operation_trail: "Ver a trilha das operações"
     manage_queues: "Gerenciar fila"
     issue_payment_instruments: "Emitir instrumentos de pagamento"
+    configure_integration: "Configurar integração"
   activerecord:
     models:
       tenant: "Credor"

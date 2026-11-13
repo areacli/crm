@@ -5,15 +5,16 @@ module Customers
     before_action :set_customer
 
     def new
-      @bills = open_bills
-      @held = held_by_bill
+      load_bills
+      # 17, R420: com títulos que podem entrar em mais de um sistema, a tela pergunta o sistema antes.
+      return render(:system) if @choice.pending?
+
       @form = first_load
     end
 
     def create
       @form = params.fetch(:agreement, {}).permit(:mode, :down_payment, :down_payment_auto, :down_payment_on, :installments, :day, :replace, :credit, bill_ids: [], discounts: Agreements::Caps::COMPONENTS).to_h.with_indifferent_access
-      @bills = open_bills
-      @held = held_by_bill
+      load_bills
       begin
         input = Agreements::FormParams.input(@form)
         @quote = Agreements::Simulation.new(user: Current.user, customer: @customer, input: input).call
@@ -48,6 +49,15 @@ module Customers
         @problem = error.message
         @field = error.field
         form
+      end
+
+      # Os títulos da tela, o que prende cada um e, com mais de um sistema, só os do sistema escolhido (17, R420).
+      def load_bills
+        @bills = open_bills
+        @held = held_by_bill
+        blocked = @ineligible.keys + @held.reject { |_id, agreement| agreement.proposal? }.keys
+        @choice = Agreements::SystemChoice.new(@bills, blocked, params[:sistema])
+        @bills = @choice.filter(@bills)
       end
 
       # Os títulos em cobrança: os comuns, os de estorno e os de acordo (R250); o que o acordo de origem não deixa renegociar aparece desabilitado, com o motivo.

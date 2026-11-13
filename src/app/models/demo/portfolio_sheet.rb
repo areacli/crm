@@ -3,8 +3,11 @@ module Demo
   # visitante (alguns clientes que já existem, idênticos, e outros novos). Cada cliente tem de 1 a 4 títulos desde 2020, em todas as faixas
   # de atraso e a vencer, contratos próprios, alguns compartilhados com responsável financeiro, contatos e acréscimos já aplicados pelo credor.
   module PortfolioSheet
-    HEADER = (Portfolio::CsvFile::REQUIRED + Portfolio::CsvFile::OPTIONAL).freeze
+    HEADER = (Portfolio::Layout::REQUIRED + Portfolio::Layout::OPTIONAL).freeze
     FIRST_DUE = Date.new(2020, 1, 1)
+    # A carteira do sistema de id próprio da demonstração (17): as mesmas colunas e os ids do sistema em cada linha.
+    REMOTE_HEADER = (HEADER + Portfolio::Layout::ID_COLUMNS).freeze
+    REMOTE_PRODUCT = "Curso livre".freeze
 
     module_function
 
@@ -12,6 +15,14 @@ module Demo
       File.open(path, "wb") do |file|
         file.write "#{HEADER.join(';')}\r\n"
         range.each { |seed| lines(seed, today).each { |cells| file.write "#{cells.join(';')}\r\n" } }
+      end
+      path
+    end
+
+    def write_remote(path, seeds, today: Date.current)
+      File.open(path, "wb") do |file|
+        file.write "#{REMOTE_HEADER.join(';')}\r\n"
+        seeds.each { |seed| remote_lines(seed, today).each { |cells| file.write "#{cells.join(';')}\r\n" } }
       end
       path
     end
@@ -54,6 +65,23 @@ module Demo
         contacts(cells, seed) if k == 1
         surcharges(cells, cents, due, today, seed, k)
         HEADER.map { |column| cells[column].to_s }
+      end
+    end
+
+    # O cliente no sistema de id próprio: um contrato de curso livre com 1 ou 2 títulos, cada registro com o id que o sistema lhe dá (aluno, matrícula
+    # e lançamento). O documento, o nome e os contatos são os mesmos da planilha de sempre: quem já está na carteira é reconhecido pelo documento.
+    def remote_lines(seed, today)
+      count = 1 + People.pick(seed, 110) % 2
+      (1..count).map do |k|
+        due = [ today - overdue_days(seed, 100 + k, today), FIRST_DUE ].max
+        cents = 9_000 + People.pick(seed, 140 + k) % 90_000
+        cells = {
+          "documento" => Document.format(People.document(seed)), "nome" => People.name(seed), "titulo" => "CL-#{seed}/#{k}", "vencimento" => due.strftime("%d/%m/%Y"),
+          "valor" => Money.format(cents), "contrato" => "CL-#{seed.to_s.rjust(7, '0')}", "descricao" => "#{REMOTE_PRODUCT} de #{I18n.l(due, format: '%m/%Y')}",
+          "produto" => REMOTE_PRODUCT, "id_titulo" => "LAN-#{seed}-#{k}", "id_contrato" => "MAT-#{seed}", "id_cliente" => "ALU-#{seed}"
+        }
+        contacts(cells, seed) if k == 1
+        REMOTE_HEADER.map { |column| cells[column].to_s }
       end
     end
 

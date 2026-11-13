@@ -117,7 +117,7 @@ module Payments
                 touched_bills[bill_id] = true
                 touched_bill_ids << bill_id
                 effects.note_reopened(bill_id, bill_meta[bill_id][:agreement_id], Date.iso8601(row["reversed_on"].to_s)) if agreement_bill?(bill_id, bill_meta)
-                changes << { subject_type: "bill", subject_id: bill_id, event: "payment_reversed", after: bill[:paid].to_s }
+                changes << { subject_type: "bill", subject_id: bill_id, payment_id: payment_id, event: "payment_reversed", after: bill[:paid].to_s }
                 ((promise_undo[promise_id] ||= {})[bill_id] ||= Hash.new(0))[component] += cents if promise_id.positive? && row["promise_counted"] == true || row["promise_counted"] == "t"
               end
             end
@@ -156,7 +156,7 @@ module Payments
                 summary[:reopened] += 1
               end
               touched_bills[bill_id] = true
-              changes << { subject_type: "bill", subject_id: bill_id, event: "payment_reversed", after: bill[:paid].to_s }
+              changes << { subject_type: "bill", subject_id: bill_id, payment_id: payment_id, event: "payment_reversed", after: bill[:paid].to_s }
               effects.note_reopened(bill_id, row["bill_agreement_id"]&.to_i, Date.iso8601(row["reversed_on"].to_s)) if agreement_title
             end
           end
@@ -350,7 +350,12 @@ module Payments
         DetailLines.insert!(Abatement, abatement_rows.map do |payment_id, bill_id, kind, component, cents|
           Abatement.new(tenant: tenant, payment: payment_of.fetch(payment_id), bill: bill_of.fetch(bill_id), kind: kind, component: component, amount_cents: cents)
         end)
-        Change.record_many!(changes.map { |row| [ bill_of.fetch(row[:subject_id]), row[:event], { after: row[:after] } ] }, tenant_id: import.tenant_id, actor: import.user, import: import)
+        # 17, R423: o estorno é do sistema do pagamento estornado (R418); o do pagamento do CRM fica sem sistema no histórico.
+        crm_id = SourceSystem.crm_of(tenant.id).id if changes.any?
+        Change.record_many!(changes.map do |row|
+          system_id = payment_of.fetch(row[:payment_id]).source_system_id
+          [ bill_of.fetch(row[:subject_id]), row[:event], { after: row[:after], source_system_id: (system_id unless system_id == crm_id) } ]
+        end, tenant_id: import.tenant_id, actor: import.user, import: import)
 
         payments.each { |id, row| payment_of.fetch(id).update!(reversed_cents: row[:reversed], credit_reversed_cents: row[:credit_reversed], status: row[:status]) }
         bills.each { |id, row| bill_of.fetch(id).update!(paid_cents: row[:paid], status: row[:status], paid_on: row[:paid_on]) }

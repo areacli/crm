@@ -109,6 +109,13 @@ module Agreements
         bills = Bill.where(id: ids, tenant_id: @tenant.id, customer_id: @customer.id).includes(:contract, :agreement).order(:due_date, :id).to_a
         raise Refused.new(I18n.t("agreements.refused.bill_unknown"), field: "bill_ids") if bills.size != ids.size
 
+        # 17, R420: um acordo só reúne títulos de um mesmo sistema, o do contrato de cada título (R406). A mistura é recusada, não filtrada em silêncio.
+        system_ids = bills.map { |bill| bill.contract.source_system_id }.uniq
+        if system_ids.size > 1
+          names = SourceSystem.where(id: system_ids).pluck(:name).sort_by(&:downcase).to_sentence
+          raise Refused.new(I18n.t("agreements.refused.mixed_systems", systems: names), field: "bill_ids")
+        end
+
         bills.each do |bill|
           raise Refused.new(I18n.t("agreements.refused.bill_not_open", number: bill.number), field: "bill_ids") unless bill.active? && bill.balance_cents.positive?
           # R250: o título de acordo entra se o acordo dele permite (quebrado, encerrado ou, pela política, ativo); o de estorno é comum.

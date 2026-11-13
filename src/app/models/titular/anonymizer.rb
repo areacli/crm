@@ -70,6 +70,10 @@ module Titular
       scrub_history(targets)
       scrub_trail(t)
       Sql.execute("delete from customer_contacts where customer_id in #{targets}")
+      # 17, R426: os ids do cliente nos sistemas do credor saem com o cadastro; as ligações com os contratos ficam, sem a identidade usada. O histórico
+      # das identidades fica como está: guarda só os ids dos clientes (R409a), nunca o id remoto, o nome ou o documento.
+      Sql.execute("update contract_customers set customer_identity_id = null where customer_identity_id in (select id from customer_identities where customer_id in #{targets})")
+      Sql.execute("delete from customer_identities where customer_id in #{targets}")
       # 12: o instrumento de pagamento guarda nome, documento e endereço do pagador no momento da emissão; saem junto com o cadastro.
       Sql.execute("update payment_instruments set payer_name = tg.new_name, payer_document = tg.new_document, payer_address = '{}'::jsonb from anon_targets tg where payment_instruments.customer_id = tg.customer_id")
       # 12, parte C: o link de checkout também guarda uma cópia do pagador (e e-mail e telefone); saem junto, e o link deixa de abrir (cancelado).

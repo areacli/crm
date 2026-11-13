@@ -5,6 +5,8 @@ class Change < ApplicationRecord
 
   belongs_to :user, optional: true
   belongs_to :import, optional: true
+  # O sistema da carga de onde a mudança veio (17, R423).
+  belongs_to :source_system, optional: true
 
   # Caminho único de auditoria (decisão 0021): telas, serviços e lotes de importação registram a mudança pelo mesmo método. `subject` é o registro
   # alterado (o tipo vem do nome do modelo) e `actor` quem fez a mudança; `import` marca a carga de onde a mudança veio. Quem não tem o registro à mão
@@ -23,8 +25,9 @@ class Change < ApplicationRecord
   end
 
   def self.entry(subject, event, tenant_id:, actor:, import:, **fields)
-    { tenant_id: tenant_id || subject.try(:tenant_id), user_id: actor&.id, import_id: import&.id, subject_type: subject&.class&.name&.underscore,
-      subject_id: subject&.id, event: event, field: nil, before: nil, after: nil, note: nil, origin: nil }.merge(fields)
+    # A mudança que vem de uma carga guarda o sistema da carga (17, R423).
+    { tenant_id: tenant_id || subject.try(:tenant_id), user_id: actor&.id, import_id: import&.id, source_system_id: import&.source_system_id,
+      subject_type: subject&.class&.name&.underscore, subject_id: subject&.id, event: event, field: nil, before: nil, after: nil, note: nil, origin: nil }.merge(fields)
   end
   private_class_method :entry
 end

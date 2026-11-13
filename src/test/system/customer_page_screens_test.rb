@@ -31,6 +31,19 @@ class CustomerPageScreensSystemTest < ApplicationSystemTestCase
     assert_equal "#/clientes/#{@maria.id}?aba=acionamentos", page.evaluate_script("location.hash")
   end
 
+  test "em janela baixa a coluna central da ficha rola até o fim das abas, sem cortar" do
+    abrir_ficha(@maria)
+    assert_selector ".abas-internas .datagrid-row a"
+    page.driver.resize(1366, 600)
+    regiao = "[...document.querySelectorAll('.ficha-centro')].find((el) => el.offsetParent).parentElement"
+    assert_equal true, page.evaluate_async_script("const pronto = arguments[0]; const r = #{regiao}; const fim = Date.now() + 5000; (function ver() { if (r.scrollHeight > r.clientHeight) pronto(true); else if (Date.now() > fim) pronto(false); else requestAnimationFrame(ver) })()"), "a coluna central não tem o que rolar a 600 px de altura"
+    medidas = page.evaluate_script("(() => { const r = #{regiao}; r.scrollTop = r.scrollHeight; const abas = r.querySelector('.abas-internas').getBoundingClientRect(); return { fim_das_abas: abas.bottom, fim_da_regiao: r.getBoundingClientRect().bottom, sobra_de_lado: r.scrollWidth - r.clientWidth } })()")
+    assert_operator medidas["fim_das_abas"], :<=, medidas["fim_da_regiao"], "as abas seguem cortadas depois de rolar até o fim"
+    assert_equal 0, medidas["sobra_de_lado"]
+  ensure
+    page.driver.resize(1440, 900)
+  end
+
   test "o contrato escolhido recorta a ficha e a coluna Operações mostra quem cobra cada contrato" do
     abrir_ficha(@maria)
     # Revisão 28: o cartão Contratos fica antes das abas e é o filtro; sem contrato escolhido, nenhuma linha marcada.

@@ -20,8 +20,8 @@ class CustomersController < ApplicationController
 
     @segment = Segment.find_by(id: params[:segmento], tenant_id: @settings.keys) if params[:segmento].present?
     bracket = params[:faixa].presence&.to_i
-    @pagination = Pagination.new(query.customers(search: params[:busca], bracket: bracket, segment: params[:segmento], tenant_id: params[:credor], sort: params[:ordem], direction: params[:direcao], promise: FilterValue.from_url(params[:promessa]), unrecognized_city: params[:cidade_nao_reconhecida]),
-                                 page: params[:pagina], per_page: params[:por_pagina])
+    @pagination = Portfolio::CustomerPagination.new(query.customer_list(search: params[:busca], bracket: bracket, segment: params[:segmento], tenant_id: params[:credor], sort: params[:ordem], direction: params[:direcao], promise: FilterValue.from_url(params[:promessa]), unrecognized_city: params[:cidade_nao_reconhecida]),
+                                                    page: params[:pagina], per_page: params[:por_pagina])
     @customers = @pagination.records.includes(:tenant)
     @tier_names = query.tier_names(@customers.map(&:id))
     @updated_totals = query.updated_totals(@customers.map(&:id))
@@ -29,7 +29,9 @@ class CustomersController < ApplicationController
     Operations::Trail.record("search", user: Current.user, query: params[:busca], results: @pagination.total) if params[:busca].present?
 
     # `nota`: o segmento do filtro e a leitura dele (13, R296), acima da grade; `aviso`: o segmento passou do limite de tempo.
-    render json: { total: @pagination.total, rows: @customers.map { |customer| customer_row(customer) }, aviso: (t("segments.errors.too_slow") if @query.segment_too_slow?),
+    # `sem_total`: a grade trocou de página ou de ordem e já sabe o total; quem busca conta sempre, porque o total vai para a trilha acima.
+    total = @pagination.total unless params[:sem_total].present? && params[:busca].blank?
+    render json: { total: total, rows: @customers.map { |customer| customer_row(customer) }, aviso: (t("segments.errors.too_slow") if @query.segment_too_slow?),
                    nota: (@segment && "Segmento #{@segment.name}: #{@segment.text.long_text}") }.compact
   end
 
@@ -121,7 +123,7 @@ class CustomersController < ApplicationController
       @listed_contacts = CustomerContact.listed(@contacts)
       @can_edit_registry = policy(@customer).edit_registry?
       @registry_history = Change.where("(subject_type = 'customer' and subject_id = ? and field = 'name') or (subject_type = 'customer_contact' and subject_id in (?))",
-                                       @customer.id, @contacts.map(&:id).presence || [ 0 ]).includes(:user).order(occurred_at: :desc, id: :desc).limit(50).to_a
+                                       @customer.id, @contacts.map(&:id).presence || [ 0 ]).includes(:user, :source_system).order(occurred_at: :desc, id: :desc).limit(50).to_a
       @contract_members = ContractCustomer.where(contract_id: @all_contracts.map(&:id)).includes(:customer).group_by(&:contract_id)
     end
 

@@ -3,7 +3,7 @@ class BillsController < ApplicationController
   def show
     @bill = Bill.includes(:customer, :contract, :tenant).find(params[:id])
     authorize @bill
-    @history = Portfolio::BillHistory.new(@bill)
+    @history = Portfolio::BillHistory.new(@bill, system_names: SourceSystem.names_if_several(@bill.tenant_id))
     situation
     calculation_memory
   end

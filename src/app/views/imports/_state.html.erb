@@ -9,6 +9,7 @@
         <div><dt>Situação</dt><dd><%= render "imports/status", import: import %></dd></div>
         <div><dt>Arquivo</dt><dd><%= import.original_name %> <small>(<%= number_br(import.size_bytes / 1024) %> KB)</small></dd></div>
         <div><dt>Tipo</dt><dd><%= t("imports.kinds.#{import.kind}") %><% if import.portfolio? %> <small>(<%= t("imports.modes.#{import.mode}").downcase %>)</small><% end %></dd></div>
+        <% if import.portfolio? && import.source_system %><div><dt>Sistema</dt><dd><%= import.source_system.name %></dd></div><% end %>
         <div><dt>Enviada por</dt><dd><%= import.user&.name || "—" %></dd></div>
       </dl>
       <% if import.working? %>
@@ -27,7 +28,7 @@
     <%= aviso(tom: :warning) do %>
       <p>Nada foi gravado até agora. Confirme para gravar ou descarte o arquivo.</p>
       <div class="acoes">
-        <%= confirmar_no_painel "Confirmar", titulo: "Confirmar a importação?", mensagem: t("imports.confirm_message.#{import.kind}") + (import.portfolio? && import.full_sync? ? " Os que não vieram no arquivo saem da cobrança." : ""),
+        <%= confirmar_no_painel "Confirmar", titulo: "Confirmar a importação?", mensagem: import_confirm_message(import, data),
                                 acao: "Confirmar importação", url: import_confirmation_path(import), perigoso: false, variante: nil, tamanho: "small" %>
         <%= confirmar_no_painel "Descartar", titulo: "Descartar a importação?", mensagem: t("imports.discard_message.#{import.kind}"), acao: "Descartar importação", url: import_discard_path(import), tamanho: "small" %>
       </div>

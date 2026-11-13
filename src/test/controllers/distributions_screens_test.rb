@@ -49,4 +49,30 @@ class DistributionsScreensTest < ActionDispatch::IntegrationTest
     get distributions_url, headers: TRECHO
     assert_response :not_found
   end
+
+
+  test "17, R421: código que casa com mais de um contrato lista os encontrados, com sistema e clientes, e a pessoa escolhe" do
+    sap = SourceSystem.create!(tenant: @alfa, name: "SAP", key_kind: "natural")
+    twin = Contract.create!(tenant: @alfa, source_system: sap, code: "C-7")
+    bia = make_customer(@alfa, document: FakeData.cpf(402), name: "Bia Reis", contract_code: "C-8")
+    ContractCustomer.create!(contract: twin, customer: bia)
+    sign_in_as users(:joana)
+    form = { accreditation_id: @accreditation.id, target: "contract", value: "C-7", exposure: "overdue", starts_on: Date.current.iso8601 }
+
+    assert_no_difference -> { Distribution.count } do
+      post distributions_url, params: { distribution: form }, headers: painel
+    end
+    assert_response :unprocessable_content
+    assert_includes response.body, "Há mais de um contrato com o código C-7 neste credor. Escolha um."
+    assert_select "input[type=radio][name='distribution[contract_id]']", 2
+    assert_select "label", text: /C-7 · Planilha · Ana Lima/
+    assert_select "label", text: /C-7 · SAP · Bia Reis/
+
+    post distributions_url, params: { distribution: form.merge(contract_id: twin.id) }, headers: painel
+    assert_equal twin, Distribution.last.contract
+
+    # O escolhido só vale para o código dele: com outro código, quem manda é o código.
+    post distributions_url, params: { distribution: form.merge(value: "C-8", contract_id: twin.id) }, headers: painel
+    assert_equal "C-8", Distribution.last.contract.code
+  end
 end

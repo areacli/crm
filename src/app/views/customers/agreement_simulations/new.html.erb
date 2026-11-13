@@ -3,12 +3,17 @@
     (design system, 7.2); "Criar proposta" grava (R215) e só vale com o cálculo da tela pronto. Na SPA (decisão 0028), aba própria. %>
 <% form = @form || {} %>
 <% segment_hint = "O limite do seu perfil em cada componente aparece junto do campo: acima dele, a proposta nasce pendente de aprovação." %>
-<%= pagina "Simular acordo", subtitulo: "#{@customer.name} · #{@customer.tenant.name}" %>
+<%# 17, R420: com títulos em mais de um sistema, a simulação é a do sistema escolhido, e a troca volta à pergunta. %>
+<% system = @choice&.chosen %>
+<%= pagina("Simular acordo", subtitulo: [ @customer.name, @customer.tenant.name, ("títulos do #{system.name}" if system) ].compact.join(" · ")) do %>
+  <% if system %><%= link_to "Trocar de sistema", new_customer_agreement_simulation_path(@customer), class: "botao", data: { variant: "secondary" } %><% end %>
+<% end %>
 <% if @create_problem %><%= aviso(tom: :danger) { tag.p @create_problem } %><% end %>
 
 <% recalcular = calculo_a_vista(customer_agreement_simulations_path(@customer)) %>
 <div class="simulacao" data-titulo="Simular acordo · <%= @customer.name %>" data-refazer-no-erro>
 <%= form_with scope: :agreement, url: customer_agreements_path(@customer), method: :post, class: "simulacao-formulario", html: recalcular do |f| %>
+  <% if system %><%= hidden_field_tag :sistema, system.id, id: nil %><% end %>
   <section class="cartao" aria-labelledby="titulos-do-acordo">
     <header><h2 id="titulos-do-acordo">Títulos do acordo</h2><%= informacao "títulos do acordo", "De 1 a 100 títulos do cliente em cobrança, vencidos ou a vencer. O acordo parte do valor atualizado de cada um, por componente.", "definicao-titulos-do-acordo" %></header>
     <div>

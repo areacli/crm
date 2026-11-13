@@ -104,7 +104,17 @@ Rails.application.routes.draw do
   resources :imports, path: "importacoes", path_names: { new: "nova" }, only: %i[index new create show] do
     resource :confirmation, path: "confirmacao", only: :create, module: :imports
     resource :discard, path: "descarte", only: :create, module: :imports
+    resource :holds, path: "mudancas", only: %i[create destroy], module: :imports
     get "modelo", on: :collection, to: "imports/templates#show", as: :template
+  end
+
+  # Sistemas do credor (17, R396 a R399) e a política "Cadastro entre sistemas" (R410), que é do credor e não de um sistema: vem antes, para
+  # o endereço não ser lido como o de um sistema.
+  namespace :source_systems, path: "sistemas" do
+    resource :customer_record_policy, path: "cadastro-entre-sistemas", only: :update
+  end
+  resources :source_systems, path: "sistemas", path_names: { new: "novo", edit: "editar" }, except: :show do
+    resource :pause, path: "pausa", only: %i[create destroy], module: :source_systems
   end
 
   # Usuários (vínculos por credor), perfis e avisos do usuário.

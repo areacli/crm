@@ -46,26 +46,30 @@ module Payments
       # Etapa de leitura: valida as linhas e grava a preparação e as recusas em lotes. O cursor é a última linha do arquivo já gravada.
       def read(import, step)
         kind = import.kind
-        file = Portfolio::CsvFile.new(import.file_path.to_s, required: SheetModel.required(kind), optional: SheetModel.optional(kind))
-        validator = import.reversals? ? ReversalRowValidator.new : PaymentRowValidator.new
+        # 17, R416 e R417: as colunas `sistema` e `id_titulo` valem conforme os sistemas do credor, lidos uma vez por arquivo.
+        systems = Systems.new(import.tenant_id)
+        required, optional = SheetModel.reading(kind, systems)
+        file = Ingestion::CsvReader.new(import.file_path.to_s, required: required, optional: optional)
+        decoder = import.reversals? ? ReversalRowDecoder.new : RowDecoder.new
+        validator = import.reversals? ? ReversalRowValidator.new(systems) : PaymentRowValidator.new(systems)
         discard_after(import, step.cursor) if step.resumed?
         staging = Staging.new(import.id)
-        total = [ File.size(import.file_path) / 80, 1 ].max
+        total = file.estimated_total(bytes_per_line: 80)
         lines = 0
         rejected = []
         last = step.cursor
 
-        file.each_row do |csv_row|
+        file.each_record do |raw|
           lines += 1
-          next if csv_row.line <= step.cursor
+          next if raw.position <= step.cursor
 
-          parsed, reason = validator.validate(csv_row)
+          parsed, reason = validator.validate(decoder.decode(raw))
           if parsed
             staging.add(parsed)
           else
-            rejected << { import_id: import.id, line: csv_row.line, reason: reason }
+            rejected << { import_id: import.id, line: raw.position, reason: reason }
           end
-          last = csv_row.line
+          last = raw.position
           next unless staging.full?
 
           save_batch(staging, rejected)
@@ -100,6 +104,8 @@ module Payments
         import.update!(progress_percent: 55, progress_label: "Conferindo canais e repetições")
         reject_unknown_channels(import, reversals)
         reject_repeated(import, reversals)
+        # 17, R418: o pendente reenviado com outro sistema não é "já registrado": a linha aponta o pendente, que troca de sistema na confirmação.
+        Repoint.mark(import) unless reversals
         mark_already_registered(import, reversals)
         reject_reversal_problems(import) if reversals
         import.update!(progress_percent: 70, progress_label: "Ordenando o fluxo")
@@ -177,6 +183,24 @@ module Payments
             where r.import_id = ? and r.ok) x where x.cum > x.reversible
         SQL
         reject(import, over.to_h { |row| [ row["line"].to_i, "valor maior que o saldo estornável de R$ #{Money.format([ row['left_cents'].to_i, 0 ].max)}" ] })
+        reject_other_system(import, "#{found} join payments p on #{match}")
+      end
+
+      # 17, R416: o estorno é do sistema do pagamento que ele estorna. Com mais de um sistema além do CRM, a linha declara o sistema e ele tem de ser o do
+      # pagamento; vazia, só no estorno de pagamento do CRM (promessa, acordo, instrumento pago). Pagamento de sistema pausado não recebe estorno (R398).
+      def reject_other_system(import, found)
+        systems = Systems.new(import.tenant_id)
+        rows = Sql.rows("select r.line, r.source_system_id as declared, p.source_system_id as parent #{found} where r.import_id = ? and r.ok order by r.line", import.tenant_id, import.tenant_id, import.id)
+        reject(import, rows.filter_map do |row|
+          parent = systems.find(row["parent"].to_i)
+          declared = row["declared"]&.to_i
+          reason = if parent.paused? then systems.paused_message(parent)
+          elsif !systems.multiple? then nil
+          elsif declared && declared != parent.id then "o pagamento é de outro sistema: #{parent.name}"
+          elsif declared.nil? && !parent.role_crm? then "sistema obrigatório: o credor tem mais de um sistema"
+          end
+          [ row["line"].to_i, reason ] if reason
+        end.to_h)
       end
 
       # A simulação só lê: o efeito que a confirmação vai gravar, com os mesmos números. O fluxo da simulação fica na memória.
@@ -193,7 +217,9 @@ module Payments
         amount = accepted.sum(:amount_cents)
         summary = { lines: file_data[:lines], valid: accepted.count, rejected: ImportRejection.where(import_id: id, ignored: false).count,
                     ignored: ImportRejection.where(import_id: id, ignored: true).count, blank_lines: file_data[:blank_lines], ignored_columns: file_data[:ignored_columns],
-                    amount_cents: amount, amount_formatted: Money.format(amount), effect: file_data[:effect] }
+                    amount_cents: amount, amount_formatted: Money.format(amount), effect: file_data[:effect],
+                    # 17, R418: linhas que só trocam o sistema de um pagamento pendente (não são pagamento novo nem recusa).
+                    repointed: PaymentRow.where(import_id: id, ok: false).where.not(repoint_payment_id: nil).count }
         import.update!(status: :checked, summary: summary, checked_at: Time.current, progress_percent: 100, progress_label: nil)
       end
 

@@ -3,7 +3,7 @@ require "active_support/testing/time_helpers"
 module Demo
   # Os dados fictícios da demonstração (CRM_DEMO=1) e das capturas de tela. Dois credores: "Escola Alfa", com a carteira grande (10 mil clientes, títulos
   # desde 2020 em todas as faixas de atraso, pagamentos, estornos, acionamentos, promessas nos oito estados, acordos, divergências, instrumentos de
-  # pagamento do fornecedor falso e um link de pagamento), e "Clínica Beta", pequena, para mostrar o isolamento por credor. O gestor público tem um
+  # pagamento do fornecedor falso, um link de pagamento e um segundo sistema, de id próprio, ao lado do Planilha), e "Clínica Beta", pequena, para mostrar o isolamento por credor. O gestor público tem um
   # perfil em cada credor (Gestor demonstração na Alfa, Operador na Beta); o operador público só enxerga a Alfa.
   #
   # Tudo passa pelos mesmos serviços do produto (importação, acionamento, promessa, acordo, anonimização, emissão), com SQL de conjunto onde o volume pede
@@ -17,6 +17,7 @@ module Demo
     include InstrumentSteps
     include OperationSteps
     include QueueSteps
+    include SystemSteps
 
     ALPHA = "Escola Alfa".freeze
     BETA = "Clínica Beta".freeze
@@ -129,6 +130,7 @@ module Demo
         step("  filas") { queues(tenant) }
         step("  direitos do titular") { titular(tenant) }
         step("  instrumentos e link de pagamento") { instruments(tenant) }
+        step("  segundo sistema (#{SystemSteps::NAME})") { second_system(tenant) }
         step("  importação à espera de confirmação") { pending_import(tenant) }
         recalc(tenant)
         tenant
@@ -196,9 +198,10 @@ module Demo
       def with_import_user(tenant) = tenant.memberships.joins(:profile).order(:id).first.user
 
       # Envia, confere e confirma uma carga como a tela faria (as filas ficam de fora).
-      def run_import(tenant, path, kind: "portfolio", mode: :incremental, name: nil, confirm: true, bulk: false)
+      # `system`: o sistema que recebe a carteira (17, R400); sem ele, o Planilha.
+      def run_import(tenant, path, kind: "portfolio", mode: :incremental, name: nil, confirm: true, bulk: false, system: nil)
         service = Portfolio::ImportService.new
-        import = service.start(tenant: tenant, user: with_import_user(tenant), file: path, mode: mode, original_name: name || File.basename(path), kind: kind)
+        import = service.start(tenant: tenant, user: with_import_user(tenant), file: path, mode: mode, original_name: name || File.basename(path), kind: kind, source_system: system)
         import.checker.run(import)
         import.reload
         raise "importação #{kind} recusada: #{import.summary.inspect[0, 300]}" if import.rejected? || import.failed?

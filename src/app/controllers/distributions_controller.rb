@@ -35,10 +35,10 @@ class DistributionsController < ApplicationController
   def create
     @tenants = manageable_tenants
     @accreditations = active_accreditations
-    attributes = params.expect(distribution: %i[accreditation_id target value exposure starts_on ends_on])
+    attributes = params.expect(distribution: %i[accreditation_id target value contract_id exposure starts_on ends_on])
     accreditation = @accreditations.find { |item| item.id == attributes[:accreditation_id].to_i } or return refuse(t("distributions.refused.operation_required"))
     authorize Distribution.new(tenant: accreditation.tenant)
-    target = find_target(accreditation.tenant, attributes[:target], attributes[:value])
+    target = find_target(accreditation.tenant, attributes[:target], attributes[:value], attributes[:contract_id]) or return
     distribution = Distributions::Distributor.new(Current.user).distribute(
       tenant: accreditation.tenant, operation: accreditation.operation, **target, exposure: attributes[:exposure].presence,
       starts_on: date(attributes[:starts_on]) || Date.current, ends_on: date(attributes[:ends_on])
@@ -71,12 +71,16 @@ class DistributionsController < ApplicationController
 
     def active_accreditations = Accreditation.active.where(tenant_id: @tenants.map(&:id)).includes(:operation, :tenant).sort_by { |item| [ item.tenant.name, item.operation.short_name ] }
 
-    # Cliente pelo documento ou contrato pelo código, no credor (R311): "cliente ou contrato é só a forma de escolher".
-    def find_target(tenant, kind, value)
+    # Cliente pelo documento ou contrato pelo código, no credor (R311): "cliente ou contrato é só a forma de escolher". O código que casa com mais de um contrato
+    # (um por sistema; 17, R421) volta à tela com os encontrados, para a pessoa escolher: aí o resultado é `nil` e a resposta já foi dada.
+    def find_target(tenant, kind, value, contract_id = nil)
       raise Distributions::Refused, t("distributions.refused.target_required") if value.blank?
 
       if kind == "contract"
-        contract = Contract.find_by(tenant: tenant, code: value.strip) or raise Distributions::Refused, t("distributions.refused.not_found", value: value)
+        lookup = Contracts::CodeLookup.new(tenant.id, value, contract_id)
+        return choose_contract(lookup, value) if lookup.ambiguous?
+
+        contract = lookup.contract or raise Distributions::Refused, t("distributions.refused.not_found", value: value)
         { contract: contract }
       else
         customer = Customer.find_by(tenant: tenant, document: Document.normalize(value)) or raise Distributions::Refused, t("distributions.refused.not_found", value: value)
@@ -89,5 +93,11 @@ class DistributionsController < ApplicationController
     def refuse(message)
       @error = message
       render :new, status: :unprocessable_content
+    end
+
+    def choose_contract(lookup, value)
+      @candidates = lookup.contracts
+      refuse(t("distributions.refused.ambiguous", value: value.strip))
+      nil
     end
 end

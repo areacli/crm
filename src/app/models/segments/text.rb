@@ -4,10 +4,11 @@ module Segments
   class Text
     Line = Data.define(:address, :short, :long, :depth)
 
-    def initialize(expression, result_names: nil)
+    def initialize(expression, result_names: nil, system_names: nil)
       @expression = expression
       @subject = expression.subject
       @result_names = result_names
+      @system_names = system_names
     end
 
     # Linhas na ordem do texto, com o grupo "qualquer:" e as condições dele recuadas.
@@ -207,7 +208,7 @@ module Segments
         when :money then Text.money(value, full: false)
         when :percent then "#{value}%"
         when :option then option_label(value, field, collection, long: false)
-        when :reference then result_name(value)
+        when :reference then spec[:of] == :system ? system_name(value) : result_name(value)
         when :user then "\"#{user_name(value)}\""
         else value.to_s
         end
@@ -219,7 +220,7 @@ module Segments
         when :percent then "#{value}%"
         when :days then I18n.t("segment_language.values.days", count: value)
         when :option then option_label(value, field, collection, long: true)
-        when :reference then "\"#{result_name(value)}\""
+        when :reference then "\"#{spec[:of] == :system ? system_name(value) : result_name(value)}\""
         when :user then "\"#{user_name(value)}\""
         else value.to_s
         end
@@ -241,6 +242,9 @@ module Segments
         @result_names ||= ContactResult.where(id: result_ids).pluck(:id, :name).to_h
         @result_names[id] || t("unknown_result")
       end
+
+      # 17, R425: o sistema do credor é guardado pelo id, como o resultado.
+      def system_name(id) = (@system_names ||= {})[id] ||= (SourceSystem.find_by(id: id)&.name || t("unknown_system"))
 
       def user_name(id) = (@user_names ||= {})[id] ||= (User.find_by(id: id)&.name || t("unknown_user"))
 

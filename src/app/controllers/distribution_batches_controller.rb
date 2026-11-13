@@ -87,15 +87,20 @@ class DistributionBatchesController < ApplicationController
       batch
     end
 
-    # Planilha CSV com uma coluna só: `documento` (clientes) ou `contrato` (contratos, pelo código).
+    # Planilha CSV com a coluna `documento` (clientes) ou `contrato` (contratos, pelo código). Com `contrato`, a coluna `sistema` é opcional (17, R421): diz de
+    # qual sistema é o contrato quando o código existe em mais de um, e cada linha vira o par `[código, sistema]`.
     def read_file(upload)
       raise Distributions::Refused, t("distribution_batches.file_required") unless upload.respond_to?(:read)
 
       rows = CSV.parse(upload.read.force_encoding("UTF-8").delete_prefix("﻿"), headers: true, col_sep: ";")
-      headers = rows.headers.compact.map { |header| header.to_s.strip.downcase }
-      raise Distributions::Refused, t("distribution_batches.file_columns") unless headers.size == 1 && %w[documento contrato].include?(headers.first)
+      headers = rows.headers.map { |header| header.to_s.strip.downcase }
+      raise Distributions::Refused, t("distribution_batches.file_columns") unless [ %w[documento], %w[contrato], %w[contrato sistema] ].include?(headers.compact_blank.sort)
 
-      [ headers.first == "documento" ? "customer" : "contract", rows.map { |row| row[0].to_s.strip }.compact_blank.uniq ]
+      return [ "customer", rows.map { |row| row[0].to_s.strip }.compact_blank.uniq ] if headers.include?("documento")
+      return [ "contract", rows.map { |row| row[headers.index("contrato")].to_s.strip }.compact_blank.uniq ] unless headers.include?("sistema")
+
+      pairs = rows.map { |row| [ row[headers.index("contrato")].to_s.strip, row[headers.index("sistema")].to_s.squish ] }
+      [ "contract", pairs.reject { |code, _system| code.empty? }.uniq ]
     end
 
     def refuse(message)

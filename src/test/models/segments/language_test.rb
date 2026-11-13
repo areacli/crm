@@ -240,4 +240,47 @@ class SegmentsLanguageTest < ActiveSupport::TestCase
     refute_includes query.sql, "987654"
     assert_equal [ mine.id ], run_query(query).map { |row| row["id"] }
   end
+
+  # Sistemas do credor (17, R425) ---------------------------------------------------------------------------------------------------------------
+
+  test "17, R425 e R406: sistema no contrato e no título; o título vale pelo sistema do contrato, mesmo quando o pai dele é o CRM" do
+    sap = SourceSystem.create!(tenant: @alfa, name: "SAP", key_kind: "own_id")
+    sheet = SourceSystem.default_of(@alfa.id)
+    from_sap = make_contract(@alfa, "C-SAP", bills: [ { overdue: 10 }, { overdue: 5 } ])
+    from_sheet = make_contract(@alfa, "C-PLA", bills: [ { overdue: 10 } ])
+    Contract.where(id: from_sap.id).update_all(source_system_id: sap.id)
+    first, second = from_sap.bills.order(:id).to_a
+    Bill.where(id: first.id).update_all(source_system_id: sap.id)
+    # O título que o CRM criou num contrato do SAP (R406): pai CRM, sistema do contrato SAP.
+    Bill.where(id: second.id).update_all(source_system_id: SourceSystem.crm_of(@alfa.id).id)
+
+    in_sap = { "path" => "system", "op" => "eq", "value" => sap.id }
+    assert_equal [ from_sap.id ], ids(@alfa, expr("contracts", in_sap))
+    assert_includes ids(@alfa, expr("contracts", in_sap.merge("negate" => true))), from_sheet.id
+    assert_includes ids(@alfa, expr("contracts", { "path" => "system", "op" => "in", "value" => [ sap.id, sheet.id ] })), from_sheet.id
+
+    bills_in_sap = { "path" => "bills", "quantifier" => "all", "where" => { "field" => "system", "op" => "eq", "value" => sap.id } }
+    assert_equal [ from_sap.id ], ids(@alfa, expr("contracts", bills_in_sap)), "os dois títulos contam como do SAP"
+    assert_equal [ from_sap.id ], ids(@alfa, expr("contracts", { "path" => "bills", "aggregate" => "count", "op" => "gte", "value" => 1 }, bills_in_sap.merge("quantifier" => "some")))
+    assert_not_includes ids(@alfa, expr("contracts", bills_in_sap.merge("quantifier" => "none"))), from_sap.id
+
+    # Segmento de clientes: pelos títulos e pelos contratos do cliente.
+    owner = from_sap.customers.first.id
+    assert_equal [ owner ], ids(@alfa, expr("customers", bills_in_sap.merge("quantifier" => "some")))
+    assert_equal [ owner ], ids(@alfa, expr("customers", { "path" => "contracts", "quantifier" => "some", "where" => { "field" => "system", "op" => "eq", "value" => sap.id } }))
+    assert_empty ids(@beta, expr("contracts", in_sap)), "o sistema de um credor não seleciona nada em outro"
+  end
+
+  test "17, R425: o texto escreve o sistema pelo nome, e o glossário traz o atributo" do
+    sap = SourceSystem.create!(tenant: @alfa, name: "SAP", key_kind: "own_id")
+    text = Segments::Text.new(expr("contracts", { "path" => "system", "op" => "eq", "value" => sap.id },
+                                   { "path" => "bills", "quantifier" => "some", "where" => { "field" => "system", "op" => "eq", "value" => sap.id } }))
+    assert_match(/^  sistema = SAP$/, text.short_text)
+    assert_match(/sistema = SAP/, text.short_text.lines.last)
+    sap.destroy!
+    assert_match(/sistema removido/, Segments::Text.new(expr("contracts", { "path" => "system", "op" => "eq", "value" => sap.id })).short_text)
+    entry = Segments::Glossary.entries.flat_map(&:entries).find { |item| item.anchor == "contracts-system" }
+    assert_equal [ "sistema", "sistema = Planilha" ], [ entry.term, entry.example ]
+    assert_no_match(/Translation missing/i, Segments::Glossary.entries.flat_map(&:entries).map { |item| [ item.term, item.definition, item.example, item.reading, item.details ].join(" ") }.join)
+  end
 end

@@ -1,13 +1,16 @@
 require "test_helper"
 
 class Portfolio::RowValidatorTest < ActiveSupport::TestCase
-  setup { @validator = Portfolio::RowValidator.new }
+  setup do
+    @decoder = Portfolio::RowDecoder.new
+    @validator = Portfolio::RowValidator.new
+  end
 
   # `validate("valor" => "0,00")`: as chaves de texto chegam como argumentos nomeados, e as de símbolo (extra, short) são as marcas da linha.
   def validate(overrides = {}, **flags)
     overrides = overrides.merge(flags.select { |chave, _| chave.is_a?(String) })
-    row = Portfolio::CsvFile::Row.new(line: 7, values: csv_line(overrides), extra: flags[:extra] || false, short: flags[:short] || false)
-    @validator.validate(row)
+    row = Ingestion::RawRecord.new(position: 7, values: csv_line(overrides), extra: flags[:extra] || false, short: flags[:short] || false)
+    @validator.validate(@decoder.decode(row))
   end
 
   test "linha válida vira linha normalizada" do

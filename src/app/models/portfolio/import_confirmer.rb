@@ -48,26 +48,34 @@ module Portfolio
       end
 
       # R11 e R14: no batimento, o título ativo que não está no arquivo passa a retirado, sem motivo atribuído. O cursor é o último título examinado.
+      # O batimento é por sistema (17, R414): só os títulos do sistema da importação são examinados; os dos outros sistemas e os do CRM ficam como
+      # estão. A passagem é pela chave primária, em ordem de id, com o sistema como filtro (como já era com o credor).
       def withdraw_absent(import, step)
         import.update!(progress_percent: 75, progress_label: "Retirando títulos ausentes")
+        own_id = import.source_system.key_own_id?
         loop do
-          bills = Bill.where(tenant_id: import.tenant_id, status: "active", kind: "common").where("bills.id > ?", step.cursor).order(:id).limit(self.class.withdrawals_per_batch)
-                      .includes(:customer).to_a
+          bills = Bill.where(tenant_id: import.tenant_id, source_system_id: import.source_system_id, status: "active", kind: "common").where("bills.id > ?", step.cursor)
+                      .order(:id).limit(self.class.withdrawals_per_batch).includes(:customer).to_a
           break if bills.empty?
 
-          ApplicationRecord.transaction { withdraw(import, bills) }
+          ApplicationRecord.transaction { withdraw(import, bills, own_id) }
           step.set!(bills.last.id)
         end
       end
 
-      def withdraw(import, bills)
-        staged = ImportRow.where(import_id: import.id, document: bills.map { |bill| bill.customer.document }).pluck(:document, :number, :keep_document)
-        present = staged.to_set { |document, number, _| [ document, number ] }
-        kept_documents = staged.filter_map { |document, _, keep| document if keep }.to_set
+      # O título veio no arquivo quando há linha dele, aceita ou recusada (R15): em chave natural, pelo documento e número; em id próprio, pelo id do
+      # título (`import_rows (import_id, external_bill_id)`). O documento com nomes divergentes guarda todos os títulos dele (R7).
+      def withdraw(import, bills, own_id)
+        staged = ImportRow.where(import_id: import.id)
+        by_document = staged.where(document: bills.map { |bill| bill.customer.document }.uniq).pluck(:document, :number, :keep_document)
+        kept_documents = by_document.filter_map { |document, _, keep| document if keep }.to_set
+        present = if own_id then staged.where(external_bill_id: bills.map(&:external_id)).pluck(:external_bill_id).to_set
+        else by_document.to_set { |document, number, _| [ document, number ] }
+        end
         now = Time.current
         changes = bills.filter_map do |bill|
           document = bill.customer.document
-          next if present.include?([ document, bill.number ]) || kept_documents.include?(document)
+          next if present.include?(own_id ? bill.external_id : [ document, bill.number ]) || kept_documents.include?(document)
 
           bill.update!(status: "withdrawn", withdrawn_at: now, withdrawn_import_id: import.id)
           [ bill, "withdrawn", { field: "status", before: "active", after: "withdrawn" } ]

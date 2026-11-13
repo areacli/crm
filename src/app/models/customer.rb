@@ -9,6 +9,8 @@ class Customer < ApplicationRecord
   has_many :contact_attempts, dependent: :restrict_with_error
   has_many :payment_promises, dependent: :restrict_with_error
   has_many :contacts, class_name: "CustomerContact", dependent: :destroy
+  # Identidades remotas (17, R407): o id do cliente em cada sistema de id próprio. `source_system_ids` guarda quem informou o cliente, na ordem.
+  has_many :identities, class_name: "CustomerIdentity", dependent: :destroy
   belongs_to :retained_by, class_name: "User", optional: true
 
   scope :identified, -> { where(anonymized_at: nil) }

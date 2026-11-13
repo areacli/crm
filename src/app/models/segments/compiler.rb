@@ -200,6 +200,8 @@ module Segments
           # As colunas agregadas da condição sobre a coleção e a expressão sim/não sobre elas (R254): quantidade, soma, maior e menor; algum,
           # todos e nenhum; janela de dias (R262) e qualificador (R258, R260).
           def boolean_over(group, spec, name, node)
+            # 17, R425: o sistema do título é o do contrato dele (R406); a junção só entra quando alguma condição o lê.
+            group.join = " join contracts xc on xc.id = x.contract_id" if name.to_s == "bills" && [ node["field"], node.dig("where", "field") ].include?("system")
             filter = [ Sources.qualifier(name, node["qualifier"], @today_param), window(name, node) ].compact
             if node["aggregate"].present?
               aggregate = node["aggregate"]
@@ -296,6 +298,8 @@ module Segments
       # Uma subconsulta agrupada por dono, com as colunas que as condições acrescentam (`m0`, `m1`...).
       class Group
         attr_reader :alias_name, :inner_group
+        # Junção a mais na fonte, para o modelo que tem `%{join}` (a dos títulos).
+        attr_writer :join
 
         def initialize(alias_name, template, inner: nil)
           @alias_name = alias_name
@@ -311,7 +315,7 @@ module Segments
 
         def sql
           columns = @columns.each_with_index.map { |column, index| "#{column} as m#{index}" }.join(", ")
-          @inner_group ? format(@template, columns: columns, inner: @inner_group.sql) : format(@template, columns: columns)
+          @inner_group ? format(@template, columns: columns, inner: @inner_group.sql, join: @join.to_s) : format(@template, columns: columns, join: @join.to_s)
         end
       end
 
@@ -323,7 +327,7 @@ module Segments
           "case when #{column} is null or btrim(#{column}) = '' then null else regexp_replace(translate(lower(btrim(#{column})), '#{ACCENTED}', '#{PLAIN}'), '\\s+', ' ', 'g') end"
         end
 
-        CONTRACT = %w[overdue_days balance overdue_percent age_days person_type product product_largest broke_agreement in_arrears in_collection updated_value return_days return_user].freeze
+        CONTRACT = %w[overdue_days balance overdue_percent age_days person_type product product_largest broke_agreement in_arrears in_collection updated_value return_days return_user system].freeze
         CUSTOMER = %w[person_type customer_days overdue_days balance return_days return_user].freeze
 
         def contract(name, table)
@@ -346,6 +350,7 @@ module Segments
           in [ "bills", "amount" ] then "#{table}.amount_cents"
           in [ "bills", "product" ] then "#{table}.product_key"
           in [ "bills", "kind" ] then "#{table}.kind"
+          in [ "bills", "system" ] then "#{table}c.source_system_id"
           in [ "contact_attempts", "result" ] then "#{table}.result_id"
           in [ "contact_attempts", "result_kind" ] then "#{table}.result_kind"
           in [ "contact_attempts", "channel" ] then "#{table}.channel"
@@ -389,7 +394,7 @@ module Segments
           contract = owner == :contract
           case name.to_s
           when "bills"
-            contract ? [ "from bills x where x.tenant_id = #{tenant}", "x.contract_id" ] : [ "from bills x join contract_customers k on k.contract_id = x.contract_id where x.tenant_id = #{tenant}", "k.customer_id" ]
+            contract ? [ "from bills x%{join} where x.tenant_id = #{tenant}", "x.contract_id" ] : [ "from bills x%{join} join contract_customers k on k.contract_id = x.contract_id where x.tenant_id = #{tenant}", "k.customer_id" ]
           when "contact_attempts"
             contract ? [ "from contact_attempts x where x.tenant_id = #{tenant} and x.contract_id is not null", "x.contract_id" ] : [ "from contact_attempts x where x.tenant_id = #{tenant}", "x.customer_id" ]
           when "contacts"
@@ -446,7 +451,7 @@ module Segments
           considered = "b.tenant_id = #{tenant} and b.status = 'active'#{detail_only ? " and b.due_date < #{today}" : ''}#{" and b.contract_id #{only}" if only}"
           people = needs.include?(:people)
           <<~SQL
-            select c.id as contract_id, c.broke_agreement,
+            select c.id as contract_id, c.broke_agreement, c.source_system_id as system,
                    coalesce(agg.overdue_days, 0) as overdue_days, coalesce(agg.balance, 0) as balance,
                    case when coalesce(agg.balance, 0) = 0 then 0 else agg.overdue_cents * 100.0 / agg.balance end as overdue_percent,
                    (#{today} - #{BrDate.sql_date('c.created_at')}) as age_days,

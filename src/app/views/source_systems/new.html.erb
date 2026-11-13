@@ -1,0 +1,12 @@
+<%= formulario_de_painel(titulo: "Novo sistema", url: source_systems_path, enviar: "Salvar", escopo: :source_system, erro: @system.errors.full_messages.to_sentence.presence, voltar: source_systems_path) do |form| %>
+  <% if @tenants.size > 1 %>
+    <div class="campo">
+      <%= form.label :tenant_id, "Credor" %>
+      <%= form.select :tenant_id, @tenants.map { |tenant| [ tenant.name, tenant.id ] }, { selected: @system.tenant_id }, required: true %>
+    </div>
+  <% else %>
+    <%= form.hidden_field :tenant_id, value: @tenants.first&.id %>
+    <p>Credor: <strong><%= @tenants.first&.name %></strong></p>
+  <% end %>
+  <%= render "source_systems/fields", form: form, system: @system, key_locked: false %>
+<% end %>

@@ -203,4 +203,23 @@ class AnonymizerTest < ActiveSupport::TestCase
     assert_equal [ true, true ], [ @maria.reload.anonymized?, joao.reload.anonymized? ]
     assert_empty find_in_database("João Silva", "Maria Souza")
   end
+
+  test "17, R426: a exportação inclui as identidades remotas, e a anonimização as apaga sem desfazer a ligação com o contrato" do
+    sap = SourceSystem.create!(tenant: @alfa, name: "SAP", key_kind: "own_id")
+    first = CustomerIdentity.create!(tenant: @alfa, source_system: sap, customer: @maria, external_id: "BP-MARIA-1")
+    CustomerIdentity.create!(tenant: @alfa, source_system: sap, customer: @maria, external_id: "BP-MARIA-9")
+    link = @maria.contract_customers.first
+    link.update!(customer_identity: first)
+
+    exported = Titular::Exporter.new(@maria).to_h[:identidades]
+    assert_equal [ %w[SAP BP-MARIA-1], %w[SAP BP-MARIA-9] ], exported.map { |item| item.values_at(:sistema, :id) }
+    assert_not_empty find_in_database("BP-MARIA-1", "BP-MARIA-9")
+
+    anonymize
+
+    assert_empty find_in_database("BP-MARIA-1", "BP-MARIA-9")
+    assert_empty CustomerIdentity.where(customer_id: @maria.id)
+    assert_nil link.reload.customer_identity_id
+    assert_empty Titular::Exporter.new(@maria.reload).to_h[:identidades]
+  end
 end

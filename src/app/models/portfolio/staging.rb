@@ -19,7 +19,8 @@ module Portfolio
       @rows << { import_id: @import_id, line: row.line, document: row.document, number: row.number, name: row.name, name_key: name_key, contract: row.contract,
                  due_date: row.due_date, amount_cents: row.amount_cents, description: row.description, ok: true, keep_document: false, roles: row.roles,
                  product: row.product, penalty_cents: row.penalty_cents, interest_cents: row.interest_cents, correction_cents: row.correction_cents,
-                 other_cents: row.other_cents }
+                 other_cents: row.other_cents, external_bill_id: row.external_bill_id, external_contract_id: row.external_contract_id,
+                 external_customer_id: row.external_customer_id }
     end
 
     # Contatos da linha (06, R109). `tenant_keys`: telefone e e-mail do credor, normalizados, para marcar o contato que é igual ao do credor
@@ -34,11 +35,12 @@ module Portfolio
       end
     end
 
-    # Linha recusada, mas com documento e título legíveis: guarda a chave para o título não ser retirado (R15).
-    def add_key_only(line, document, number)
+    # Linha recusada, mas com a chave do título legível: guarda a chave para o título não ser retirado (R15). Em chave natural, a chave é
+    # documento e número; em id próprio (17, R414), é o id do título, e o documento pode ter vindo ilegível (fica vazio).
+    def add_key_only(line, document, number, external_bill_id: nil)
       @rows << { import_id: @import_id, line: line, document: document, number: number, name: nil, name_key: nil, contract: nil, due_date: nil, amount_cents: nil,
                  description: nil, ok: false, keep_document: false, roles: nil, product: nil, penalty_cents: nil, interest_cents: nil, correction_cents: nil,
-                 other_cents: nil }
+                 other_cents: nil, external_bill_id: external_bill_id, external_contract_id: nil, external_customer_id: nil }
     end
 
     # Grava o que está no buffer. Quem chama decide a transação (o lote inteiro, com recusas e avisos, vai junto).

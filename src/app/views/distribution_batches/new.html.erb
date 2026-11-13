@@ -30,7 +30,7 @@
         <div class="campo" data-mostrar-se-campo="distribution_batch[kind]" data-mostrar-se-valor="file">
           <%= form.label :file, "Planilha" %>
           <%= form.file_field :file, accept: ".csv,text/csv" %>
-          <small>CSV com uma coluna só: <code>documento</code> (clientes) ou <code>contrato</code> (contratos, pelo código).</small>
+          <small>CSV com a coluna <code>documento</code> (clientes) ou <code>contrato</code> (contratos, pelo código). Com <code>contrato</code>, a coluna <code>sistema</code> é opcional: diz de qual sistema é o contrato quando o código existe em mais de um.</small>
         </div>
         <div class="campo">
           <%= form.label :exposure, "Exposição" %>

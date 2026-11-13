@@ -135,6 +135,7 @@ const telas = [
     ['/configuracao/dados-do-credor', 'Dados do credor'], ['/configuracao/carteira', 'Carteira'], ['/configuracao/metodos-de-recebimento', 'Métodos de recebimento'],
     ['/configuracao/politicas-de-pagamento', 'Políticas de pagamento'], ['/configuracao/segmentos', 'Segmentos'], ['/configuracao/enquadramento-financeiro', 'Enquadramento financeiro'],
     ['/configuracao/promessas-e-acordos', 'Promessas e acordos'], ['/configuracao/indices', 'Índices do Banco Central'], ['/configuracao/resultados-de-acionamento', 'Resultados de acionamento'],
+    ['/sistemas', 'Sistemas'],
 ];
 for (const [rota, titulo] of telas) {
     await passo(`abrir ${rota} numa aba`, async () => {
@@ -171,8 +172,16 @@ await passo('descartar a importação conferida que a recriação deixa pendente
 });
 
 // O envio sai da aba da importação nova e abre a aba da importação, que mostra a conferência pelo tempo real.
+// Na Escola Alfa, que tem mais de um sistema, a carteira pergunta de qual sistema vem o arquivo (17, R400): a V5 envia a do Planilha.
+const escolherSistema = async (nome) => {
+    const campo = raiz().locator('.campo:visible', { hasText: 'De onde vem esta carteira' }).first();
+    if ((await campo.count()) === 0) return;
+    await campo.locator('.combo-arrow').click();
+    await pagina.locator('.combobox-item:visible', { hasText: nome }).first().click();
+};
 async function enviarArquivo(rota, titulo, arquivo) {
     await aba(rota, titulo);
+    await escolherSistema('Planilha');
     await raiz().locator('input[type=file]').setInputFiles(arquivo);
     await raiz().getByRole('button', { name: 'Enviar e conferir' }).click();
     await raiz().locator('h1', { hasText: 'Importação de' }).first().waitFor({ timeout: 600000 });
@@ -209,6 +218,7 @@ const tamanhoAcima = planilha(acima, { bytesAlvo: 51 * 1048576, descricao: descr
 for (const [rota, titulo] of [['/importacoes/nova', 'Importar carteira'], ['/importacoes/nova?tipo=pagamentos', 'Importar pagamentos']]) {
     await passo(`recusar arquivo acima de 50 MB em ${rota} (${(tamanhoAcima / 1048576).toFixed(1)} MB)`, async () => {
         await aba(rota, titulo);
+        await escolherSistema('Planilha');
         await raiz().locator('input[type=file]').setInputFiles(acima);
         await raiz().getByRole('button', { name: 'Enviar e conferir' }).click();
         await raiz().getByText(/acima do limite de 50 MB/i).first().waitFor({ timeout: 120000 });
@@ -345,6 +355,45 @@ await passo('link público de pagamento: boleto, Pix e cartão, sem login', asyn
     await publico.locator('#opcoes').getByText(/aprovad|recebemos|pagamento/i).first().waitFor();
     await publico.screenshot({ path: `${PASTA}/pagar-cartao.png`, fullPage: true });
     await publico.context().close();
+});
+
+// Sistemas e identidade (17). A Escola Alfa tem o ERP Acadêmico, de id próprio, além do Planilha: os clientes novos dele são ALU-30000 em diante e os que os
+// dois sistemas têm em comum, ALU-5000 em diante (Demo::Dataset::SystemSteps).
+await passo('sistemas: a Escola Alfa tem o CRM, o Planilha e o ERP Acadêmico', async () => {
+    await aba('/sistemas', 'Sistemas');
+    for (const nome of ['CRM', 'Planilha', 'ERP Acadêmico']) await raiz().locator('.datagrid-row', { hasText: nome }).first().waitFor();
+    await pagina.screenshot({ path: `${PASTA}/sistemas.png` });
+});
+
+const fichaPeloIdRemoto = async (id) => {
+    await aba(`/clientes?busca=${id}`, 'Clientes');
+    if ((await total()) !== 1) throw new Error(`a busca por ${id} trouxe ${await total()} clientes`);
+    await raiz().locator('.datagrid-row a').first().click();
+    await ocioso();
+    return pagina.evaluate(() => location.hash.slice(1).split('?')[0]);
+};
+
+await passo('sistemas: a busca acha o cliente pelo id dele no ERP, e a ficha diz de que sistema é cada contrato', async () => {
+    await fichaPeloIdRemoto('ALU-30000');
+    // As tabelas da ficha são grades do EasyUI: o cabeçalho não é `th`. Vale o texto visível, na tabela de contratos e na de títulos.
+    await raiz().locator(':text-is("Sistema"):visible').first().waitFor();
+    await raiz().locator(':text-is("ERP Acadêmico"):visible').first().waitFor();
+    await pagina.screenshot({ path: `${PASTA}/ficha-com-sistema.png` });
+});
+
+await passo('sistemas: a simulação de acordo pergunta o sistema de quem tem títulos em mais de um', async () => {
+    // Nem todo cliente em comum tem título que pode entrar em acordo nos dois sistemas: procura entre os primeiros.
+    for (let n = 5000; n < 5020; n++) {
+        const ficha = await fichaPeloIdRemoto(`ALU-${n}`);
+        await aba(`${ficha}/simulacao-de-acordo/nova`);
+        if (await raiz().locator('h2', { hasText: 'De qual sistema são os títulos do acordo?' }).count()) {
+            await pagina.screenshot({ path: `${PASTA}/simulacao-pergunta-o-sistema.png` });
+            await raiz().locator('tr', { hasText: 'ERP Acadêmico' }).first().locator('a', { hasText: 'Simular' }).click();
+            await raiz().locator('a', { hasText: 'Trocar de sistema' }).first().waitFor();
+            return `ALU-${n}`;
+        }
+    }
+    throw new Error('nenhum dos 20 primeiros clientes em comum tem títulos para acordo nos dois sistemas');
 });
 
 await passo('o operador só enxerga a Escola Alfa (nunca a Clínica Beta) e não abre a configuração do credor', async () => {

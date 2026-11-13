@@ -29,8 +29,11 @@
     <% end %>
   </td>
 </tr>
+<%# 17, R412: os sistemas que informaram o contato, quando o credor tem mais de um além do CRM. %>
+<% informed_by = system_names(customer.tenant_id)&.then { |names| names.values_at(*contact.source_system_ids).compact.sort } %>
 <%= detalhe_da_linha(detail_id, 7) do %>
   <p><%= safe_join(notes, " ") %></p>
+  <% if informed_by.present? %><p>Informado por: <%= informed_by.to_sentence %>.</p><% end %>
   <% if contact.reason.present? %><p>Motivo: <%= contact.reason %></p><% end %>
 <% end %>
 </tbody>

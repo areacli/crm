@@ -329,10 +329,12 @@ module Segments
               cents
             when :option then option(text, spec, collection, field)
             when :reference
-              result = ContactResult.where(tenant_id: @tenant.id).find { |candidate| Parser.fold(candidate.name) == Parser.fold(text) }
-              raise Error, msg("result", text: text) unless result
+              # O valor é guardado pelo id e escrito pelo nome: resultado de acionamento ou sistema do credor (17, R425), conforme o campo.
+              model, error = spec[:of] == :system ? [ SourceSystem, "system" ] : [ ContactResult, "result" ]
+              found = model.where(tenant_id: @tenant.id).find { |candidate| Parser.fold(candidate.name) == Parser.fold(text) }
+              raise Error, msg(error, text: text) unless found
 
-              result.id
+              found.id
             when :user
               user = User.joins(:memberships).where(memberships: { tenant_id: @tenant.id }).distinct.find do |candidate|
                 [ candidate.name, candidate.email_address ].any? { |label| Parser.fold(label) == Parser.fold(text) }

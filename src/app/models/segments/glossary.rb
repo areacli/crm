@@ -21,7 +21,7 @@ module Segments
     def t(key, **options) = I18n.t("segment_language.#{key}", **options)
 
     def sample(subject, node)
-      text = Text.new(Expression.new("grammar" => Expression::GRAMMAR, "subject" => subject, "all" => [ node ]), result_names: {})
+      text = Text.new(Expression.new("grammar" => Expression::GRAMMAR, "subject" => subject, "all" => [ node ]), result_names: {}, system_names: { 1 => SourceSystem::DEFAULT_NAME })
       [ text.short(node), text.long(node) ]
     end
 
@@ -76,6 +76,7 @@ module Segments
       when :boolean then { "path" => name, "op" => "is" }
       when :option then { "path" => name, "op" => "eq", "value" => spec[:options].first }
       when :text then { "path" => name, "op" => "eq", "value" => "Mensalidade" }
+      when :reference then { "path" => name, "op" => "eq", "value" => 1 }
       when :money then { "path" => name, "op" => "gt", "value" => 500_000 }
       when :percent then { "path" => name, "op" => "gte", "value" => 80 }
       else { "path" => name, "op" => "gt", "value" => 90 }

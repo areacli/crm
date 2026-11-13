@@ -1,0 +1,21 @@
+# Os dois sistemas com que todo credor nasce (17, R396): `Tenant.provision!` os cria; os credores das fixtures os recebem aqui.
+alfa_crm:
+  tenant: alfa
+  name: CRM
+  role: crm
+  key_kind: natural
+alfa_planilha:
+  tenant: alfa
+  name: Planilha
+  role: default
+  key_kind: natural
+beta_crm:
+  tenant: beta
+  name: CRM
+  role: crm
+  key_kind: natural
+beta_planilha:
+  tenant: beta
+  name: Planilha
+  role: default
+  key_kind: natural
