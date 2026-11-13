@@ -11,6 +11,9 @@ module Demo
     STREETS = [ "Rua das Flores", "Avenida Brasil", "Rua Sete de Setembro", "Rua XV de Novembro", "Avenida Paulista", "Rua da Paz", "Rua Bela Vista", "Avenida Central" ].freeze
     CITIES = [ [ "São Paulo", "SP", "01310100" ], [ "Campinas", "SP", "13010001" ], [ "Rio de Janeiro", "RJ", "20040020" ], [ "Belo Horizonte", "MG", "30130010" ],
                [ "Curitiba", "PR", "80010000" ], [ "Porto Alegre", "RS", "90010000" ], [ "Salvador", "BA", "40020000" ], [ "Goiânia", "GO", "74003010" ] ].freeze
+    # A cidade como a pessoa escreveu, que não existe na lista do IBGE: o endereço entra inválido (06, R126a).
+    MISSPELLED = { "São Paulo" => "S. Paulo", "Campinas" => "Campinas SP", "Rio de Janeiro" => "Rio", "Belo Horizonte" => "BH", "Curitiba" => "Curitba", "Porto Alegre" => "P. Alegre",
+                   "Salvador" => "Salvador BA", "Goiânia" => "Goiania GO" }.freeze
 
     module_function
 

@@ -32,7 +32,9 @@ function abrirPopover(botao) {
   if (!popover.matches(":popover-open")) return
   const caixa = botao.getBoundingClientRect()
   popover.style.margin = "0"
-  popover.style.left = `${Math.max(8, Math.min(caixa.right - popover.offsetWidth, window.innerWidth - popover.offsetWidth - 8))}px`
+  // O (i) abre para a esquerda, a partir da borda direita dele; o selo que explica (revisão 40) abre alinhado ao começo do selo.
+  const esquerda = botao.classList.contains("situacao") ? caixa.left : caixa.right - popover.offsetWidth
+  popover.style.left = `${Math.max(8, Math.min(esquerda, window.innerWidth - popover.offsetWidth - 8))}px`
   popover.style.top = `${Math.min(caixa.bottom + 4, window.innerHeight - popover.offsetHeight - 8)}px`
 }
 

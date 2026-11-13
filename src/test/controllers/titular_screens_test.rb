@@ -141,7 +141,11 @@ class TitularScreensTest < ActionDispatch::IntegrationTest
     assert evento_da_spa["atualizar"]
     get_ficha(@maria)
     assert_select "h1", text: /Cliente anonimizado nº #{@maria.id}/
-    assert_select ".aviso", text: /Cliente anonimizado em #{Date.current.strftime('%d/%m/%Y')}/
+    # Padrões de interface, P28: o alerta do registro é a pílula do cabeçalho, com o texto completo no clique; sem faixa, e sem o alerta do endereço.
+    assert_select ".cabecalho-da-pagina button.situacao[data-spa-popover]", text: "Anonimizado"
+    assert_select ".cabecalho-da-pagina .definicao[popover]", text: /Cliente anonimizado em #{Date.current.strftime('%d/%m/%Y')}/
+    assert_select ".ficha-avisos .aviso", count: 0
+    assert_select ".cabecalho-da-pagina .situacao", text: "Sem endereço", count: 0
     assert_select "a[href*=exportacao]"
     assert_select "a[href*=anonimizacao]", 0
     assert_select "[data-inline]", 0

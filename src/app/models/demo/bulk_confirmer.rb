@@ -39,13 +39,17 @@ module Demo
 
       def write_contacts(import, customers, now)
         seen = Set.new
+        known_cities = Registry::AddressCheck.known_cities
         rows = ImportContact.where(import_id: import.id, document: customers.keys).order(:line).filter_map do |contact|
           customer_id = customers.fetch(contact.document)
           next unless seen.add?([ customer_id, contact.kind, contact.key ])
 
+          # 06, R126 e R126a: entram inválidos o contato igual ao do credor e o endereço com cidade inexistente.
+          reason = contact.tenant_contact ? "é contato do credor" : (Registry::AddressCheck::REASON if Registry::AddressCheck.unknown_city_of?(contact, known_cities))
+
           { tenant_id: import.tenant_id, customer_id: customer_id, kind: contact.kind, key: contact.key, value: contact.value, street: contact.street, number: contact.number,
             complement: contact.complement, district: contact.district, city: contact.city, state: contact.state, zip: contact.zip, origin: "load",
-            status: contact.tenant_contact ? "invalid" : "valid", reason: (contact.tenant_contact ? "é contato do credor" : nil), kept_by_tenant: false, seen_in_import_at: now,
+            status: reason ? "invalid" : "valid", reason: reason, kept_by_tenant: false, seen_in_import_at: now,
             source_system_ids: [ import.source_system_id ] }
         end
         CustomerContact.insert_all!(rows, returning: false) if rows.any?

@@ -188,11 +188,26 @@ class AgreementsScreensSystemTest < ApplicationSystemTestCase
     sem_rolagem_horizontal
   end
 
-  test "a lista de clientes tem o filtro 'cidade não reconhecida'" do
+  test "a lista de clientes filtra 'sem endereço' e 'endereço inválido', cada um com os seus clientes" do
     visit customers_path
     assert_selector ".lista .datagrid-row a", text: "Maria Souza"
-    escolher "Cidade", "Cidade não reconhecida"
+    escolher "Endereço", "Sem endereço"
     esperar_os_pedidos
     assert_selector ".lista .datagrid-row a", text: "Maria Souza"
+    escolher "Endereço", "Endereço inválido"
+    esperar_os_pedidos
+    assert_no_selector ".lista .datagrid-row a", text: "Maria Souza"
+  end
+
+  test "a ficha mostra o alerta do endereço em pílula no cabeçalho, sem faixa, e o clique abre a ação" do
+    visitar_ficha(@customer)
+    assert_no_selector ".ficha-avisos .aviso"
+    within(".ficha .cabecalho-da-pagina") do
+      assert_selector ".situacao", text: /Atraso de/
+      assert_no_selector ".definicao", visible: true
+      click_button "Sem endereço"
+      assert_selector ".definicao", text: "Cadastrar um endereço do cliente"
+    end
+    sem_rolagem_horizontal
   end
 end

@@ -42,7 +42,7 @@ class Agreements::CalendarTest < ActiveSupport::TestCase
   test "M12: a praça é o município do endereço válido mais recente do cliente, casado pelo nome sem acento e pela UF" do
     customer = make_customer(@alfa, document: PaymentsHelper::MARIA, name: "Maria", contract_code: "CT-1")
     assert_nil Agreements::Square.municipality_for(customer)
-    assert Agreements::Square.unrecognized?(customer), "sem endereço"
+    assert_equal :no_address, Agreements::Square.situation(customer), "sem endereço"
 
     old = customer.contacts.create!(tenant: @alfa, kind: "address", key: "a1", value: "Rua A, 1", city: "Rio de Janeiro", state: "RJ", origin: "screen", updated_at: 3.days.ago)
     customer.contacts.create!(tenant: @alfa, kind: "address", key: "a2", value: "Rua B, 2", city: "SAO PAULO", state: "sp", origin: "screen", updated_at: 1.day.ago)
@@ -52,17 +52,36 @@ class Agreements::CalendarTest < ActiveSupport::TestCase
     assert_equal "Rio de Janeiro", Agreements::Square.municipality_for(customer).name, "o mais recentemente atualizado"
     old.update!(status: "invalid")
     assert_equal @sp, Agreements::Square.municipality_for(customer), "só o endereço válido"
+    assert_nil Agreements::Square.situation(customer), "praça reconhecida"
   end
 
-  test "AB9: cidade que não casa com o IBGE fica só com os dias nacionais e entra no filtro 'cidade não reconhecida'" do
-    customer = make_customer(@alfa, document: PaymentsHelper::MARIA, name: "Maria", contract_code: "CT-1")
-    customer.contacts.create!(tenant: @alfa, kind: "address", key: "a1", value: "Rua A, 1", city: "Atlântida", state: "SP", origin: "screen")
+  test "AB9, revisão 13: sem endereço e endereço inválido são duas situações, cada uma na sua opção do filtro, e as duas ficam só com os dias nacionais" do
+    editor = Registry::ContactEditor.new(users(:joana))
+    address = { street: "Rua A", number: "1", state: "SP", zip: "01001-000" }
+    invalid = make_customer(@alfa, document: PaymentsHelper::MARIA, name: "Maria", contract_code: "CT-1")
+    assert_equal "invalid", editor.add(invalid, kind: "address", fields: address.merge(city: "Atlântida")).status, "06, R126a: a cidade inexistente entra inválida"
     recognized = make_customer(@alfa, document: PaymentsHelper::JOAO, name: "João", contract_code: "CT-2")
-    recognized.contacts.create!(tenant: @alfa, kind: "address", key: "a1", value: "Rua A, 1", city: "São Paulo", state: "SP", origin: "screen")
+    editor.add(recognized, kind: "address", fields: address.merge(city: "São Paulo"))
+    without = make_customer(@alfa, document: FakeData.cpf(77), name: "Ana", contract_code: "CT-3")
+    without.contacts.create!(tenant: @alfa, kind: "phone", key: "11988887777", value: "(11) 98888-7777", origin: "screen")
+    # Casos raros: o endereço válido numa cidade que saiu da lista e o cliente só com endereço em "não perturbe" têm endereço, e nenhum serve de praça.
+    legacy = make_customer(@alfa, document: FakeData.cpf(78), name: "Beto", contract_code: "CT-4")
+    legacy.contacts.create!(tenant: @alfa, kind: "address", key: "a1", value: "Rua A, 1", city: "Vila Velha Nova", state: "SP", origin: "load")
+    quiet = make_customer(@alfa, document: FakeData.cpf(79), name: "Caio", contract_code: "CT-5")
+    quiet.contacts.create!(tenant: @alfa, kind: "address", key: "a1", value: "Rua A, 1", city: "São Paulo", state: "SP", origin: "screen", status: "do_not_disturb")
 
-    assert Agreements::Square.unrecognized?(customer)
-    assert_equal [ customer.id ], Customer.where(tenant_id: @alfa.id).where(Agreements::Square::UNRECOGNIZED_SQL).pluck(:id)
-    assert_not Agreements::Calendar.for(Agreements::Square.municipality_for(customer)).extra_dates.any?
+    assert_equal :invalid_address, Agreements::Square.situation(invalid)
+    assert_equal :no_address, Agreements::Square.situation(without)
+    assert_nil Agreements::Square.situation(recognized)
+    assert_equal %i[invalid_address invalid_address], [ legacy, quiet ].map { |customer| Agreements::Square.situation(customer) }
+    scope = Customer.where(tenant_id: @alfa.id)
+    assert_equal [ invalid.id, legacy.id, quiet.id ].sort, scope.where(Agreements::Square::SITUATION_SQL.fetch("invalid")).pluck(:id).sort
+    assert_equal [ without.id ], scope.where(Agreements::Square::SITUATION_SQL.fetch("no_address")).pluck(:id)
+    assert_not Agreements::Calendar.for(Agreements::Square.municipality_for(invalid)).extra_dates.any?
+    # O endereço válido mais recente manda: com um endereço novo numa cidade da lista, o inválido deixa de pesar.
+    editor.add(invalid, kind: "address", fields: address.merge(city: "Sao Paulo", state: "sp", number: "2"))
+    assert_nil Agreements::Square.situation(invalid)
+    assert_not_includes scope.where(Agreements::Square::SITUATION_SQL.fetch("invalid")).pluck(:id), invalid.id
   end
 
   test "O8: a importação do administrador lê municípios e feriados, não duplica e recusa a linha inválida" do

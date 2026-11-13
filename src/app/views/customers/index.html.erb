@@ -17,7 +17,7 @@
     <div class="campo"><%= label_tag "segmento", "Segmento" %><%= select_tag :segmento, options_for_select([ [ "Todos", "" ] ], params[:segmento]) + grouped_options_for_select(@segments, params[:segmento]) %></div>
     <div class="campo"><%= label_tag "promessa", "Promessa" %><%= select_tag :promessa, opcoes_de_filtro([ [ "Todas", "" ], [ "Aberta", "open" ], [ "Pendente de aprovação", "pending" ], [ "Quebrada nos últimos 30 dias", "broken" ], [ "Sem promessa", "none" ] ], params[:promessa]) %></div>
     <% if Current.user.permitted_anywhere?("edit_customer_registry") %>
-      <div class="campo"><%= label_tag "cidade_nao_reconhecida", "Cidade" %><%= select_tag :cidade_nao_reconhecida, options_for_select([ [ "Todas", "" ], [ "Cidade não reconhecida", "1" ] ], params[:cidade_nao_reconhecida]) %></div>
+      <div class="campo"><%= label_tag "endereco", "Endereço" %><%= select_tag :endereco, opcoes_de_filtro([ [ "Todos", "" ], [ "Sem endereço", "no_address" ], [ "Endereço inválido", "invalid" ] ], params[:endereco]) %></div>
     <% end %>
   </form>
   <%= grade url: customers_path(format: :json), ordem: "overdue_cents", vazio: "Nenhum cliente encontrado.", colunas: [

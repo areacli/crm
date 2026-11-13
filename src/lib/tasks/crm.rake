@@ -41,6 +41,13 @@ namespace :crm do
     abort error.message
   end
 
+  desc "Carrega os dados de referência que vêm com o sistema (11, R249): municípios do IBGE, se a tabela está vazia, e feriados estaduais e das capitais"
+  task reference_data: :environment do
+    result = Agreements::ReferenceData.load
+    puts "#{Municipality.count} municípios; #{result.processed} datas de feriado geradas, #{result.rejected.size} regras recusadas."
+    result.rejected.each { |line| puts "  #{line}" }
+  end
+
   desc "Importa os feriados estaduais e municipais (11, R249): crm:import_holidays[caminho do CSV com uf;codigo_ibge;data;nome]"
   task :import_holidays, [ :path ] => :environment do |_task, args|
     abort "Informe o caminho do CSV." if args[:path].blank?

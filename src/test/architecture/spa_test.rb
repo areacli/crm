@@ -34,7 +34,7 @@ class SpaArchitectureTest < ActiveSupport::TestCase
 
   # Os parâmetros do endereço também (revisão 39): os controladores leem o nome em português, e o valor de filtro passa por `FilterValue`.
   test "nenhum link nem campo de filtro manda parâmetro em inglês" do
-    internos = %w[tenant tenant_id q page per_page retained_page status kind from to user origin operation source result operator channel state segment promise bracket unrecognized_city offset subject change member_id contract_id bill_id sort dir]
+    internos = %w[tenant tenant_id q page per_page retained_page status kind from to user origin operation source result operator channel state segment promise bracket address offset subject change member_id contract_id bill_id sort dir]
     fontes = (VIEWS + Dir[Rails.root.join("app/helpers/**/*.rb")] + Dir[Rails.root.join("app/controllers/**/*.rb")])
     links = fontes.flat_map { |arquivo| File.read(arquivo).scan(/_(?:path|url)\([^()\n]*\b(#{internos.join("|")}):\s/).flatten.map { |nome| "#{arquivo.delete_prefix(Rails.root.to_s)}: #{nome}" } }
     assert_empty links, "link com parâmetro em inglês"

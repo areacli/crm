@@ -312,7 +312,8 @@ module Portfolio
 
       # R118: o que a carga queria mudar em dados mantidos pelo credor (nome marcado e diferente; contato inválido ou "não perturbe" que
       # voltaria a válido), com o total e as primeiras linhas; o efeito depende da política (`correction_policy`, guardada no resumo).
-      # Consultas: `customers (tenant_id, document)` e `customer_contacts (customer_id, kind, key)`.
+      # Consultas: `customers (tenant_id, document)` e `customer_contacts (customer_id, kind, key)`. Fica fora o endereço com cidade inexistente (R126a) que a
+      # política não decide: o que a carga conserta sozinha (não foi mexido na tela) e o que ela traz de novo com a cidade inexistente (continua inválido).
       def kept_by_tenant(tenant_id, import_id)
         names_from = <<~SQL
           from (select distinct on (document) document, name from import_rows where import_id = ? and ok order by document, line desc) n
@@ -323,6 +324,7 @@ module Portfolio
           join customers c on c.tenant_id = ? and c.document = ic.document
           join customer_contacts k on k.customer_id = c.id and k.kind = ic.kind and k.key = ic.key
           where ic.import_id = ? and k.status <> 'valid' and not ic.tenant_contact
+            and not (#{format(Registry::AddressCheck::UNKNOWN_CITY_SQL, row: "k")} and (not k.kept_by_tenant or #{format(Registry::AddressCheck::UNKNOWN_CITY_SQL, row: "ic")}))
         SQL
         {
           names: { count: Sql.one("select count(*) as n #{names_from}", import_id, tenant_id)["n"].to_i,

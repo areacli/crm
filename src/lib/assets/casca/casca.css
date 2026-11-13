@@ -102,6 +102,10 @@ button[data-size="small"], .botao[data-size="small"] { min-height: 26px; padding
 .situacao[data-tone="success"] { background: #e3f3ea; color: var(--verde); }
 .situacao[data-tone="info"] { background: #e3eef7; color: var(--azul-escuro); }
 .situacao[data-tone="neutral"] { background: #eceff2; color: #46525c; }
+/* Selo que explica (padrões de interface, revisão 40): o selo é um botão e abre a explicação no popover do (i). */
+button.situacao { min-height: 0; border: 0; cursor: pointer; }
+button.situacao:hover { filter: brightness(.95); }
+button.situacao:focus-visible { outline: 2px solid var(--azul); outline-offset: 1px; }
 
 a { color: var(--azul); text-decoration: none; }
 a:where(:hover) { text-decoration: underline; }
@@ -167,7 +171,7 @@ a:where(:hover) { text-decoration: underline; }
 .informacao { min-height: 0; width: 18px; height: 18px; padding: 0; margin-left: 4px; border: 1px solid var(--borda); border-radius: 50%; background: #fff; color: var(--azul-escuro); font-size: 12px; }
 .informacao:hover { background: var(--fundo-suave); }
 .definicao, .menu { position: fixed; margin: 0; padding: 6px; border: 1px solid var(--borda); border-radius: 3px; background: #fff; box-shadow: 0 4px 14px rgb(28 58 87 / 18%); }
-.definicao { max-width: 320px; }
+.definicao { max-width: 320px; text-align: left; font-weight: 400; }
 .definicao p { margin: 0; color: var(--texto); }
 .menu { display: none; min-width: 180px; }
 .menu:popover-open { display: grid; gap: 2px; }

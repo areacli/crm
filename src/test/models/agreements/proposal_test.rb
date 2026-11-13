@@ -45,7 +45,7 @@ class Agreements::ProposalTest < ActiveSupport::TestCase
     assert_equal 6, terms.dig("limit", "max_installments")
     assert_equal 50, terms.dig("limit", "caps", "installment", "fine")
     assert_nil terms.dig("square", "municipality_id")
-    assert_includes terms["warnings"], I18n.t("agreements.warnings.city_unrecognized")
+    assert_includes terms["warnings"], I18n.t("agreements.warnings.no_address")
     assert_equal 0.02, terms.dig("parameters", "late_rule", "fine")
     assert_not terms["policies"].key?("credit_use"), "as políticas que não são do acordo valem como estão no dia"
   end

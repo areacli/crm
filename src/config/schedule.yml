@@ -54,3 +54,10 @@ stale_imports:
   queue: default
   active_job: true
   description: "Importações (01): marca como falhou a importação sem avanço de progresso há mais de 30 minutos e avisa no sino"
+
+generate_holidays:
+  cron: "0 4 2 1 *"
+  class: "GenerateHolidaysJob"
+  queue: default
+  active_job: true
+  description: "Feriados estaduais e das capitais (11, R249): gera as datas dos anos seguintes, das regras que vêm com o sistema"

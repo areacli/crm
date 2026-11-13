@@ -90,9 +90,10 @@ module Demo
       cells["telefone2"] = People.phone(seed, 7) if People.pick(seed, 61) % 100 < 25
       cells["email"] = People.email(seed) if People.pick(seed, 62) % 100 < 80
       cells["email2"] = People.email(seed + 1_000_000) if People.pick(seed, 63) % 100 < 8
-      return unless People.pick(seed, 64) % 100 < 40
+      return unless People.pick(seed, 64) % 100 < 95
 
       city, state, zip = People::CITIES[People.pick(seed, 65) % People::CITIES.size]
+      city = People::MISSPELLED.fetch(city) if People.pick(seed, 68) % 100 < 2 # 2% com a cidade mal escrita: "Endereço inválido" tem exemplo na demonstração
       cells.merge!("logradouro" => People::STREETS[People.pick(seed, 66) % People::STREETS.size], "numero" => (1 + People.pick(seed, 67) % 2000).to_s, "bairro" => "Centro",
                    "cidade" => city, "uf" => state, "cep" => zip)
     end

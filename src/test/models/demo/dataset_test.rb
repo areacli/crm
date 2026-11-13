@@ -129,11 +129,20 @@ class DemoDatasetTest < ActiveSupport::TestCase
     assert_equal erp.id, segment.expression.dig("all", 0, "value")
     assert_equal "Planilha", Import.find_by!(tenant_id: alpha.id, status: "checked").source_system.name
 
-    # --- A lista do IBGE vem com a carga (11, revisão 9): todo cliente com endereço válido casa com um município
+    # --- A lista do IBGE vem com a carga (11, revisão 9). Endereços (11, revisão 13; 06, R126a): 95% dos clientes têm endereço; todo endereço válido casa com
+    # um município; cerca de 2% vêm com a cidade mal escrita e entram inválidos; sobram clientes sem endereço e com endereço inválido para as duas pílulas.
     assert_equal 5571, Municipality.count
-    with_address = Customer.where(tenant_id: alpha.id).where("exists (select 1 from customer_contacts c where c.customer_id = customers.id and c.kind = 'address' and c.status = 'valid')")
-    assert_operator with_address.count, :>, 100
-    assert_equal 0, with_address.where(Agreements::Square::UNRECOGNIZED_SQL).count, "cidade não reconhecida com a lista do IBGE carregada"
+    assert Holiday.where(state: "SP", municipality_id: nil).exists?, "os feriados locais vêm com a carga (11, revisão 14)"
+    assert Holiday.joins(:municipality).where(municipalities: { ibge_code: "3550308" }).exists?
+    customers = Customer.where(tenant_id: alpha.id)
+    with_address = customers.where(Agreements::Square::ANY_ADDRESS_SQL)
+    assert_in_delta 0.95, with_address.count.fdiv(customers.count), 0.02
+    valid = CustomerContact.where(tenant_id: alpha.id, kind: "address", status: "valid")
+    assert_equal 0, valid.where.not("exists (select 1 from municipalities m where m.state = upper(customer_contacts.state) and m.name_key = translate(lower(btrim(customer_contacts.city)), '#{Portfolio::Query::ACCENTED}', '#{Portfolio::Query::PLAIN}'))").count
+    invalid = CustomerContact.where(tenant_id: alpha.id, kind: "address", status: "invalid", reason: "cidade inexistente")
+    assert_in_delta 0.02, invalid.count.fdiv(with_address.count), 0.01
+    assert_in_delta 0.05, customers.where(Agreements::Square::SITUATION_SQL.fetch("no_address")).count.fdiv(customers.count), 0.02
+    assert_operator customers.where(Agreements::Square::SITUATION_SQL.fetch("invalid")).count, :>, 3
   end
 
   test "recriar apaga e recria tudo e mantém os usuários públicos e as sessões" do

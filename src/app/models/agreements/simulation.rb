@@ -298,7 +298,8 @@ module Agreements
 
       def warnings(bills, square)
         list = []
-        list << I18n.t("agreements.warnings.city_unrecognized") if square.nil?
+        situation = Square.situation(@customer) if square.nil? # revisão 13: sem endereço e endereço inválido são avisos diferentes
+        list << I18n.t("agreements.warnings.#{situation}") if situation
         responsible = Agreements::Parties.financial_responsibles(bills.map(&:contract))
         list << I18n.t("agreements.warnings.no_contact") if responsible.any? && responsible.none? { |customer| customer.contacts.any? { |contact| contact.status_valid? && !contact.address? } }
         list

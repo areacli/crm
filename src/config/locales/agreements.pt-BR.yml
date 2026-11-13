@@ -1,5 +1,14 @@
 pt-BR:
   agreements:
+    # A praça do cliente (11, R249, revisão 13): as duas situações em que valem só os dias nacionais. `action` é o texto da pílula da ficha, para quem
+    # edita o cadastro (as ações são as palavras do Paulo); o da simulação e do acordo é o aviso congelado nos termos (`warnings`).
+    square:
+      no_address:
+        label: "Sem endereço"
+        action: "Cadastrar um endereço do cliente"
+      invalid_address:
+        label: "Endereço inválido"
+        action: "Conferir e corrigir o endereço do cliente"
     states:
       pending: "Pendente de aprovação"
       approved: "Aprovada"
@@ -82,7 +91,8 @@ pt-BR:
     canceled:
       replaced: "substituída por %{number}"
     warnings:
-      city_unrecognized: "Cidade não reconhecida: só feriados nacionais."
+      no_address: "Cliente sem endereço: só feriados nacionais."
+      invalid_address: "Endereço inválido: só feriados nacionais."
       no_contact: "O responsável financeiro não tem contato cadastrado. O termo é gerado e impresso com os dados que existem."
     refused:
       no_profile: "Você não tem vínculo ativo neste credor."

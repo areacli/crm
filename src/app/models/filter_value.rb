@@ -9,6 +9,7 @@ module FilterValue
     "awaiting_effectuation" => "aguardando_efetivacao", "active_on_time" => "ativo_em_dia", "active_late" => "ativo_em_atraso", "settled" => "quitado", "broken" => "quebrado", "renegotiated" => "renegociado",
     "open" => "aberta", "handled" => "tratada", "all" => "todas", "none" => "sem_promessa", "in_force" => "em_vigor", "scheduled" => "agendada", "ended" => "encerrada",
     "batch" => "lote", "rule" => "regra", "team" => "equipe",
+    "no_address" => "sem_endereco",
     "valid" => "valido", "invalid" => "invalido", "do_not_disturb" => "nao_perturbe", "active" => "ativa", "suspended" => "suspensa"
   }.freeze
   INTERNAL = VALUES.invert.freeze

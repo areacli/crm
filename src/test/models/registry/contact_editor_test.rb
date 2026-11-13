@@ -118,6 +118,31 @@ class Registry::ContactEditorTest < ActiveSupport::TestCase
     assert_equal "Este contato é do credor e não pode ficar válido.", assert_raises(Registry::Refused) { @editor.restore(contact, "tentativa") }.message
   end
 
+  test "R126a: o endereço com cidade inexistente entra inválido na tela, com o motivo; não volta a válido, mas se corrige" do
+    address = { street: "Rua das Flores", number: "120", state: "SP", zip: "01001-000" }
+    assert_equal "valid", @editor.add(@maria, kind: "address", fields: address.merge(city: "Atlântida", number: "1")).status, "sem a lista de municípios, nada é marcado"
+
+    Municipality.create!(ibge_code: "3550308", name: "São Paulo", state: "SP")
+    contact = @editor.add(@maria, kind: "address", fields: address.merge(city: "S. Paulo"))
+    assert_equal [ "invalid", "cidade inexistente" ], [ contact.status, contact.reason ]
+    assert_equal [ "created", "invalid", "cidade inexistente" ], history(contact).sole.then { |change| [ change.event, change.after, change.note ] }
+    assert_equal "A cidade deste endereço não existe na lista de municípios do IBGE: corrija o endereço.",
+                 assert_raises(Registry::Refused) { @editor.restore(contact, "tentativa") }.message
+    assert_equal "invalid", @editor.add(@maria, kind: "address", fields: address.merge(city: "São Paulo", state: "RJ", number: "7")).status, "a cidade existe em outra UF"
+
+    # Corrigir só a cidade conserta o próprio endereço (a cidade não faz parte da chave); mudando o resto, o antigo fica inválido e nasce o novo.
+    assert_equal "O novo valor é igual ao contato atual.", assert_raises(Registry::Refused) { @editor.correct(contact, address.merge(city: "Sampa")) }.message, "outra cidade inexistente não conserta"
+    fixed = @editor.correct(contact, address.merge(city: "sao paulo"))
+    assert_equal contact.id, fixed.id
+    assert_equal [ "valid", "cidade corrigida", "sao paulo", "Rua das Flores, 120, sao paulo/SP, CEP 01001-000" ], [ fixed.status, fixed.reason, fixed.city, fixed.value ]
+    assert_equal [ "corrected", "invalid", "valid", "cidade corrigida" ], history(contact).last.then { |change| [ change.event, change.before, change.after, change.note ] }
+
+    other = @editor.add(@maria, kind: "address", fields: address.merge(city: "Atlantida", number: "9"))
+    moved = @editor.correct(other, address.merge(city: "São Paulo", number: "10"))
+    assert_not_equal other.id, moved.id
+    assert_equal [ "valid", "invalid", "corrigido para #{moved.value}" ], [ moved.status, other.reload.status, other.reason ]
+  end
+
   test "R126: o contato salvo do acionamento que é igual ao do credor também entra inválido" do
     @alfa.update!(email: "contato@exemplo.com.br")
 

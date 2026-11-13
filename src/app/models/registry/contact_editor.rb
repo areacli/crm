@@ -19,11 +19,14 @@ module Registry
     end
 
     # Corrige um contato (R113): o antigo vira inválido ("corrigido para ...") e nasce o novo, origem tela. Devolve o novo.
+    # O contato inválido não se corrige, menos o endereço com cidade inexistente (R126a): corrigir a cidade é a ação que o aviso pede.
     def correct(contact, kind_fields)
-      raise Refused, t(:invalid_cannot_be_corrected) if contact.status_invalid?
+      raise Refused, t(:invalid_cannot_be_corrected) if contact.status_invalid? && !AddressCheck.unknown_city_of?(contact)
 
       customer = contact.customer
       parsed = parse!(contact.kind, kind_fields)
+      # R126a: a cidade não faz parte da chave do endereço; corrigir só ela conserta o próprio endereço, que volta a válido.
+      return ApplicationRecord.transaction { fix_city(contact, parsed) } if parsed.key == contact.key && AddressCheck.unknown_city_of?(contact) && !AddressCheck.unknown_city_of?(parsed)
       raise Refused, t(:same_as_current) if parsed.key == contact.key
 
       ApplicationRecord.transaction do
@@ -49,11 +52,12 @@ module Registry
       ApplicationRecord.transaction { change_status(contact, "do_not_disturb", reason: clean_reason(note), requested_on: date) }
     end
 
-    # Volta a válido, com motivo (R113). O contato igual ao do credor não volta (R126).
+    # Volta a válido, com motivo (R113). O contato igual ao do credor não volta (R126), nem o endereço com cidade inexistente (R126a).
     def restore(contact, reason)
       reason = clean_reason(reason, required: true)
       raise Refused, t(:already_valid) if contact.status_valid?
       raise Refused, t(:tenant_contact) if tenant_contact?(contact.tenant, contact.kind, contact.key)
+      raise Refused, t(:unknown_city) if AddressCheck.unknown_city_of?(contact)
 
       ApplicationRecord.transaction { change_status(contact, "valid", reason: reason) }
     end
@@ -137,11 +141,20 @@ module Registry
       end
 
       def create_contact(customer, parsed, origin:, kept:)
-        tenant_contact = tenant_contact?(customer.tenant, parsed.kind, parsed.key)
+        # Entra inválido, com o motivo: o contato igual ao do credor (R126) e o endereço com cidade inexistente (R126a).
+        reason = "é contato do credor" if tenant_contact?(customer.tenant, parsed.kind, parsed.key)
+        reason ||= AddressCheck::REASON if AddressCheck.unknown_city_of?(parsed)
         contact = customer.contacts.create!(parsed.address_attributes.merge(tenant_id: customer.tenant_id, kind: parsed.kind, key: parsed.key, value: parsed.value, origin: origin,
-                                                                           status: tenant_contact ? "invalid" : "valid", reason: tenant_contact ? "é contato do credor" : nil,
+                                                                           status: reason ? "invalid" : "valid", reason: reason,
                                                                            kept_by_tenant: kept, updated_by: @actor))
         log(contact.tenant_id, "customer_contact", contact.id, "created", "status", nil, contact.status, note: contact.reason, origin: origin == "screen" ? "screen" : "contact_attempt")
+        contact
+      end
+
+      def fix_city(contact, parsed)
+        before = contact.status
+        contact.update!(parsed.address_attributes.merge(value: parsed.value, status: "valid", reason: "cidade corrigida", do_not_disturb_on: nil, kept_by_tenant: true, updated_by: @actor))
+        log(contact.tenant_id, "customer_contact", contact.id, "corrected", "status", before, "valid", note: "cidade corrigida")
         contact
       end
 
