@@ -1,0 +1,27 @@
+<%# Política "Cadastro entre sistemas" de um credor (17, R410 a R413), no modelo Configuração: uma política por cartão, salva na própria tela, como as
+    demais políticas. Local: card (credor, configuração, sistemas e última alteração). %>
+<% tenant = card.tenant %>
+<section class="cartao" aria-labelledby="cadastro-<%= tenant.id %>">
+  <header><h2 id="cadastro-<%= tenant.id %>"><%= @several_tenants ? "Cadastro entre sistemas · #{tenant.name}" : "Cadastro entre sistemas" %></h2></header>
+  <div class="campos-do-cartao">
+    <%= form_with url: source_systems_customer_record_policy_path, method: :patch do |form| %>
+      <%= hidden_field_tag :credor, tenant.id, id: nil %>
+      <%= politica("Quem prevalece no nome e nos dados do cliente", "pol-cadastro-#{tenant.id}", ajuda: "Quando mais de um sistema informa o mesmo cliente, o sistema que não prevalece não muda o nome nem os dados, e o valor que ele mandou fica no histórico. Os contatos somam sempre. Vale para as cargas seguintes, depois da política \"Correção na tela ou carga\".") do %>
+        <% TenantSetting.customer_record_policies.each_key do |value| %>
+          <label>
+            <%= radio_button_tag :customer_record_policy, value, card.setting.customer_record_policy == value, id: "cadastro-#{tenant.id}-#{value}" %>
+            <strong><%= t("source_systems.record_policies.#{value}") %></strong>
+            <small><%= t("source_systems.record_policy_help.#{value}") %></small>
+          </label>
+        <% end %>
+        <div class="campo">
+          <label for="cadastro-sistema-<%= tenant.id %>">Sistema definido</label>
+          <%= select_tag :customer_record_system_id, options_for_select(card.systems.map { |system| [ system.name, system.id ] }, card.setting.customer_record_system_id), include_blank: "Escolha", id: "cadastro-sistema-#{tenant.id}" %>
+          <small>Só vale na opção "Um sistema definido".</small>
+        </div>
+        <% if card.last_change %><p><small>Alterada por <%= card.last_change.user&.name || "sistema" %> em <%= datetime_br(card.last_change.occurred_at) %>.</small></p><% end %>
+      <% end %>
+      <div class="acoes" data-rodape><button type="submit">Salvar cadastro entre sistemas</button></div>
+    <% end %>
+  </div>
+</section>

@@ -4,7 +4,10 @@
                elsif bill.paid? then situacao("Pago", tom: :success)
                elsif bill.due_date < Date.current then situacao("Vencido", tom: :danger)
                else situacao("A vencer", tom: :info) end %>
-<%= pagina "Título #{bill.number}", subtitulo: safe_join([ link_to(bill.customer.name, customer_path(bill.customer)), " · ", bill.tenant.name ]), indicadores: [ situation ] %>
+<%# 17, R422: com mais de um sistema além do CRM no credor, o sistema pai do título e o id dele lá (a linha do título na ficha não tem detalhe, revisão 27). %>
+<% systems = system_names(bill.tenant_id) %>
+<% origin = systems && "Sistema #{systems[bill.source_system_id]}#{" (id #{bill.external_id})" if bill.external_id.present?}" %>
+<%= pagina "Título #{bill.number}", subtitulo: safe_join([ link_to(bill.customer.name, customer_path(bill.customer)), bill.tenant.name, origin ].compact_blank, " · "), indicadores: [ situation ] %>
 
 <dl class="kpis">
   <%= kpi "Valor vigente", money(bill.amount_cents) %>
@@ -63,7 +66,7 @@
               <th scope="row" data-numerico><%= index + 1 %><%= " (vigente)" if index == @history.versions.size - 1 %></th>
               <td data-numerico><%= money(version.amount_cents) %></td>
               <td><%= datetime_br(version.created_at) %></td>
-              <td><%= version.import ? "de #{date_br(version.import.created_at.in_time_zone.to_date)}" : "—" %></td>
+              <td><%= version.import ? "#{"do sistema #{systems[version.import.source_system_id]}, " if systems && systems[version.import.source_system_id]}de #{date_br(version.import.created_at.in_time_zone.to_date)}" : "—" %></td>
               <td><%= version.user&.name || "—" %></td>
             </tr>
           <% end %>

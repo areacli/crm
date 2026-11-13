@@ -3,29 +3,6 @@
     {
       "warning_type": "SQL Injection",
       "warning_code": 0,
-      "fingerprint": "8c6c6e55ac77b88b750ab495c956ce5a5b006b1ae72b22994743cb14162bf173",
-      "check_name": "SQL",
-      "message": "Possible SQL injection",
-      "file": "app/models/portfolio/query.rb",
-      "line": 20,
-      "link": "https://brakemanscanner.org/docs/warning_types/sql_injection/",
-      "code": "Customer.visible_to(@user, \"view_portfolio\").joins(\"left join (#{aggregate_sql(tenant_ids)}) agg on agg.customer_id = customers.id\")",
-      "render_path": null,
-      "location": {
-        "type": "method",
-        "class": "Portfolio::Query",
-        "method": "customers"
-      },
-      "user_input": "aggregate_sql(tenant_ids)",
-      "confidence": "Medium",
-      "cwe_id": [
-        89
-      ],
-      "note": "Falso positivo: aggregate_sql monta o texto com sanitize_sql_array, e os ids dos credores vêm das permissões do usuário no banco."
-    },
-    {
-      "warning_type": "SQL Injection",
-      "warning_code": 0,
       "fingerprint": "3df7d7bc9bdb3a9afbe2ba116bb872f7a793392b88674de899ec5fcc5bf1aab0",
       "check_name": "SQL",
       "message": "Possible SQL injection",
@@ -183,7 +160,77 @@
         89
       ],
       "note": "Falso positivo: o texto vem do compilador dos segmentos (decisão 0023), que só escreve fragmentos próprios e passa todo valor da árvore como parâmetro ($n), como no recálculo do enquadramento financeiro."
+    },
+    {
+      "warning_type": "SQL Injection",
+      "warning_code": 0,
+      "fingerprint": "8107943a7bf7f42aac639ba103a324ea531b07f187b942052077d012b437ba0f",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "app/models/portfolio/customer_list.rb",
+      "line": 54,
+      "link": "https://brakemanscanner.org/docs/warning_types/sql_injection/",
+      "code": "relation.with(:corte => Arel.sql(\"select #{@sort} as valor from agg order by #{@sort} #{@direction} nulls last limit 1 offset #{((offset + limit) - 1)}\")).where(\"agg.#{@sort} #{(@direction == \"asc\") ? (\"<=\") : (\">=\")} (select valor from corte) or (select valor from corte) is null\")",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Portfolio::CustomerList",
+        "method": "value_page"
+      },
+      "user_input": "@sort",
+      "confidence": "Weak",
+      "cwe_id": [
+        89
+      ],
+      "note": "@sort e @direction vêm de listas fechadas em Portfolio::Query#customer_list (SORTS; asc ou desc); limit e offset são inteiros calculados por Pagination."
+    },
+    {
+      "warning_type": "SQL Injection",
+      "warning_code": 0,
+      "fingerprint": "c1c07187c1eeb1b00d0776152c173d60fd5ff4fbf33ec1f63e1936222e94ecb0",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "app/models/portfolio/customer_list.rb",
+      "line": 113,
+      "link": "https://brakemanscanner.org/docs/warning_types/sql_injection/",
+      "code": "Arel.sql(\"#{(\"customers.name\" or @sort)} #{@direction} nulls last\")",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Portfolio::CustomerList",
+        "method": "ordered"
+      },
+      "user_input": "@sort",
+      "confidence": "Medium",
+      "cwe_id": [
+        89
+      ],
+      "note": "@sort e @direction vêm de listas fechadas em Portfolio::Query#customer_list (SORTS; asc ou desc)."
+    },
+    {
+      "warning_type": "SQL Injection",
+      "warning_code": 0,
+      "fingerprint": "c94a12011841b173e87e1a107fcb8d7ee84ea21707c55eb125d2cb850f6f3e2a",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "app/models/portfolio/customer_list.rb",
+      "line": 43,
+      "link": "https://brakemanscanner.org/docs/warning_types/sql_injection/",
+      "code": "scope.joins(\"join lateral (#{per_customer_sql}) agg on true\")",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Portfolio::CustomerList",
+        "method": "build"
+      },
+      "user_input": "per_customer_sql",
+      "confidence": "Weak",
+      "cwe_id": [
+        89
+      ],
+      "note": "A busca e a faixa entram por SQL montado no próprio CustomerList: datas, credores e faixas passam por sanitize_sql_array, e o texto buscado fica no scope, com parâmetros."
     }
   ],
-  "brakeman_version": "8.0.2"
+  "brakeman_version": "8.0.2",
+  "updated": "2026-11-09 01:32:36 +0000"
 }

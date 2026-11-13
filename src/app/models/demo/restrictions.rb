@@ -1,12 +1,13 @@
 module Demo
   # O que a demonstração pública fecha e o que ela troca. Vale para qualquer usuário da instalação com CRM_DEMO=1:
   #
-  # * fechado: usuários, perfis, troca de senha, cadastro do credor e contas de pagamento (credenciais) só se leem; qualquer alteração é recusada com mensagem;
+  # * fechado: usuários, perfis, troca de senha, cadastro do credor, contas de pagamento (credenciais) e sistemas do credor (17) só se leem; qualquer
+  #   alteração é recusada com mensagem;
   # * texto digitado: o que o visitante escreve em campo livre (texto e contato do acionamento, motivos, notas, nome e contatos do cliente) é trocado por texto
   #   fictício antes de chegar ao serviço, para a vitrine não guardar dado pessoal de ninguém (LGPD). O que o credor define (nome de canal, de resultado, de
   #   segmento) continua como foi digitado até a recriação das 4h.
   module Restrictions
-    MESSAGE = "Na demonstração pública, usuários, perfis, senhas, dados do credor e contas de pagamento ficam fechados: dá para ver, não para alterar.".freeze
+    MESSAGE = "Na demonstração pública, usuários, perfis, senhas, dados do credor, contas de pagamento e sistemas ficam fechados: dá para ver, não para alterar.".freeze
     TEXT = "texto descartado na demonstração".freeze
     CONTACT = "contato descartado na demonstração".freeze
     REASON = "motivo descartado na demonstração".freeze
@@ -14,7 +15,7 @@ module Demo
     # Controladores fechados para qualquer método que não seja de leitura.
     CLOSED_WRITES = %w[memberships memberships/profiles memberships/activations memberships/password_resets profiles settings/tenant_registries
                        settings/payment_accounts settings/payment_accounts/activations settings/payment_accounts/webhook_secrets settings/payment_accounts/connection_tests
-                       settings/channels/webhook_secrets].freeze
+                       settings/channels/webhook_secrets source_systems source_systems/pauses source_systems/customer_record_policies].freeze
     # Fechados também para leitura (a tela só existe para alterar).
     CLOSED_ALL = %w[passwords].freeze
     CLOSED_ACTIONS = [ [ "settings/payment_accounts", "new" ] ].freeze

@@ -1,0 +1,4 @@
+<%= formulario_de_painel(titulo: "Sistema #{@system.name_was}", descricao: @system.tenant.name, url: source_system_path(@system), metodo: :patch, enviar: "Salvar", escopo: :source_system,
+                         erro: @system.errors.full_messages.to_sentence.presence, voltar: source_systems_path) do |form| %>
+  <%= render "source_systems/fields", form: form, system: @system, key_locked: !@system.role_remote? || @system.imported? %>
+<% end %>

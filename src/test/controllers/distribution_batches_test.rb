@@ -78,7 +78,30 @@ class DistributionBatchesTest < ActionDispatch::IntegrationTest
     file = Rack::Test::UploadedFile.new(StringIO.new("cpf\n123\n"), "text/csv", original_filename: "lote.csv")
     post distribution_batches_url, params: batch_params(kind: "file", file: file), headers: TRECHO
     assert_response :unprocessable_content
-    assert_includes response.body, "uma coluna só"
+    assert_includes response.body, "precisa da coluna documento ou da coluna contrato"
     assert_select "[data-refazer-no-erro] form" # a SPA troca a tela pela refeita, com a mensagem
+  end
+
+
+  test "17, R421: a coluna sistema acha o contrato do sistema; sem ela, o código de mais de um contrato é recusado e listado" do
+    sap = SourceSystem.create!(tenant: @alfa, name: "SAP", key_kind: "natural")
+    twin = Contract.create!(tenant: @alfa, source_system: sap, code: "L-1")
+    ContractCustomer.create!(contract: twin, customer: @bia)
+    l2 = Contract.find_by!(code: "L-2")
+    file = ->(text) { Rack::Test::UploadedFile.new(StringIO.new(text), "text/csv", original_filename: "lote.csv") }
+
+    perform_enqueued_jobs { post distribution_batches_url, params: batch_params(kind: "file", file: file.call("contrato\nL-1\nL-2\nL-9\n")) }
+    batch = DistributionBatch.last
+    assert_predicate batch, :checked?
+    assert_equal [ l2.id ], batch.entries
+    assert_equal [ [ "L-1" ], 1, [ "L-9" ] ], batch.summary.values_at("ambiguous", "ambiguous_count", "missing")
+    get distribution_batch_url(batch), headers: TRECHO
+    assert_includes response.body, "1 linhas da planilha ficam de fora porque o código é de mais de um contrato: L-1."
+
+    perform_enqueued_jobs { post distribution_batches_url, params: batch_params(kind: "file", file: file.call("contrato;sistema\nL-1;sap\nL-2;\nL-1;Totvs\n")) }
+    batch = DistributionBatch.last
+    assert_predicate batch, :checked?
+    assert_equal [ twin.id, l2.id ].sort, batch.entries.sort
+    assert_equal [ 0, [ "L-1 · Totvs" ] ], batch.summary.values_at("ambiguous_count", "missing")
   end
 end

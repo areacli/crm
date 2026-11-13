@@ -188,6 +188,54 @@ class PaymentsScreensTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "identificador_pagamento;identificador_estorno"
   end
 
+  test "17, R422: com sistema remoto, a lista mostra 'vários' nos pagamentos, e a tela, o modelo e a conferência trazem `sistema` e `id_titulo`" do
+    make_bill(@alfa)
+    entrar(users(:joana))
+    get imports_path, headers: TRECHO
+    assert_select "th", text: "Sistema", count: 0
+    get new_import_path(tipo: "pagamentos"), headers: TRECHO
+    assert_select "th code", text: "sistema", count: 0
+
+    manager = SourceSystems::Manager.new(users(:joana))
+    sap = manager.create(tenant: @alfa, name: "SAP", key_kind: "natural")
+    get template_imports_path(tipo: "pagamentos")
+    assert_equal "metodo_recebimento;identificador;documento;titulo;data_pagamento;valor;meio;estado_final;sistema", response.body.lines.first.strip.delete_prefix("\uFEFF")
+    assert_includes response.body.lines.second, ";SAP"
+    manager.create(tenant: @alfa, name: "ERP", key_kind: "own_id")
+    get template_imports_path(tipo: "pagamentos")
+    assert_includes response.body.lines.first, ";sistema;id_titulo"
+    assert_includes response.body.lines.second, ";ERP;T-0001"
+    get template_imports_path(tipo: "estornos")
+    assert_includes response.body.lines.first, ";motivo;sistema"
+
+    get new_import_path(tipo: "pagamentos"), headers: TRECHO
+    assert_select "tr", text: /id_titulo\s+Não/
+    assert_select "tr", text: /titulo\s+Não/, count: 2
+    assert_select "tr", text: /sistema\s+Não/
+    get new_import_path(tipo: "estornos"), headers: TRECHO
+    assert_select "th code", text: "sistema"
+    assert_select "th code", text: "id_titulo", count: 0
+
+    # Pendente do SAP reenviado com o ERP: a conferência diz que o sistema será trocado.
+    header = PaymentsHelper::PAYMENT_HEADER + %w[sistema id_titulo]
+    send_payments = lambda do |system|
+      import = Portfolio::ImportService.new.start(tenant: @alfa, user: users(:joana), file: write_csv([ payment_line(titulo: "NF-404", sistema: system) ], header: header),
+                                                  mode: :incremental, original_name: "pagamentos.csv", kind: "payments")
+      perform_enqueued_jobs(only: CheckImportJob)
+      import.reload
+    end
+    confirm_import(send_payments.call("SAP"))
+    resent = send_payments.call("ERP")
+    get import_path(resent), headers: TRECHO
+    assert_select "dt", text: "Pendentes com o sistema trocado"
+
+    Import.create!(tenant: @alfa, user: users(:joana), kind: :portfolio, mode: :incremental, status: :confirmed, original_name: "carteira.csv", source_system: sap)
+    get imports_path, headers: TRECHO
+    assert_select "th", text: "Sistema"
+    assert_select "td", text: "vários", count: 2
+    assert_select "td", text: "SAP"
+  end
+
   test "ficha: seção Pagos e crédito por contrato, sem saldo do cliente (R54, R55b)" do
     bill = make_bill(@alfa, amount_cents: 50_000)
     confirm_import(run_payments_import([ payment_line("valor" => "650,00") ]))
@@ -229,6 +277,29 @@ class PaymentsScreensTest < ActionDispatch::IntegrationTest
     post customer_credit_transfers_path(customer), params: params.deep_merge(credit_transfer: { reason: "" })
     assert_redirected_to customer_path(customer, aba: "pagamentos")
     assert_equal 2, Credit.where(reason: :transfer).count
+  end
+
+  test "17, R421: código de destino que casa com mais de um contrato lista os encontrados e a pessoa escolhe" do
+    from = make_bill(@alfa, number: "NF-1").contract
+    to = make_bill(@alfa, number: "NF-2", contract_code: "C-2", document: JOAO, name: "Pedro").contract
+    sap = SourceSystem.create!(tenant: @alfa, name: "SAP", key_kind: "natural")
+    twin = Contract.create!(tenant: @alfa, source_system: sap, code: "C-2")
+    Credit.create!(tenant: @alfa, contract: from, kind: :entry, amount_cents: 20_000, reason: :excess)
+    customer = from.customers.first
+    params = { credit_transfer: { from_contract_id: from.id, to_code: "C-2", amount: "150,00", reason: "migração" } }
+
+    entrar(users(:joana))
+    assert_no_difference -> { Credit.count } do
+      post customer_credit_transfers_path(customer), params: params, headers: painel
+    end
+    assert_response :unprocessable_content
+    assert_includes response.body, "Há mais de um contrato com o código C-2 neste credor. Escolha o de destino."
+    assert_select "input[type=radio][name='credit_transfer[to_contract_id]']", 2
+    assert_select "label", text: /C-2 · Planilha · Pedro/
+    assert_select "label", text: /C-2 · SAP/
+
+    post customer_credit_transfers_path(customer), params: params.deep_merge(credit_transfer: { to_contract_id: twin.id }), headers: painel
+    assert_equal [ 5_000, 0, 15_000 ], [ from.credit_cents, to.credit_cents, twin.credit_cents ]
   end
 
   test "transferência para contrato de outro credor ou com contrato de origem de outro cliente é recusada (V10)" do

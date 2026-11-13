@@ -27,13 +27,21 @@ function loader(tabela, url) {
   return function (parametros, sucesso) {
     tabela.data("pedido")?.abort()
     if (tabela.closest(".grade").prevAll(".falha-da-grade").remove().length) setTimeout(() => tabela.datagrid("resize"))
-    const dados = { ...filtrosDe(tabela), pagina: parametros.page, por_pagina: parametros.rows }
+    const filtros = filtrosDe(tabela)
+    const dados = { ...filtros, pagina: parametros.page, por_pagina: parametros.rows }
     if (parametros.sort) Object.assign(dados, { ordem: parametros.sort, direcao: parametros.order })
+    // Trocar de página, de tamanho ou de ordem não muda o total: com os mesmos filtros, o servidor pode deixar de contar. O mesmo pedido de novo (atualizar a lista) conta.
+    const chaveDosFiltros = JSON.stringify(filtros)
+    const chaveDoPedido = JSON.stringify(dados)
+    const sabido = tabela.data("total-sabido")
+    if (sabido?.filtros === chaveDosFiltros && sabido.pedido !== chaveDoPedido) dados.sem_total = 1
     const pedido = $.ajax({ url, data: dados, dataType: "json" })
     tabela.data("pedido", pedido)
     pedido.done((resposta) => {
       if (tabela.data("pedido") !== pedido) return
-      sucesso(resposta)
+      const total = resposta.total ?? sabido.total
+      tabela.data("total-sabido", { filtros: chaveDosFiltros, pedido: chaveDoPedido, total })
+      sucesso({ ...resposta, total })
       // Nota (o filtro ativo) e aviso (a consulta passou do limite) que o servidor manda junto com a página: acima da grade, que refaz a altura
       // para a barra de páginas continuar à vista.
       const caixa = tabela.closest(".grade")

@@ -17,6 +17,12 @@ class TenantSetting < ApplicationRecord
   # Correção na tela ou carga: qual vale (06, R117). Padrão: a tela prevalece.
   enum :correction_policy, { screen: "screen", load: "load" }, prefix: true, validate: true
 
+  # Cadastro entre sistemas (17, R410): quem prevalece quando dois sistemas informam nome e dados do mesmo cliente. Padrão: o último a enviar.
+  enum :customer_record_policy, { last_sender: "last_sender", defined_system: "defined_system", first_creator: "first_creator" }, prefix: true, validate: true
+  belongs_to :customer_record_system, class_name: "SourceSystem", optional: true
+  validates :customer_record_system, presence: true, if: :customer_record_policy_defined_system?
+  validates :customer_record_system, absence: true, unless: :customer_record_policy_defined_system?
+
   # Prazo de guarda dos dados do cliente, em anos (07, R136): mínimo 1, padrão 5 (PG1).
   validates :retention_years, numericality: { only_integer: true, greater_than_or_equal_to: 1, less_than_or_equal_to: 50 }
 

@@ -12,6 +12,9 @@ class Phase2ScreensSystemTest < ApplicationSystemTestCase
     travel_day(AGREEMENT_DAY)
     @customer, @nf1, @nf2, @agreement = accepted_agreement(@alfa)
     travel_back
+    # O cenário do acordo tem data fixa (30/10/2026) e a tela roda no relógio de verdade: os vencimentos vão para a frente, para o acordo não estar em
+    # atraso no dia em que o teste roda (a recusa da quebra, abaixo, depende disso).
+    @agreement.titles.update_all(due_date: Date.current + 30)
     @import = Import.create!(tenant: @alfa, user: users(:joana), kind: :portfolio, mode: :incremental, status: :checked, original_name: "carteira.csv", size_bytes: 20_480, progress_percent: 100,
                              checked_at: Time.current, summary: { lines: 10, valid: 10, rejected: 0, customers: 3, customers_new: 1, amount_formatted: "1.000,00", bills_new: 2, bills_updated: 1, bills_unchanged: 7 })
     entrar_na_casca

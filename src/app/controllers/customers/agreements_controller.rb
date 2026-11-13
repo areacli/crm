@@ -25,6 +25,9 @@ module Customers
       @form = raw
       @bills = Bill.where(customer: customer).active.kind_common.where("amount_cents > paid_cents").includes(:contract).order(:due_date, :id).to_a
       @held = AgreementBill.where(bill_id: @bills.map(&:id), held: true).includes(:agreement).to_h { |row| [ row.bill_id, row.agreement ] }
+      # 17, R420: a tela volta no sistema em que estava.
+      @choice = Agreements::SystemChoice.new(@bills, @held.reject { |_id, agreement| agreement.proposal? }.keys, params[:sistema])
+      @bills = @choice.filter(@bills)
       @create_problem = error.message
       @field = error.field
       @problem = error.message

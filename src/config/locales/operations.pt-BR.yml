@@ -113,7 +113,7 @@ pt-BR:
     segment_required: "Escolha um segmento ativo."
     kind_required: "Escolha de onde vem o lote."
     file_required: "Envie a planilha."
-    file_columns: "A planilha precisa de uma coluna só, chamada documento ou contrato."
+    file_columns: "A planilha precisa da coluna documento ou da coluna contrato. Com contrato, a coluna sistema é opcional."
   impact_review:
     name: "Conferência do impacto"
     failed: "A conferência do impacto não terminou. Tente de novo."
@@ -138,6 +138,7 @@ pt-BR:
       target_required: "Informe o documento do cliente ou o código do contrato."
       operation_required: "Escolha a operação."
       not_found: "Nenhum cliente ou contrato encontrado com %{value}."
+      ambiguous: "Há mais de um contrato com o código %{value} neste credor. Escolha um."
     proposal_canceled: "Distribuição encerrada: %{reason}."
     end_reasons:
       period_end: "fim do período"

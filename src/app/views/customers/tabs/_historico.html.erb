@@ -17,7 +17,7 @@
               <td><% if long %><%= alternar_detalhe("detalhe-mudanca-#{change.id}", "mudança de #{datetime_br(change.occurred_at)}") %><% end %><%= datetime_br(change.occurred_at) %></td>
               <th scope="row"><%= cortado(text) %></th>
               <td><%= change.user&.name || "sistema" %></td>
-              <td><%= change.origin.present? ? contact_origin(change.origin) : "carga" %></td>
+              <td><%= change_origin(change, @customer.tenant_id) %></td>
             </tr>
             <% if long %><%= detalhe_da_linha("detalhe-mudanca-#{change.id}", 4) { tag.p(text) } %><% end %>
           <% end %>

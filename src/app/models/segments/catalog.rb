@@ -31,7 +31,9 @@ module Segments
       # 15, R352 (revisão 1): o retorno combinado no último acionamento do contrato, para os segmentos de callback.
       return_days: { type: :days },
       return_user: { type: :user },
-      updated_value: { type: :money }
+      updated_value: { type: :money },
+      # 17, R425: o sistema do credor de onde o contrato veio. `:reference` é o valor guardado pelo id e escrito pelo nome; `of` diz de que lista.
+      system: { type: :reference, of: :system }
     }.freeze
 
     # Atributos do cliente (R256): tipo pelo documento, há quantos dias entrou no CRM, maior atraso e saldo dos contratos dele no credor.
@@ -55,14 +57,15 @@ module Segments
     COLLECTIONS = {
       bills: {
         gender: :m,
+        # `system` é o sistema do contrato do título, não o pai do título (17, R406): o título de acordo de um contrato do SAP conta como do SAP.
         fields: { overdue_days: { type: :days }, balance: { type: :money }, amount: { type: :money }, product: { type: :text },
-                  kind: { type: :option, options: BILL_KINDS } },
+                  kind: { type: :option, options: BILL_KINDS }, system: { type: :reference, of: :system } },
         qualifiers: %w[overdue due paid withdrawn renegotiated],
         main: :product, sums: %i[balance amount overdue_days]
       },
       contact_attempts: {
         gender: :m, dated: true,
-        fields: { result: { type: :reference }, result_kind: { type: :option, options: ContactResult::KINDS.keys.map(&:to_s) },
+        fields: { result: { type: :reference, of: :result }, result_kind: { type: :option, options: ContactResult::KINDS.keys.map(&:to_s) },
                   channel: { type: :option, options: ContactAttempt::CHANNELS } },
         qualifiers: [], main: :result, sums: []
       },

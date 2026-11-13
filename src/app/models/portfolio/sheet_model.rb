@@ -2,10 +2,10 @@ module Portfolio
   # Planilha-modelo da carteira (R44): o cabeçalho e três linhas fictícias válidas, que passam na conferência sem nenhuma recusa.
   # A tabela de colunas da tela de importação sai do mesmo conjunto, então o exemplo mostrado é o da planilha que se baixa.
   module SheetModel
-    COLUMNS = (CsvFile::REQUIRED + CsvFile::OPTIONAL).freeze
+    COLUMNS = (Layout::REQUIRED + Layout::OPTIONAL).freeze
 
     # Colunas de contato adicionais (06): ficam depois das demais; o exemplo preenche algumas.
-    CONTACT_COLUMNS = COLUMNS.drop(15)
+    CONTACT_COLUMNS = Registry::LoadContacts::COLUMNS.excluding("telefone", "email").freeze
 
     def self.contact_cells(**values) = CONTACT_COLUMNS.map { |column| values[column.to_sym].to_s }
     private_class_method :contact_cells
@@ -16,14 +16,26 @@ module Portfolio
       %w[111.444.777-35 Ana\ Lima 2026-003 15/11/2026 2.340,00] + [ "(21) 98888-7777", "", "CT-102", "Parcela do acordo", "responsável financeiro", "financiamento veicular", "", "", "", "8,00" ] + contact_cells
     ].freeze
 
-    def self.required?(column) = CsvFile::REQUIRED.include?(column)
+    # Ids remotos das três linhas (17, R401), na ordem de `Layout::ID_COLUMNS`. Só entram no modelo de quem tem credor com sistema remoto:
+    # sem isso, a tela e o modelo são os de sempre (R422).
+    ID_ROWS = [ %w[T-0001 K-100 BP-1], %w[T-0002 K-101 BP-2], %w[T-0003 K-102 BP-3] ].freeze
+
+    # As colunas do modelo; com `ids`, as de id remoto vão no fim.
+    def self.columns(ids: false) = ids ? COLUMNS + Layout::ID_COLUMNS : COLUMNS
+
+    def self.rows(ids: false) = ids ? ROWS.each_with_index.map { |row, index| row + ID_ROWS[index] } : ROWS
+
+    def self.required?(column) = Layout::REQUIRED.include?(column)
 
     def self.format_text(column) = I18n.t("portfolio.sheet.columns.#{column}")
 
     # Primeiro valor preenchido da coluna nas linhas do modelo.
-    def self.example(column) = ROWS.map { |row| row[COLUMNS.index(column)] }.find(&:present?)
+    def self.example(column)
+      all = columns(ids: true)
+      rows(ids: true).map { |row| row[all.index(column)] }.find(&:present?)
+    end
 
     # O CSV com ponto e vírgula e UTF-8 (com BOM, para o Excel reconhecer os acentos).
-    def self.csv = "﻿" + ([ COLUMNS ] + ROWS).map { |row| row.join(";") }.join("\r\n") + "\r\n"
+    def self.csv(ids: false) = "﻿" + ([ columns(ids: ids) ] + rows(ids: ids)).map { |row| row.join(";") }.join("\r\n") + "\r\n"
   end
 end

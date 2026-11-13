@@ -18,6 +18,17 @@
   </section>
 <% end %>
 
+<% if d[:identidades].any? %>
+  <section class="cartao" aria-labelledby="identidades">
+    <header><h2 id="identidades">Identificação nos sistemas do credor</h2></header>
+    <div class="tabela" tabindex="0"><table>
+      <caption class="apenas-leitor-de-tela">Identificação nos sistemas do credor</caption>
+      <thead><tr><th scope="col">Sistema</th><th scope="col">Id do cliente</th><th scope="col">Desde</th></tr></thead>
+      <tbody><% d[:identidades].each do |i| %><tr><td><%= i[:sistema] %></td><th scope="row"><%= i[:id] %></th><td><%= date_br(Time.zone.parse(i[:desde]).to_date) %></td></tr><% end %></tbody>
+    </table></div>
+  </section>
+<% end %>
+
 <section class="cartao" aria-labelledby="contatos">
   <header><h2 id="contatos">Contatos</h2></header>
   <% if d[:contatos].empty? %><p class="vazio">Nenhum contato.</p><% else %>

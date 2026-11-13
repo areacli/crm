@@ -1,12 +1,14 @@
 module Payments
   # Confirmação da importação de pagamentos ou de estornos (R56, R63): grava em lotes, em segundo plano (decisão 0021). Cada lote é uma transação travada
   # pelo bloqueio por credor, o cursor fica gravado na mesma transação (`imports.batch_state`) e a importação só vira "confirmada" no fim. Etapas retomáveis
-  # (`ActiveJob::Continuable`): preparar, ordenar o fluxo, aplicar os lotes, concluir. A baixa de cada pagamento é idempotente por canal e identificador
+  # (`ActiveJob::Continuable`): preparar, trocar o sistema dos pendentes reenviados, ordenar o fluxo, aplicar os lotes, concluir. A baixa de cada pagamento é idempotente por canal e identificador
   # (R48): se um lote falhar de vez, o que os lotes anteriores gravaram fica, e enviar o mesmo arquivo de novo ignora o já registrado e conclui o resto.
   class ImportConfirmer
     # `runner` roda as etapas: o job (com cursor e retomada) ou o `InlineRunner` (seguido, na mesma chamada).
     def run(import, runner = Portfolio::InlineRunner)
       runner.step(:prepare) { prepare(import) }
+      # 17, R418: o pendente reenviado com outro sistema troca de sistema antes de o fluxo ser ordenado.
+      runner.step(:repoint) { Repoint.apply(import) if import.payments? }
       runner.step(:order) { PaymentStream.prepare(import) }
       runner.step(:apply) { |step| apply(import, step) }
       runner.step(:finish) { finish(import) }

@@ -1,0 +1,40 @@
+pt-BR:
+  source_systems:
+    key_kinds:
+      own_id: "Id próprio"
+      natural: "Chave natural"
+    key_kind_help:
+      own_id: "O sistema manda o id do título, do contrato e do cliente; número e código viram só exibição e podem mudar."
+      natural: "O título é reconhecido pelo documento e pelo número; o contrato, pelo código."
+    record_policies:
+      last_sender: "O último a enviar"
+      defined_system: "Um sistema definido"
+      first_creator: "O primeiro a criar"
+    record_policy_help:
+      last_sender: "Cada carga atualiza o cadastro, venha de que sistema vier. Exemplo: o SAP manda \"Maria Silva\" e depois o Oracle manda \"Maria S. Souza\"; fica o do Oracle."
+      defined_system: "Só o sistema escolhido muda nome e dados. Se ele nunca informou o cliente, os demais podem atualizá-lo."
+      first_creator: "Prevalece o sistema da importação que criou o cliente. Exemplo: cliente criado pelo Oracle; o nome que o SAP mandar depois é ignorado."
+    create:
+      done: "Sistema %{name} criado."
+    update:
+      done: "Sistema %{name} salvo."
+    destroy:
+      done: "Sistema %{name} excluído."
+    pauses:
+      create:
+        done: "Sistema %{name} pausado: não recebe importação nova."
+      destroy:
+        done: "Sistema %{name} reativado."
+    customer_record_policies:
+      update:
+        done: "Cadastro entre sistemas de %{tenant} salvo."
+  activerecord:
+    attributes:
+      source_system:
+        name: "Nome"
+        key_kind: "Tipo de chave"
+        role: "Papel"
+        status: "Situação"
+      tenant_setting:
+        customer_record_policy: "A política do cadastro entre sistemas"
+        customer_record_system: "O sistema definido"

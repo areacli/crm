@@ -21,6 +21,10 @@
         <% if summary["missing_count"].to_i.positive? %>
           <p><%= number_br(summary["missing_count"]) %> linhas da planilha não foram encontradas: <%= Array(summary["missing"]).join(", ") %>.</p>
         <% end %>
+        <% if summary["ambiguous_count"].to_i.positive? %>
+          <%# 17, R421: o código existe em mais de um sistema do credor, e a planilha não disse qual. %>
+          <p><%= number_br(summary["ambiguous_count"]) %> linhas da planilha ficam de fora porque o código é de mais de um contrato: <%= Array(summary["ambiguous"]).join(", ") %>. Envie de novo com a coluna <code>sistema</code>.</p>
+        <% end %>
         <% if batch.confirmed? %>
           <p><%= number_br(summary["created"].to_i) %> distribuições criadas<%= ", #{summary['refused_at_confirm']} recusadas na confirmação" if summary["refused_at_confirm"].to_i.positive? %>.</p>
         <% elsif batch.checked? %>

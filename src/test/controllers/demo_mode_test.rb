@@ -108,7 +108,7 @@ class DemoModeTest < ActionDispatch::IntegrationTest
   test "o limite de 50 MB continua valendo na demonstração, sem ler o arquivo" do
     entrar(users(:joana))
     Tempfile.create([ "grande", ".csv" ]) do |file|
-      file.truncate(Portfolio::CsvFile::MAX_BYTES + 1)
+      file.truncate(Ingestion::CsvReader::MAX_BYTES + 1)
       assert_no_difference -> { Import.count } do
         post imports_path, params: { import: { tenant_id: @alfa.id, kind: "portfolio", mode: "incremental", file: Rack::Test::UploadedFile.new(file.path, "text/csv") } }
       end
@@ -129,6 +129,38 @@ class DemoModeTest < ActionDispatch::IntegrationTest
     assert_equal 1, File.readlines(Demo::Files.reversals(@alfa).tap { |p| @reversal_path = p }).size
     File.delete(@reversal_path)
     assert bill
+  end
+
+  test "com mais de um sistema, os arquivos fictícios trazem os ids e a coluna sistema, e passam na conferência (17)" do
+    make_channel(@alfa)
+    make_bill(@alfa, number: "NF-77", amount_cents: 50_000)
+    joana = users(:joana)
+    erp = SourceSystems::Manager.new(joana).create(tenant: @alfa, name: "ERP Acadêmico", key_kind: "own_id")
+    service = Portfolio::ImportService.new
+
+    # A carteira do sistema de id próprio: os ids em cada linha, nenhuma recusa, e os clientes ficam com a identidade do sistema.
+    path = Demo::Files.for("portfolio", @alfa, erp)
+    assert_equal Demo::PortfolioSheet::REMOTE_HEADER.join(";"), File.open(path, &:readline).chomp
+    import = service.start(tenant: @alfa, user: joana, file: path, mode: :incremental, source_system: erp)
+    File.delete(path)
+    import.checker.run(import)
+    assert_equal 0, ImportRejection.where(import_id: import.id).count
+    import.reload.confirmer.run(import)
+    assert_predicate import.reload, :confirmed?
+    assert_equal 60, CustomerIdentity.where(tenant_id: @alfa.id, source_system_id: erp.id).count
+    assert_equal 0, Bill.where(tenant_id: @alfa.id, source_system_id: erp.id, external_id: nil).count
+
+    # Os pagamentos: cada linha diz o sistema do título, e a do sistema de id próprio leva o id.
+    path = Demo::Files.for("payments", @alfa)
+    rows = File.readlines(path, chomp: true)
+    assert_equal "metodo_recebimento;identificador;documento;titulo;data_pagamento;valor;meio;sistema;id_titulo", rows.first
+    assert(rows.any? { |row| row.include?(";NF-77;") && row.end_with?(";Planilha;") })
+    assert(rows.any? { |row| row.match?(/;ERP Acadêmico;LAN-\d+-\d\z/) })
+    import = service.start(tenant: @alfa, user: joana, file: path, mode: :incremental, kind: "payments")
+    File.delete(path)
+    import.checker.run(import)
+    assert_equal 0, ImportRejection.where(import_id: import.id).count
+    assert_not import.reload.rejected?
   end
 
   test "fora da demonstração nada é fechado nem trocado" do

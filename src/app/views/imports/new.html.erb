@@ -1,10 +1,7 @@
 <%
   titles = { "portfolio" => "Importar carteira", "payments" => "Importar pagamentos", "reversals" => "Importar estornos" }
-  columns = if @kind == "portfolio"
-              Portfolio::SheetModel::COLUMNS.map { |column| [ column, Portfolio::SheetModel.required?(column), Portfolio::SheetModel.format_text(column), Portfolio::SheetModel.example(column) ] }
-            else
-              Payments::SheetModel.columns(@kind).map { |column| [ column, Payments::SheetModel.required?(@kind, column), Payments::SheetModel.format_text(@kind, column), Payments::SheetModel.example(@kind, column) ] }
-            end
+  # As colunas de id remoto da carteira e as de sistema dos pagamentos e estornos só aparecem para quem tem credor com sistema remoto (17, R401, R416, R422).
+  columns = ImportSheet.columns(@kind, ids: @with_ids, remote: @remote)
 %>
 <% content_for :title, titles.fetch(@kind) %>
 <% content_for :cable_channels, import_cable_channels %>
@@ -30,6 +27,17 @@
       <% else %>
         <%= form.hidden_field :tenant_id, value: @tenants.first&.id %>
         <dl class="dados"><dt>Credor</dt><dd><%= @tenants.first&.name %></dd></dl>
+      <% end %>
+      <%# R400: o sistema só é perguntado no credor com mais de um além do CRM; o pausado aparece, desabilitado. Com vários credores, vale o do credor escolhido. %>
+      <% @systems.each do |tenant_id, systems| %>
+        <% next if systems.size < 2 %>
+        <%= tag.div class: "campo", data: (@tenants.size > 1 ? { mostrar_se_campo: "import[tenant_id]", mostrar_se_valor: tenant_id } : {}) do %>
+          <%= form.label :source_system_id, "Sistema", for: "import_source_system_id_#{tenant_id}" %>
+          <%= form.select :source_system_id,
+                          options_for_select(systems.map { |system| [ system.paused? ? "#{system.name} (pausado)" : system.name, system.id, { disabled: system.paused? } ] }, @selected_system.to_i),
+                          { include_blank: "Escolha o sistema" }, required: true, id: "import_source_system_id_#{tenant_id}" %>
+          <small>De onde vem esta carteira. O batimento da carga completa vale só para os títulos deste sistema.</small>
+        <% end %>
       <% end %>
       <div class="campo">
         <%= form.label :file, "Arquivo CSV" %>

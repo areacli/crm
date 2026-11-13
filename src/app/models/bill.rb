@@ -4,6 +4,9 @@ class Bill < ApplicationRecord
 
   belongs_to :contract
   belongs_to :customer
+  # Sistema pai (17, R403, R406): o do contrato quando o título vem de um sistema; o CRM para o que nasce aqui (título de acordo, da quebra e de
+  # estorno). Nunca muda. `external_id` é o id do título no sistema de id próprio.
+  belongs_to :source_system
   # Título de acordo (a entrada e as parcelas) ou da quebra: pertence a um acordo (11, R225).
   belongs_to :agreement, optional: true
   # Título de estorno (11, R233): título comum do cliente criado pelo CRM, numerado a partir do acordo de origem e fora dele.
@@ -16,6 +19,10 @@ class Bill < ApplicationRecord
   # (R221); `canceled`: título de acordo cancelado (quebra antes da efetivação, título único, reversão).
   enum :status, { active: "active", withdrawn: "withdrawn", paid: "paid", renegotiated: "renegotiated", scheduled: "scheduled", canceled: "canceled" }, validate: true
   enum :kind, { common: "common", agreement: "agreement", break: "break", reversal: "reversal" }, prefix: :kind, validate: true
+
+  attr_readonly :source_system_id
+  validates :external_id, length: { maximum: 100 }
+  before_validation :assume_source_system, on: :create
 
   scope :agreement_titles, -> { where.not(kind: "common") }
   # Os títulos que são do acordo (a entrada, as parcelas e o título da quebra); o título de estorno é comum e fica fora dele (R233, AH1).
@@ -42,4 +49,11 @@ class Bill < ApplicationRecord
 
   # Excedente: quanto o alocado passa do valor vigente quando o valor cai abaixo do que já foi pago (R90). Calculado, nunca gravado.
   def excess_cents = [ paid_cents - amount_cents, 0 ].max
+
+  private
+    def assume_source_system
+      return if source_system_id || tenant_id.nil?
+
+      self.source_system = kind_common? ? contract&.source_system : SourceSystem.crm_of(tenant_id)
+    end
 end

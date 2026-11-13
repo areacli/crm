@@ -96,6 +96,18 @@ function montarAbasInternas(caixa) {
   })
   raiz.tabs("select", Math.max(0, itens.findIndex((item) => item.atual)))
   raiz.data("pronta", true)
+  // A barra de rolagem da região e a altura que sobra para as abas mudam sem o EasyUI saber (o detalhe de um contrato aberto, por exemplo).
+  const coluna = raiz.parent()
+  const medida = () => `${coluna.width()}x${raiz.outerHeight()}`
+  let anterior = medida()
+  const observador = new ResizeObserver(() => {
+    const agora = medida()
+    if (!coluna.width() || agora === anterior || !document.contains(raiz[0])) return
+    anterior = agora
+    raiz.tabs("resize")
+  })
+  observador.observe(coluna[0])
+  observador.observe(raiz[0])
 }
 
 function clicarLink(evento) {

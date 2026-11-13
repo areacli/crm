@@ -1,7 +1,7 @@
 <%# Formulário de perfil (aba própria na SPA): o nome, o credor e a marca de perfil disponível para operações (14, R310) à esquerda, e as permissões (R30)
     à direita, agrupadas como o menu (só apresentação: cada permissão continua valendo sozinha). Locais: profile, tenants (só na criação), url, method, titulo. %>
 <% grupos = { "Carteira e cobrança" => %w[view_portfolio record_contact_attempts edit_customer_registry handle_data_subject_rights cancel_payment_promises negotiate_agreements administer_agreements issue_payment_instruments],
-              "Financeiro e entrada de dados" => %w[upload_imports confirm_imports upload_payments confirm_payments],
+              "Financeiro e entrada de dados" => %w[upload_imports confirm_imports upload_payments confirm_payments configure_integration],
               "Distribuição" => %w[manage_operations distribute_portfolio view_operation_trail manage_queues],
               "Administração e configuração" => %w[change_settings change_financial_policies manage_contact_results manage_users manage_profiles] } %>
 <% erro = @error || profile.errors.full_messages.to_sentence.presence %>

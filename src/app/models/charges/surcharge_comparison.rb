@@ -12,14 +12,15 @@ module Charges
     # "Antes de confirmar" (padrão): só as linhas com acréscimos, com o segmento atual do contrato (ou "Demais" se é novo), os pagamentos do título que
     # já existe e o valor e o vencimento do arquivo. É uma aproximação, mas aparece a tempo de desistir da carga.
     def before(import, today: Date.current)
-      rows = Sql.rows(<<~SQL, import.tenant_id, import.tenant_id, import.tenant_id, import.id)
+      # 17, R415: o título e o contrato da linha são procurados só no sistema da importação, pela chave dele.
+      matching = Portfolio::Matching.new(import)
+      rows = Sql.rows(<<~SQL, import.id)
         select r.line, r.number, r.amount_cents, r.due_date, r.penalty_cents, r.interest_cents, r.correction_cents, r.other_cents,
-               b.id as bill_id, coalesce(c.tier_id, k.tier_id) as tier_id
+               b.id as bill_id, coalesce(bk.tier_id, k.tier_id) as tier_id
         from import_rows r
-        left join customers cu on cu.tenant_id = ? and cu.document = r.document
-        left join bills b on b.tenant_id = ? and b.customer_id = cu.id and b.number = r.number
-        left join contracts c on c.id = b.contract_id
-        left join contracts k on k.tenant_id = ? and k.code = r.contract
+        #{matching.bill_joins}
+        left join contracts bk on bk.id = b.contract_id
+        #{matching.contract_join}
         where r.import_id = ? and r.ok and coalesce(r.penalty_cents, r.interest_cents, r.correction_cents, r.other_cents) is not null
       SQL
       return nil if rows.empty?

@@ -1,0 +1,57 @@
+<%# Mudanças a confirmar da conferência da carteira (17, R409a). Local: import. As contagens e a lista vêm da preparação, que guarda cada confirmação. %>
+<% changes = Portfolio::Holds.new(import) %>
+<% counts = changes.counts %>
+<% items = changes.listing %>
+<% may_confirm = policy(import).confirm? %>
+<section class="cartao" id="mudancas-a-confirmar" aria-labelledby="mudancas">
+  <header>
+    <div>
+      <h2 id="mudancas">Mudanças a confirmar: <%= number_br(counts.pending) %> a confirmar, <%= number_br(counts.confirmed) %> <%= counts.confirmed == 1 ? "confirmada" : "confirmadas" %><% if counts.blocked.positive? %>, <%= number_br(counts.blocked) %> <%= counts.blocked == 1 ? "bloqueada" : "bloqueadas" %><% end %></h2>
+      <p>Linhas que trocam o devedor de um título ou trazem um id de cliente que hoje é de outro documento. A mudança confirmada entra com a importação; a que ficar sem confirmação não é aplicada, o título fica como estava e a linha vai para as ignoradas.
+      <% if counts.total > items.size %>Mostrando as primeiras <%= number_br(items.size) %> de <%= number_br(counts.total) %>.<% end %></p>
+    </div>
+  </header>
+  <% if may_confirm && (counts.pending.positive? || counts.confirmed.positive?) %>
+    <div class="acoes">
+      <% if counts.pending.positive? %><%= button_to "Confirmar todas as mudanças", import_holds_path(import), data: { variant: "secondary", size: "small" } %><% end %>
+      <% if counts.confirmed.positive? %><%= button_to "Desfazer todas as confirmações", import_holds_path(import), method: :delete, data: { variant: "secondary", size: "small" } %><% end %>
+    </div>
+  <% end %>
+  <div class="tabela" tabindex="0">
+    <table>
+      <caption class="apenas-leitor-de-tela">Mudanças a confirmar</caption>
+      <thead>
+        <tr>
+          <th scope="col" data-numerico>Linha</th><th scope="col">Título</th><th scope="col">Mudança</th><th scope="col">Hoje</th><th scope="col">A carga traz</th><th scope="col">Situação</th>
+          <% if may_confirm %><th scope="col"><span class="apenas-leitor-de-tela">Ações</span></th><% end %>
+        </tr>
+      </thead>
+      <tbody>
+        <% items.each do |item| %>
+          <% row = item.row %>
+          <tr>
+            <td data-numerico><%= row.line %></td>
+            <th scope="row"><%= row.number %><% if row.external_bill_id %> <small>(id <%= row.external_bill_id %>)</small><% end %></th>
+            <td><%= hold_change_text(row) %></td>
+            <td><%= [ item.debtor, item.identity_owner ].compact.uniq.join(" · ").presence || "—" %></td>
+            <td><%= row.name %></td>
+            <td>
+              <% if row.hold_blocked_reason %><%= situacao("Bloqueada", tom: :danger) %> <small><%= row.hold_blocked_reason %></small>
+              <% elsif row.hold_confirmed %><%= situacao("Confirmada", tom: :success) %>
+              <% else %><%= situacao("A confirmar", tom: :warning) %><% end %>
+            </td>
+            <% if may_confirm %>
+              <td>
+                <% if row.hold_blocked_reason.nil? && row.hold_confirmed %>
+                  <%= button_to "Desfazer", import_holds_path(import, linha: row.line), method: :delete, data: { variant: "secondary", size: "small" } %>
+                <% elsif row.hold_blocked_reason.nil? %>
+                  <%= button_to "Confirmar mudança", import_holds_path(import, linha: row.line), data: { variant: "secondary", size: "small" } %>
+                <% end %>
+              </td>
+            <% end %>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</section>

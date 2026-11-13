@@ -70,7 +70,9 @@ module Payments
         posting.kind == :review ? posting : Outcome.new(:applied, "instrumento pago: #{posting.text}")
       end
 
-      # Entra no mesmo caminho do pagamento existente (R284): o pagamento é do canal da conta e identifica o título (ou a promessa, ou o acordo) pelo número.
+      # Entra no mesmo caminho do pagamento existente (R284): o pagamento é do canal da conta. 17, R417b: ele vale para o objeto a que o instrumento foi emitido,
+      # percorrendo a ligação: o título vai pronto (outro título de mesmo número, em outro sistema, não entra na conta) e a promessa segue pelo número dela, que é
+      # único no credor. O pai do pagamento é o CRM, que emitiu o instrumento.
       def post_payment(instrument, paid_cents, paid_at, notification)
         number = reference_number(instrument)
         return Outcome.new(:review, "instrumento pago sem título ou promessa com número: a baixa espera o gestor") if number.blank?
@@ -78,7 +80,8 @@ module Payments
         identifier = notification&.end_to_end_id.presence || "#{instrument.provider}:#{instrument.external_id}"
         paid_on = [ paid_at.in_time_zone.to_date, Date.current ].min
         result = ExternalPayment.new.pay(instrument.account.channel, { identifier: identifier, document: instrument.payer_document, bill_number: number, paid_on: paid_on,
-                                                                       amount_cents: paid_cents, payment_method: PaymentMethod.label(PaymentMethod.for_instrument(instrument.kind)) },
+                                                                       amount_cents: paid_cents, payment_method: PaymentMethod.label(PaymentMethod.for_instrument(instrument.kind)),
+                                                                       own: true, target_bill_id: instrument.bill_id },
                                          label: "instrumento #{instrument.custom_id}")
         return Outcome.new(:review, "o pagamento não entrou: #{result.outcome}") if result.status == :rejected
 

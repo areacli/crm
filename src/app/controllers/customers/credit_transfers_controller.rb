@@ -12,14 +12,19 @@ module Customers
 
     def create
       authorize @customer, :show?
-      attributes = params.expect(credit_transfer: %i[from_contract_id to_code amount reason])
+      attributes = params.expect(credit_transfer: %i[from_contract_id to_code to_contract_id amount reason])
       from = @customer.contracts.find_by(id: attributes[:from_contract_id]) or return head(:not_found)
       authorize from, :create?, policy_class: CreditTransferPolicy
 
       cents, problem = Money.parse_cents(attributes[:amount])
       raise Access::Refused, problem.to_s.capitalize unless cents
 
-      to = Contract.find_by(tenant_id: from.tenant_id, code: attributes[:to_code].to_s.strip)
+      # 17, R421: o código de destino que casa com mais de um contrato do credor (um por sistema) volta à tela com os encontrados, para a pessoa escolher.
+      lookup = Contracts::CodeLookup.new(from.tenant_id, attributes[:to_code], attributes[:to_contract_id])
+      @candidates = lookup.contracts if lookup.ambiguous?
+      raise Access::Refused, t(".destination_ambiguous", code: attributes[:to_code].to_s.strip) if lookup.ambiguous?
+
+      to = lookup.contract
       raise Access::Refused, t(".destination_not_found") unless to
 
       Payments::CreditTransfer.new(Current.user).transfer(from: from, to: to, cents: cents, reason: attributes[:reason])

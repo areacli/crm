@@ -16,6 +16,8 @@
       <div><dt>Créditos gerados</dt><dd><%= number_br(effect[:credits]) %> <small>(<%= money(effect[:credit_cents].to_i) %>)</small></dd></div>
       <div><dt>Pendentes novos</dt><dd><%= number_br(effect[:pending_new]) %> <small>(<%= money(effect[:pending_cents].to_i) %>)</small></dd></div>
       <% if effect[:pending_applied].to_i.positive? %><div><dt>Pendentes de antes, aplicados</dt><dd><%= number_br(effect[:pending_applied]) %></dd></div><% end %>
+      <%# 17, R418: linhas que reenviam um pagamento pendente com outro sistema. %>
+      <% if data[:repointed].to_i.positive? %><div><dt>Pendentes com o sistema trocado</dt><dd><%= number_br(data[:repointed]) %> <small>(reenviados com outro sistema e reavaliados nele)</small></dd></div><% end %>
     </dl>
     <% if data[:ignored_columns].present? %><p><small>Colunas ignoradas: <%= data[:ignored_columns].join(", ") %>.</small></p><% end %>
     <% if effect[:pending_new].to_i.positive? %><p><small>Pendente é o pagamento cujo título ainda não está na carteira: fica sem efeito e sem crédito até uma carga de carteira trazer o título.</small></p><% end %>

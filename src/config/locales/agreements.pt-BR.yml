@@ -91,6 +91,7 @@ pt-BR:
       bills_limit: "O acordo vai de 1 a %{max} títulos."
       bill_unknown: "Título não encontrado entre os do cliente."
       bill_not_open: "O título %{number} não está em cobrança."
+      mixed_systems: "Um acordo só reúne títulos de um mesmo sistema, e os escolhidos são de %{systems}. Escolha os títulos de um sistema só."
       bill_held: "O título %{number} está na proposta ou no acordo %{agreement}."
       bill_taken: "Um dos títulos acabou de entrar em outra proposta ou acordo."
       discount_invalid: "Informe o desconto em percentual, com até duas casas (por exemplo, 12,5)."

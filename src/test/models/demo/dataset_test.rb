@@ -114,6 +114,21 @@ class DemoDatasetTest < ActiveSupport::TestCase
     assert_equal %w[boleto card pix], checkout.modalities.sort
     assert checkout.available?
 
+    # --- Segundo sistema (17): o ERP Acadêmico, de id próprio, com clientes que o Planilha já trouxe e clientes só dele, pagamentos pelo id do título e o segmento
+    erp = SourceSystem.find_by!(tenant_id: alpha.id, name: Demo::Dataset::SystemSteps::NAME)
+    assert_predicate erp, :key_own_id?
+    assert_equal [ "CRM", "Planilha", erp.name ], SourceSystem.where(tenant_id: alpha.id).order(:id).pluck(:name)
+    assert_equal [ "CRM", "Planilha" ], SourceSystem.where(tenant_id: beta.id).order(:id).pluck(:name)
+    assert_equal 20, CustomerIdentity.where(tenant_id: alpha.id, source_system_id: erp.id).count
+    assert_operator Customer.where(tenant_id: alpha.id).where("cardinality(source_system_ids) = 2").count, :>=, 8, "clientes que os dois sistemas informam"
+    erp_bills = Bill.where(tenant_id: alpha.id, source_system_id: erp.id)
+    assert_operator erp_bills.count, :>=, 20
+    assert_equal 0, erp_bills.where(external_id: nil).count
+    assert Payment.where(tenant_id: alpha.id, source_system_id: erp.id, status: "applied").where(bill_id: erp_bills.select(:id)).exists?, "pagamento achado pelo id do título"
+    segment = Segment.find_by!(tenant_id: alpha.id, name: Demo::Dataset::SystemSteps::SEGMENT)
+    assert_equal erp.id, segment.expression.dig("all", 0, "value")
+    assert_equal "Planilha", Import.find_by!(tenant_id: alpha.id, status: "checked").source_system.name
+
     # --- A lista do IBGE vem com a carga (11, revisão 9): todo cliente com endereço válido casa com um município
     assert_equal 5571, Municipality.count
     with_address = Customer.where(tenant_id: alpha.id).where("exists (select 1 from customer_contacts c where c.customer_id = customers.id and c.kind = 'address' and c.status = 'valid')")

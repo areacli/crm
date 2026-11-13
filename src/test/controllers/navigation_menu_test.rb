@@ -9,7 +9,7 @@ class NavigationMenuTest < ActionDispatch::IntegrationTest
     grupos = grupos_do_menu
     assert_equal [ "Geral", "Cobrança", "Financeiro", "Entrada de dados", "Distribuição", "Administração" ], grupos.keys
     assert_equal [ "Acordos" ], grupos["Cobrança"]
-    assert_equal [ "Importações" ], grupos["Entrada de dados"]
+    assert_equal [ "Importações", "Sistemas" ], grupos["Entrada de dados"]
     assert_includes grupos["Financeiro"], "Estornos à espera"
     assert_empty grupos.values.flatten.grep(/\AImportar/)
     assert_equal [ "Credenciadas", "Enquadramento da distribuição", "Trilha" ], submenu_do_menu("Operações")

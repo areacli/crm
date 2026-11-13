@@ -2,7 +2,8 @@ module Payments
   # Monta as linhas da conferência de pagamentos ou estornos em lotes e as grava na tabela de preparação pelo `PaymentRow` (`insert_all!` do Active
   # Record). A preparação guarda o ARQUIVO LIDO, não é entidade de domínio: não passa pela auditoria (decisão 0021).
   class Staging
-    COLUMNS = %i[channel_code identifier document bill_number paid_on amount_cents payment_method payment_identifier reason final_state].freeze
+    COLUMNS = %i[channel_code identifier document bill_number paid_on amount_cents payment_method payment_identifier reason final_state source_system_id external_bill_id
+                 target_bill_id].freeze
 
     # Linhas de preparação por lote; o lote é também a unidade de commit e de retomada da leitura.
     class_attribute :batch_size, instance_writer: false, default: 1000

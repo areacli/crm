@@ -1,0 +1,68 @@
+<%# Trecho que a SPA refaz a cada busca e a cada ação: a tabela (uma linha por sistema, 17, R396 a R399), a paginação e os cartões da política
+    "Cadastro entre sistemas" (R410), que mudam quando um credor passa a ter, ou deixa de ter, mais de um sistema além do CRM. %>
+<div id="resultado" aria-live="polite">
+  <% if @systems.empty? %>
+    <p class="vazio">Nenhum sistema encontrado.</p>
+  <% else %>
+    <div class="tabela" tabindex="0" data-fixa>
+      <table>
+        <caption class="apenas-leitor-de-tela">Sistemas</caption>
+        <thead>
+          <tr>
+            <th scope="col">Sistema</th>
+            <% if @several_tenants %><th scope="col">Credor</th><% end %>
+            <th scope="col">Tipo de chave</th>
+            <th scope="col" data-numerico>Importações</th>
+            <th scope="col">Última importação</th>
+            <th scope="col">Situação</th>
+            <th scope="col"><span class="apenas-leitor-de-tela">Ações</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @systems.each do |system| %>
+            <% imports = @import_counts.fetch(system.id, 0) %>
+            <tr id="sistema-<%= system.id %>">
+              <th scope="row"><%= system.name %></th>
+              <% if @several_tenants %><td><%= system.tenant.name %></td><% end %>
+              <td><%= system.role_crm? ? "—" : t("source_systems.key_kinds.#{system.key_kind}") %></td>
+              <td data-numerico><%= system.role_crm? ? "—" : number_br(imports) %></td>
+              <td><%= @last_imports[system.id] ? datetime_br(@last_imports[system.id]) : "—" %></td>
+              <td>
+                <% if system.role_crm? %><%= situacao("Do CRM", tom: :info) %>
+                <% elsif system.active? %><%= situacao("Ativo", tom: :success) %>
+                <% else %><%= situacao("Pausado", tom: :warning) %><% end %>
+              </td>
+              <td data-acoes>
+                <%# O CRM é o pai do que o próprio CRM cria: não se edita, não se pausa e não recebe importação (R396). %>
+                <% unless system.role_crm? %>
+                  <%= menu_de_linha("sistema-menu-#{system.id}", "Ações de #{system.name}") do %>
+                    <%= abrir_painel "Editar", edit_source_system_path(system) %>
+                    <% if system.active? %>
+                      <%= confirmar_no_painel "Pausar", titulo: "Pausar #{system.name}?", mensagem: "O sistema deixa de receber importação nova; a que estiver em andamento termina. O que ele já trouxe continua na carteira.", acao: "Pausar", url: source_system_pause_path(system) %>
+                    <% else %>
+                      <%= confirmar_no_painel "Reativar", titulo: "Reativar #{system.name}?", mensagem: "O sistema volta a receber importações.", acao: "Reativar", url: source_system_pause_path(system), metodo: :delete, perigoso: false %>
+                    <% end %>
+                    <%# Só o sistema remoto sem importação se exclui (R399); com importação, só se pausa. %>
+                    <% if system.role_remote? && imports.zero? %>
+                      <%= confirmar_no_painel "Excluir", titulo: "Excluir #{system.name}?", mensagem: "O sistema ainda não recebeu importação e sai da lista do credor.", acao: "Excluir", url: source_system_path(system), metodo: :delete %>
+                    <% end %>
+                  <% end %>
+                <% end %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+    <%= render "shared/paginacao", pagination: @pagination, unit: "sistemas", path: ->(page) { source_systems_path(request.query_parameters.merge("pagina" => page)) } %>
+  <% end %>
+
+  <%# Cadastro entre sistemas (R410): um cartão por credor com mais de um sistema além do CRM. %>
+  <% if @policy_cards.any? %>
+    <div class="pagina-em-secoes">
+      <% @policy_cards.each do |card| %>
+        <%= render "source_systems/record_policy", card: card %>
+      <% end %>
+    </div>
+  <% end %>
+</div>

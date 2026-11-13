@@ -5,7 +5,10 @@ module Payments
     #
     #   { "id": "evt_1", "type": "payment.received",
     #     "data": { "identifier": "E123", "document": "52998224725", "bill_number": "NF-1", "paid_on": "2026-10-18",
-    #               "amount_cents": 40000, "method": "pix" } }
+    #               "amount_cents": 40000, "method": "pix", "system": "SAP", "external_bill_id": "T-77" } }
+    #
+    # `system` é o nome do sistema do credor de onde o pagamento vem (17, R417c): obrigatório quando o credor tem mais de um sistema além do CRM, menos
+    # no pagamento com número de promessa ou de acordo. `external_bill_id`, opcional, é o id do título nesse sistema, quando ele tem id próprio.
     class SignedJson
       SIGNATURE_HEADER = "X-Signature".freeze
       PAYMENT_TYPE = "payment.received".freeze
@@ -31,7 +34,8 @@ module Payments
 
         Event.new(id: id, kind: kind, payment: {
           identifier: data["identifier"].to_s, document: data["document"].to_s, bill_number: data["bill_number"].to_s,
-          paid_on: data["paid_on"].to_s, amount_cents: data["amount_cents"], payment_method: data["method"].to_s
+          paid_on: data["paid_on"].to_s, amount_cents: data["amount_cents"], payment_method: data["method"].to_s,
+          system: data["system"].to_s, external_bill_id: data["external_bill_id"].to_s.presence
         })
       end
     end

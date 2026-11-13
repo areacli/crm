@@ -255,8 +255,10 @@ module Payments
 
       def payment_row(import, row, bill_id, status, applied, credit, promise_id: nil, counted: false, agreement_id: nil)
         { agreement_id: agreement_id, final_state: row["final_state"], promise_id: promise_id, promise_counted: counted, channel_id: row["channel_id"].to_i, identifier: row["identifier"],
-          document: row["document"], bill_number: row["bill_number"], bill_id: bill_id, paid_on: row["paid_on"], amount_cents: row["amount_cents"].to_i,
-          payment_method: row["payment_method"], status: status, applied_cents: applied, credit_cents: credit, reversed_cents: 0, credit_reversed_cents: 0 }
+          # 17, R417: o pagamento que só trouxe o id do título guarda o número do título achado; pendente, fica sem número e com o id.
+          document: row["document"], bill_number: row["bill_number"] || row["found_number"] || "", bill_id: bill_id, paid_on: row["paid_on"], amount_cents: row["amount_cents"].to_i,
+          payment_method: row["payment_method"], status: status, applied_cents: applied, credit_cents: credit, reversed_cents: 0, credit_reversed_cents: 0,
+          source_system_id: row["source_system_id"]&.to_i, external_bill_id: row["external_bill_id"] }
       end
 
       # Grava o lote pelos modelos (validações e callbacks), na ordem: pagamentos novos, pendentes que viraram aplicados, créditos, alocações, abatimentos,
@@ -266,9 +268,12 @@ module Payments
         tenant = import.tenant
         now = Time.current
         channels = PaymentChannel.where(id: new_payments.map { |attributes| attributes[:channel_id] }.uniq).index_by(&:id)
+        # 17, R418: o pai do pagamento é o sistema da linha; a linha sem sistema (promessa, acordo, instrumento pago) é do CRM. Uma leitura por lote.
+        systems = Systems.new(tenant.id)
         created = new_payments.to_h do |attributes|
           [ [ attributes[:channel_id], attributes[:identifier] ],
-            Payment.create!(**attributes.except(:channel_id), tenant: tenant, channel: channels.fetch(attributes[:channel_id]), import: import) ]
+            Payment.create!(**attributes.except(:channel_id, :source_system_id), tenant: tenant, source_system: systems.parent(attributes[:source_system_id]),
+                            channel: channels.fetch(attributes[:channel_id]), import: import) ]
         end
         pending = known(Payment.where(id: updates.map(&:first)).preload(:channel), tenant)
         updates.each do |id, bill_id, applied, credit, promise_id, counted, agreement_id|
@@ -294,9 +299,13 @@ module Payments
           end
         end)
 
-        changes = credits.map { |credit| [ contracts.fetch(credit[:contract_id]), "credit_added", { after: credit[:amount].to_s } ] } +
-                  bill_states.map { |bill_id, bill| [ bills.fetch(bill_id), "payment_applied", { after: bill[:paid].to_s } ] } +
-                  abatements.map { |abatement| [ bills.fetch(abatement[:bill_id]), "abated", { after: abatement[:components].values.sum.to_s } ] }
+        # 17, R423: a mudança guarda o sistema do pagamento que a causou; a linha sem sistema (o pai é o CRM) fica sem sistema no histórico. No título
+        # tocado por mais de um pagamento do lote, vale o primeiro.
+        system_of = ->(key) { payment_of.call(key).source_system_id.then { |id| id unless id == systems.crm.id } }
+        bill_system = (allocations + abatements).each_with_object({}) { |item, found| found[item[:bill_id]] ||= system_of.call(item[:key]) }
+        changes = credits.map { |credit| [ contracts.fetch(credit[:contract_id]), "credit_added", { after: credit[:amount].to_s, source_system_id: system_of.call(credit[:key]) } ] } +
+                  bill_states.map { |bill_id, bill| [ bills.fetch(bill_id), "payment_applied", { after: bill[:paid].to_s, source_system_id: bill_system[bill_id] } ] } +
+                  abatements.map { |abatement| [ bills.fetch(abatement[:bill_id]), "abated", { after: abatement[:components].values.sum.to_s, source_system_id: system_of.call(abatement[:key]) } ] }
         Change.record_many!(changes, tenant_id: import.tenant_id, actor: import.user, import: import)
 
         bill_states.each { |bill_id, bill| bills.fetch(bill_id).update!(paid_cents: bill[:paid], status: bill[:status], paid_on: bill[:paid_on]) }

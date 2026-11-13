@@ -6,7 +6,11 @@ module Portfolio
 
     attr_reader :bill
 
-    def initialize(bill) = @bill = bill
+    # `system_names`: os nomes dos sistemas do credor quando ele tem mais de um além do CRM (17, R423); com um só, nil, e o texto é o de antes.
+    def initialize(bill, system_names: nil)
+      @bill = bill
+      @system_names = system_names
+    end
 
     def versions = @versions ||= bill.value_versions.includes(:import, :user).in_order.to_a
 
@@ -22,7 +26,8 @@ module Portfolio
         versions.each_with_index.map do |version, index|
           who = version.user&.name
           text = index.zero? ? "Valor inicial" : "Valor alterado"
-          text += " (importação de #{version.import.created_at.in_time_zone.strftime('%d/%m/%Y')}#{", confirmada por #{who}" if who})" if version.import
+          system = @system_names&.dig(version.import&.source_system_id)
+          text += " (importação #{"do sistema #{system} " if system}de #{version.import.created_at.in_time_zone.strftime('%d/%m/%Y')}#{", confirmada por #{who}" if who})" if version.import
           Event.new(version.created_at.to_date, version.created_at, :version, version.amount_cents, text)
         end
       end

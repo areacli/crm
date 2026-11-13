@@ -1,0 +1,17 @@
+<%# Campos do sistema (17, R397). Locais: form, system, key_locked (o tipo de chave não muda no Planilha nem depois da primeira importação). %>
+<div class="campo">
+  <%= form.label :name, "Nome" %>
+  <%= form.text_field :name, value: system.name, required: true, maxlength: 100 %>
+  <small>Único no credor. É o nome que aparece no envio, na conferência e na ficha.</small>
+</div>
+<fieldset>
+  <legend>Tipo de chave</legend>
+  <% SourceSystem.key_kinds.each_key do |kind| %>
+    <label>
+      <%= form.radio_button :key_kind, kind, checked: system.key_kind == kind, disabled: key_locked %>
+      <strong><%= t("source_systems.key_kinds.#{kind}") %></strong>
+      <small><%= t("source_systems.key_kind_help.#{kind}") %></small>
+    </label>
+  <% end %>
+  <small><%= key_locked ? (system.role_remote? ? "O tipo de chave não muda depois da primeira importação." : "O sistema #{system.name_was} é sempre de chave natural.") : "Não muda depois da primeira importação." %></small>
+</fieldset>

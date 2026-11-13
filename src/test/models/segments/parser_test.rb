@@ -67,4 +67,25 @@ class SegmentsParserTest < ActiveSupport::TestCase
     assert_match(/não há resultado de acionamento chamado "Inventado"/, parse("contratos\n  nenhum acionamento \"Inventado\"").errors.first.last)
     assert_equal [ 2, "O primeiro valor tem de ser menor que o segundo." ], parse("contratos\n  atraso entre 90 e 30").errors.first
   end
+
+  test "17, R425: sistema no contrato e no título vai e volta pelo nome; sistema que o credor não tem é recusado" do
+    sap = SourceSystem.create!(tenant: @alfa, name: "SAP", key_kind: "own_id")
+    sheet = SourceSystem.default_of(@alfa.id)
+    tree = tree_of("contracts", { "path" => "system", "op" => "eq", "value" => sap.id },
+                   { "path" => "bills", "quantifier" => "some", "where" => { "field" => "system", "op" => "in", "value" => [ sap.id, sheet.id ] } },
+                   { "path" => "bills", "quantifier" => "none", "where" => { "field" => "system", "op" => "eq", "value" => sheet.id } })
+    text = Segments::Text.new(Segments::Expression.new(tree)).short_text
+    parsed = parse(text)
+    assert parsed.ok?, "#{text}\n#{parsed.errors.inspect}"
+    assert_equal tree, parsed.tree, text
+
+    # O exemplo da especificação ("títulos com sistema = SAP") na gramática da 13, como a pessoa digitaria: a coleção sem quantificador é contagem.
+    example = parse("contratos\n  algum título com sistema = sap")
+    assert example.ok?, example.errors.inspect
+    assert_equal sap.id, example.tree["all"].first.dig("where", "value")
+
+    assert_match(/não há sistema chamado "Oracle" neste credor/, parse("contratos\n  sistema = Oracle").errors.first.last)
+    SourceSystem.create!(tenant: tenants(:beta), name: "Oracle", key_kind: "natural")
+    assert_match(/não há sistema chamado "Oracle" neste credor/, parse("contratos\n  sistema = Oracle").errors.first.last, "o sistema de outro credor não vale")
+  end
 end

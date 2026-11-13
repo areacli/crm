@@ -1,8 +1,11 @@
 <%# Contratos em que o cliente figura (06, R124a), acima das abas e filtro da ficha (padrões de interface, revisões 21 e 28): o código do contrato recorta a página
     inteira, a linha escolhida fica marcada e "Ver todos os contratos" desfaz o filtro; com mais de 5 contratos, os 5 primeiros (e o escolhido) e um link para todos.
     Locais: customer, contracts (todos), selected (o contrato escolhido ou nil), tab, bill_counts, members, credit_totals, brackets, tiers, since, overdue (dias de atraso
-    por contrato) e operations (as operações que cobram cada contrato, 14; só para a equipe do credor: nil esconde a coluna). %>
+    por contrato) e operations (as operações que cobram cada contrato, 14; só para a equipe do credor: nil esconde a coluna). Com mais de um sistema além do CRM
+    no credor, a coluna Sistema e o id do contrato no sistema, no detalhe (17, R422). %>
 <% show_operations = !local_assigns[:operations].nil? %>
+<% systems = system_names(customer.tenant_id) %>
+<% columns = 7 + (show_operations ? 1 : 0) + (systems ? 1 : 0) %>
 <% several = contracts.size > 1 %>
 <% limit = 5 %>
 <% shown = params[:contratos] == "todos" ? contracts : contracts.first(limit) %>
@@ -16,7 +19,7 @@
   <div class="tabela" tabindex="0">
     <table data-detalhes>
       <caption class="apenas-leitor-de-tela">Contratos do cliente e os clientes de cada um<%= several ? "; o código do contrato filtra a ficha" : "" %></caption>
-      <thead><tr><th scope="col"><%= alternar_todos_os_detalhes %>Contrato</th><th scope="col" data-numerico>Títulos</th><th scope="col">Papel deste cliente</th><th scope="col">Clientes do contrato</th><th scope="col">Faixa de atraso</th><th scope="col">Enquadramento</th><% if show_operations %><th scope="col">Operações</th><% end %><th scope="col" data-numerico>Crédito</th></tr></thead>
+      <thead><tr><th scope="col"><%= alternar_todos_os_detalhes %>Contrato</th><% if systems %><th scope="col">Sistema</th><% end %><th scope="col" data-numerico>Títulos</th><th scope="col">Papel deste cliente</th><th scope="col">Clientes do contrato</th><th scope="col">Faixa de atraso</th><th scope="col">Enquadramento</th><% if show_operations %><th scope="col">Operações</th><% end %><th scope="col" data-numerico>Crédito</th></tr></thead>
       <tbody>
         <% shown.each do |contract| %>
           <% rows = members.fetch(contract.id, []) %>
@@ -29,6 +32,7 @@
               <%= alternar_detalhe(detail_id, "contrato #{contract.label}") %>
               <%= several ? link_to(contract.label, filter_path.call(contract), aria: { current: (current ? "true" : nil), label: "Filtrar a ficha pelo contrato #{contract.label}" }) : contract.label %>
             </th>
+            <% if systems %><td><%= systems[contract.source_system_id] %></td><% end %>
             <td data-numerico><%= number_br(bill_counts.fetch(contract.id, 0)) %></td>
             <td><%= own ? role_label(own, rows) : "—" %></td>
             <td><%= pluralize(rows.size, "cliente", "clientes") %></td>
@@ -57,7 +61,8 @@
             <% end %>
             <td data-numerico><%= money(credit_totals.fetch(contract.id, 0)) %></td>
           </tr>
-          <%= detalhe_da_linha(detail_id, show_operations ? 8 : 7) do %>
+          <%= detalhe_da_linha(detail_id, columns) do %>
+            <% if systems && contract.external_id.present? %><p>Id no sistema <%= systems[contract.source_system_id] %>: <%= contract.external_id %>.</p><% end %>
             <p><strong>Clientes do contrato:</strong>
               <%= safe_join(rows.sort_by { |row| row.customer.name }.map { |row| safe_join([ (row.customer_id == customer.id ? row.customer.name : (policy(row.customer).show? ? link_to(row.customer.name, customer_path(row.customer)) : row.customer.name)), " (", role_label(row, rows), ")" ]) }, "; ") %>.</p>
             <% if tier && since[contract.id] %><p>No item <%= tier.name %> do enquadramento financeiro desde <%= date_br(since[contract.id]) %>.</p><% end %>

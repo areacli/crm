@@ -134,8 +134,9 @@ a:where(:hover) { text-decoration: underline; }
 .ficha-avisos:empty { display: none; }
 .ficha-avisos { padding: 10px 14px 0; }
 .ficha-corpo { flex: 1; min-height: 0; }
-.ficha-centro { display: flex; flex-direction: column; gap: 10px; box-sizing: border-box; height: 100%; padding: 10px 12px; }
-.ficha-centro .abas-internas { flex: 1; min-height: 300px; }
+/* A coluna cresce além da região em janela baixa, e quem rola é a região, como na lateral. A base em pixels faz as abas ignorarem a altura que o `fit` escreve nelas. */
+.ficha-centro { display: flex; flex-direction: column; gap: 10px; box-sizing: border-box; min-height: 100%; padding: 10px 12px; }
+.ficha-centro .abas-internas { flex: 1 1 300px; }
 .ficha-lateral { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 10px; box-sizing: border-box; padding: 10px 12px 10px 0; }
 .ficha-secao { height: 100%; box-sizing: border-box; overflow: auto; }
 .ficha-secao .grade { height: 100%; }

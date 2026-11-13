@@ -18,7 +18,17 @@ module MeasureData
     (connection.tables & tables.flatten.map(&:to_s)).each { |name| connection.execute("analyze #{connection.quote_table_name(name)}") }
   end
 
-  def insert(model, rows, slice: SLICE) = rows.each_slice(slice) { |part| model.insert_all!(part.to_a, returning: false) }
+  def insert(model, rows, slice: SLICE) = rows.each_slice(slice) { |part| model.insert_all!(with_system(model, part.to_a), returning: false) }
+
+  # Contrato, título e pagamento têm sistema pai (17, R403 e R417) e `insert_all!` não passa pelo padrão do modelo: quem não informa recebe o sistema
+  # padrão do credor, e o título que o CRM cria (acordo, quebra, estorno), o sistema CRM.
+  def with_system(model, rows)
+    return rows unless [ Contract, Bill, Payment ].include?(model) && rows.any? && !rows.first.key?(:source_system_id)
+
+    rows.map { |row| row.merge(source_system_id: system_id(row.fetch(:tenant_id), model == Bill && !row.fetch(:kind, "common").to_s.eql?("common") ? "crm" : "default")) }
+  end
+
+  def system_id(tenant_id, role = "default") = (@system_ids ||= {})[[ tenant_id, role ]] ||= SourceSystem.find_by!(tenant_id: tenant_id, role: role).id
 
   # Um cliente por contrato (código `CT-<i>`), `bills_per` títulos por contrato, para os índices `from...from + count`. `document`: (i) => documento; `bill`: (i, n) =>
   # atributos do título (sempre as mesmas chaves); `contract_age`: (i) => dias de idade do contrato. Devolve os ids dos clientes, na ordem.
@@ -28,11 +38,11 @@ module MeasureData
       customers = Customer.insert_all!(slice.map { |i| { tenant_id: tenant_id, document: document.call(i), name: "Cliente #{i}" } }, returning: %w[id]).rows.flatten
       ids.concat(customers)
       contracts = Contract.insert_all!(slice.map do |i|
-        { tenant_id: tenant_id, code: "CT-#{i}" }.merge(contract_age ? { created_at: Time.current - contract_age.call(i).days } : {})
+        { tenant_id: tenant_id, source_system_id: system_id(tenant_id), code: "CT-#{i}" }.merge(contract_age ? { created_at: Time.current - contract_age.call(i).days } : {})
       end, returning: %w[id code]).rows.to_h { |id, code| [ code, id ] }
       ContractCustomer.insert_all!(slice.zip(customers).map { |i, id| { contract_id: contracts.fetch("CT-#{i}"), customer_id: id, roles: [] } }, returning: false)
       Bill.insert_all!(slice.zip(customers).flat_map do |i, id|
-        (1..bills_per).map { |n| { tenant_id: tenant_id, contract_id: contracts.fetch("CT-#{i}"), customer_id: id }.merge(bill.call(i, n)) }
+        (1..bills_per).map { |n| { tenant_id: tenant_id, source_system_id: system_id(tenant_id), contract_id: contracts.fetch("CT-#{i}"), customer_id: id }.merge(bill.call(i, n)) }
       end, returning: false)
     end
     ids

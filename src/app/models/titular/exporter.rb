@@ -8,12 +8,19 @@ module Titular
       {
         credor: @customer.tenant.display_name, exportado_em: Time.current.iso8601, anonimizado: @customer.anonymized?,
         cliente: { nome: @customer.name, documento: (@customer.anonymized? ? nil : @customer.formatted_document), anonimizado_em: @customer.anonymized_at&.iso8601 },
-        contatos: contacts, contratos: contracts, titulos: bills, pagamentos: payments, estornos: reversals, creditos: credits,
+        identidades: identities, contatos: contacts, contratos: contracts, titulos: bills, pagamentos: payments, estornos: reversals, creditos: credits,
         divergencias_de_valor: discrepancies, promessas: promises, acordos: agreements, instrumentos_de_pagamento: payment_instruments, links_de_pagamento: payment_checkouts, operacoes: operations, acionamentos: attempts, historico: history
       }
     end
 
     private
+      # 17, R426: os ids do cliente nos sistemas do credor.
+      def identities
+        CustomerIdentity.where(customer_id: @customer.id).includes(:source_system).order(:id).map do |identity|
+          { sistema: identity.source_system.name, id: identity.external_id, desde: identity.created_at.iso8601 }
+        end
+      end
+
       def contacts
         @customer.contacts.order(:id).map do |c|
           { tipo: c.kind, contato: c.value, situacao: c.status, origem: c.origin, motivo: c.reason, pedido_nao_perturbe_em: c.do_not_disturb_on&.iso8601, desde: c.created_at.iso8601 }

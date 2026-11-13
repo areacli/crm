@@ -12,12 +12,26 @@
       <div><dt>Títulos atualizados</dt><dd><%= number_br(data[:bills_updated]) %></dd></div>
       <div><dt>Títulos sem mudança</dt><dd><%= number_br(data[:bills_unchanged]) %></dd></div>
       <% if data[:bills_reincluded].to_i.positive? %><div><dt>Títulos reincluídos</dt><dd><%= number_br(data[:bills_reincluded]) %></dd></div><% end %>
-      <% if import.full_sync? %><div><dt>Títulos a retirar</dt><dd><%= number_br(data.dig(:to_withdraw, :count)) %> <small>(R$ <%= Money.format(data.dig(:to_withdraw, :amount_cents).to_i) %>)</small></dd></div><% end %>
+      <% holds = data[:holds] || {} %>
+      <% if holds[:count].to_i.positive? %>
+        <% if holds.key?(:confirmed) %>
+          <div><dt>Mudanças aplicadas</dt><dd><%= number_br(holds[:confirmed]) %></dd></div>
+          <div><dt>Mudanças não aplicadas</dt><dd><%= number_br(holds[:unapplied]) %></dd></div>
+        <% else %>
+          <div><dt>Mudanças a confirmar</dt><dd><%= number_br(holds[:count]) %><% if holds[:blocked].to_i.positive? %> <small>(<%= number_br(holds[:blocked]) %> <%= holds[:blocked].to_i == 1 ? "bloqueada" : "bloqueadas" %>)</small><% end %></dd></div>
+        <% end %>
+      <% end %>
+      <% if import.full_sync? %><div><dt>Títulos a retirar<%= " do #{import.source_system.name}" if import.source_system %></dt><dd><%= number_br(data.dig(:to_withdraw, :count)) %> <small>(R$ <%= Money.format(data.dig(:to_withdraw, :amount_cents).to_i) %>)</small></dd></div><% end %>
     </dl>
     <% if data[:ignored_columns].present? %><p><small>Colunas ignoradas: <%= data[:ignored_columns].join(", ") %>.</small></p><% end %>
     <% if data[:contracts_created_by_omission].to_i.positive? %><p><small><%= number_br(data[:contracts_created_by_omission]) %> clientes sem contrato no arquivo ganharam um contrato criado por omissão.</small></p><% end %>
   </div>
 </section>
+
+<%# 17, R409a: troca de devedor e id de cliente com outro documento só entram com a confirmação do gestor, item a item ou todas. %>
+<% if import.checked? && holds[:count].to_i.positive? %>
+  <%= render "imports/results/holds", import: import %>
+<% end %>
 
 <%# Contatos da carga (06): avisos que não recusam a linha (R111, R125, R126) e o que a carga queria mudar em dados mantidos pelo credor (R118). %>
 <% if data[:contact_warnings].to_i.positive? %>

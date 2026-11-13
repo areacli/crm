@@ -29,6 +29,14 @@ class Portfolio::ImportFlowTest < ActiveSupport::TestCase
     import.reload
   end
 
+  # Os INSERT e UPDATE em contract_customers durante o bloco, na ordem.
+  def link_writes
+    written = []
+    callback = ->(*, payload) { written << $1 if payload[:sql] =~ /\A\s*(INSERT|UPDATE)\b[^(]*"contract_customers"/ }
+    ActiveSupport::Notifications.subscribed(callback, "sql.active_record") { yield }
+    written
+  end
+
   def standard_lines
     [ csv_line("documento" => MARIA, "titulo" => "NF-1", "valor" => "100,00"), csv_line("documento" => MARIA, "titulo" => "NF-2", "valor" => "200,00"),
       csv_line("documento" => JOAO, "nome" => "João Pereira", "contrato" => "CT-2", "titulo" => "NF-3", "valor" => "300,00"),
@@ -161,6 +169,29 @@ class Portfolio::ImportFlowTest < ActiveSupport::TestCase
     confirm(send_file([ csv_line("papel" => "") ]))
 
     assert_equal %w[financial_responsible holder], ContractCustomer.first.roles.sort
+  end
+
+  test "a ligação nova nasce com os papéis num só INSERT, com contrato declarado ou por omissão; carga igual não a regrava" do
+    import = send_file([ csv_line("papel" => "titular"), csv_line("documento" => JOAO, "contrato" => "", "titulo" => "NF-2", "papel" => "") ])
+    written = link_writes { confirm(import) }
+
+    assert_equal [ "INSERT", "INSERT" ], written
+    assert_equal [ [ "holder" ], %w[financial_responsible holder] ], ContractCustomer.order(:customer_id).map(&:roles).sort_by(&:size)
+
+    again = send_file([ csv_line("papel" => "titular"), csv_line("documento" => JOAO, "contrato" => "", "titulo" => "NF-2", "papel" => "") ])
+    assert_empty link_writes { confirm(again) }
+  end
+
+  test "título pago que vem em outro contrato cria a ligação sem papel e fica como estava (R57, R9b)" do
+    confirm(send_file([ csv_line("papel" => "titular") ]))
+    bill = Bill.first
+    bill.update!(status: "paid", paid_on: Date.current)
+    original = bill.contract_id
+
+    confirm(send_file([ csv_line("contrato" => "CT-NOVO", "papel" => "titular") ]))
+
+    assert_equal original, bill.reload.contract_id
+    assert_equal [], ContractCustomer.find_by!(contract: Contract.find_by!(code: "CT-NOVO")).roles
   end
 
   test "só uma importação por credor por vez; descartar libera o credor (R10)" do
