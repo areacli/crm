@@ -24,14 +24,17 @@ module Portfolio
     end
 
     # Contatos da linha (06, R109). `tenant_keys`: telefone e e-mail do credor, normalizados, para marcar o contato que é igual ao do credor
-    # (R126). Devolve os avisos novos da linha.
+    # (R126). O endereço com cidade inexistente também entra inválido (R126a): a confirmação o decide pela cidade, aqui só sai o aviso. Devolve os
+    # avisos novos da linha.
     def add_contacts(row, tenant_keys)
       row.contacts.filter_map do |contact|
         tenant_contact = tenant_keys[contact.kind] == contact.key
         @contacts << { import_id: @import_id, line: row.line, document: row.document, kind: contact.kind, key: contact.key, value: contact.value,
                        street: contact.street, number: contact.number, complement: contact.complement, district: contact.district, city: contact.city,
                        state: contact.state, zip: contact.zip, tenant_contact: tenant_contact }
-        "#{contact.kind == 'phone' ? 'telefone' : 'e-mail'} igual ao do credor (entra inválido)" if tenant_contact
+        next "#{contact.kind == 'phone' ? 'telefone' : 'e-mail'} igual ao do credor (entra inválido)" if tenant_contact
+
+        "endereço com cidade inexistente (entra inválido)" if contact.kind == "address" && Registry::AddressCheck.unknown_city_of?(contact, @known_cities ||= Registry::AddressCheck.known_cities)
       end
     end
 

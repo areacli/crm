@@ -114,8 +114,11 @@ module Portfolio
         contacts.each do |row|
           customer = customers.fetch(row.document)
           contact = existing[[ customer.id, row.kind, row.key ]]
-          if contact
-            touch_contact(contact, load_wins && !contact.status_valid? && !row.tenant_contact && !@overruled.include?(customer.id))
+          # R126a: a carga conserta a cidade do endereço que o sistema marcou, salvo quando o cadastro deste sistema não prevalece (17, R411 e R412).
+          if contact && unknown_city?(contact) && !unknown_city?(row) && (load_wins || !contact.kept_by_tenant) && !@overruled.include?(customer.id)
+            fix_city(contact, row)
+          elsif contact
+            touch_contact(contact, load_wins && !contact.status_valid? && !row.tenant_contact && !unknown_city?(contact) && !@overruled.include?(customer.id))
           else
             existing[[ customer.id, row.kind, row.key ]] = create_contact(customer, row)
           end
@@ -133,10 +136,25 @@ module Portfolio
         contact.save!(touch: false)
       end
 
+      # R126a: o endereço com cidade inexistente entra inválido e não volta a válido enquanto a cidade não existir. A lista de municípios é lida uma vez
+      # por lote. `row`: a linha da carga ou o contato que o cliente já tem.
+      def unknown_city?(row) = row.kind == "address" && Registry::AddressCheck.unknown_city_of?(row, @known_cities ||= Registry::AddressCheck.known_cities)
+
+      # R126a: a carga traz o mesmo endereço (CEP, número e logradouro) com uma cidade que existe: ele ganha a cidade e volta a válido.
+      def fix_city(contact, row)
+        before = contact.status
+        contact.source_system_ids |= [ @system.id ]
+        contact.assign_attributes(city: row.city, state: row.state, district: row.district, complement: row.complement, value: row.value, status: "valid",
+                                  reason: "cidade corrigida pela carga", do_not_disturb_on: nil, kept_by_tenant: false, updated_by: nil, updated_at: @now, seen_in_import_at: @now)
+        @changes << [ contact, "status_changed", { field: "status", before: before, after: "valid", note: "cidade corrigida pela carga", origin: "load" } ]
+        contact.save!(touch: false)
+      end
+
       def create_contact(customer, row)
+        reason = row.tenant_contact ? "é contato do credor" : (Registry::AddressCheck::REASON if unknown_city?(row))
         contact = CustomerContact.create!(tenant: @tenant, customer: customer, kind: row.kind, key: row.key, value: row.value, street: row.street, number: row.number,
                                           complement: row.complement, district: row.district, city: row.city, state: row.state, zip: row.zip, origin: "load",
-                                          status: row.tenant_contact ? "invalid" : "valid", reason: (row.tenant_contact ? "é contato do credor" : nil),
+                                          status: reason ? "invalid" : "valid", reason: reason,
                                           kept_by_tenant: false, seen_in_import_at: @now, source_system_ids: [ @system.id ])
         unless @new_documents.include?(customer.document)
           @changes << [ contact, "created", { field: "status", after: contact.status, note: contact.reason, origin: "load" } ]

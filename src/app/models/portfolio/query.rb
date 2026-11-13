@@ -20,17 +20,18 @@ module Portfolio
     def customers(**filters) = customer_list(**filters).relation
 
     # A mesma lista, para a grade: sabe contar e paginar sem agregar a carteira a cada passo (`CustomerList`).
-    def customer_list(search: nil, bracket: nil, segment: nil, tenant_id: nil, sort: "overdue_cents", direction: "desc", promise: nil, unrecognized_city: nil)
+    def customer_list(search: nil, bracket: nil, segment: nil, tenant_id: nil, sort: "overdue_cents", direction: "desc", promise: nil, address: nil)
       ids = tenant_ids
       ids = [ tenant_id.to_i ] if tenant_id.present? && ids.include?(tenant_id.to_i)
       scope = Customer.visible_to(@user, "view_portfolio").where(tenant_id: ids)
       scope = search_by(scope, search, ids) if search.present?
       scope = restrict_to_segment(scope, ids, segment) if segment.present?
       scope = restrict_to_promise(scope, promise) if PROMISE_FILTERS.include?(promise.to_s)
-      # 11, R243, AB9: o cliente cujo endereço válido mais recente não casa com a lista de municípios do IBGE (ou que não tem endereço).
-      scope = scope.where(Agreements::Square::UNRECOGNIZED_SQL) if unrecognized_city.to_s == "1"
+      # 11, R243, AB9 (revisão 13): o cliente sem endereço cadastrado, ou o cliente que tem endereço e nenhum serve de praça (endereço inválido).
+      address_sql = Agreements::Square::SITUATION_SQL[address.to_s]
+      scope = scope.where(address_sql) if address_sql
       CustomerList.new(scope, reference: @reference, tenant_ids: ids, settings: settings_by_tenant(ids), bracket: bracket, search: search.present?,
-                       narrowed: segment.present? || PROMISE_FILTERS.include?(promise.to_s) || unrecognized_city.to_s == "1",
+                       narrowed: segment.present? || PROMISE_FILTERS.include?(promise.to_s) || address_sql.present?,
                        sort: SORTS.include?(sort) ? sort : "overdue_cents", direction: direction == "asc" ? "asc" : "desc")
     end
 

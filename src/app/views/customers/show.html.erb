@@ -8,9 +8,11 @@
   promises_count = @promises.size
   agreements_count = @agreements&.size.to_i
   indicators = []
-  indicators << situacao("Anonimizado", tom: :neutral) if @customer.anonymized?
+  indicators << situacao_com_definicao("Anonimizado", "Cliente anonimizado em #{date_br(@customer.anonymized_at.to_date)}. Só restam os dados que não identificam a pessoa.", tom: :neutral) if @customer.anonymized?
   indicators << situacao("Contrato #{@contract.label}", tom: :info) if @contract
   indicators << (worst ? situacao("Atraso de #{@brackets.label(@brackets.index_for(worst))} dias", tom: :danger) : situacao("Sem atraso", tom: :success))
+  # Alertas do registro (padrões de interface, P28): pílulas no cabeçalho, ao lado do atraso; a da praça (11, AB9) só para quem edita o cadastro.
+  indicators << alerta_da_praca_na_ficha(@square_situation) if @square_situation
   indicators << situacao(pluralize(promises_count, "promessa em aberto", "promessas em aberto"), tom: :info) if promises_count.positive?
   indicators << situacao(pluralize(agreements_count, "proposta ou acordo", "propostas ou acordos"), tom: :info) if agreements_count.positive?
   can_more = @can_edit_registry || @can_transfer || @can_handle_rights
@@ -35,7 +37,7 @@
       <% end %>
     <% end %>
   <% end %>
-  <div class="ficha-avisos"><%# 15, R354: a entrega aberta do usuário, se é este cliente ou um contrato dele. %><% if delivery %><%= render "queue_deliveries/faixa", delivery: delivery %><% end %><% if @city_unrecognized %><%= aviso(tom: :warning) { tag.p "Cidade não reconhecida: o endereço deste cliente não casa com a lista de municípios do IBGE, e os acordos dele usam só os feriados nacionais. Corrija o endereço no cadastro." } %><% end %><% if @customer.anonymized? %><%= aviso(tom: :info) { tag.p "Cliente anonimizado em #{date_br(@customer.anonymized_at.to_date)}. Só restam os dados que não identificam a pessoa." } %><% end %></div>
+  <div class="ficha-avisos"><%# 15, R354: a entrega aberta do usuário, se é este cliente ou um contrato dele. %><% if delivery %><%= render "queue_deliveries/faixa", delivery: delivery %><% end %></div>
   <div class="ficha-corpo" data-spa-layout>
     <div region="center" border="false">
       <div class="ficha-centro">

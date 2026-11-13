@@ -59,7 +59,10 @@ class AgreementsScreensTest < ActionDispatch::IntegrationTest
     assert_select "#simulacao th", text: "Parcela 4"
     assert_select "#simulacao td", text: "07/12/2026"
     assert_select "#simulacao aside", text: /Dentro dos seus limites: a proposta nasce aprovada/
-    assert_select "#simulacao aside", text: /Cidade não reconhecida: só feriados nacionais/
+    # Padrões de interface, P28: o aviso da praça é a pílula do cartão dos vencimentos, com o texto completo no clique; não é faixa.
+    assert_select "#simulacao aside", text: /só feriados nacionais/, count: 0
+    assert_select "#simulacao section[aria-labelledby=entrada-e-parcelas] > header button.situacao[data-tone=neutral][data-spa-popover]", text: "Sem endereço"
+    assert_select "#simulacao section[aria-labelledby=entrada-e-parcelas] > header .definicao[popover]", text: "Cliente sem endereço: só feriados nacionais."
   end
 
   test "R215: a simulação recusada mostra a mensagem do limite e a proposta não é criada" do
@@ -109,6 +112,9 @@ class AgreementsScreensTest < ActionDispatch::IntegrationTest
     get agreement_path(agreement), headers: TRECHO
     assert_select "h1", text: /Acordo ACD-000001/
     assert_select ".cabecalho-da-pagina .situacao", text: "Aprovada"
+    # O aviso da praça, congelado nos termos, é a pílula do cartão dos vencimentos e não uma faixa (padrões de interface, P28).
+    assert_select "section[aria-labelledby=entrada-e-parcelas] > header button.situacao[data-spa-popover]", text: "Sem endereço"
+    assert_select ".aviso", text: /só feriados nacionais/, count: 0
     assert_select "dd", text: "R$ 1.543,66"
     assert_select "table th", text: "Parcela 4"
     assert_select "button", text: "Aprovar proposta", count: 0
@@ -315,22 +321,48 @@ class AgreementsScreensTest < ActionDispatch::IntegrationTest
     assert_response :not_found
   end
 
-  test "R249, AB9: o filtro 'cidade não reconhecida' da lista de clientes e o aviso da ficha para quem edita o cadastro" do
+  test "R249, AB9, revisão 13: 'sem endereço' e 'endereço inválido' têm cada um a sua opção no filtro da lista e a sua pílula na ficha, para quem edita o cadastro" do
     Municipality.create!(ibge_code: "3550308", name: "São Paulo", state: "SP")
     other = make_bill(@alfa, number: "NF-7", amount_cents: 10_000, document: PaymentsHelper::JOAO, contract_code: "CT-7", due: ChargesTestHelper::DUE, name: "João Souza").customer
-    other.contacts.create!(tenant: @alfa, kind: "address", key: "a1", value: "Rua A, 1", city: "São Paulo", state: "SP", origin: "screen")
+    typo = make_bill(@alfa, number: "NF-8", amount_cents: 10_000, document: FakeData.cpf(77), contract_code: "CT-8", due: ChargesTestHelper::DUE, name: "Ana Lima").customer
     entrar(users(:joana))
-    assert_equal [ "Maria Souza" ], linhas_de_clientes(cidade_nao_reconhecida: "1").map { |linha| celula(linha, "name") }
+    address = { kind: "address", street: "Rua A", number: "1", state: "SP", zip: "01001-000" }
+    post customer_contacts_path(other), params: { contact: address.merge(city: "São Paulo") }, headers: TRECHO
+    assert_equal "valid", other.contacts.address.sole.status
+    # 06, R126a: a cidade inexistente entra inválida, e a tela avisa.
+    post customer_contacts_path(typo), params: { contact: address.merge(city: "S. Paulo") }, headers: TRECHO
+    assert_equal [ "invalid", "cidade inexistente" ], typo.contacts.address.sole.then { |contact| [ contact.status, contact.reason ] }
+    assert_match(/Endereço criado como inválido: a cidade não existe na lista de municípios do IBGE/, evento_da_spa.to_json)
 
+    get customers_path, headers: TRECHO
+    assert_select "label[for=endereco]", text: "Endereço"
+    assert_select "select[name=endereco] option[value=sem_endereco]", text: "Sem endereço"
+    assert_select "select[name=endereco] option[value=invalido]", text: "Endereço inválido"
+    assert_select "select option", text: /não reconhecida/, count: 0
+    assert_equal [ "Maria Souza" ], linhas_de_clientes(endereco: "sem_endereco").map { |linha| celula(linha, "name") }
+    assert_equal [ "Ana Lima" ], linhas_de_clientes(endereco: "invalido").map { |linha| celula(linha, "name") }
+    assert_equal 3, linhas_de_clientes(endereco: "").size
+
+    # Na ficha, cada situação é uma pílula no cabeçalho, ao lado do atraso, e o clique diz a ação (padrões de interface, P28); sem faixa.
     get_ficha(@customer)
-    assert_select ".ficha-avisos", text: /Cidade não reconhecida: o endereço deste cliente não casa/
+    assert_select ".ficha-avisos .aviso", count: 0
+    assert_select ".cabecalho-da-pagina .indicadores button.situacao[data-tone=neutral][data-spa-popover]", text: "Sem endereço"
+    assert_select ".cabecalho-da-pagina .indicadores .definicao[popover]", text: "Cadastrar um endereço do cliente"
+    assert_select ".cabecalho-da-pagina .situacao", text: "Endereço inválido", count: 0
+    get_ficha(typo, aba: "contatos")
+    assert_select ".cabecalho-da-pagina .indicadores button.situacao[data-tone=warning][data-spa-popover]", text: "Endereço inválido"
+    assert_select ".cabecalho-da-pagina .indicadores .definicao[popover]", text: "Conferir e corrigir o endereço do cliente"
+    assert_select ".cabecalho-da-pagina .situacao", text: "Sem endereço", count: 0
+    # O endereço que o sistema marcou se corrige: a linha dele tem "Editar" (os outros inválidos, não).
+    assert_select "#contato-#{typo.contacts.address.sole.id} [href$='/editar'], #contato-#{typo.contacts.address.sole.id} [data-url$='/editar'], #contato-#{typo.contacts.address.sole.id} [hx-get$='/editar']"
     get_ficha(other)
-    assert_select ".ficha-avisos", text: /Cidade não reconhecida/, count: 0
+    assert_select ".cabecalho-da-pagina .situacao", text: /Sem endereço|Endereço inválido/, count: 0
+    assert_no_match(/não reconhecida/, response.body)
 
     delete session_path
     entrar(make_user(@alfa, []))
     get_ficha(@customer)
-    assert_select ".ficha-avisos", text: /Cidade não reconhecida: o endereço deste cliente/, count: 0
+    assert_select ".cabecalho-da-pagina .situacao", text: /Sem endereço|Endereço inválido/, count: 0
   end
 
   test "R246, T6: a aba 'Promessas e acordos' tem as políticas, as variáveis e os limites, só com a 14, e grava com registro" do

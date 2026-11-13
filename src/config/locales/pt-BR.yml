@@ -266,6 +266,7 @@ pt-BR:
       already_valid: "O contato já está válido."
       only_valid_can_be_dnd: "Só um contato válido vai para não perturbe."
       tenant_contact: "Este contato é do credor e não pode ficar válido."
+      unknown_city: "A cidade deste endereço não existe na lista de municípios do IBGE: corrija o endereço."
       reason_required: "Informe o motivo."
       reason_too_long: "O motivo tem no máximo %{max} caracteres."
       invalid_date: "Data do pedido inválida."
@@ -299,6 +300,7 @@ pt-BR:
     create:
       done: "Contato criado."
       done_tenant_contact: "Contato criado como inválido: é contato do credor."
+      done_unknown_city: "Endereço criado como inválido: a cidade não existe na lista de municípios do IBGE. Confira e corrija o endereço."
     update:
       done: "Contato corrigido: o antigo ficou inválido e o novo nasceu válido."
     statuses:

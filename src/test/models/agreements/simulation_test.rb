@@ -196,10 +196,16 @@ class Agreements::SimulationTest < ActiveSupport::TestCase
     assert_equal I18n.t("agreements.refused.bills_limit", max: 100), refuse_agreement { Agreements::Simulation.new(user: users(:carlos), customer: @customer, input: input).call }
   end
 
-  test "R249: a cidade que não casa com o IBGE avisa na simulação, sem impedir" do
+  test "R249, revisão 13: o cliente sem endereço e o cliente com endereço inválido avisam na simulação, cada um com o seu texto, sem impedir" do
     quote = simulate_agreement(@customer, [ @nf1, @nf2 ])
+    assert_includes quote.warnings, "Cliente sem endereço: só feriados nacionais."
+    assert_not_includes quote.warnings, "Endereço inválido: só feriados nacionais."
+    assert_nil quote.error
 
-    assert_includes quote.warnings, I18n.t("agreements.warnings.city_unrecognized")
+    @customer.contacts.create!(tenant: @customer.tenant, kind: "address", key: "a1", value: "Rua A, 1", city: "Atlântida", state: "SP", origin: "load", status: "invalid", reason: "cidade inexistente")
+    quote = simulate_agreement(@customer, [ @nf1, @nf2 ])
+    assert_includes quote.warnings, "Endereço inválido: só feriados nacionais."
+    assert_not_includes quote.warnings, "Cliente sem endereço: só feriados nacionais."
     assert_nil quote.error
   end
 

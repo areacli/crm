@@ -11,7 +11,8 @@
     <% quote = @quote %>
     <%# Os limites destes títulos e termos: a faixa da entrada e do crédito, as opções de Parcelas (11, revisão 12; `spa/deslizantes`). %>
     <%= tag.div hidden: true, data: { spa_limites: limites_da_simulacao(quote).to_json } %>
-    <% quote.warnings.each do |text| %><%= aviso(tom: :warning) { tag.p text } %><% end %>
+    <%# O aviso da praça não é faixa: é a pílula do cartão "Entrada e parcelas" (padrões de interface, P28). %>
+    <% avisos_sem_a_praca(quote.warnings).each do |text| %><%= aviso(tom: :warning) { tag.p text } %><% end %>
     <% if quote.error %>
       <div data-calculo="recusado"><%= aviso(tom: :danger) { tag.p "Esta proposta não pode ser criada: #{quote.error}" } %></div>
     <% elsif quote.pending? %>
@@ -55,7 +56,7 @@
     </section>
 
     <section class="cartao" aria-labelledby="entrada-e-parcelas">
-      <header><h2 id="entrada-e-parcelas">Entrada e parcelas</h2></header>
+      <header><h2 id="entrada-e-parcelas">Entrada e parcelas</h2><%= alerta_da_praca_nos_vencimentos(quote.warnings) %></header>
       <div>
         <dl class="valores">
           <div><dt>Valor do acordo</dt><dd><%= money(quote.value_cents) %></dd></div>

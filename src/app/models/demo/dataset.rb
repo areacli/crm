@@ -54,6 +54,8 @@ module Demo
         users
         # A lista do IBGE fica entre uma recriação e outra (`Demo::Reset::KEEP`): só entra quando está vazia (11, revisão 9).
         step("Municípios do IBGE") { Agreements::CalendarImporter.new.municipalities(Municipality::BUNDLED) } if Municipality.none?
+        # Os feriados estaduais e das capitais vêm com o sistema (11, revisão 14): com eles, a cidade do endereço muda o vencimento do acordo.
+        step("Feriados locais") { Agreements::LocalHolidays.generate }
         step("Índices") { Indexes::Fetch.new.call(today: today) }
         alpha = step("Credor #{ALPHA}") { build_alpha }
         beta = step("Credor #{BETA}") { build_beta }

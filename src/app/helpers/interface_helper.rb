@@ -33,6 +33,15 @@ module InterfaceHelper
     tag.span(texto, class: "situacao", data: { tone: tom })
   end
 
+  # Selo que explica (padrões de interface, revisão 40): o mesmo selo, num botão que abre a explicação inteira no popover do (i); o `title` a repete para quem
+  # para o ponteiro em cima. Serve ao aviso que não pede ação agora e por isso não merece uma faixa.
+  def situacao_com_definicao(texto, definicao, tom: :neutral)
+    tom = tom.to_s
+    raise ArgumentError, "tom inválido: #{tom}" unless TONS.include?(tom)
+
+    safe_join([ tag.button(texto, type: "button", class: "situacao", title: definicao, data: { tone: tom, spa_popover: true }), tag.div(tag.p(definicao), popover: "auto", class: "definicao") ])
+  end
+
   # Aviso em bloco com ícone: `role="alert"` para erro que bloqueia, `role="status"` nos demais.
   def aviso(tom: :info, &conteudo)
     nome_do_icone, papel = { danger: [ "exclamation-circle", "alert" ], warning: [ "exclamation-triangle", "status" ],

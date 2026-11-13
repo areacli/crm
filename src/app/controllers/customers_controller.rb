@@ -20,7 +20,7 @@ class CustomersController < ApplicationController
 
     @segment = Segment.find_by(id: params[:segmento], tenant_id: @settings.keys) if params[:segmento].present?
     bracket = params[:faixa].presence&.to_i
-    @pagination = Portfolio::CustomerPagination.new(query.customer_list(search: params[:busca], bracket: bracket, segment: params[:segmento], tenant_id: params[:credor], sort: params[:ordem], direction: params[:direcao], promise: FilterValue.from_url(params[:promessa]), unrecognized_city: params[:cidade_nao_reconhecida]),
+    @pagination = Portfolio::CustomerPagination.new(query.customer_list(search: params[:busca], bracket: bracket, segment: params[:segmento], tenant_id: params[:credor], sort: params[:ordem], direction: params[:direcao], promise: FilterValue.from_url(params[:promessa]), address: FilterValue.from_url(params[:endereco])),
                                                     page: params[:pagina], per_page: params[:por_pagina])
     @customers = @pagination.records.includes(:tenant)
     @tier_names = query.tier_names(@customers.map(&:id))
@@ -93,8 +93,8 @@ class CustomersController < ApplicationController
       @held_bills = PaymentPromiseBill.where(bill_id: @bills.map(&:id), held: true).includes(:promise).index_by(&:bill_id)
     end
 
-    # Acordos (11, R241): as propostas e os acordos em andamento vão ao cabeçalho, o histórico fica abaixo, e o título preso mostra a proposta ou o acordo. A cidade que não
-    # casou com o IBGE avisa quem edita o cadastro (AB9). Consultas: `agreements (customer_id)` e o índice parcial dos títulos presos.
+    # Acordos (11, R241): as propostas e os acordos em andamento vão ao cabeçalho, o histórico fica abaixo, e o título preso mostra a proposta ou o acordo. O cliente sem
+    # endereço e o cliente com endereço inválido avisam quem edita o cadastro (AB9, revisão 13). Consultas: `agreements (customer_id)` e o índice parcial dos títulos presos.
     def load_agreements
       @can_negotiate = AgreementPolicy.new(Current.user, Agreement.new(tenant: @customer.tenant)).create? && !@customer.anonymized?
       @can_use_credit = @can_negotiate
@@ -107,7 +107,9 @@ class CustomersController < ApplicationController
       events = AgreementEvent.joins(:agreement).where(agreements: { customer_id: @customer.id })
       events = events.where(agreement_id: AgreementBill.joins(:bill).where(bills: { contract_id: @contract.id }).select(:agreement_id)) if @contract
       @agreement_events = events.includes(:agreement, :user).order(occurred_at: :desc, id: :desc).limit(30).to_a
-      @city_unrecognized = policy(@customer).edit_registry? && Agreements::Square.unrecognized?(@customer)
+      return if @customer.anonymized? || !policy(@customer).edit_registry?
+
+      @square_situation = Agreements::Square.situation(@customer)
     end
 
     # Direitos do titular (07, R141): os botões da ficha só para quem tem a 13 (e a 1) no credor, e o que impede anonimizar, dito antes (R130).

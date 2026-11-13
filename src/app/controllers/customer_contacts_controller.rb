@@ -12,8 +12,8 @@ class CustomerContactsController < ApplicationController
     authorize @customer, :edit_registry?
     attributes = params.expect(contact: [ :kind, :value, *Tenant::ADDRESS_FIELDS ])
     contact = editor.add(@customer, kind: attributes[:kind], fields: attributes.to_h)
-    # R126 (DC5): o contato igual ao do credor entra inválido, e a tela avisa.
-    panel_finish(customer_path(@customer, aba: "contatos"), notice: contact.status_invalid? ? t(".done_tenant_contact") : t(".done"), atualizar: true)
+    # R126 (DC5) e R126a: o contato igual ao do credor e o endereço com cidade inexistente entram inválidos, e a tela avisa.
+    panel_finish(customer_path(@customer, aba: "contatos"), notice: created_notice(contact), atualizar: true)
   rescue Registry::Refused => error
     return redirect_to(customer_path(@customer, aba: "contatos"), alert: error.message, status: :see_other) unless panel_request?
 
@@ -35,7 +35,7 @@ class CustomerContactsController < ApplicationController
     # Na SPA, telefone e e-mail se corrigem na célula (design system, 7.1): o antigo fica inválido e nasce outro contato, então a aba se refaz.
     return inline_finish(corrected.try(:value) || @contact.value, atualizar: true, aviso: t(".done")) if inline?
 
-    panel_finish(customer_path(@customer, aba: "contatos"), notice: t(".done"), atualizar: true)
+    panel_finish(customer_path(@customer, aba: "contatos"), notice: corrected.status_invalid? ? t("customer_contacts.create.done_unknown_city") : t(".done"), atualizar: true)
   rescue Registry::Refused => error
     return inline_refuse(error.message) if inline?
     return redirect_to(customer_path(@customer, aba: "contatos"), alert: error.message, status: :see_other) unless panel_request?
@@ -48,4 +48,10 @@ class CustomerContactsController < ApplicationController
     def set_customer = @customer = Customer.find(params[:customer_id])
 
     def editor = Registry::ContactEditor.new(Current.user)
+
+    def created_notice(contact)
+      return t(".done") unless contact.status_invalid?
+
+      contact.address? ? t(".done_unknown_city") : t(".done_tenant_contact")
+    end
 end

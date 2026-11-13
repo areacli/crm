@@ -1,7 +1,7 @@
 # Lote de distribuição (14, R316): os clientes do filtro da lista, um segmento ou uma planilha (coluna `documento` ou `contrato`); conferência e
 # confirmação em segundo plano, com o resultado avisado pelo WebSocket (sem polling).
 class DistributionBatchesController < ApplicationController
-  FILTERS = %w[busca faixa segmento credor promessa cidade_nao_reconhecida].freeze
+  FILTERS = %w[busca faixa segmento credor promessa endereco].freeze
 
   before_action :set_batch, only: %i[show confirm discard]
 
@@ -78,7 +78,7 @@ class DistributionBatchesController < ApplicationController
       when "selection"
         filters = attributes[:selection].to_h.symbolize_keys
         query = Portfolio::Query.new(Current.user).customers(search: filters[:busca], bracket: filters[:faixa], segment: filters[:segmento], tenant_id: accreditation.tenant_id,
-                                                              promise: FilterValue.from_url(filters[:promessa]), unrecognized_city: filters[:cidade_nao_reconhecida])
+                                                              promise: FilterValue.from_url(filters[:promessa]), address: FilterValue.from_url(filters[:endereco]))
         batch.target = "customer"
         batch.summary = { "values" => query.reorder(nil).pluck("customers.id").uniq }
       else

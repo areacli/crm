@@ -41,7 +41,8 @@
 <% if agreement.reversing? %>
   <%= aviso(tom: :danger) { tag.p "Em reversão desde #{datetime_br(agreement.reversing_since)}: #{agreement.reversal_reason}. A tarefa diária não quebra o acordo, os encargos e a contagem dos prazos ficam parados, e o crédito aguardando alocação do contrato não se aloca nem se transfere até concluir ou desistir." } %>
 <% end %>
-<% agreement.terms["warnings"].to_a.each do |text| %><%= aviso(tom: :warning) { tag.p text } %><% end %>
+<%# O aviso da praça não é faixa: é a pílula do cartão "Entrada e parcelas" (padrões de interface, P28). %>
+<% avisos_sem_a_praca(agreement.terms["warnings"]).each do |text| %><%= aviso(tom: :warning) { tag.p text } %><% end %>
 
 <div class="ficha">
   <div class="ficha-principal">
@@ -74,7 +75,7 @@
     </section>
 
 <section class="cartao" aria-labelledby="entrada-e-parcelas">
-  <header><h2 id="entrada-e-parcelas">Entrada e parcelas</h2></header>
+  <header><h2 id="entrada-e-parcelas">Entrada e parcelas</h2><%= alerta_da_praca_nos_vencimentos(agreement.terms["warnings"]) %></header>
   <div class="tabela" tabindex="0">
     <table>
       <caption class="apenas-leitor-de-tela">Entrada e parcelas do acordo</caption>

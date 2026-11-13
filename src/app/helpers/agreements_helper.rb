@@ -8,6 +8,24 @@ module AgreementsHelper
     agreement.reversing? ? safe_join([ seal, " ", situacao("Em reversão", tom: :danger) ]) : seal
   end
 
+  # Alerta da praça (11, R249, revisão 13; padrões de interface, P28): pílula que abre o texto no clique. Tom neutro para o dado que falta, de atenção
+  # para o dado a corrigir.
+  SQUARE_TONES = { "no_address" => :neutral, "invalid_address" => :warning }.freeze
+
+  # Na ficha, para quem edita o cadastro: a pílula diz a situação, e o clique, a ação esperada.
+  def alerta_da_praca_na_ficha(situation)
+    situacao_com_definicao(t("agreements.square.#{situation}.label"), t("agreements.square.#{situation}.action"), tom: SQUARE_TONES.fetch(situation.to_s)) if situation
+  end
+
+  # Na simulação e no acordo, no cartão dos vencimentos: o aviso vem da lista de avisos da cotação (ou dos termos congelados), pelo texto.
+  def alerta_da_praca_nos_vencimentos(warnings)
+    situation = SQUARE_TONES.keys.find { |key| warnings.to_a.include?(t("agreements.warnings.#{key}")) }
+    situacao_com_definicao(t("agreements.square.#{situation}.label"), t("agreements.warnings.#{situation}"), tom: SQUARE_TONES.fetch(situation)) if situation
+  end
+
+  # Os avisos que continuam em faixa: todos, menos o da praça.
+  def avisos_sem_a_praca(warnings) = warnings.to_a - SQUARE_TONES.keys.map { |key| t("agreements.warnings.#{key}") }
+
   def agreement_mode(agreement) = t("agreements.mode_names.#{agreement.mode}")
 
   # A lista de Parcelas (11, revisão 12): acima do limite do perfil a opção avisa que a proposta nasce pendente (R216).

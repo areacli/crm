@@ -45,14 +45,19 @@ class TitularScreensSystemTest < ApplicationSystemTestCase
     sem_rolagem_horizontal
   end
 
-  test "anonimizar pelo diálogo, digitando o documento, e a ficha passa a mostrar o aviso" do
+  test "anonimizar pelo diálogo, digitando o documento, e a ficha passa a mostrar a pílula, que abre a data" do
     abrir_acao "Anonimizar"
     no_dialogo do
       fill_in "Motivo", with: "pedido do titular, protocolo 123"
       fill_in "Documento do cliente", with: "529.982.247-25"
     end
     gravar_dialogo "Anonimizar cliente"
-    assert_selector ".aba-raiz .aviso", text: "Cliente anonimizado em"
+    # Padrões de interface, P28: o alerta do registro é a pílula do cabeçalho, sem faixa; o clique abre o texto.
+    assert_no_selector ".aba-raiz .ficha-avisos .aviso"
+    within(".aba-raiz .cabecalho-da-pagina") do
+      click_button "Anonimizado"
+      assert_selector ".definicao", text: "Cliente anonimizado em"
+    end
     assert_selector "#abas .tabs-selected .tabs-title", text: "Cliente anonimizado nº #{@maria.id}"
     assert_equal "Cliente anonimizado nº #{@maria.id}", @maria.reload.name
   end

@@ -15,6 +15,8 @@
   <td data-acoes>
     <% if can_edit %>
       <%= menu_de_linha("contato-menu-#{contact.id}", "Ações do contato #{contact.value}") do %>
+        <%# 06, R126a: o endereço que o sistema marcou como inválido pela cidade se corrige; os outros inválidos, não. %>
+        <% if contact.status_invalid? && Registry::AddressCheck.unknown_city_of?(contact) %><%= editar_no_detalhe(edit_customer_contact_path(customer, contact)) %><% end %>
         <% unless contact.status_invalid? %>
           <%# Design system, 7.1: telefone e e-mail na própria célula; o endereço, no detalhe da linha. %>
           <%= contact.address? ? editar_no_detalhe(edit_customer_contact_path(customer, contact)) : editar_na_linha %>

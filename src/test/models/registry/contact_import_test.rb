@@ -67,6 +67,43 @@ class Registry::ContactImportTest < ActiveSupport::TestCase
     assert_equal 2, Bill.where(customer: @maria, number: %w[NF-1 NF-2]).count
   end
 
+  test "R126a (critério de aceite): o endereço com cidade inexistente é guardado como inválido, com aviso na conferência, e a carga não o devolve a válido" do
+    Municipality.create!(ibge_code: "3550308", name: "São Paulo", state: "SP")
+    @alfa.setting.update!(correction_policy: "load")
+    typo = { "logradouro" => "Rua das Flores", "numero" => "120", "bairro" => "Centro", "cidade" => "S. Paulo", "uf" => "SP", "cep" => "01001-000" }
+    import = send_file([ line("titulo" => "NF-1"), line(typo.merge("titulo" => "NF-2")) ])
+
+    assert_equal [ 2, 0 ], import.summary_data.then { |summary| [ summary[:valid], summary[:rejected] ] }
+    assert_equal [ [ 3, "endereço com cidade inexistente (entra inválido)" ] ], import.warnings.pluck(:line, :reason)
+    confirm(import)
+    address = @maria.contacts.address.sole
+    assert_equal [ "invalid", "cidade inexistente", "load" ], [ address.status, address.reason, address.origin ]
+    assert_equal 2, Bill.where(customer: @maria, number: %w[NF-1 NF-2]).count
+
+    # A carga seguinte, com "a carga vence", não lista o endereço entre os que voltariam a válido nem o devolve: a cidade continua inexistente.
+    again = send_file([ line(typo.merge("titulo" => "NF-2")) ])
+    assert_equal 0, again.summary_data[:kept_by_tenant][:contacts][:count]
+    assert_equal [ "endereço com cidade inexistente (entra inválido)" ], again.warnings.pluck(:reason)
+    confirm(again)
+    assert_equal [ "invalid", "cidade inexistente" ], address.reload.then { |contact| [ contact.status, contact.reason ] }
+
+    # Com a cidade certa no mesmo endereço, a carga o conserta, mesmo com "a tela prevalece": ele não foi mexido na tela.
+    @alfa.setting.update!(correction_policy: "screen")
+    fixed = send_file([ line(typo.merge("titulo" => "NF-2", "cidade" => "SAO PAULO")) ])
+    assert_empty fixed.warnings
+    assert_equal 0, fixed.summary_data[:kept_by_tenant][:contacts][:count]
+    confirm(fixed)
+    assert_equal [ "valid", "cidade corrigida pela carga", "SAO PAULO" ], address.reload.then { |contact| [ contact.status, contact.reason, contact.city ] }
+    assert_equal 1, @maria.contacts.address.count
+    change = Change.where(subject_type: "customer_contact", subject_id: address.id).order(:id).last
+    assert_equal [ "status_changed", "invalid", "valid", "cidade corrigida pela carga", "load" ], [ change.event, change.before, change.after, change.note, change.origin ]
+
+    # O endereço criado na tela com a cidade inexistente é mantido pelo credor: com "a tela prevalece", a carga não o conserta.
+    kept = Registry::ContactEditor.new(users(:joana)).add(@maria, kind: "address", fields: { street: "Rua B", number: "5", city: "Atlântida", state: "SP", zip: "01001-000" })
+    confirm(send_file([ line("titulo" => "NF-2", "logradouro" => "Rua B", "numero" => "5", "cidade" => "São Paulo", "uf" => "SP", "cep" => "01001-000") ]))
+    assert_equal [ "invalid", "cidade inexistente", "Atlântida" ], kept.reload.then { |contact| [ contact.status, contact.reason, contact.city ] }
+  end
+
   test "R111: telefone curto, e-mail sem domínio e endereço incompleto são ignorados com aviso, e os demais dados da linha entram" do
     import = send_file([ line("telefone" => "123", "email" => "maria.exemplo", "telefone2" => "(11) 2222-1111", "logradouro" => "Rua A") ])
 
