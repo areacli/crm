@@ -21,10 +21,10 @@
     <% end %>
   </form>
   <%= grade url: customers_path(format: :json), ordem: "overdue_cents", vazio: "Nenhum cliente encontrado.", colunas: [
-        { campo: "name", titulo: "Cliente", largura: 260, tipo: "rico", ordena: true }, { campo: "documento", titulo: "Documento", largura: 130 },
+        { campo: "name", titulo: "Cliente", largura: 210, tipo: "rico", ordena: true }, { campo: "documento", titulo: "Documento", largura: 120 },
         ({ campo: "credor", titulo: "Credor", largura: 130 } if @several_tenants),
         { campo: "bills_count", titulo: "Títulos", largura: 70, tipo: "numero", ordena: true }, { campo: "overdue_cents", titulo: "Vencido", largura: 110, tipo: "numero", ordena: true },
         { campo: "atualizado", titulo: "Atualizado", largura: 110, tipo: "numero" }, { campo: "upcoming_cents", titulo: "A vencer", largura: 110, tipo: "numero", ordena: true },
-        { campo: "max_days_overdue", titulo: "Faixa (dias)", largura: 110, ordena: true }, { campo: "enquadramento", titulo: "Enquadramento", largura: 150 },
+        { campo: "max_days_overdue", titulo: "Faixa (dias)", largura: 110, ordena: true }, { campo: "enquadramento", titulo: "Enquadramento", largura: 130 },
         { campo: "acoes", titulo: "", largura: 44, tipo: "acoes" } ].compact %>
 </div>

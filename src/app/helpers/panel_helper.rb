@@ -3,6 +3,9 @@
 module PanelHelper
   # Link com cara de botão que abre a rota num diálogo.
   def abrir_painel(rotulo, url, variante: nil, tamanho: nil, **html)
+    # `variante` é a do botão. O tamanho do diálogo vem do formulário (`formulario_de_painel`); quem passava "modal" ou "drawer" aqui ganhava um botão azul
+    # cheio sem querer (revisão das telas de 13/11/2026: "Incluir segmento" no enquadramento).
+    variante = nil if %w[modal drawer].include?(variante.to_s)
     dados = { variant: variante, size: tamanho }.compact.merge(html.delete(:data) || {})
     link_to(rotulo, url, class: "botao", data: dados.merge(spa_dialogo: true), **html)
   end

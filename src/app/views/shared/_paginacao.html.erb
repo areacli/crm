@@ -2,9 +2,14 @@
     unit (opcional: "Mostrando a a b de N <unidade>") e fragment (opcional: o trecho que a página troca; sem ele, `#resultado`, como os filtros, `spa/lista`). %>
 <% fragment = local_assigns[:fragment] || "#resultado" %>
 <% link = ->(label, page, rel) { link_to label, path.call(page), rel: rel, **(fragment ? { data: { trecho: path.call(page), trecho_alvo: fragment } } : {}) } %>
+<% if pagination.pages > 1 || local_assigns[:unit] %>
 <nav class="paginacao" aria-label="Paginação">
-  <% if local_assigns[:unit] %><span>Mostrando <%= number_br(pagination.first_item) %> a <%= number_br(pagination.last_item) %> de <%= number_br(pagination.total) %> <%= unit %>.</span><% end %>
+  <% if local_assigns[:unit] %><span class="contagem">Mostrando <%= number_br(pagination.first_item) %> a <%= number_br(pagination.last_item) %> de <%= number_br(pagination.total) %> <%= unit %>.</span><% end %>
+  <%# Com uma página só, ficam só a contagem (sem ela, nada): "Página 1 de 1" e dois botões inativos não dizem nada. %>
+  <% if pagination.pages > 1 %>
   <% if pagination.previous_page %><%= link.call("Anterior", pagination.previous_page, "prev") %><% else %><span aria-disabled="true">Anterior</span><% end %>
   <span>Página <%= pagination.page %> de <%= number_br(pagination.pages) %></span>
   <% if pagination.next_page %><%= link.call("Próxima", pagination.next_page, "next") %><% else %><span aria-disabled="true">Próxima</span><% end %>
+  <% end %>
 </nav>
+<% end %>

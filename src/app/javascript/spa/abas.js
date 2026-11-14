@@ -45,6 +45,12 @@ function carregarAba(reg) {
       const titulo = tituloDe(reg.conteudo)
       if (titulo && titulo !== reg.titulo) { reg.titulo = titulo; mostrarTitulo(reg); guardar() }
     },
+  }).fail((xhr) => {
+    // A aba aberta pelo endereço não fica em "Carregando…" quando a tela não abre (revisão das telas de 13/11/2026). A que já tinha título fica com
+    // ele, com a marca de falha.
+    if (reg.titulo !== "Carregando…" || xhr.status === 401 || xhr.status === 409 || xhr.statusText === "abort") return
+    reg.titulo = xhr.status === 404 || xhr.status === 403 ? "Não encontrado" : "Falha ao carregar"
+    mostrarTitulo(reg)
   })
 }
 

@@ -2,7 +2,7 @@
 <%= pagina @operation.short_name, subtitulo: safe_join([ @operation.legal_name, " · CNPJ #{Document.format(@operation.cnpj)} · #{@accreditation.tenant.name}" ]),
            indicadores: [ situacao(t("operations.statuses.#{@accreditation.status}"), tom: { "active" => :success, "suspended" => :warning, "ended" => :neutral }[@accreditation.status]) ] do %>
   <% (Accreditation.statuses.keys - [ @accreditation.status ]).each do |status| %>
-    <%= abrir_painel t("operations.status_actions.#{status}"), new_settings_operation_status_path(@accreditation, situacao: FilterValue.to_url(status)), variante: (status == "active" ? nil : "secondary"), tamanho: "small" %>
+    <%= abrir_painel t("operations.status_actions.#{status}"), new_settings_operation_status_path(@accreditation, situacao: FilterValue.to_url(status)), variante: (status == "active" ? nil : "secondary") %>
   <% end %>
 <% end %>
 <%= render "settings/modelo" %>

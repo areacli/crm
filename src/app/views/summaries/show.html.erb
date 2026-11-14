@@ -30,7 +30,8 @@
   <%= kpi "Desconto concedido no mês", money(agr[:discount_total]), definicao: "Contado na efetivação do acordo; o acordo cancelado depois dela o tira no mês do cancelamento." %>
 </dl>
 
-<div class="duas-colunas alinhados">
+<%# Quadros em pares de mesmas colunas (padrões de interface, revisão 42, P29): recuperado e acordos pelos dois meses; os descontos, sem par, sob os acordos. %>
+<div class="duas-colunas">
     <section class="cartao" aria-labelledby="meio">
       <header><h2 id="meio">Recuperado por meio</h2></header>
       <% methods = summary[:recovered].flat_map { |month| month[:methods].keys }.uniq.sort_by { |method| -summary[:recovered].sum { |month| month[:methods][method].to_i } } %>
@@ -51,6 +52,7 @@
       <% end %>
     </section>
 
+  <div class="coluna-de-cartoes">
   <section class="cartao" aria-labelledby="acordos">
     <header><h2 id="acordos">Acordos por mês</h2></header>
     <div class="tabela" tabindex="0">
@@ -84,6 +86,7 @@
         </table>
       </div>
     </section>
+  </div>
 </div>
 
 <div class="duas-colunas">
@@ -150,7 +153,8 @@
   <div class="duas-colunas">
     <% [ [ "Por cliente", "Cada cliente na faixa do título mais atrasado, com todo o seu vencido.", summary[:by_customer], "Clientes" ],
          [ "Por título", "Cada título vencido na faixa do próprio atraso.", summary[:by_bill], "Títulos" ] ].each do |title, help, rows, unit| %>
-      <% maximum = [ rows.sum { |row| row[:cents] }, 1 ].max %>
+      <% total = [ rows.sum { |row| row[:cents] }, 1 ].max %>
+      <% maximum = [ rows.map { |row| row[:cents] }.max.to_i, 1 ].max %>
       <section class="cartao" aria-labelledby="faixas-<%= title.parameterize %>">
         <header>
           <h2 id="faixas-<%= title.parameterize %>">Faixas de atraso — <%= title %></h2>
@@ -158,7 +162,7 @@
         </header>
         <div class="tabela" tabindex="0">
           <table>
-            <thead><tr><th scope="col">Faixa (dias)</th><th scope="col" data-numerico><%= unit %></th><th scope="col" data-numerico>Vencido</th><th scope="col" data-numerico>Atualizado</th><th scope="col"><span class="apenas-leitor-de-tela">Proporção do vencido</span></th></tr></thead>
+            <thead><tr><th scope="col">Faixa (dias)</th><th scope="col" data-numerico><%= unit %></th><th scope="col" data-numerico>Vencido</th><th scope="col" data-numerico>Atualizado</th><th scope="col" data-numerico>Parte do vencido</th></tr></thead>
             <tbody>
               <% rows.each do |row| %>
                 <tr>
@@ -166,7 +170,8 @@
                   <td data-numerico><%= number_br(row[:count]) %></td>
                   <td data-numerico><%= money(row[:cents]) %></td>
                   <td data-numerico><%= money(row[:updated_cents]) %></td>
-                  <td><meter value="<%= row[:cents] %>" min="0" max="<%= maximum %>" aria-label="<%= row[:label] %> dias: <%= money(row[:cents]) %>"><%= money(row[:cents]) %></meter></td>
+                  <%# A barra mede contra a maior faixa; o texto ao lado é a parte do vencido total (P29.7). %>
+                  <td data-numerico><span class="proporcao"><meter value="<%= row[:cents] %>" min="0" max="<%= maximum %>" aria-hidden="true"></meter><%= number_to_percentage(100.0 * row[:cents] / total, precision: 0, locale: :"pt-BR") %></span></td>
                 </tr>
               <% end %>
             </tbody>

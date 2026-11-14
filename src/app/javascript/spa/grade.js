@@ -79,16 +79,42 @@ export function montarGrade(elemento) {
 const semSeta = (celula) => { const copia = $(celula).clone(); copia.find("[data-alternar-detalhe], [data-alternar-todos]").remove(); return copia }
 
 // Texto longo numa célula (P26): pode sair cortado com reticências na linha, inteiro no `title`, para a grade caber sem rolar de lado.
-const LONGO = 24
+const LONGO = 12
 function conteudo(celula) {
   const copia = semSeta(celula)
   if (copia.children().length || copia.text().trim().length <= LONGO) return copia.html().trim()
   return $('<span class="cortado"></span>').attr("title", copia.text().trim()).text(copia.text().trim()).prop("outerHTML")
 }
-const MINIMA = 140
+// Largura mínima de uma coluna de texto encolhida: o bastante para umas 9 letras e as reticências; o texto inteiro fica no `title`.
+const MINIMA = 88
 
 // O detalhe fica na parte visível da grade, mesmo quando ela rola de lado (`position: sticky` no CSS).
 export const larguraDoDetalhe = (caixa) => Math.max(320, caixa.width() - 40)
+
+// Colunas da grade a partir do <thead>. Com cabeçalho em dois níveis (P29.5: "Últimos 7 dias" sobre "Acionamentos" e "Clientes"), a grade recebe cada linha
+// do cabeçalho com o `colspan` e o `rowspan`; o campo de cada coluna-folha é o da célula do corpo na mesma posição. Antes, só a primeira linha contava, e a
+// grade mostrava menos colunas que o corpo tinha, com os valores sob o título errado.
+function colunasDoCabecalho(tabela) {
+  const linhas = tabela.children("thead").children("tr").get()
+  const ocupadas = linhas.map(() => [])
+  const folhas = []
+  const niveis = linhas.map((tr, nivel) => {
+    let posicao = 0
+    return $(tr).children().map((_, th) => {
+      while (ocupadas[nivel][posicao]) posicao++
+      const largura = Number(th.getAttribute("colspan") || 1)
+      const altura = Math.min(Number(th.getAttribute("rowspan") || 1), linhas.length - nivel)
+      for (let l = nivel; l < nivel + altura; l++) for (let c = posicao; c < posicao + largura; c++) ocupadas[l][c] = true
+      const coluna = { title: semSeta(th).html().trim(), align: th.hasAttribute("data-numerico") ? "right" : "left" }
+      if (largura > 1) coluna.colspan = largura
+      if (altura > 1) coluna.rowspan = altura
+      if (largura === 1 && nivel + altura === linhas.length) folhas[posicao] = Object.assign(coluna, { field: `c${posicao}`, formatter: FORMATTERS.html })
+      posicao += largura
+      return coluna
+    }).get()
+  })
+  return { niveis, colunas: folhas.filter(Boolean) }
+}
 
 export function transformarTabela(elemento) {
   const tabela = $(elemento)
@@ -97,9 +123,7 @@ export function transformarTabela(elemento) {
   if (tabela.is("[data-sem-grade]") || tabela.children("tfoot").length || corpo.find("input:not([type=hidden]), select, textarea").length || linhas.children("[rowspan], [colspan]").length) return
   const caixa = tabela.closest(".tabela")
   const detalhes = new Map(corpo.filter(".detalhe-da-linha").map((_, tr) => [[tr.id, $(tr).children("td").html()]]).get())
-  const colunas = tabela.children("thead").children("tr").first().children().map((i, th) => ({
-    field: `c${i}`, title: semSeta(th).html().trim(), align: th.hasAttribute("data-numerico") ? "right" : "left", formatter: FORMATTERS.html,
-  })).get()
+  const { niveis, colunas } = colunasDoCabecalho(tabela)
   const rows = linhas.map((_, tr) => {
     const row = { _atual: tr.hasAttribute("data-atual") }
     $(tr).children().each((i, celula) => {
@@ -112,7 +136,7 @@ export function transformarTabela(elemento) {
   }).get()
   // Coluna sem nada em nenhuma linha (a de ações, quando nenhuma linha tem ação) sai: não ocupa a largura que falta às outras.
   const vazias = colunas.filter((coluna) => rows.length && rows.every((row) => !row[coluna.field]))
-  vazias.forEach((coluna) => colunas.splice(colunas.indexOf(coluna), 1))
+  vazias.forEach((coluna) => { colunas.splice(colunas.indexOf(coluna), 1); niveis.forEach((nivel) => { if (nivel.includes(coluna)) nivel.splice(nivel.indexOf(coluna), 1) }) })
   const legenda = tabela.children("caption").not(".apenas-leitor-de-tela")
   if (legenda.length) $('<p class="legenda-da-grade"></p>').html(legenda.html()).insertBefore(caixa)
   const nova = $("<table></table>")
@@ -121,7 +145,7 @@ export function transformarTabela(elemento) {
   caixa.removeClass("tabela").addClass("tabela-em-grade").removeAttr("tabindex")
   const comDetalhe = rows.some((row) => row._detalhe)
   nova.datagrid({
-    data: { total: rows.length, rows }, columns: [colunas], border: false, striped: true, nowrap: true, singleSelect: true, fitColumns: false,
+    data: { total: rows.length, rows }, columns: niveis, border: false, striped: true, nowrap: true, singleSelect: true, fitColumns: false,
     rowStyler: (_indice, row) => (row._atual ? { class: "linha-atual" } : ""),
     onBeforeSelect: () => false,
     // A grade tem altura pelo conteúdo: abrir ou fechar um detalhe refaz a altura.
@@ -130,7 +154,11 @@ export function transformarTabela(elemento) {
   // Largura pelo conteúdo; se sobra espaço, as colunas se esticam até a borda. Valor nunca sai cortado: sem espaço, a grade rola na horizontal.
   nova.datagrid("autoSizeColumn")
   const opcao = (coluna) => nova.datagrid("getColumnOption", coluna.field)
-  const elasticas = colunas.filter((coluna) => coluna.title.replace(/<[^>]*>/g, "").trim() && !/apenas-leitor-de-tela/.test(coluna.title))
+  const comTitulo = colunas.filter((coluna) => coluna.title.replace(/<[^>]*>/g, "").trim() && !/apenas-leitor-de-tela/.test(coluna.title))
+  // Tabela de resumo (P29.4): a primeira coluna é o nome da linha e todas as outras com título são números. A sobra vai só ao nome, e os números ficam
+  // juntos à direita, para comparar um período com o outro sem atravessar a tela.
+  const deResumo = linhas.first().children().first().is("th[scope=row]") && colunas.length > 1 && colunas.slice(1).every((coluna) => coluna.align === "right" || !comTitulo.includes(coluna))
+  const elasticas = deResumo ? [colunas[0]] : comTitulo
   colunas.forEach((coluna) => { opcao(coluna).width += elasticas.includes(coluna) ? 4 : 2 })
   const corpo2 = nova.datagrid("getPanel").find(".datagrid-view2 .datagrid-body")
   const naturais = new Map(colunas.map((coluna) => [coluna.field, opcao(coluna).width]))
@@ -139,14 +167,16 @@ export function transformarTabela(elemento) {
     colunas.forEach((coluna) => { const o = opcao(coluna); o.boxWidth = o.width - o.deltaWidth; o.auto = undefined })
     nova.datagrid("fixColumnSize")
   }
-  const cortaveis = colunas.filter((coluna) => rows.some((row) => /class="cortado"/.test(row[coluna.field])))
+  // Encolhe toda coluna de texto, não só a de texto longo: antes, uma grade sem texto acima de 24 letras passava da borda e escondia as últimas colunas,
+  // inclusive o menu "⋯" da linha (revisão das telas de 13/11/2026: acordos, segmentos, contratos da ficha). Números, selos e ações nunca encolhem.
+  const cortaveis = colunas.filter((coluna) => coluna.align !== "right" && !rows.some((row) => /class="(acoes-da-linha|situacao)/.test(row[coluna.field] || "")))
   // Reparte a largura do corpo a partir da largura natural de cada coluna. Roda na montagem e sempre que a caixa muda de largura (menu recolhido, janela, aba).
   const distribuir = () => {
     colunas.forEach((coluna) => { opcao(coluna).width = naturais.get(coluna.field) })
     // O espaço é o do corpo da grade (sem a coluna da seta), menos a borda de cada célula, que não entra na largura da coluna.
     const disponivel = corpo2.prop("clientWidth") - colunas.length - 1
     let necessaria = colunas.reduce((soma, coluna) => soma + opcao(coluna).width, 0)
-    // Sem espaço: as colunas de texto cortado encolhem, a mais larga primeiro, até a grade caber; números e ações nunca encolhem.
+    // Sem espaço: as colunas de texto encolhem, a mais larga primeiro, até a grade caber; números e ações nunca encolhem.
     for (let excesso = necessaria - disponivel; excesso > 0;) {
       const maior = cortaveis.filter((coluna) => opcao(coluna).width > MINIMA).sort((a, b) => opcao(b).width - opcao(a).width)[0]
       if (!maior) break
@@ -169,6 +199,10 @@ export function transformarTabela(elemento) {
     const passou = corpo2.prop("scrollWidth") - corpo2.prop("clientWidth")
     const ultima = elasticas[elasticas.length - 1]
     if (passou > 0 && disponivel > necessaria && ultima && opcao(ultima).width - passou > MINIMA / 2) { opcao(ultima).width -= passou; aplicar() }
+    // Se a grade encolhida ainda passou alguns pixels (bordas que a conta não vê), a coluna de texto mais larga devolve a diferença.
+    const resto = corpo2.prop("scrollWidth") - corpo2.prop("clientWidth")
+    const folgada = cortaveis.filter((coluna) => opcao(coluna).width - resto >= MINIMA).sort((a, b) => opcao(b).width - opcao(a).width)[0]
+    if (resto > 0 && folgada) { opcao(folgada).width -= resto; aplicar() }
     // O EasyUI decide a rolagem horizontal antes das larguras finais: sem isto, o que não coube some, sem barra. O `resize` refaz a decisão e a altura.
     nova.datagrid("resize")
   }

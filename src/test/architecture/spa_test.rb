@@ -25,6 +25,21 @@ class SpaArchitectureTest < ActiveSupport::TestCase
     assert_empty problemas.map { |arquivo| arquivo.delete_prefix(Rails.root.to_s) }, "tabela sem <thead>"
   end
 
+  # A casca carrega só o `casca.css`; o CSS das páginas do servidor (`app/assets/stylesheets`) fica para erro, impressão e pagamento. Uma classe com regra lá e
+  # sem regra aqui some em silêncio na SPA: foi o que fez os quadros do resumo, do título e da divergência empilharem de 08 a 13/11/2026 (`duas-colunas`).
+  test "toda classe de leiaute das telas da casca tem regra no CSS da casca" do
+    fora = %r{/(layouts|checkouts|errors|agreement_terms|customers/data_exports|agreements/terms|design_system)/}
+    antigo = Dir[Rails.root.join("app/assets/stylesheets/*.css")].sum("") { |arquivo| File.read(arquivo) }
+    casca = Dir[Rails.root.join("lib/assets/casca/*.css")].sum("") { |arquivo| File.read(arquivo) } + Dir[Rails.root.join("vendor/assets/easyui/tema/*.css")].sum("") { |arquivo| File.read(arquivo) }
+    regra = ->(css, classe) { css.match?(/\.#{Regexp.escape(classe)}(?![\w-])/) }
+    usadas = VIEWS.reject { |arquivo| fora.match?(arquivo) }.flat_map do |arquivo|
+      File.read(arquivo).scan(/class(?:="|: ")([^"<]*)"/).flatten.flat_map(&:split).grep(/\A[a-z][a-z0-9-]+\z/).map { |classe| [ classe, arquivo.delete_prefix(Rails.root.to_s) ] }
+    end
+    problemas = usadas.select { |classe, _| regra.call(antigo, classe) && !regra.call(casca, classe) }.map { |classe, arquivo| "#{classe} (#{arquivo})" }.uniq
+
+    assert_empty problemas, "classe com regra só no CSS das páginas do servidor"
+  end
+
   # As rotas são em português (pedido do Paulo, 08/11/2026): fora ficam só os nomes técnicos que não são tela: /up, /cable, /webhooks e os do próprio Rails.
   test "nenhuma rota tem trecho em inglês" do
     ingles = %r{/(new|edit|session|sessions|show|index|create|update|delete|destroy)(/|\(|\z)}

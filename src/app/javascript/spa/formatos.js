@@ -9,10 +9,13 @@ const rico = (valor) => {
   return [texto, ...(valor.selos || []).map(selo)].join(" ")
 }
 
+// O desenho das reticências vem do modelo que o layout escreve com o helper `icone` (um conjunto só, o Lucide).
+const reticencias = () => document.getElementById("icones-da-spa")?.content.querySelector('[data-icone="ellipsis"]')?.outerHTML ?? "…"
+
 const acoes = (lista) => {
   if (!lista?.length) return ""
   const itens = lista.map(({ texto, href, dialogo }) => `<a class="botao" href="${esc(href)}"${dialogo ? " data-spa-dialogo" : ""}>${esc(texto)}</a>`).join("")
-  return `<button type="button" class="menu-de-linha" data-spa-popover aria-label="Ações">⋯</button><div popover="auto" class="menu">${itens}</div>`
+  return `<button type="button" class="menu-de-linha" data-spa-popover aria-label="Ações">${reticencias()}</button><div popover="auto" class="menu">${itens}</div>`
 }
 
 // `html`: só para a célula de tabela que o Rails escreveu (`transformarTabela`), já escapada pelo ERB. Valor vindo de JSON nunca usa este.

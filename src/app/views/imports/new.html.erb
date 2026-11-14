@@ -59,7 +59,8 @@
   <section class="cartao" aria-labelledby="colunas">
     <header><h2 id="colunas">Colunas da planilha</h2><%= informacao "colunas", "Separador ponto e vírgula, UTF-8 ou Windows-1252. A ordem das colunas é livre; o cabeçalho é obrigatório.#{" A planilha modelo, sem alteração, é aceita na conferência." if @kind == "portfolio"}", "definicao-colunas" %></header>
     <div class="tabela" tabindex="0">
-      <table>
+      <%# Tabela de referência: fica tabela, com o formato inteiro quebrando a linha; na grade ele saía cortado com reticências (revisão das telas de 13/11/2026). %>
+      <table data-sem-grade>
         <caption class="apenas-leitor-de-tela">Colunas da planilha</caption>
         <thead><tr><th scope="col">Coluna</th><th scope="col">Obrigatória</th><th scope="col">Formato</th><th scope="col">Exemplo</th></tr></thead>
         <tbody>

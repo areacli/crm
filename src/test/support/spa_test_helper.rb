@@ -8,7 +8,7 @@ module SpaTestHelper
     fill_in "E-mail", with: usuario.email_address
     fill_in "Senha", with: senha
     click_button "Entrar"
-    assert_selector "#usuario", text: usuario.name
+    assert_selector "#usuario", text: usuario.name.squish
   end
 
   # Abre uma aba pelo endereço, como o menu faria (`spa/abas`).

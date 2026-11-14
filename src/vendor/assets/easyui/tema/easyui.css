@@ -96,7 +96,7 @@
   border-bottom-width: 0;
 }
 .panel-with-icon {
-  padding-left: 18px;
+  padding-left: 26px;
 }
 .panel-icon,
 .panel-tool {
@@ -146,25 +146,32 @@
   overflow: hidden;
 }
 .panel-loading {
-  background: url('images/loading.gif') no-repeat 10px 10px;
+  background: url('images/carregando.svg') no-repeat 10px 10px;
+  background-size: 16px;
 }
 .panel-tool-close {
-  background: url('images/panel_tools.png') no-repeat -16px 0px;
+  background: url('images/fechar.svg') no-repeat center;
+  background-size: 14px;
 }
 .panel-tool-min {
-  background: url('images/panel_tools.png') no-repeat 0px 0px;
+  background: url('images/minimizar.svg') no-repeat center;
+  background-size: 14px;
 }
 .panel-tool-max {
-  background: url('images/panel_tools.png') no-repeat 0px -16px;
+  background: url('images/maximizar.svg') no-repeat center;
+  background-size: 14px;
 }
 .panel-tool-restore {
-  background: url('images/panel_tools.png') no-repeat -16px -16px;
+  background: url('images/restaurar.svg') no-repeat center;
+  background-size: 14px;
 }
 .panel-tool-collapse {
-  background: url('images/panel_tools.png') no-repeat -32px 0;
+  background: url('images/seta-acima.svg') no-repeat center;
+  background-size: 14px;
 }
 .panel-tool-expand {
-  background: url('images/panel_tools.png') no-repeat -32px -16px;
+  background: url('images/seta-abaixo.svg') no-repeat center;
+  background-size: 14px;
 }
 .panel-header,
 .panel-body {
@@ -342,10 +349,12 @@
   border-width: 0 0 1px;
 }
 .accordion-collapse {
-  background: url('images/accordion_arrows.png') no-repeat 0 0;
+  background: url('images/seta-acima.svg') no-repeat center;
+  background-size: 16px;
 }
 .accordion-expand {
-  background: url('images/accordion_arrows.png') no-repeat -16px 0;
+  background: url('images/seta-abaixo.svg') no-repeat center;
+  background-size: 16px;
 }
 .accordion {
   background: #ffffff;
@@ -442,7 +451,7 @@
   right: 1px;
 }
 .window .window-header .panel-with-icon {
-  padding-left: 18px;
+  padding-left: 24px;
 }
 .window-proxy {
   position: absolute;
@@ -1018,10 +1027,12 @@
   transform: translate(0,0);
 }
 .passwordbox-open {
-  background: url('images/passwordbox_open.png') no-repeat center center;
+  background: url('images/mostrar-senha.svg') no-repeat center;
+  background-size: 16px;
 }
 .passwordbox-close {
-  background: url('images/passwordbox_close.png') no-repeat center center;
+  background: url('images/esconder-senha.svg') no-repeat center;
+  background-size: 16px;
 }
 .filebox .textbox-value {
   vertical-align: top;
@@ -1061,7 +1072,8 @@
   overflow: auto;
 }
 .combo-arrow {
-  background: url('images/combo_arrow.png') no-repeat center center;
+  background: url('images/seta-abaixo.svg') no-repeat center;
+  background-size: 16px;
 }
 .combo-panel {
   background-color: #ffffff;
@@ -1139,7 +1151,8 @@
   color: #1c3a57;
 }
 .tagbox-remove {
-  background: url('images/tagbox_icons.png') no-repeat -16px center;
+  background: url('images/fechar.svg') no-repeat center;
+  background-size: 12px;
   position: absolute;
   display: block;
   width: 16px;
@@ -1279,16 +1292,20 @@
   z-index: 4;
 }
 .layout-button-up {
-  background: url('images/layout_arrows.png') no-repeat -16px -16px;
+  background: url('images/setas-acima.svg') no-repeat center;
+  background-size: 16px;
 }
 .layout-button-down {
-  background: url('images/layout_arrows.png') no-repeat -16px 0;
+  background: url('images/setas-abaixo.svg') no-repeat center;
+  background-size: 16px;
 }
 .layout-button-left {
-  background: url('images/layout_arrows.png') no-repeat 0 0;
+  background: url('images/setas-esquerda.svg') no-repeat center;
+  background-size: 16px;
 }
 .layout-button-right {
-  background: url('images/layout_arrows.png') no-repeat 0 -16px;
+  background: url('images/setas-direita.svg') no-repeat center;
+  background-size: 16px;
 }
 .layout-split-proxy-h,
 .layout-split-proxy-v {
@@ -1627,13 +1644,16 @@
   margin-left: -1px;
 }
 .tabs-scroller-left {
-  background: #eaf0f6 url('images/tabs_icons.png') no-repeat 1px center;
+  background: #eaf0f6 url('images/seta-esquerda.svg') no-repeat center;
+  background-size: 16px;
 }
 .tabs-scroller-right {
-  background: #eaf0f6 url('images/tabs_icons.png') no-repeat -15px center;
+  background: #eaf0f6 url('images/seta-direita.svg') no-repeat center;
+  background-size: 16px;
 }
 .tabs li .tabs-close {
-  background: url('images/tabs_icons.png') no-repeat -34px center;
+  background: url('images/fechar.svg') no-repeat center;
+  background-size: 12px;
 }
 .tabs li .tabs-inner:hover {
   background: #eef4f9;
@@ -1896,26 +1916,32 @@
 .datagrid-sort .datagrid-sort-icon {
   display: inline;
   padding: 0 13px 0 0;
-  background: url('images/datagrid_icons.png') no-repeat -64px center;
+  background: url('images/ordem.svg') no-repeat center;
+  background-size: 12px;
 }
 .datagrid-sort-desc .datagrid-sort-icon {
   display: inline;
   padding: 0 13px 0 0;
-  background: url('images/datagrid_icons.png') no-repeat -16px center;
+  background: url('images/ordem-decrescente.svg') no-repeat center;
+  background-size: 12px;
 }
 .datagrid-sort-asc .datagrid-sort-icon {
   display: inline;
   padding: 0 13px 0 0;
-  background: url('images/datagrid_icons.png') no-repeat 0px center;
+  background: url('images/ordem-crescente.svg') no-repeat center;
+  background-size: 12px;
 }
 .datagrid-row-collapse {
-  background: url('images/datagrid_icons.png') no-repeat -48px center;
+  background: url('images/seta-abaixo.svg') no-repeat center;
+  background-size: 16px;
 }
 .datagrid-row-expand {
-  background: url('images/datagrid_icons.png') no-repeat -32px center;
+  background: url('images/seta-direita.svg') no-repeat center;
+  background-size: 16px;
 }
 .datagrid-mask-msg {
-  background: #ffffff url('images/loading.gif') no-repeat scroll 5px center;
+  background: #ffffff url('images/carregando.svg') no-repeat 5px center;
+  background-size: 16px;
 }
 .datagrid-header,
 .datagrid-td-rownumber {
@@ -2168,22 +2194,28 @@
   min-width: 28px;
 }
 .pagination-first {
-  background: url('images/pagination_icons.png') no-repeat 0 center;
+  background: url('images/primeira.svg') no-repeat center;
+  background-size: 16px;
 }
 .pagination-prev {
-  background: url('images/pagination_icons.png') no-repeat -16px center;
+  background: url('images/seta-esquerda.svg') no-repeat center;
+  background-size: 16px;
 }
 .pagination-next {
-  background: url('images/pagination_icons.png') no-repeat -32px center;
+  background: url('images/seta-direita.svg') no-repeat center;
+  background-size: 16px;
 }
 .pagination-last {
-  background: url('images/pagination_icons.png') no-repeat -48px center;
+  background: url('images/ultima.svg') no-repeat center;
+  background-size: 16px;
 }
 .pagination-load {
-  background: url('images/pagination_icons.png') no-repeat -64px center;
+  background: url('images/recarregar.svg') no-repeat center;
+  background-size: 14px;
 }
 .pagination-loading {
-  background: url('images/loading.gif') no-repeat center center;
+  background: url('images/carregando.svg') no-repeat center;
+  background-size: 16px;
 }
 .pagination-page-list,
 .pagination .pagination-num {
@@ -2248,19 +2280,23 @@
 }
 .calendar-prevmonth {
   left: 30px;
-  background: url('images/calendar_arrows.png') no-repeat -16px 0;
+  background: url('images/seta-esquerda.svg') no-repeat center;
+  background-size: 16px;
 }
 .calendar-nextmonth {
   right: 30px;
-  background: url('images/calendar_arrows.png') no-repeat -32px 0;
+  background: url('images/seta-direita.svg') no-repeat center;
+  background-size: 16px;
 }
 .calendar-prevyear {
   left: 10px;
-  background: url('images/calendar_arrows.png') no-repeat 0px 0;
+  background: url('images/setas-esquerda.svg') no-repeat center;
+  background-size: 16px;
 }
 .calendar-nextyear {
   right: 10px;
-  background: url('images/calendar_arrows.png') no-repeat -48px 0;
+  background: url('images/setas-direita.svg') no-repeat center;
+  background-size: 16px;
 }
 .calendar-body {
   position: relative;
@@ -2330,11 +2366,13 @@
 }
 .calendar-menu-prev {
   margin-right: 10px;
-  background: url('images/calendar_arrows.png') no-repeat 5px center;
+  background: url('images/seta-esquerda.svg') no-repeat center;
+  background-size: 14px;
 }
 .calendar-menu-next {
   margin-left: 10px;
-  background: url('images/calendar_arrows.png') no-repeat -44px center;
+  background: url('images/seta-direita.svg') no-repeat center;
+  background-size: 14px;
 }
 .calendar-menu-month {
   text-align: center;
@@ -2429,7 +2467,8 @@
   float: right;
 }
 .datebox .combo-arrow {
-  background-image: url('images/datebox_arrow.png');
+  background-image: url('images/calendario.svg');
+  background-size: 16px;
   background-position: center center;
 }
 .datebox-button {
@@ -2539,18 +2578,22 @@
   filter: alpha(opacity=60);
 }
 .spinner-arrow-up {
-  background: url('images/spinner_arrows.png') no-repeat 1px center;
+  background: url('images/seta-acima.svg') no-repeat center;
+  background-size: 14px;
   background-color: #eaf0f6;
 }
 .spinner-arrow-down {
-  background: url('images/spinner_arrows.png') no-repeat -15px center;
+  background: url('images/seta-abaixo.svg') no-repeat center;
+  background-size: 14px;
   background-color: #eaf0f6;
 }
 .spinner-button-up {
-  background: url('images/spinner_arrows.png') no-repeat -32px center;
+  background: url('images/seta-acima.svg') no-repeat center;
+  background-size: 14px;
 }
 .spinner-button-down {
-  background: url('images/spinner_arrows.png') no-repeat -48px center;
+  background: url('images/seta-abaixo.svg') no-repeat center;
+  background-size: 14px;
 }
 .progressbar {
   border-width: 1px;
@@ -2636,7 +2679,8 @@
   border-width: 0 1px 0 0;
 }
 .searchbox-button {
-  background: url('images/searchbox_button.png') no-repeat center center;
+  background: url('images/buscar.svg') no-repeat center;
+  background-size: 16px;
 }
 .searchbox .l-btn-plain {
   background: #eaf0f6;
@@ -2834,7 +2878,8 @@
   filter: progid:DXImageTransform.Microsoft.Blur(pixelRadius=2,MakeShadow=false,ShadowOpacity=0.2);
 }
 .menu-rightarrow {
-  background: url('images/menu_arrows.png') no-repeat -32px center;
+  background: url('images/seta-direita.svg') no-repeat center;
+  background-size: 14px;
 }
 .menu-line {
   border-left: 1px solid #ccc;
@@ -2952,7 +2997,8 @@
 }
 .m-btn-downarrow,
 .s-btn-downarrow {
-  background: url('images/menu_arrows.png') no-repeat 0 center;
+  background: url('images/seta-abaixo.svg') no-repeat center;
+  background-size: 14px;
 }
 .m-btn-plain-active,
 .s-btn-plain-active {
@@ -3073,16 +3119,20 @@
   margin: 0 10px 10px 0;
 }
 .messager-error {
-  background: url('images/messager_icons.png') no-repeat scroll -64px 0;
+  background: url('images/mensagem-erro.svg') no-repeat center;
+  background-size: 32px;
 }
 .messager-info {
-  background: url('images/messager_icons.png') no-repeat scroll 0 0;
+  background: url('images/mensagem-informacao.svg') no-repeat center;
+  background-size: 32px;
 }
 .messager-question {
-  background: url('images/messager_icons.png') no-repeat scroll -32px 0;
+  background: url('images/mensagem-pergunta.svg') no-repeat center;
+  background-size: 32px;
 }
 .messager-warning {
-  background: url('images/messager_icons.png') no-repeat scroll -96px 0;
+  background: url('images/mensagem-atencao.svg') no-repeat center;
+  background-size: 32px;
 }
 .messager-progress {
   padding: 10px;
@@ -3118,16 +3168,20 @@
   margin: 0 10px 0 0;
 }
 .messager-tip .messager-info {
-  background: url('images/messager_icons16.png') no-repeat scroll 0 0;
+  background: url('images/mensagem-informacao.svg') no-repeat center;
+  background-size: 16px;
 }
 .messager-tip .messager-question {
-  background: url('images/messager_icons16.png') no-repeat scroll -16px 0;
+  background: url('images/mensagem-pergunta.svg') no-repeat center;
+  background-size: 16px;
 }
 .messager-tip .messager-error {
-  background: url('images/messager_icons16.png') no-repeat scroll -32px 0;
+  background: url('images/mensagem-erro.svg') no-repeat center;
+  background-size: 16px;
 }
 .messager-tip .messager-warning {
-  background: url('images/messager_icons16.png') no-repeat scroll -48px 0;
+  background: url('images/mensagem-atencao.svg') no-repeat center;
+  background-size: 16px;
 }
 .tree {
   margin: 0;
@@ -3164,62 +3218,80 @@
   overflow: hidden;
 }
 .tree-expanded {
-  background: url('images/tree_icons.png') no-repeat -18px 0px;
+  background: url('images/seta-abaixo.svg') no-repeat center;
+  background-size: 14px;
 }
 .tree-expanded-hover {
-  background: url('images/tree_icons.png') no-repeat -50px 0px;
+  background: url('images/seta-abaixo.svg') no-repeat center;
+  background-size: 14px;
 }
 .tree-collapsed {
-  background: url('images/tree_icons.png') no-repeat 0px 0px;
+  background: url('images/seta-direita.svg') no-repeat center;
+  background-size: 14px;
 }
 .tree-collapsed-hover {
-  background: url('images/tree_icons.png') no-repeat -32px 0px;
+  background: url('images/seta-direita.svg') no-repeat center;
+  background-size: 14px;
 }
 .tree-lines .tree-expanded,
 .tree-lines .tree-root-first .tree-expanded {
-  background: url('images/tree_icons.png') no-repeat -144px 0;
+  background: url('images/fechar-ramo.svg') no-repeat center;
+  background-size: 14px;
 }
 .tree-lines .tree-collapsed,
 .tree-lines .tree-root-first .tree-collapsed {
-  background: url('images/tree_icons.png') no-repeat -128px 0;
+  background: url('images/abrir-ramo.svg') no-repeat center;
+  background-size: 14px;
 }
 .tree-lines .tree-node-last .tree-expanded,
 .tree-lines .tree-root-one .tree-expanded {
-  background: url('images/tree_icons.png') no-repeat -80px 0;
+  background: url('images/fechar-ramo.svg') no-repeat center;
+  background-size: 14px;
 }
 .tree-lines .tree-node-last .tree-collapsed,
 .tree-lines .tree-root-one .tree-collapsed {
-  background: url('images/tree_icons.png') no-repeat -64px 0;
+  background: url('images/abrir-ramo.svg') no-repeat center;
+  background-size: 14px;
 }
 .tree-line {
-  background: url('images/tree_icons.png') no-repeat -176px 0;
+  background: url('images/linha-da-arvore.svg') no-repeat center;
+  background-size: 16px 18px;
 }
 .tree-join {
-  background: url('images/tree_icons.png') no-repeat -192px 0;
+  background: url('images/juncao-da-arvore.svg') no-repeat center;
+  background-size: 16px 18px;
 }
 .tree-joinbottom {
-  background: url('images/tree_icons.png') no-repeat -160px 0;
+  background: url('images/fim-da-arvore.svg') no-repeat center;
+  background-size: 16px 18px;
 }
 .tree-folder {
-  background: url('images/tree_icons.png') no-repeat -208px 0;
+  background: url('images/pasta.svg') no-repeat center;
+  background-size: 16px;
 }
 .tree-folder-open {
-  background: url('images/tree_icons.png') no-repeat -224px 0;
+  background: url('images/pasta-aberta.svg') no-repeat center;
+  background-size: 16px;
 }
 .tree-file {
-  background: url('images/tree_icons.png') no-repeat -240px 0;
+  background: url('images/arquivo.svg') no-repeat center;
+  background-size: 16px;
 }
 .tree-loading {
-  background: url('images/loading.gif') no-repeat center center;
+  background: url('images/carregando.svg') no-repeat center;
+  background-size: 16px;
 }
 .tree-checkbox0 {
-  background: url('images/tree_icons.png') no-repeat -208px -18px;
+  background: url('images/marcar.svg') no-repeat center;
+  background-size: 16px;
 }
 .tree-checkbox1 {
-  background: url('images/tree_icons.png') no-repeat -224px -18px;
+  background: url('images/marcado.svg') no-repeat center;
+  background-size: 16px;
 }
 .tree-checkbox2 {
-  background: url('images/tree_icons.png') no-repeat -240px -18px;
+  background: url('images/marcado-em-parte.svg') no-repeat center;
+  background-size: 16px;
 }
 .tree-title {
   font-size: 14px;
@@ -3250,10 +3322,12 @@
   margin-top: -9px;
 }
 .tree-dnd-yes {
-  background: url('images/tree_icons.png') no-repeat -256px 0;
+  background: url('images/pode-soltar.svg') no-repeat center;
+  background-size: 16px;
 }
 .tree-dnd-no {
-  background: url('images/tree_icons.png') no-repeat -256px -18px;
+  background: url('images/nao-pode-soltar.svg') no-repeat center;
+  background-size: 16px;
 }
 .tree-node-top {
   border-top: 1px dotted red;
@@ -3515,13 +3589,15 @@
   position: absolute;
   top: 50%;
   margin-top: -8px;
-  background: url('images/accordion_arrows.png') no-repeat 0 0;
+  background: url('images/seta-acima.svg') no-repeat center;
+  background-size: 16px;
   width: 16px;
   height: 16px;
   right: 5px;
 }
 .sidemenu .tree-node-nonleaf-collapsed::after {
-  background: url('images/accordion_arrows.png') no-repeat -16px 0;
+  background: url('images/seta-abaixo.svg') no-repeat center;
+  background-size: 16px;
 }
 .sidemenu-collapsed .panel-icon {
   left: 50%;

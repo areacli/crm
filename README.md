@@ -242,4 +242,6 @@ As versões publicadas antes sob a GNU Affero General Public License v3.0 contin
 >
 > Quem usa o CRM é responsável por cumprir as duas licenças. Este resumo não substitui os textos delas nem é orientação jurídica.
 
+Os ícones são do [Lucide](https://lucide.dev/) 1.65.0, sob a licença ISC, que só pede o aviso de direitos junto dos arquivos: os originais e a licença ficam em `src/vendor/assets/icones`, e os ícones do tema do EasyUI são gerados a partir deles.
+
 Os comentários do código citam regras (R1, R2…) e decisões das especificações. As especificações são documentos internos do projeto e não estão neste repositório; a série no blog conta cada uma.
