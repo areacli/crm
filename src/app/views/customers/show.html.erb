@@ -66,10 +66,10 @@
           <header><h2>Em cobrança</h2></header>
           <div>
             <dl class="dados">
-              <dt>Vencido</dt><dd><%= money(overdue.sum(&:balance_cents)) %></dd>
-              <% unless @setting.upcoming_display == "detail_only" %><dt>A vencer</dt><dd><%= money(upcoming.sum(&:balance_cents)) %></dd><% end %>
-              <dt>Títulos em cobrança</dt><dd><%= number_br(active.size) %></dd>
-              <dt>Atualizado</dt><dd><%= money(overdue.sum { |bill| @valuations[bill.id]&.total_cents || bill.balance_cents }) %></dd>
+              <dt>Vencido</dt><dd data-numerico><%= money(overdue.sum(&:balance_cents)) %></dd>
+              <% unless @setting.upcoming_display == "detail_only" %><dt>A vencer</dt><dd data-numerico><%= money(upcoming.sum(&:balance_cents)) %></dd><% end %>
+              <dt>Títulos em cobrança</dt><dd data-numerico><%= number_br(active.size) %></dd>
+              <dt>Atualizado</dt><dd data-numerico><%= money(overdue.sum { |bill| @valuations[bill.id]&.total_cents || bill.balance_cents }) %></dd>
             </dl>
             <% if @value_status[:calculated_on] %>
               <p class="nota">Valor atualizado até <%= date_br(@value_status[:calculated_on]) %> pelas regras de <%= @customer.tenant.name %>.<%= " Os valores estão sendo recalculados." if @value_status[:running] %></p>

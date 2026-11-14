@@ -13,12 +13,12 @@
       <dl class="dados">
         <dt>Cliente</dt><dd><% if @can_view_customer %><%= link_to item.bill.customer.name, customer_path(item.bill.customer) %><% else %><%= item.bill.customer.name %><% end %></dd>
         <dt>Título</dt><dd><%= item.bill.number %></dd>
-        <dt>Valor anterior</dt><dd><%= money(item.previous_cents) %></dd>
-        <dt>Valor informado</dt><dd><%= money(item.reported_cents) %></dd>
-        <dt>Pago até então</dt><dd><%= money(item.allocated_cents) %></dd>
-        <dt>Saldo antes</dt><dd><%= money(item.balance_before_cents) %></dd>
-        <dt>Saldo depois</dt><dd><%= money(item.balance_after_cents) %></dd>
-        <% if item.excess_cents.positive? %><dt>Excedente</dt><dd><%= money(item.excess_cents) %></dd><% end %>
+        <dt>Valor anterior</dt><dd data-numerico><%= money(item.previous_cents) %></dd>
+        <dt>Valor informado</dt><dd data-numerico><%= money(item.reported_cents) %></dd>
+        <dt>Pago até então</dt><dd data-numerico><%= money(item.allocated_cents) %></dd>
+        <dt>Saldo antes</dt><dd data-numerico><%= money(item.balance_before_cents) %></dd>
+        <dt>Saldo depois</dt><dd data-numerico><%= money(item.balance_after_cents) %></dd>
+        <% if item.excess_cents.positive? %><dt>Excedente</dt><dd data-numerico><%= money(item.excess_cents) %></dd><% end %>
         <dt>Efeito aplicado</dt><dd><%= t("discrepancies.effects.#{item.effect}") %> <small>(política: <%= t("discrepancies.policies.#{item.policy}").downcase %>)</small></dd>
         <dt>Registrada em</dt><dd><%= datetime_br(item.created_at) %></dd>
       </dl>

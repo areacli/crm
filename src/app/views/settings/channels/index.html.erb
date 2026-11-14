@@ -20,7 +20,7 @@
     </div>
   <% end %>
   <div class="campo">
-    <label for="per_page" class="apenas-leitor-de-tela">Por página</label>
+    <label for="per_page">Por página</label>
     <select id="per_page" name="por_pagina"><%= options_for_select(Pagination::PER_PAGE_OPTIONS, @pagination.per_page) %></select>
   </div>
   <button type="submit" data-variant="secondary">Buscar</button>

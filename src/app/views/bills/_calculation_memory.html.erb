@@ -6,7 +6,7 @@
     <% decimal = ->(value, digits) { format("%.#{digits}f", value).tr(".", ",") } %>
     <div class="tabela" tabindex="0">
       <table>
-        <caption>Memória de cálculo do título <%= @bill.number %> <small>pelos parâmetros de <%= @bill.tenant.name %>, em <%= date_br(@today) %><% if @can_see_indexes %> · <%= link_to "Ver índices", settings_indexes_path %><% end %></small></caption>
+        <caption><span class="apenas-leitor-de-tela">Memória de cálculo do título <%= @bill.number %> </span><small>pelos parâmetros de <%= @bill.tenant.name %>, em <%= date_br(@today) %><% if @can_see_indexes %> · <%= link_to "Ver índices", settings_indexes_path %><% end %></small></caption>
         <thead>
           <tr>
             <th scope="col">Período</th><th scope="col" data-numerico>Dias</th><th scope="col">Enquadramento</th><th scope="col">Correção</th><th scope="col" data-numerico>Fator</th>

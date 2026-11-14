@@ -13,12 +13,14 @@
             <strong><%= t("source_systems.record_policies.#{value}") %></strong>
             <small><%= t("source_systems.record_policy_help.#{value}") %></small>
           </label>
+          <%# O sistema escolhido vale só para esta opção: fica logo abaixo dela (revisão das telas de 13/11/2026; antes vinha depois da terceira opção). %>
+          <% if value == "defined_system" %>
+          <div class="campo">
+            <label for="cadastro-sistema-<%= tenant.id %>">Sistema definido</label>
+            <%= select_tag :customer_record_system_id, options_for_select(card.systems.map { |system| [ system.name, system.id ] }, card.setting.customer_record_system_id), include_blank: "Escolha", id: "cadastro-sistema-#{tenant.id}" %>
+          </div>
+          <% end %>
         <% end %>
-        <div class="campo">
-          <label for="cadastro-sistema-<%= tenant.id %>">Sistema definido</label>
-          <%= select_tag :customer_record_system_id, options_for_select(card.systems.map { |system| [ system.name, system.id ] }, card.setting.customer_record_system_id), include_blank: "Escolha", id: "cadastro-sistema-#{tenant.id}" %>
-          <small>Só vale na opção "Um sistema definido".</small>
-        </div>
         <% if card.last_change %><p><small>Alterada por <%= card.last_change.user&.name || "sistema" %> em <%= datetime_br(card.last_change.occurred_at) %>.</small></p><% end %>
       <% end %>
       <div class="acoes" data-rodape><button type="submit">Salvar cadastro entre sistemas</button></div>

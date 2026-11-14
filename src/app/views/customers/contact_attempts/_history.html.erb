@@ -5,7 +5,6 @@
   <% if attempts.empty? %>
     <p class="vazio">Nenhum acionamento registrado para este cliente.</p>
   <% else %>
-    <p><small>Mostrando <%= number_br(history.first_item) %> a <%= number_br(history.last_item) %> de <%= number_br(history.total) %> acionamentos.</small></p>
     <div class="tabela" tabindex="0">
       <table data-detalhes>
         <caption class="apenas-leitor-de-tela">Acionamentos do cliente</caption>
@@ -44,6 +43,6 @@
         </tbody>
       </table>
     </div>
-    <%= render "shared/paginacao", pagination: history, path: ->(page) { customer_contact_attempts_path(customer, pagina: page, contrato: params[:contrato].presence) }, fragment: "#historico-acionamentos" %>
+    <%= render "shared/paginacao", pagination: history, unit: "acionamentos", path: ->(page) { customer_contact_attempts_path(customer, pagina: page, contrato: params[:contrato].presence) }, fragment: "#historico-acionamentos" %>
   <% end %>
 <% end %>

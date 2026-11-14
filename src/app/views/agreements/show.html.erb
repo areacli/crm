@@ -182,20 +182,20 @@
         <dl class="dados">
           <dt>Forma</dt><dd><%= agreement_mode(agreement) %></dd>
           <dt>Enquadramento</dt><dd><%= agreement.terms.dig("tier", "name") %></dd>
-          <dt>Base</dt><dd><%= money(agreement.base_cents) %></dd>
-          <dt>Desconto</dt><dd><%= money(agreement.discount_cents) %> <small>(<%= discounts_text(agreement.discounts) %>)</small></dd>
-          <dt>Valor do acordo</dt><dd><%= money(agreement.value_cents) %></dd>
-          <% if agreement.credit_cents.positive? || agreement.credit_down_cents.positive? %><dt>Crédito usado</dt><dd><%= money(agreement.credit_cents + agreement.credit_down_cents) %> <small>como <%= agreement.credit_cents.positive? ? "abatimento do valor" : "pagamento da entrada" %></small></dd><% end %>
-          <dt>Valor líquido</dt><dd><%= money(agreement.net_cents) %></dd>
+          <dt>Base</dt><dd data-numerico><%= money(agreement.base_cents) %></dd>
+          <dt>Desconto</dt><dd data-numerico><%= money(agreement.discount_cents) %> <small>(<%= discounts_text(agreement.discounts) %>)</small></dd>
+          <dt>Valor do acordo</dt><dd data-numerico><%= money(agreement.value_cents) %></dd>
+          <% if agreement.credit_cents.positive? || agreement.credit_down_cents.positive? %><dt>Crédito usado</dt><dd data-numerico><%= money(agreement.credit_cents + agreement.credit_down_cents) %> <small>como <%= agreement.credit_cents.positive? ? "abatimento do valor" : "pagamento da entrada" %></small></dd><% end %>
+          <dt>Valor líquido</dt><dd data-numerico><%= money(agreement.net_cents) %></dd>
           <% if agreement.installments_count.positive? %>
             <dt>Método</dt><dd><%= t("agreements.methods.#{agreement.installment_method}") %><%= " a #{percent_decimal(agreement.rate_pct)} ao mês" unless agreement.installment_method == "none" %></dd>
             <dt>Taxa efetiva anual</dt><dd><%= percent_decimal(agreement.effective_annual_pct) %></dd>
-            <dt>Juros do parcelamento</dt><dd><%= money(agreement.interest_cents) %></dd>
+            <dt>Juros do parcelamento</dt><dd data-numerico><%= money(agreement.interest_cents) %></dd>
           <% end %>
-          <dt>Total a pagar</dt><dd><%= money(agreement.total_cents) %></dd>
+          <dt>Total a pagar</dt><dd data-numerico><%= money(agreement.total_cents) %></dd>
           <dt>Montada por</dt><dd><%= agreement.user&.name || "—" %> <small>em <%= date_br(agreement.built_on) %></small></dd>
           <dt>Aprovada por</dt><dd><%= agreement.decided_by ? "#{agreement.decided_by.name}" : "—" %><% if agreement.decided_by %> <small>em <%= datetime_br(agreement.decided_at) %></small><% end %></dd>
-          <% unless agreement.accepted_at %><dt>Vale até</dt><dd><%= date_br(agreement.valid_until) %></dd><% end %>
+          <% unless agreement.accepted_at %><dt>Vale até</dt><dd data-numerico><%= date_br(agreement.valid_until) %></dd><% end %>
         </dl>
       </div>
     </section>

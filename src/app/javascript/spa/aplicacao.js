@@ -12,7 +12,9 @@ import "spa/lista"
 
 const $ = window.jQuery
 
-const ICONES = { Geral: "icon-sum", "Cobrança": "icon-tip", Financeiro: "icon-filter", "Entrada de dados": "icon-save", "Distribuição": "icon-reload", "Administração": "icon-lock" }
+// Ícones do Lucide, um por grupo, escolhidos pelo trabalho do grupo (design system, revisão 25); o grupo novo fica com as reticências até ganhar o seu.
+const ICONES = { Geral: "geral", "Cobrança": "cobranca", Financeiro: "financeiro", "Entrada de dados": "entrada-de-dados", "Distribuição": "distribuicao", "Administração": "administracao" }
+const iconeDoGrupo = (titulo) => (`icone-menu icone-menu-${ICONES[titulo] || "outros"}`)
 const LARGURA_DO_MENU = 212
 const LARGURA_RECOLHIDO = 60
 let sincronizando = false
@@ -37,7 +39,7 @@ function destacarMenu(reg) {
 }
 
 function montarMenu(grupos) {
-  const dados = grupos.map(({ titulo, itens }, indice) => ({ text: esc(titulo), iconCls: ICONES[titulo] || "icon-more", state: indice === 0 ? "open" : undefined, children: itens.map(itemDoMenu) }))
+  const dados = grupos.map(({ titulo, itens }, indice) => ({ text: esc(titulo), iconCls: iconeDoGrupo(titulo), state: indice === 0 ? "open" : undefined, children: itens.map(itemDoMenu) }))
   $("#menu").sidemenu({
     data: dados, width: LARGURA_DO_MENU - 2, border: false, multiple: false, floatMenuWidth: 220,
     onSelect(item) { if (!sincronizando && item.id) abas.abrir(item.id, { titulo: item.rotulo }) },
@@ -88,7 +90,7 @@ function montarCasca(menu) {
 
 function mostrarUsuario(menu) {
   if (!menu.trocar_senha) { const item = $("#menu-usuario").menu("findItem", "Trocar a senha"); if (item) $("#menu-usuario").menu("hideItem", item.target) }
-  $("#usuario").text(`${menu.usuario.nome} ▾`).attr("title", menu.usuario.nome)
+  $("#usuario").attr("title", menu.usuario.nome).find(".nome").text(menu.usuario.nome)
   // 14, R324: a operação do usuário de operação, no cabeçalho.
   $("#operacao-atual").text(menu.usuario.operacao || "").attr("title", menu.usuario.operacao_razao_social || "").prop("hidden", !menu.usuario.operacao)
   $("#sino .contador").text(menu.avisos).prop("hidden", !menu.avisos)

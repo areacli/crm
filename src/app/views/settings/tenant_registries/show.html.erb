@@ -13,7 +13,7 @@
       <header>
         <div>
           <h2 id="credor-<%= tenant.id %>"><%= registered.name %></h2>
-          <p><%= last ? "Última alteração: #{last.user&.name || 'sistema'} em #{datetime_br(last.occurred_at)}." : "Cadastro ainda não preenchido." %></p>
+          <p><%= last ? "Última alteração: #{last.user&.name || 'sistema'} em #{datetime_br(last.occurred_at)}." : (Tenant::REGISTRY_FIELDS.any? { |field| registered[field].present? } ? "Sem alterações registradas." : "Cadastro ainda não preenchido.") %></p>
         </div>
       </header>
       <div class="campos-do-cartao">

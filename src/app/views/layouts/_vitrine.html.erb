@@ -16,10 +16,10 @@
     <% end %>
   </div>
   <div class="vitrine-controles">
-    <button type="button" data-vitrine-passo="-1" aria-label="Tela anterior">‹</button>
+    <button type="button" data-vitrine-passo="-1" aria-label="Tela anterior"><%= icone("chevron-left") %></button>
     <% telas.each_with_index do |(_, nome, _), indice| %>
       <button type="button" class="vitrine-ponto" data-vitrine-ir="<%= indice %>" aria-label="Mostrar: <%= nome %>"<%= ' aria-current="true"'.html_safe if indice.zero? %>></button>
     <% end %>
-    <button type="button" data-vitrine-passo="1" aria-label="Próxima tela">›</button>
+    <button type="button" data-vitrine-passo="1" aria-label="Próxima tela"><%= icone("chevron-right") %></button>
   </div>
 </section>

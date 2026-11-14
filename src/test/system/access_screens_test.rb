@@ -48,7 +48,8 @@ class AccessScreensSystemTest < ApplicationSystemTestCase
     visit new_import_path # na SPA desde a fase 5
 
     assert_selector ".aba-raiz h2", text: "Colunas da planilha", wait: 15
-    assert_selector ".aba-raiz .datagrid-view2 tr.datagrid-row", count: 30
+    # Tabela de referência: fica tabela, com o formato inteiro (revisão das telas de 13/11/2026), e não vira grade.
+    assert_selector ".aba-raiz table[data-sem-grade] tbody tr", count: 30
     assert_link "Baixar planilha modelo"
   end
 
