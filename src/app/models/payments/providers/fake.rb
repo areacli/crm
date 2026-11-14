@@ -25,7 +25,8 @@ module Payments
           Manifest::Field.new(name: "max_installments", type: :number, modalities: %w[card], min: 1, max: 12, default: 1)
         ],
         # Cartão: o falso tokeniza no próprio navegador, sem biblioteca nem domínio externo (módulo `payments/drivers/fake`).
-        capabilities: { webhook_auth: %w[hmac], pdf: "file", qr: "image", batch_limit: nil,
+        # Lista de pagos a cada 10 minutos nas duas modalidades (12, revisão 4, R284c): o falso mostra o que os ganchos dos testes marcaram como pago.
+        capabilities: { webhook_auth: %w[hmac], pdf: "file", qr: "image", batch_limit: nil, paid_list: { "boleto" => { every: 10 }, "pix" => { every: 10 } },
                         card_checkout: { driver: "payments/drivers/fake", script: nil, hosts: { script: [], connect: [], frame: [], img: [] } } }
       )
 
@@ -45,6 +46,9 @@ module Payments
         def mark_refunded!(external_id, cents) = store[:instruments].fetch(external_id)[:refunded_cents] = cents
 
         def mark_status!(external_id, status) = store[:instruments].fetch(external_id)[:status] = status
+
+        # Gancho da lista de pagos: quantas vezes ela foi pedida e o erro com que deve falhar.
+        def list_calls = store[:list_calls] ||= []
       end
 
       def manifest = MANIFEST
@@ -121,6 +125,23 @@ module Payments
       rescue JSON::ParserError, KeyError, TypeError
         raise Error, I18n.t("payments.accounts.test.bad_payload")
       end
+
+      # Pagos e devolvidos que o falso conhece, com o identificador que o aviso do falso usa para o mesmo fato (`paid:<id>` e `refunded:<id>:<centavos>`):
+      # quem manda o aviso pelo webhook com esse `id` encontra o mesmo evento (R284b).
+      def list_paid(account, from:, to:)
+        self.class.list_calls << { account_id: account.id, from: from, to: to }
+        failure(:list_paid)
+        self.class.store[:instruments].values.select { |instrument| instrument[:kind] == account.modality }.flat_map do |instrument|
+          paid = instrument[:status] == "paid" ? [ Notification.new(event_id: "paid:#{instrument[:external_id]}", kind: :paid, external_id: instrument[:external_id],
+                                                                     amount_cents: instrument[:paid_cents] || instrument[:amount_cents], occurred_at: to) ] : []
+          refunded = instrument[:refunded_cents].to_i.positive? ? [ Notification.new(event_id: "refunded:#{instrument[:external_id]}:#{instrument[:refunded_cents]}", kind: :refunded,
+                                                                                  external_id: instrument[:external_id], amount_cents: instrument[:refunded_cents], occurred_at: to) ] : []
+          paid + refunded
+        end
+      end
+
+      # O falso "cadastra" o endereço sem chamar ninguém e devolve o que cadastraria.
+      def register_webhook(account) = WebhookUrl.for(account) || raise(Error, I18n.t("payments.webhook_registration.no_url"))
 
       private
         def failure(operation)

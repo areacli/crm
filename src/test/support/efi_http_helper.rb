@@ -16,8 +16,8 @@ module EfiHttpHelper
     def initialize = (@rules = []; @requests = [])
 
     # `respond` pode ser um Hash { status:, body:, raw: } ou um bloco que recebe o Request e devolve esse Hash (ou levanta o erro de rede).
-    def on(method, fragment, status: 200, body: {}, raw: nil, &block)
-      @rules << { method: method.to_s, fragment: fragment, response: block || { status: status, body: body, raw: raw } }
+    def on(method, fragment, status: 200, body: {}, raw: nil, headers: {}, &block)
+      @rules << { method: method.to_s, fragment: fragment, response: block || { status: status, body: body, raw: raw, headers: headers } }
       self
     end
 
@@ -26,7 +26,7 @@ module EfiHttpHelper
       @requests << call
       rule = @rules.reverse.find { |r| r[:method] == method.to_s && url.include?(r[:fragment]) } or raise "sem resposta gravada para #{method.to_s.upcase} #{url}"
       response = rule[:response].respond_to?(:call) ? rule[:response].call(call) : rule[:response]
-      Payments::Providers::HttpClient::Response.new(status: response[:status], body: response[:raw] || response[:body].to_json, headers: {})
+      Payments::Providers::HttpClient::Response.new(status: response[:status], body: response[:raw] || response[:body].to_json, headers: response[:headers] || {})
     end
 
     def to(fragment) = requests.select { |r| r.url.include?(fragment) }

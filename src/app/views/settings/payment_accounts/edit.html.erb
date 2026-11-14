@@ -45,6 +45,7 @@
     <dl class="dados">
       <dt>Último teste</dt><dd><%= @account.last_test_status ? "#{@account.last_test_status == 'ok' ? 'Boa' : 'Falhou'}, #{datetime_br(@account.last_tested_at)}. #{@account.last_test_message}" : "Nunca testada" %></dd>
       <% if @account.provider_available? && @account.manifest.field("webhook_secret") %><dt>Segredo do webhook</dt><dd><%= @account.secret_set?("webhook_secret") ? "Definido (não é mostrado de novo)" : "Ainda não gerado" %></dd><% end %>
+      <% if @account.persisted? && @account.provider_available? && @account.modality.in?(%w[boleto pix]) %><dt>Webhook</dt><dd><%= @account.webhook_registered_at ? t("payments.webhook_registration.registered", date: date_br(@account.webhook_registered_at.to_date)) : t("payments.webhook_registration.not_registered") %></dd><% end %>
     </dl>
     <% if @secret %>
       <%= aviso(tom: :warning) do %>

@@ -10,6 +10,8 @@ module Payments
     class NoAccount < Refused; end
 
     MAX_ATTEMPTS = 5
+    # Depois da janela fora do ar do fornecedor, a emissão volta 5 minutos depois do fim (12, revisão 4, R284h).
+    QUIET_MARGIN = 5.minutes
     ACCOUNT_OPTION_KEYS = %w[fine_percent interest_percent discount_percent write_off_days message].freeze
 
     # Pedidos por minuto de um lote (limite de taxa para respeitar o consumo do fornecedor, IP-P7). Configurável: `config.x.payments.issue_per_minute`
@@ -35,8 +37,9 @@ module Payments
     end
 
     # O trabalho do job. Idempotente: instrumento que já saiu de `emitting` não é tocado; o que já tem identificador externo só completa os arquivos.
-    def perform(instrument)
+    def perform(instrument, now: Time.current)
       return instrument unless instrument.state_emitting?
+      return instrument if postponed?(instrument, now)
 
       instrument.increment!(:attempts)
       return instrument unless payer_valid?(instrument)
@@ -60,6 +63,7 @@ module Payments
 
     # R276: cancelar é chamada ao fornecedor; o pago nunca se cancela, e só o ativo se cancela.
     def cancel(instrument)
+      refuse_when_quiet(instrument)
       instrument.with_lock do
         raise Refused, I18n.t("payments.instruments.paid_untouchable") if instrument.final?
         raise Refused, I18n.t("payments.instruments.not_cancelable") unless instrument.cancelable?
@@ -77,6 +81,7 @@ module Payments
       raise Refused, I18n.t("payments.instruments.due_date_boleto_only") unless instrument.boleto?
       raise Refused, I18n.t("payments.instruments.not_cancelable") unless instrument.cancelable?
       raise Refused, I18n.t("payments.instruments.due_date_past") unless due_on > Date.current
+      refuse_when_quiet(instrument)
 
       instrument.account.adapter.change_boleto_due_date(instrument.account, instrument.external_id, due_on)
       instrument.update!(due_on: due_on)
@@ -127,6 +132,7 @@ module Payments
         account = instrument.account
         options = account_defaults(account).merge(instrument.response_summary.fetch("options", {}).symbolize_keys)
         options = options.merge(notification_url: WebhookUrl.for(account)).compact # onde o fornecedor avisa o pagamento (parte D)
+        options = options.merge(our_number: reserve_our_number(instrument, adapter)) if our_number_digits(adapter, instrument)
         payer = { name: instrument.payer_name, document: instrument.payer_document, address: instrument.payer_address }
         arguments = { custom_id: instrument.custom_id, amount_cents: instrument.amount_cents, due_on: instrument.due_on, payer: payer, options: options }
         issued = instrument.boleto? ? adapter.issue_boleto(account, **arguments) : adapter.issue_pix(account, **arguments)
@@ -173,9 +179,53 @@ module Payments
         account.config.slice(*ACCOUNT_OPTION_KEYS).symbolize_keys
       end
 
-      # Repetir só o que não duplica (R272) e só até o limite de tentativas.
+      # Repetir só o que não duplica (R272) e só até o limite de tentativas: o Pix pelo `txid` nosso e o boleto com o nosso número reservado
+      # (12, revisão 4, R284f) repetem em qualquer erro de rede.
       def retry?(instrument, error)
-        (error.retry_safe || instrument.pix?) && instrument.attempts < MAX_ATTEMPTS
+        (error.retry_safe || instrument.pix? || instrument.our_number.present?) && instrument.attempts < MAX_ATTEMPTS
+      end
+
+      # Na janela fora do ar do fornecedor (R284h), a emissão volta depois dela, sem contar tentativa nem chamar ninguém.
+      def postponed?(instrument, now)
+        account = instrument.account
+        return false unless account.provider_available?
+
+        ends = account.adapter.quiet_until(instrument.kind, now) or return false
+        IssueInstrumentJob.set(wait_until: ends + QUIET_MARGIN).perform_later(instrument.id)
+        true
+      end
+
+      def refuse_when_quiet(instrument)
+        account = instrument.account
+        ends = account.provider_available? && account.adapter.quiet_until(instrument.kind)
+        raise Refused, I18n.t("payments.instruments.provider_quiet", until: ends.in_time_zone("America/Sao_Paulo").strftime("%Hh%M")) if ends
+      end
+
+      # Dígitos do nosso número quando o manifesto diz que ele é do CRM (capacidade `our_number`), só no boleto.
+      def our_number_digits(adapter, instrument)
+        instrument.boleto? && adapter.manifest.capabilities.dig(:our_number, :digits)
+      end
+
+      # Reserva o próximo nosso número da sequência da integração antes da chamada (R284f) e o guarda no instrumento; a repetição usa o mesmo. A linha da
+      # integração fica travada durante a reserva, então dois instrumentos nunca recebem o mesmo número. A sequência começa no número inicial cadastrado
+      # na integração (combinado com o banco) e nunca volta atrás se ele for aumentado.
+      def reserve_our_number(instrument, adapter)
+        return instrument.our_number if instrument.our_number.present?
+
+        digits = our_number_digits(adapter, instrument)
+        account = instrument.account
+        start = account.config["our_number_start"].to_i
+        raise Providers::Error, I18n.t("payments.instruments.our_number_start_missing") unless start.positive?
+
+        number = account.with_lock do
+          following = [ (account.our_number_last || start - 1) + 1, start ].max
+          raise Providers::Error, I18n.t("payments.instruments.our_number_exhausted") if following.to_s.length > digits
+
+          account.update_columns(our_number_last: following)
+          following
+        end
+        instrument.update!(our_number: number.to_s.rjust(digits, "0"))
+        instrument.our_number
       end
   end
 end

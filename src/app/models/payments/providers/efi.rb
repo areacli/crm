@@ -33,7 +33,9 @@ module Payments
         # Cartão: a biblioteca de tokenização (`payment-token-efi` 3.4.1, MIT, versão ESM) está fixada em vendor/javascript e o SHA-256 daqui é conferido por teste;
         # `driver` é o módulo do navegador que a usa. Os domínios que ela acessa vêm de `card_checkout_hosts` (conferidos no código da biblioteca; a
         # homologação confirma no console do navegador). O webhook do Pix usa mTLS ou IP e HMAC na URL (IP-P4).
-        capabilities: { webhook_auth: %w[hmac mtls ip], pdf: "file", qr: "image", batch_limit: nil,
+        # A lista de Pix recebidos (`GET /v2/pix`, do padrão do Banco Central) é consultada a cada 10 minutos, com ou sem webhook (12, R284c); o boleto
+        # da Efí não tem lista de pagos e fica com a consulta por instrumento.
+        capabilities: { webhook_auth: %w[hmac mtls ip], pdf: "file", qr: "image", batch_limit: nil, paid_list: { "pix" => { every: 10 } },
                         card_checkout: { driver: "payments/drivers/efi", script: "payment-token-efi", script_version: "3.4.1",
                                          script_sha256: "9aa92bf4c90e9a35c476edc0c306dec56a5dfebf0f84652e86149abdbfe312e1" } }
       )
@@ -80,7 +82,7 @@ module Payments
         data = parse_body(body)
         if data["pix"].is_a?(Array)
           authenticate_pix!(account, context)
-          data["pix"].flat_map { |pix| pix_notifications(pix) }
+          data["pix"].flat_map { |pix| PixBcb.received_notifications(pix) }
         elsif data["notification"].to_s.match?(/\A[A-Za-z0-9\-_.]{8,200}\z/)
           raise InvalidSignature, I18n.t("payments.providers.efi.errors.bad_webhook_auth") unless WebhookUrl.valid?(account, context.dig(:query, "hmac"))
 
@@ -92,12 +94,15 @@ module Payments
 
       # Registra na Efí o endereço do nosso webhook para a chave Pix da conta (`PUT /v2/webhook/:chave`). Com `skip_mtls`, manda `x-skip-mtls-checking: true`
       # (a Efí não exige o certificado de cliente do nosso servidor; a autenticação passa a ser o HMAC da URL e o IP, IP-P4). O `?ignorar=` no fim impede a
-      # Efí de acrescentar `/pix` ao caminho (a rota aceita os dois, de qualquer modo). Chamado pela tarefa `crm:payments:register_pix_webhook`, nunca por tela.
-      def register_pix_webhook(account, skip_mtls: true)
+      # Efí de acrescentar `/pix` ao caminho (a rota aceita os dois, de qualquer modo). Chamado pela tarefa `crm:payments:register_webhook`, nunca por tela.
+      # O boleto da Efí não se cadastra: o endereço vai em cada cobrança (`notification_url`).
+      def register_webhook(account, skip_mtls: true)
+        raise NotAvailable, I18n.t("payments.webhook_registration.per_charge") unless account.modality == "pix"
+
         url = WebhookUrl.for(account) or raise Error, I18n.t("payments.providers.efi.errors.no_webhook_url")
         key = account.config["pix_key"].presence or raise Error, I18n.t("payments.providers.efi.errors.no_pix_key")
         call(account, :pix, :put, "/v2/webhook/#{escape(key)}", body: { "webhookUrl" => "#{url}&ignorar=" }, extra_headers: { "x-skip-mtls-checking" => skip_mtls.to_s })
-        true
+        "#{url}&ignorar="
       end
 
       # O aviso de cobranças só traz um token: a lista de mudanças vem de `GET /v1/notification/:token` (a Efí só dá o aviso por entregue depois disso).
@@ -114,6 +119,22 @@ module Payments
                            occurred_at: time_of(entry["received_by_bank_at"].presence || entry["created_at"]), custom_id: entry["custom_id"].presence,
                            previous_status: entry.dig("status", "previous"), current_status: current)
         end
+      end
+
+      # Pix recebidos do período (`GET /v2/pix`, padrão do Banco Central), página a página, como os avisos do webhook (R284b, R284c).
+      def list_paid(account, from:, to:)
+        raise NotAvailable, I18n.t("payments.paid_list.unavailable") unless account.modality == "pix"
+
+        page = 0
+        notifications = []
+        loop do
+          data = idempotent { call(account, :pix, :get, "/v2/pix?#{PixBcb.received_list_query(from: from, to: to, page: page)}") }
+          notifications.concat(Array(data["pix"]).flat_map { |pix| PixBcb.received_notifications(pix) })
+          break unless PixBcb.more_pages?(data, page)
+
+          page += 1
+        end
+        notifications
       end
 
       # ---- Boleto ----
@@ -168,7 +189,7 @@ module Payments
       end
 
       def cancel_pix(account, external_id)
-        data = idempotent { call(account, :pix, :patch, "/v2/cobv/#{escape(external_id)}", body: { "status" => "REMOVIDA_PELO_USUARIO_RECEBEDOR" }) }
+        data = idempotent { call(account, :pix, :patch, "/v2/cobv/#{escape(external_id)}", body: { "status" => PixBcb::CANCELED }) }
         pix_issued(data, external_id)
       end
 
@@ -176,7 +197,7 @@ module Payments
         paid = idempotent { call(account, :pix, :get, "/v2/cobv/#{escape(external_id)}") }
         end_to_end_id = Array(paid["pix"]).first&.dig("endToEndId").presence or raise Error, I18n.t("payments.providers.efi.errors.pix_not_paid")
         refund_id ||= Digest::SHA256.hexdigest("#{external_id}:#{amount_cents}")[0, 32]
-        idempotent { call(account, :pix, :put, "/v2/pix/#{escape(end_to_end_id)}/devolucao/#{escape(refund_id)}", body: { "valor" => Payloads.decimal(amount_cents) }) }
+        idempotent { call(account, :pix, :put, "/v2/pix/#{escape(end_to_end_id)}/devolucao/#{escape(refund_id)}", body: { "valor" => PixBcb.decimal(amount_cents) }) }
         Issued.new(external_id: external_id, status: "paid", amount_cents: amount_cents)
       end
 
@@ -314,27 +335,7 @@ module Payments
           raise InvalidSignature, I18n.t("payments.providers.efi.errors.bad_webhook_auth") unless origin_ok && WebhookUrl.valid?(account, context.dig(:query, "hmac"))
         end
 
-        # Um Pix recebido (`endToEndId` é a chave) e as devoluções dele (uma por `id` e estado, porque o mesmo `id` passa de EM_PROCESSAMENTO a DEVOLVIDO).
-        def pix_notifications(pix)
-          return [] unless pix.is_a?(Hash) && pix["endToEndId"].present?
-
-          e2e = pix["endToEndId"].to_s
-          received = Notification.new(event_id: e2e, kind: :paid, external_id: pix["txid"].presence, amount_cents: cents_of(pix["valor"]).nonzero?, occurred_at: time_of(pix["horario"]), end_to_end_id: e2e)
-          refunds = Array(pix["devolucoes"]).filter_map do |refund|
-            next unless refund.is_a?(Hash) && refund["id"].present?
-
-            Notification.new(event_id: "#{e2e}:#{refund['id']}:#{refund['status']}", kind: (refund["status"].to_s == "DEVOLVIDO" ? :refunded : :other), external_id: pix["txid"].presence,
-                             amount_cents: cents_of(refund["valor"]).nonzero?, occurred_at: time_of(refund.dig("horario", "liquidacao") || refund.dig("horario", "solicitacao")),
-                             end_to_end_id: e2e, current_status: refund["status"].to_s.first(40))
-          end
-          [ received, *refunds ]
-        end
-
-        def time_of(value)
-          Time.zone.parse(value.to_s).presence if value.present?
-        rescue ArgumentError
-          nil
-        end
+        def time_of(value) = PixBcb.time_of(value)
 
         def escape(tier) = ERB::Util.url_encode(tier.to_s)
 
@@ -358,23 +359,7 @@ module Payments
           candidates.find(&:present?)
         end
 
-        def pix_issued(data, txid)
-          status = Payloads::PIX_STATUS[data["status"].to_s] or raise Error, I18n.t("payments.providers.efi.errors.unknown_status")
-          amount = BigDecimal(data.dig("valor", "original").to_s.presence || "0") * 100
-          payments = Array(data["pix"])
-          paid = payments.sum { |pix| cents_of(pix["valor"]) }
-          refunded = payments.sum { |pix| Array(pix["devolucoes"]).select { |refund| refund["status"].to_s == "DEVOLVIDO" }.sum { |refund| cents_of(refund["valor"]) } }
-          Issued.new(external_id: (data["txid"] || txid).to_s, status: status, amount_cents: amount.to_i.nonzero?,
-                     due_on: (Date.iso8601(data.dig("calendario", "dataDeVencimento").to_s) rescue nil), copy_paste: data["pixCopiaECola"].presence,
-                     paid_cents: (paid.positive? ? paid : nil), refunded_cents: (refunded if payments.any?))
-        end
-
-        # "110.00" (reais, em texto) em centavos; nada válido = 0.
-        def cents_of(value)
-          (BigDecimal(value.to_s) * 100).round.to_i
-        rescue ArgumentError, TypeError
-          0
-        end
+        def pix_issued(data, txid) = PixBcb.issued(data, txid, unknown_status_message: I18n.t("payments.providers.efi.errors.unknown_status"))
 
         # A imagem do QR Code do fornecedor, se vier em PNG; SVG, falta de permissão ou qualquer falha deixam o QR Code a ser gerado aqui (IP-P3).
         def qr_png_of(account, loc_id)

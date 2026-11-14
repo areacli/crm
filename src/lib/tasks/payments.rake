@@ -1,14 +1,12 @@
 namespace :crm do
   namespace :payments do
-    desc "Registra no fornecedor o webhook do Pix da conta (12, parte D): crm:payments:register_pix_webhook[id_da_conta]"
-    task :register_pix_webhook, %i[account_id] => :environment do |_task, args|
+    desc "Cadastra no fornecedor o endereço do webhook da integração (12, revisão 4, R284g): crm:payments:register_webhook[id_da_integração]"
+    task :register_webhook, %i[account_id] => :environment do |_task, args|
       account = PaymentAccount.find(args.fetch(:account_id))
-      abort "A conta não é de Pix, ou o fornecedor não registra webhook por aqui." unless account.modality == "pix" && account.adapter.respond_to?(:register_pix_webhook)
-
-      account.adapter.register_pix_webhook(account)
-      puts "Webhook do Pix registrado para a conta #{account.id}."
+      url = Payments::WebhookRegistration.new(account).call
+      puts "Webhook cadastrado para a integração #{account.id}: #{url.sub(/hmac=\h+/, 'hmac=…')}"
     rescue Payments::Providers::Error => error
-      abort "Não foi possível registrar: #{error.message}"
+      abort "Não foi possível cadastrar: #{error.message}"
     end
 
     desc "Reprocessa os avisos de pagamento que falharam ou ficaram parados: crm:payments:reprocess_events[id_do_credor]"

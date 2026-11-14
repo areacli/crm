@@ -1,0 +1,86 @@
+pt-BR:
+  payments:
+    providers:
+      bradesco:
+        name: "Bradesco"
+        errors:
+          credential_refused: "Credencial recusada pelo Bradesco: confira o Client ID, o Client Secret, o certificado e o ambiente."
+          no_credentials: "A integração não tem Client ID e Client Secret."
+          no_certificate: "A integração não tem o certificado do Pix."
+          certificate_unreadable: "Não foi possível abrir o certificado da integração."
+          no_pix_key: "A integração não tem a chave Pix."
+          refused: "O Bradesco recusou o pedido: %{detail}"
+          unavailable: "O Bradesco está indisponível no momento."
+          unexpected: "Resposta inesperada do Bradesco."
+          unknown_status: "O Bradesco devolveu um estado de Pix desconhecido."
+          not_found: "O Bradesco não encontrou a cobrança."
+          pix_not_paid: "O Pix ainda não foi pago; não há o que devolver."
+          bad_webhook_auth: "Aviso sem a autenticação esperada."
+          boleto_auth_missing: "Autenticação do boleto do Bradesco não configurada: falta o documento do banco."
+          beneficiary_document: "O CNPJ ou CPF do beneficiário da integração não é válido."
+          payer_address: "O boleto do Bradesco pede o endereço do pagador (logradouro, bairro, cidade e UF)."
+          no_our_number: "O boleto do Bradesco precisa do nosso número reservado antes da chamada."
+          no_digitable_line: "O Bradesco não devolveu a linha digitável."
+          our_number_taken: "O nosso número %{number} já está num título diferente no Bradesco: confira a faixa combinada com o banco."
+          slip_invalid: "A ficha de compensação não foi gerada: %{detail}."
+        fields:
+          client_id:
+            label: "Client ID"
+            help: "Entregue pelo Bradesco no credenciamento do Pix, no ambiente escolhido."
+          client_secret:
+            label: "Client Secret"
+          certificate:
+            label: "Certificado (.p12)"
+            help: "O certificado enviado ao banco no credenciamento (CN com a razão social e o CNPJ). Um por ambiente."
+          certificate_password:
+            label: "Senha do certificado"
+            help: "Deixe em branco se o arquivo não tem senha."
+          qr_name:
+            label: "Nome na imagem do QR Code"
+            help: "Até 15 caracteres. Sem nome, a imagem sai com \"Bradesco\"."
+          beneficiary_name:
+            label: "Razão social do beneficiário"
+            help: "Igual à do cadastro no banco: é o que a ficha de compensação imprime."
+          beneficiary_document:
+            label: "CNPJ do beneficiário"
+            help: "Só números."
+          agency:
+            label: "Agência (sem o dígito)"
+          agency_digit:
+            label: "Dígito da agência"
+          account_number:
+            label: "Conta (sem o dígito)"
+          account_digit:
+            label: "Dígito da conta"
+          wallet:
+            label: "Carteira"
+            help: "Combinada com o banco; a cobrança escritural costuma ser a 09."
+          species:
+            label: "Espécie do título"
+            help: "Combinada com o banco."
+            options:
+              DM: "DM, duplicata mercantil"
+              DS: "DS, duplicata de serviço"
+              RC: "RC, recibo"
+              FAT: "FAT, fatura"
+              ME: "ME, mensalidade escolar"
+              DD: "DD, documento de dívida"
+              OUT: "OUT, outros"
+          our_number_start:
+            label: "Nosso número inicial"
+            help: "O primeiro número da faixa combinada com o banco (até 11 dígitos). O CRM numera a partir dele e nunca repete."
+          expire_days:
+            label: "Dias de validade"
+            help: "Dias entre a emissão e o vencimento."
+          fine_percent:
+            label: "Multa (%)"
+          interest_percent:
+            label: "Juros ao mês (%)"
+          discount_percent:
+            label: "Desconto até o vencimento (%)"
+          write_off_days:
+            label: "Dias para baixa do boleto vencido"
+            help: "De 0 a 120. O contrato de cobrança precisa ter o decurso de prazo em zero no banco."
+          message:
+            label: "Mensagem do boleto"
+            help: "Até 80 caracteres, sem acentos (o banco não aceita)."

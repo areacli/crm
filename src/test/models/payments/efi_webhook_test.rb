@@ -124,7 +124,7 @@ class PaymentsEfiWebhookTest < ActiveSupport::TestCase
       billing = make_efi_account(@alfa, modality: "boleto")
       billing.rotate_webhook_secret!
       url = Payments::WebhookUrl.for(billing)
-      assert_match(%r{\Ahttps://crm\.exemplo\.com\.br/webhooks/pagamentos/contas/#{billing.id}\?hmac=\h{64}\z}, url)
+      assert_match(%r{\Ahttps://crm\.exemplo\.com\.br/webhooks/pagamentos/contas/#{billing.id}\?hmac=\h{32}\z}, url)
       client = use_efi_client(efi_client.on(:post, "/v1/charge/one-step", body: { "code" => 200, "data" => { "charge_id" => 5_078_130, "total" => 125_000, "status" => "waiting", "barcode" => "34191.09008", "expire_at" => "2026-11-30" } }))
       @efi.issue_boleto(billing, custom_id: "C" * 32, amount_cents: 125_000, due_on: Date.new(2026, 11, 30), payer: { name: "Maria", document: "52998224725" }, options: { notification_url: url })
       assert_equal url, JSON.parse(client.to("/v1/charge/one-step").first.body).dig("metadata", "notification_url")
@@ -139,15 +139,15 @@ class PaymentsEfiWebhookTest < ActiveSupport::TestCase
     assert_equal "https://crm.exemplo.com.br/webhooks/pagamentos/contas/1?hmac=abc", JSON.parse(client.to("/v1/charge/one-step").first.body).dig("metadata", "notification_url")
   end
 
-  test "registrar o webhook do Pix: PUT na chave com a URL, ignorar e o cabeçalho que dispensa o mTLS nosso" do
+  test "cadastrar o webhook do Pix: PUT na chave com a URL, ignorar e o cabeçalho que dispensa o mTLS nosso" do
     with_config(public_url: "https://crm.exemplo.com.br") do
       client = use_efi_client(efi_client.on(:put, "/v2/webhook/", status: 201, body: {}))
-      assert @efi.register_pix_webhook(@account)
+      assert_equal "#{Payments::WebhookUrl.for(@account)}&ignorar=", @efi.register_webhook(@account)
       request = client.to("/v2/webhook/pix%40alfa.com.br").first
       assert_equal "true", request.headers["x-skip-mtls-checking"]
       assert_equal "#{Payments::WebhookUrl.for(@account)}&ignorar=", JSON.parse(request.body)["webhookUrl"]
     end
-    with_config(public_url: nil) { assert_raises(Payments::Providers::Error) { @efi.register_pix_webhook(@account) } }
+    with_config(public_url: nil) { assert_raises(Payments::Providers::Error) { @efi.register_webhook(@account) } }
   end
 
   private

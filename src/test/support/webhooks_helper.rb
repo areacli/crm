@@ -29,6 +29,16 @@ module WebhooksHelper
 
   def notice(id:, type: "paid", external_id: nil, amount_cents: nil) = { id: id, type: type, external_id: external_id, amount_cents: amount_cents }
 
+  # Troca valores de `config.x.payments` durante o bloco (endereço público, IPs, limites).
+  def with_config(**values)
+    config = Rails.configuration.x.payments
+    old = values.keys.to_h { |key| [ key, config.public_send(key) ] }
+    values.each { |key, value| config.public_send("#{key}=", value) }
+    yield
+  ensure
+    old&.each { |key, value| config.public_send("#{key}=", value) }
+  end
+
   def stored_event(instrument, id: "EV-#{SecureRandom.hex(3)}", kind: :paid, amount_cents: nil)
     notification = Payments::Providers::Notification.new(event_id: id, kind: kind, external_id: instrument.external_id, amount_cents: amount_cents, occurred_at: Time.current)
     PaymentEvent.record(instrument.account, notification).first

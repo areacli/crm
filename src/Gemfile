@@ -25,6 +25,9 @@ gem "csv"
 # QR Code do Pix gerado aqui a partir do "copia e cola" quando o fornecedor não devolve a imagem em PNG (12, R273); Ruby puro, sem imagem do sistema
 gem "rqrcode", "~> 3.2"
 
+# Ficha de compensação do boleto desenhada aqui quando o banco não devolve PDF (12, R273, revisão 4; decisão 0034). Ruby puro.
+gem "prawn", "~> 2.5"
+
 # Políticas de autorização, uma por modelo
 gem "pundit"
 

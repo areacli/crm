@@ -48,6 +48,13 @@ payment_reconciliation:
   active_job: true
   description: "Pagamentos (12): reprocessa os avisos que falharam e confere no fornecedor os instrumentos ativos sem conferência há alguns dias"
 
+payment_paid_lists:
+  cron: "*/10 * * * *"
+  class: "PaymentPaidListsDispatchJob"
+  queue: default
+  active_job: true
+  description: "Pagamentos (12, revisão 4): lista de pagos de cada integração que a tem (Pix a cada 10 minutos, boleto do Bradesco às 7h20), o segundo caminho ao lado do webhook"
+
 stale_imports:
   cron: "*/5 * * * *"
   class: "StaleImportsJob"

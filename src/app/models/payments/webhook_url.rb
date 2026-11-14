@@ -15,14 +15,24 @@ module Payments
       "#{base}/webhooks/pagamentos/contas/#{account.id}?hmac=#{token(account, secret)}"
     end
 
-    # O valor do `hmac` da URL: HMAC-SHA256 do segredo sobre a conta.
-    def token(account, secret) = OpenSSL::HMAC.hexdigest("SHA256", secret.to_s, "webhook-url:#{account.id}")
+    # Caracteres do `hmac` na URL (12, revisão 4, R284g): o HMAC-SHA256 truncado em 128 bits, para a URL caber nos 100 caracteres que o cadastro de
+    # webhook do boleto do Bradesco aceita.
+    LENGTH = 32
+    MAX_URL = 100
 
-    # O `hmac` recebido vale se bate com o segredo atual ou, durante a vigência dupla, com o anterior (comparação em tempo constante).
+    # O valor do `hmac` da URL: HMAC-SHA256 do segredo sobre a conta, nos primeiros 32 caracteres hexadecimais.
+    def token(account, secret) = full_token(account, secret)[0, LENGTH]
+
+    # O HMAC inteiro (64), o que as URLs cadastradas antes da revisão 4 levam.
+    def full_token(account, secret) = OpenSSL::HMAC.hexdigest("SHA256", secret.to_s, "webhook-url:#{account.id}")
+
+    # O `hmac` recebido vale se bate com o segredo atual ou, durante a vigência dupla, com o anterior (comparação em tempo constante). Vale o de 32 e
+    # o de 64: as integrações já cadastradas não precisam ser refeitas.
     def valid?(account, received)
       received = received.to_s
       account.webhook_secrets.any? do |secret|
-        expected = token(account, secret)
+        full = full_token(account, secret)
+        expected = received.bytesize == full.bytesize ? full : full[0, LENGTH]
         received.bytesize == expected.bytesize && ActiveSupport::SecurityUtils.fixed_length_secure_compare(received, expected)
       end
     end

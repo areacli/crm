@@ -20,6 +20,7 @@ module Payments
       adopt_external_id(instrument, notification)
       return Outcome.new(:ignored, "instrumento ainda não emitido no fornecedor") if instrument.external_id.blank?
       return Outcome.new(:ignored, "fornecedor indisponível") unless instrument.account.provider_available?
+      return Outcome.new(:ignored, "fornecedor na janela fora do ar") if instrument.account.adapter.quiet?(instrument.kind)
 
       issued = consult(instrument)
       instrument.update_columns(reconciled_at: Time.current)

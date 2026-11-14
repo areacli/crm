@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_13_190000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_14_100000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -772,6 +772,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_13_190000) do
     t.string "last_test_message", limit: 300
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.datetime "paid_listed_until"
+    t.bigint "our_number_last"
+    t.datetime "webhook_registered_at"
+    t.string "webhook_registered_url", limit: 300
     t.index ["channel_id"], name: "index_payment_accounts_on_channel_id"
     t.index ["tenant_id", "modality", "environment"], name: "index_payment_accounts_active_unique", unique: true, where: "active"
     t.index ["tenant_id", "nickname"], name: "index_payment_accounts_on_tenant_id_and_nickname", unique: true
@@ -911,6 +915,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_13_190000) do
     t.datetime "cancel_requested_at"
     t.jsonb "reissue_request"
     t.bigint "replaced_by_id"
+    t.string "our_number", limit: 20
     t.index ["account_id", "external_id"], name: "index_payment_instruments_on_account_and_external_id", unique: true, where: "(external_id IS NOT NULL)"
     t.index ["account_id"], name: "index_payment_instruments_on_account_id"
     t.index ["bill_id", "kind"], name: "index_payment_instruments_open_per_bill", unique: true, where: "(open AND ((kind)::text = ANY (ARRAY[('boleto'::character varying)::text, ('pix'::character varying)::text])))"

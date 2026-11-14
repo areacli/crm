@@ -8,8 +8,11 @@ class ProvidersTest < ActiveSupport::TestCase
     @fake = Payments::Providers.adapter(:fake)
   end
 
-  test "o registro conhece o falso e a Efí, e cada um declara o manifesto (R258)" do
-    assert_equal %w[fake efi].sort, Payments::Providers.names.sort
+  test "o registro conhece o falso, a Efí e o Bradesco, e cada um declara o manifesto (R258; 12, revisão 4)" do
+    assert_equal %w[bradesco efi fake], Payments::Providers.names.sort
+    bradesco = Payments::Providers.manifest(:bradesco)
+    assert_equal [ "bradesco", %w[pix] ], [ bradesco.provider, bradesco.modalities ], "o boleto do Bradesco espera a autenticação da API de cobrança (R284j)"
+    assert_equal bradesco.modalities, Payments::Providers.adapter(:bradesco).modalities
     assert_raises(Payments::Providers::UnknownProvider) { Payments::Providers.adapter("nenhum") }
     %w[fake efi].each do |name|
       manifest = Payments::Providers.manifest(name)
