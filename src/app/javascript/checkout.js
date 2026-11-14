@@ -96,6 +96,18 @@ document.addEventListener("submit", async (evento) => {
 document.addEventListener("htmx:afterSwap", () => carregados.size && document.querySelectorAll("form[data-cartao]").forEach((f) => ocupado(f, false)))
 
 // Parcelas pela bandeira: só o nome da bandeira (nunca o número) vai ao servidor.
+async function trocarBandeira(formulario, bandeira) {
+  if (!bandeira || formulario.dataset.bandeira === bandeira) return
+
+  const escolhida = formulario.querySelector("#cartao-parcelas")?.value
+  await htmx.ajax("GET", `${formulario.dataset.installmentsUrl}?brand=${encodeURIComponent(bandeira)}`, { target: "#parcelas", swap: "outerHTML" })
+  // A lista nova não desfaz a escolha de quem já escolheu as parcelas.
+  const lista = formulario.querySelector("#cartao-parcelas")
+  if (escolhida && lista?.querySelector(`option[value="${escolhida}"]`)) lista.value = escolhida
+  formulario.dataset.bandeira = bandeira
+  formulario.querySelector("#bandeira-escolhida").value = bandeira
+}
+
 let esperaDaBandeira
 document.addEventListener("input", (evento) => {
   const campo = evento.target
@@ -109,21 +121,30 @@ document.addEventListener("input", (evento) => {
 
     try {
       const { driver, biblioteca } = await carregar(formulario)
-      const bandeira = await driver.brand(biblioteca, configuracao(formulario), numero)
-      if (bandeira && formulario.dataset.bandeira !== bandeira) {
-        const escolhida = formulario.querySelector("#cartao-parcelas")?.value
-        await htmx.ajax("GET", `${formulario.dataset.installmentsUrl}?brand=${encodeURIComponent(bandeira)}`, { target: "#parcelas", swap: "outerHTML" })
-        // A lista nova não desfaz a escolha de quem já escolheu as parcelas.
-        const lista = formulario.querySelector("#cartao-parcelas")
-        if (escolhida && lista?.querySelector(`option[value="${escolhida}"]`)) lista.value = escolhida
-        formulario.dataset.bandeira = bandeira
-        formulario.querySelector("#bandeira-escolhida").value = bandeira
-      }
+      await trocarBandeira(formulario, await driver.brand(biblioteca, configuracao(formulario), numero))
     } catch (erro) {
       // Sem bandeira, ficam as parcelas padrão; o erro de verdade aparece ao pagar.
     }
   }, 400)
 })
+
+// Fornecedor que põe os campos do cartão na página (12, revisão 6, R284ab: os quadros do Mercado Pago): o módulo dele os monta no lugar dos nossos,
+// que deixam de ser obrigatórios e ficam escondidos. A bandeira vem do próprio fornecedor, e só o nome dela segue para as parcelas.
+async function montarCampos() {
+  for (const formulario of document.querySelectorAll("form[data-cartao][data-montar]:not([data-montado])")) {
+    formulario.dataset.montado = "1"
+    try {
+      const { driver, biblioteca } = await carregar(formulario)
+      await driver.mount(biblioteca, configuracao(formulario), formulario, { bandeira: (bandeira) => trocarBandeira(formulario, bandeira).catch(() => {}) })
+    } catch (erro) {
+      mostrarErro(formulario, mensagens(formulario).card_script_blocked ?? mensagens(formulario).card_form_error)
+    }
+  }
+}
+
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", montarCampos)
+else montarCampos()
+document.addEventListener("htmx:afterSwap", montarCampos)
 
 // Copiar o código do Pix e a linha digitável do boleto.
 document.addEventListener("click", async (evento) => {

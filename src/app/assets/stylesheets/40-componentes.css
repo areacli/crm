@@ -203,4 +203,8 @@
   #contratos tbody tr[data-atual] > * { background: var(--cor-info-fundo); }
   #contratos tbody tr[data-atual] th a { color: var(--cor-marinho); }
 
+
+  /* Campo do cartão posto pelo fornecedor na página de pagamento (12, revisão 6, R284ab: os quadros do Mercado Pago): a mesma caixa dos nossos campos. */
+  .campo [data-campo-do-fornecedor] { min-height: var(--altura-controle); border: 1px solid var(--cor-linha-forte); border-radius: var(--raio-controle); background: var(--cor-branco); padding: 0 var(--espaco-2); }
+  .campo [data-campo-do-fornecedor] iframe { width: 100%; height: 2rem; border: 0; }
 }

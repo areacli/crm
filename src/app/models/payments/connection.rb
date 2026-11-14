@@ -16,7 +16,8 @@ module Payments
     RENEW_MARGIN = 5.minutes
     SESSION_KEY = :payment_connection
     RETURN_PATH = "/configuracao/integracoes/conexao/retorno".freeze
-    APP_FIELDS = %w[client_id client_secret platform_token].freeze
+    # `webhook_secret`: o segredo do webhook da aplicação, para o fornecedor que avisa por aplicação (12, revisão 6, R284w).
+    APP_FIELDS = %w[client_id client_secret platform_token webhook_secret].freeze
 
     def self.authorization?(account) = account.provider_available? && account.manifest.capabilities[:credentials] == "authorization"
 
@@ -120,6 +121,9 @@ module Payments
         secrets = account.secrets.merge("access_token" => tokens.access_token, "refresh_token" => tokens.refresh_token.presence || account.secrets["refresh_token"]).compact
         config = account.config.merge("connection_state" => "connected", "token_expires_at" => tokens.expires_at&.iso8601).compact
         config = config.merge("connected_at" => now.iso8601, "connection_label" => tokens.account_label.to_s.first(100).presence).compact.except("disconnected_at") unless renewal
+        # A conta conectada e os valores públicos (R284x), na conexão e em cada renovação que os traga.
+        config = config.merge("connection_account_id" => tokens.account_id.to_s.presence).compact
+        config = config.merge(tokens.public_values.to_h.transform_keys { |key| "connection_#{key}" }.compact_blank)
         account.update!(secrets: secrets, config: config)
       end
 

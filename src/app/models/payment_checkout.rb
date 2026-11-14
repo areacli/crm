@@ -59,7 +59,13 @@ class PaymentCheckout < ApplicationRecord
   end
 
   # R280: o boleto vencido ainda paga até `days_to_write_off` (a conta guarda, padrão 30 dias); o valor mostrado é sempre o emitido.
-  def boleto_payable_until(instrument) = instrument.due_on + instrument.account.config.fetch("write_off_days", 30).to_i.days
+  # 12, revisão 6, R284aa: o fornecedor que devolve o boleto pago depois do vencimento (`boleto_after_due: false`) só o tem na página até o vencimento.
+  def boleto_payable_until(instrument)
+    account = instrument.account
+    return instrument.due_on if account.provider_available? && account.manifest.capabilities[:boleto_after_due] == false
+
+    instrument.due_on + account.config.fetch("write_off_days", 30).to_i.days
+  end
 
   def boleto_payable?(instrument, today = Date.current) = today <= boleto_payable_until(instrument)
 

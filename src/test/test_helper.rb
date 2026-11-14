@@ -16,6 +16,7 @@ require_relative "support/payment_accounts_helper"
 require_relative "support/efi_http_helper"
 require_relative "support/bradesco_http_helper"
 require_relative "support/pagbank_http_helper"
+require_relative "support/mercadopago_http_helper"
 require_relative "support/checkouts_helper"
 require_relative "support/webhooks_helper"
 require_relative "support/operations_test_helper"
@@ -50,6 +51,7 @@ module ActiveSupport
     include EfiHttpHelper
     include BradescoHttpHelper
     include PagbankHttpHelper
+    include MercadopagoHttpHelper
     include CheckoutsHelper
     include WebhooksHelper
     include OperationsTestHelper
@@ -61,6 +63,8 @@ module ActiveSupport
       Payments::Providers::Bradesco.http_client = EfiHttpHelper::Blocked.new
       Payments::Providers::Pagbank.http_client = EfiHttpHelper::Blocked.new
       without_pagbank_app
+      Payments::Providers::Mercadopago.http_client = EfiHttpHelper::Blocked.new
+      without_mercadopago_app
       Payments::Providers::Bradesco.boleto_auth = nil
       Payments::Providers::TokenStore.reset!
       Payments::Providers::Fake.reset!
