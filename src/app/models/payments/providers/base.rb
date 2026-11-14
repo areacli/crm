@@ -20,6 +20,11 @@ module Payments
       # Só lê e confere: nunca chama o fornecedor (a resposta ao aviso tem de ser rápida).
       def parse_notification(account, body:, headers:, context: {}) = raise(NotImplementedError, "#{self.class} não lê avisos")
 
+      # Aviso por fornecedor (12, revisão 6, R284w): o fornecedor que avisa por aplicação (`webhook: "provider"` no manifesto) confere aqui a assinatura do
+      # jeito dele (levanta `InvalidSignature`) e devolve `[conta conectada, Array de Notification]`; a rota acha a integração pela conta conectada e pelo
+      # instrumento. Só lê e confere: nunca chama o fornecedor.
+      def parse_provider_notification(body:, headers:, context: {}) = raise(NotAvailable, I18n.t("payments.webhook_registration.unavailable"))
+
       # Completa o aviso, no job (R283): o que só traz um token vira os avisos de verdade, consultando o fornecedor. O padrão devolve o próprio aviso.
       def expand_notification(account, notification) = [ notification ]
 

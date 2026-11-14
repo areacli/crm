@@ -1,0 +1,34 @@
+pt-BR:
+  payments:
+    instruments:
+      due_too_far: "O %{provider} aceita vencimento até %{days} dias depois da emissão."
+      payer_email_missing: "O %{provider} pede o e-mail do pagador, e o cadastro do cliente não tem e-mail válido."
+    providers:
+      mercadopago:
+        name: "Mercado Pago"
+        errors:
+          refused: "O Mercado Pago recusou o pedido: %{detail}"
+          rejected: "O Mercado Pago não aceitou o pedido: %{detail}"
+          unavailable: "O Mercado Pago está indisponível no momento."
+          unexpected: "Resposta inesperada do Mercado Pago."
+          not_found: "O Mercado Pago não encontrou o pedido."
+          declined: "O Mercado Pago recusou a emissão (%{detail})."
+          payer_address: "O boleto do Mercado Pago pede o endereço completo do pagador (logradouro, bairro, cidade, UF e CEP)."
+          no_digitable_line: "O Mercado Pago não devolveu a linha digitável do boleto."
+          slip_invalid: "A ficha de compensação não foi gerada: %{detail}."
+          nothing_to_refund: "O pedido não tem pagamento a devolver."
+          no_brand: "A bandeira do cartão não chegou do navegador."
+          no_public_key: "A conexão com o Mercado Pago não trouxe a chave pública do cartão: conecte de novo."
+          authorization_refused: "O Mercado Pago recusou a autorização: %{detail}"
+          bad_webhook_auth: "Aviso sem a assinatura esperada."
+        fields:
+          beneficiary_name:
+            label: "Beneficiário (razão social)"
+            help: "Como o Mercado Pago imprime no boleto. A ficha de compensação é desenhada no CRM."
+          beneficiary_document:
+            label: "CNPJ ou CPF do beneficiário"
+          expire_days:
+            label: "Dias até o vencimento"
+            help: "Até 30, o máximo que o Mercado Pago aceita. O boleto pago depois do vencimento é devolvido ao pagador pelo Mercado Pago."
+          max_installments:
+            label: "Máximo de parcelas"

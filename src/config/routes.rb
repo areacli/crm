@@ -248,6 +248,8 @@ Rails.application.routes.draw do
   end
 
   # Webhook de pagamento de um canal (sem sessão: a autenticação é a assinatura HMAC do corpo).
+  # Aviso por fornecedor (12, revisão 6, R284w): o fornecedor que configura o webhook uma vez por aplicação chama esta rota; a integração sai da conta conectada.
+  post "webhooks/pagamentos/fornecedores/:fornecedor", to: "webhooks/payment_providers#create", as: :payment_provider_webhook, format: false, constraints: { fornecedor: /[a-z]+/ }
   post "webhooks/pagamentos/:channel_id", to: "webhooks/payments#create", as: :payments_webhook
 
   # Aviso de um fornecedor de instrumentos de pagamento (12, parte D): uma rota por conta de pagamento. O Pix da Efí acrescenta `/pix` à URL registrada.

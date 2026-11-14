@@ -8,7 +8,7 @@
   <div>
     <% if outcome %><%= render "checkouts/outcome", outcome: outcome %><% end %>
     <form id="cartao" method="post" action="<%= checkout_card_payment_path(checkout) %>" hx-post="<%= checkout_card_payment_path(checkout) %>" hx-trigger="tokenized" hx-target="#opcoes" hx-swap="outerHTML"
-          data-cartao data-driver="<%= card.driver %>" data-script="<%= card.script %>" data-config="<%= card.config.to_json %>" data-installments-url="<%= checkout_installments_path(checkout) %>"
+          data-cartao <%= "data-montar" if card.mount %> data-driver="<%= card.driver %>" data-script="<%= card.script %>" data-config="<%= card.config.to_json %>" data-installments-url="<%= checkout_installments_path(checkout) %>"
           data-messages="<%= %w[card_form_error card_script_blocked card_brand_unsupported card_connection_error].index_with { |key| t("payments.checkout.page.#{key}") }.to_json %>">
       <noscript><%= aviso(tom: :warning) { tag.p t("payments.checkout.page.needs_javascript") } %></noscript>
       <div class="grupo-de-campos">

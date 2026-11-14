@@ -1,7 +1,10 @@
 module Payments
   # O que a página de pagamento precisa para o cartão (12, R278): o módulo do navegador e a biblioteca do fornecedor (que o adaptador declara), os valores
   # públicos da conta e as opções de parcelamento do adaptador (limitadas ao máximo da conta). Nada específico de fornecedor fica fora do adaptador.
-  CardForm = Data.define(:driver, :script, :config, :options) do
+  # `mount`: o fornecedor põe os campos do cartão na página (12, revisão 6, R284ab: Secure Fields do Mercado Pago); o módulo do navegador os monta ao abrir.
+  CardForm = Data.define(:driver, :script, :config, :options, :mount) do
+    def initialize(driver:, script:, config:, options:, mount: false) = super
+
     # nil quando o link não oferece cartão ou a conta de cartão deixou de servir.
     def self.for(checkout, brand: nil)
       return unless checkout.offers?("card")
@@ -10,7 +13,8 @@ module Payments
       return unless account&.provider_available?
 
       declared = account.manifest.capabilities.fetch(:card_checkout)
-      new(driver: declared.fetch(:driver), script: declared[:script], config: account.adapter.card_checkout_config(account), options: options_for(account, checkout, brand))
+      new(driver: declared.fetch(:driver), script: declared[:script], config: account.adapter.card_checkout_config(account), options: options_for(account, checkout, brand),
+          mount: declared[:fields] == "provider")
     rescue Providers::Error
       # Sem os valores públicos (a chave pública do cartão não veio, a integração está desconectada), o link não oferece cartão agora.
       nil

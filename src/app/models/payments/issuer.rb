@@ -46,6 +46,7 @@ module Payments
 
       account = instrument.account
       return instrument.tap { |i| i.fail!(I18n.t("payments.instruments.account_unavailable")) } unless account.active? && account.provider_available?
+      return instrument unless within_provider_limits?(instrument, account)
 
       adapter = account.adapter
       issued = instrument.external_id.present? ? nil : issue(instrument, adapter)
@@ -128,6 +129,20 @@ module Payments
         PaymentInstrument.find_by!(tenant_id: tenant.id, custom_id: custom_id)
       end
 
+      # R284y e R284ac: o vencimento além do que o fornecedor aceita e o e-mail que ele exige falham aqui, sem chamada.
+      def within_provider_limits?(instrument, account)
+        capabilities = account.manifest.capabilities
+        if (max_days = capabilities[:max_due_days]) && instrument.due_on > Date.current + max_days
+          instrument.fail!(I18n.t("payments.instruments.due_too_far", provider: account.manifest.label, days: max_days))
+          return false
+        end
+        if capabilities[:payer_email_required] && (instrument.customer.nil? || Payer.best_contact(instrument.customer, "email").nil?)
+          instrument.fail!(I18n.t("payments.instruments.payer_email_missing", provider: account.manifest.label))
+          return false
+        end
+        true
+      end
+
       # R274: sem CPF/CNPJ válido do pagador não há emissão nem chamada ao fornecedor.
       def payer_valid?(instrument)
         return true if instrument.payer_document.present? && Document.problem(instrument.payer_document).nil?
@@ -142,11 +157,16 @@ module Payments
         options = options.merge(notification_url: WebhookUrl.for(account)).compact # onde o fornecedor avisa o pagamento (parte D)
         options = options.merge(our_number: reserve_our_number(instrument, adapter)) if our_number_digits(adapter, instrument)
         payer = { name: instrument.payer_name, document: instrument.payer_document, address: instrument.payer_address }
+        payer[:email] = Payer.best_contact(instrument.customer, "email")&.value.to_s.first(254).presence if instrument.customer # R284ac: só quem exige usa
         arguments = { custom_id: instrument.custom_id, amount_cents: instrument.amount_cents, due_on: instrument.due_on, payer: payer, options: options }
         issued = instrument.boleto? ? adapter.issue_boleto(account, **arguments) : adapter.issue_pix(account, **arguments)
         raise Providers::Error, I18n.t("payments.instruments.no_identifier") if issued.external_id.blank?
 
         # Guarda já o que o fornecedor devolveu: se a baixa do arquivo falhar e o job repetir, o instrumento não é emitido de novo.
+        # R284z: o vencimento que o fornecedor devolveu (o Mercado Pago passa o do fim de semana ao dia útil seguinte) passa a ser o do instrumento.
+        if issued.due_on.present? && issued.due_on != instrument.due_on
+          instrument.update!(due_on: issued.due_on, response_summary: instrument.response_summary.merge("requested_due_on" => instrument.due_on.iso8601))
+        end
         instrument.update!(external_id: issued.external_id, digitable_line: issued.digitable_line, copy_paste: issued.copy_paste, issued_at: Time.current,
                            response_summary: instrument.response_summary.except("options").merge("status" => issued.status, "total_cents" => issued.amount_cents,
                                                                                                  "due_on" => issued.due_on&.iso8601).compact)

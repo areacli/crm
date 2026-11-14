@@ -8,4 +8,6 @@ Rails.application.config.to_prepare do
   Payments::Providers.register(:bradesco, "Payments::Providers::Bradesco") unless Demo.enabled?
   # PagBank (12, revisão 5): boleto, Pix e cartão cifrado no navegador, com a conexão por autorização (Connect).
   Payments::Providers.register(:pagbank, "Payments::Providers::Pagbank") unless Demo.enabled?
+  # Mercado Pago (12, revisão 6): boleto (ficha gerada aqui), Pix e cartão em campos do Mercado Pago, com a conexão por autorização e o aviso por fornecedor.
+  Payments::Providers.register(:mercadopago, "Payments::Providers::Mercadopago") unless Demo.enabled?
 end

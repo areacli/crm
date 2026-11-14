@@ -9,9 +9,10 @@ module Payments
     # que vem da configuração de operação e nunca da tela.
     module Authorization
       # Tokens normalizados. `expires_at`: quando o de acesso vence (nil = o fornecedor não disse). `account_label`: o que identifica a conta
-      # autorizada para mostrar ao gestor (nunca segredo).
-      Tokens = Data.define(:access_token, :refresh_token, :expires_at, :account_label) do
-        def initialize(access_token:, refresh_token: nil, expires_at: nil, account_label: nil) = super
+      # autorizada para mostrar ao gestor (nunca segredo). `account_id`: o identificador da conta no fornecedor, que o aviso por fornecedor usa para achar
+      # a integração (12, revisão 6, R284w e R284x). `public_values`: valores públicos que a autorização devolve (a chave pública do cartão, por exemplo).
+      Tokens = Data.define(:access_token, :refresh_token, :expires_at, :account_label, :account_id, :public_values) do
+        def initialize(access_token:, refresh_token: nil, expires_at: nil, account_label: nil, account_id: nil, public_values: {}) = super
       end
 
       def authorization_url(account, app:, state:, redirect_uri:) = not_implemented(:authorization, __method__)
