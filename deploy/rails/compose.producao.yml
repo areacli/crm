@@ -17,7 +17,7 @@ x-aplicacao: &aplicacao
 
 services:
   db:
-    image: postgres:19rc1-trixie@sha256:de2cbeff2b8177e65bd64d077b46c90a1898aa8aea974a9e35a8cf60b5e90581
+    image: postgres:19rc2-trixie@sha256:3c5f322ffe97481b51a1ebee693f58d0c081514d2bc3026500a9400b7428bea9
     environment:
       POSTGRES_DB: crm
       POSTGRES_USER: crm
