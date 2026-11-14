@@ -126,7 +126,7 @@ class PaymentsCardChargerTest < ActiveSupport::TestCase
   end
 
   test "token em formato estranho é recusado antes de qualquer chamada" do
-    [ "", "curto", "com espaço no meio", "x" * 600, "<script>" ].each { |token| assert_equal :invalid, charge(token).kind }
+    [ "", "curto", "com espaço no meio", "x" * 1100, "<script>" ].each { |token| assert_equal :invalid, charge(token).kind }
     assert_equal 0, charges_in_provider
   end
 

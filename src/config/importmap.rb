@@ -12,4 +12,5 @@ pin "checkout", preload: "checkout"
 pin_all_from "app/javascript/spa", under: "spa", preload: false
 pin "payments/drivers/fake", to: "payments/drivers/fake.js", preload: false
 pin "payments/drivers/efi", to: "payments/drivers/efi.js", preload: false
+pin "payments/drivers/pagbank", to: "payments/drivers/pagbank.js", preload: false
 pin "payment-token-efi", to: "payment-token-efi.js", preload: false # payment-token-efi@3.4.1 (MIT), publicada em 09/07/2026, do npm

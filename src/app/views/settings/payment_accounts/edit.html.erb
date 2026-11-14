@@ -43,9 +43,29 @@
   <header><h2 id="situacao-conta">Conexão</h2></header>
   <div>
     <dl class="dados">
+      <% if Payments::Connection.authorization?(@account) %><dt><%= t("payments.fields.connection.label") %></dt><dd><%= connection_state(@account) %></dd><% end %>
       <dt>Último teste</dt><dd><%= @account.last_test_status ? "#{@account.last_test_status == 'ok' ? 'Boa' : 'Falhou'}, #{datetime_br(@account.last_tested_at)}. #{@account.last_test_message}" : "Nunca testada" %></dd>
       <% if @account.provider_available? && @account.manifest.field("webhook_secret") %><dt>Segredo do webhook</dt><dd><%= @account.secret_set?("webhook_secret") ? "Definido (não é mostrado de novo)" : "Ainda não gerado" %></dd><% end %>
+      <% if @account.persisted? && @account.provider_available? && Payments::WebhookUrl.per_charge?(@account) %><dt>Webhook</dt><dd><%= t("payments.webhook_registration.per_charge_line") %></dd>
+      <% elsif @account.persisted? && @account.provider_available? && @account.modality.in?(%w[boleto pix]) %><dt>Webhook</dt><dd><%= @account.webhook_registered_at ? t("payments.webhook_registration.registered", date: date_br(@account.webhook_registered_at.to_date)) : t("payments.webhook_registration.not_registered") %></dd><% end %>
     </dl>
+    <% if Payments::Connection.authorization?(@account) %>
+      <%# Conexão por autorização (12, revisão 5, R284k): o gestor autoriza na página do fornecedor e volta; o link sai da casca (janela inteira). %>
+      <% provider = @account.manifest.label %>
+      <% if flash[:connection_notice] %><%= aviso(tom: :success) { tag.p flash[:connection_notice] } %><% end %>
+      <% if flash[:connection_alert] %><%= aviso(tom: :danger) { tag.p flash[:connection_alert] } %><% end %>
+      <% if Payments::Connection.app(@account.provider, @account.environment).nil? %>
+        <%= aviso(tom: :warning) { tag.p t("payments.connection.no_app", provider: provider) } %>
+      <% else %>
+        <p><%= t("payments.connection.connect_help", provider: provider) %></p>
+        <div class="acoes">
+          <%= link_to t(Payments::Connection.connected?(@account) ? "payments.connection.reconnect" : "payments.connection.connect", provider: provider), new_settings_payment_account_connection_path(@account), target: "_top", class: "botao", data: { variant: (Payments::Connection.connected?(@account) ? "secondary" : nil) } %>
+          <% if Payments::Connection.connected?(@account) %>
+            <%= confirmar_no_painel t("payments.connection.disconnect"), titulo: t("payments.connection.disconnect_title", provider: provider), mensagem: t("payments.connection.disconnect_message"), acao: t("payments.connection.disconnect"), url: settings_payment_account_connection_path(@account), metodo: :delete, variante: "secondary" %>
+          <% end %>
+        </div>
+      <% end %>
+    <% end %>
     <% if @secret %>
       <%= aviso(tom: :warning) do %>
         <p><strong>Copie o segredo agora:</strong> ele só aparece desta vez. <code><%= @secret %></code></p>

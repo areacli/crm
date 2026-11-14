@@ -11,6 +11,9 @@ module Payments
 
       declared = account.manifest.capabilities.fetch(:card_checkout)
       new(driver: declared.fetch(:driver), script: declared[:script], config: account.adapter.card_checkout_config(account), options: options_for(account, checkout, brand))
+    rescue Providers::Error
+      # Sem os valores públicos (a chave pública do cartão não veio, a integração está desconectada), o link não oferece cartão agora.
+      nil
     end
 
     def self.options_for(account, checkout, brand)

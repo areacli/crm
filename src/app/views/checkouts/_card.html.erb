@@ -33,6 +33,7 @@
         <%= render "checkouts/installments", checkout: checkout, card: card %>
       </div>
       <input type="hidden" id="payment-token" name="payment_token" value="">
+      <input type="hidden" id="bandeira-escolhida" name="brand" value="">
       <p id="cartao-erro" role="alert" hidden></p>
       <div class="acoes"><button type="submit"><%= t("payments.checkout.page.pay", amount: money(checkout.amount_cents)) %></button></div>
     </form>

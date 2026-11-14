@@ -11,8 +11,9 @@ module Payments
       # Opções de parcelamento para o valor (e a bandeira, quando o fornecedor calcula por bandeira): Array de InstallmentOption.
       def installments(account, amount_cents:, brand: nil) = not_implemented(:card, __method__)
 
-      # Cobra com o token da biblioteca do fornecedor. `payer`: { name:, document:, address:, email:, phone: }. Devolve CardResult.
-      def charge_card(account, custom_id:, amount_cents:, installments:, payment_token:, payer:, description: nil, notification_url: nil) = not_implemented(:card, __method__)
+      # Cobra com o token da biblioteca do fornecedor (ou o cartão cifrado por ela, R284t). `payer`: { name:, document:, address:, email:, phone: }. `brand`: o
+      # nome da bandeira que o navegador descobriu (nunca o número), para o fornecedor que calcula os juros do parcelamento por bandeira. Devolve CardResult.
+      def charge_card(account, custom_id:, amount_cents:, installments:, payment_token:, payer:, description: nil, notification_url: nil, brand: nil) = not_implemented(:card, __method__)
 
       def fetch_card(account, external_id) = not_implemented(:card, __method__)
 

@@ -12,9 +12,11 @@ module Payments
       def initialize(kind:, code: nil, retry: false) = super
     end
 
-    TOKEN_FORMAT = /\A[A-Za-z0-9_\-.:=+\/]{8,512}\z/
+    # O token da biblioteca ou o cartão cifrado pelo fornecedor (12, revisão 5, R284t: RSA em Base64, até 4096 bits), nunca o cartão em claro.
+    TOKEN_FORMAT = /\A[A-Za-z0-9_\-.:=+\/]{8,1024}\z/
 
-    def charge(checkout, payment_token:, installments:)
+    def charge(checkout, payment_token:, installments:, brand: nil)
+      @brand = brand.to_s.downcase.first(20).presence if brand.to_s.match?(/\A[a-z]{2,20}\z/i)
       token = payment_token.to_s
       count = installments.to_s.match?(/\A\d{1,2}\z/) ? installments.to_i : 0
       return Outcome.new(kind: :invalid) unless token.match?(TOKEN_FORMAT) && count.positive?
@@ -91,7 +93,7 @@ module Payments
       def call_provider(checkout, account, instrument, token, count)
         payer = { name: checkout.payer_name, document: checkout.payer_document, address: checkout.payer_address, email: checkout.payer_email, phone: checkout.payer_phone }
         result = account.adapter.charge_card(account, custom_id: instrument.custom_id, amount_cents: checkout.amount_cents, installments: count, payment_token: token, payer: payer,
-                                                      description: checkout.description, notification_url: WebhookUrl.for(account))
+                                                      description: checkout.description, notification_url: WebhookUrl.for(account), brand: @brand)
         settle(checkout, instrument, result, count)
       rescue Providers::NetworkError => error
         # Seguro repetir só quando o pedido nem chegou ao fornecedor; no resto, pode ter cobrado.
@@ -114,8 +116,9 @@ module Payments
         elsif result.external_id.blank?
           unconfirmed(checkout, instrument, I18n.t("payments.instruments.no_identifier"))
         else
+          # `in_analysis` (12, revisão 5, R284u): ativo como o aprovado, à espera do aviso, com a página dizendo "em análise".
           instrument.update!(state: result.status == "paid" ? "paid" : "active", external_id: result.external_id, issued_at: Time.current,
-                             response_summary: { "installments" => result.installments, "total_cents" => result.amount_cents }.compact)
+                             response_summary: { "installments" => result.installments, "total_cents" => result.amount_cents, "in_analysis" => (true if result.status == "in_analysis") }.compact)
           Checkouts.sync(checkout)
           Outcome.new(kind: :approved)
         end

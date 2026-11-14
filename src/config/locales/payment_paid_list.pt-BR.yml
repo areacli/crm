@@ -1,0 +1,15 @@
+pt-BR:
+  payments:
+    paid_list:
+      unavailable: "Este fornecedor não tem lista de pagos para esta modalidade."
+    webhook_registration:
+      unavailable: "Este fornecedor não cadastra webhook por aqui."
+      per_charge: "Este fornecedor recebe o endereço do webhook em cada cobrança; não há cadastro."
+      no_url: "Sem endereço público (CRM_PUBLIC_URL) ou sem segredo do webhook gerado na integração."
+      too_long: "O endereço do webhook passa de %{max} caracteres, o que o fornecedor aceita."
+      registered: "Webhook cadastrado em %{date}"
+      not_registered: "Webhook não cadastrado: os pagamentos chegam pela consulta"
+    instruments:
+      provider_quiet: "O fornecedor não atende neste horário; tente depois das %{until}."
+      our_number_start_missing: "A integração não tem o nosso número inicial."
+      our_number_exhausted: "A faixa de nosso número da integração acabou: combine uma nova com o banco."

@@ -14,6 +14,8 @@ require_relative "support/promises_test_helper"
 require_relative "support/agreements_test_helper"
 require_relative "support/payment_accounts_helper"
 require_relative "support/efi_http_helper"
+require_relative "support/bradesco_http_helper"
+require_relative "support/pagbank_http_helper"
 require_relative "support/checkouts_helper"
 require_relative "support/webhooks_helper"
 require_relative "support/operations_test_helper"
@@ -46,6 +48,8 @@ module ActiveSupport
     include AgreementsTestHelper
     include PaymentAccountsHelper
     include EfiHttpHelper
+    include BradescoHttpHelper
+    include PagbankHttpHelper
     include CheckoutsHelper
     include WebhooksHelper
     include OperationsTestHelper
@@ -54,7 +58,11 @@ module ActiveSupport
     # Nenhum teste chama a Efí real (12): o cliente padrão recusa; os testes da Efí trocam por um falso com respostas gravadas. O token fica só na memória do processo.
     setup do
       Payments::Providers::Efi.http_client = EfiHttpHelper::Blocked.new
-      Payments::Providers::Efi::TokenStore.reset!
+      Payments::Providers::Bradesco.http_client = EfiHttpHelper::Blocked.new
+      Payments::Providers::Pagbank.http_client = EfiHttpHelper::Blocked.new
+      without_pagbank_app
+      Payments::Providers::Bradesco.boleto_auth = nil
+      Payments::Providers::TokenStore.reset!
       Payments::Providers::Fake.reset!
     end
 

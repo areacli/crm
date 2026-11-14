@@ -8,11 +8,7 @@ module Payments
 
         BILLET_STATUS = { "new" => "active", "waiting" => "active", "identified" => "active", "link" => "active", "approved" => "active", "paid" => "paid",
                           "settled" => "paid", "unpaid" => "expired", "canceled" => "canceled", "refunded" => "canceled", "contested" => "active" }.freeze
-        PIX_STATUS = { "ATIVA" => "active", "CONCLUIDA" => "paid", "REMOVIDA_PELO_USUARIO_RECEBEDOR" => "canceled", "REMOVIDA_PELO_PSP" => "canceled" }.freeze
-        # Juros do Pix: "percentual ao mês (dias corridos)" na tabela do Banco Central; multa: "percentual" (2).
-        PIX_INTEREST_MODALITY = 3
-        PIX_FINE_MODALITY = 2
-        PIX_DISCOUNT_MODALITY = 2
+        PIX_STATUS = PixBcb::STATUS
 
         def person(document)
           document.to_s.length == 14 ? :cnpj : :cpf
@@ -95,26 +91,12 @@ module Payments
           end
         end
 
-        def pix_body(amount_cents:, due_on:, payer:, pix_key:, options:)
-          debtor = { "nome" => payer[:name].to_s, person(payer[:document]).to_s => payer[:document] }
-          address = (payer[:address] || {}).transform_keys(&:to_s)
-          debtor.merge!("logradouro" => [ address["street"], address["number"] ].compact_blank.join(", ").presence, "cidade" => address["city"].presence,
-                        "uf" => address["state"].presence, "cep" => address["zip"].presence).compact! if address.values_at("street", "city", "state", "zip").all?(&:present?)
-          value = { "original" => decimal(amount_cents) }
-          value["multa"] = { "modalidade" => PIX_FINE_MODALITY, "valorPerc" => percent(options[:fine_percent]) } if options[:fine_percent].to_d.positive?
-          value["juros"] = { "modalidade" => PIX_INTEREST_MODALITY, "valorPerc" => percent(options[:interest_percent]) } if options[:interest_percent].to_d.positive?
-          if options[:discount_percent].to_d.positive?
-            value["desconto"] = { "modalidade" => PIX_DISCOUNT_MODALITY, "descontoDataFixa" => [ { "data" => due_on.iso8601, "valorPerc" => percent(options[:discount_percent]) } ] }
-          end
-          body = { "calendario" => { "dataDeVencimento" => due_on.iso8601, "validadeAposVencimento" => options.fetch(:after_due_days, 30).to_i }, "devedor" => debtor,
-                   "valor" => value, "chave" => pix_key }
-          body["solicitacaoPagador"] = options[:message].to_s.first(140) if options[:message].present?
-          body
-        end
+        # O corpo da `cobv` é o do padrão do Banco Central (`PixBcb`, comum aos adaptadores de Pix).
+        def pix_body(amount_cents:, due_on:, payer:, pix_key:, options:) = PixBcb.cobv_body(amount_cents: amount_cents, due_on: due_on, payer: payer, pix_key: pix_key, options: options)
 
-        def decimal(cents) = format("%d.%02d", *cents.divmod(100))
+        def decimal(cents) = PixBcb.decimal(cents)
 
-        def percent(value) = format("%.2f", value.to_d)
+        def percent(value) = PixBcb.percent(value)
 
         # "data:image/png;base64,...." -> bytes do PNG; SVG ou qualquer outra coisa -> nil (o QR Code é então gerado aqui).
         def png_from_data_uri(uri)
@@ -125,20 +107,8 @@ module Payments
           bytes if bytes.start_with?("\x89PNG\r\n\x1a\n".b)
         end
 
-        # Mensagem curta e segura de uma resposta de erro: nunca o corpo inteiro, nunca o que foi enviado.
-        def error_message(json)
-          return "resposta de erro do fornecedor" unless json.is_a?(Hash)
-
-          description = json["error_description"]
-          text = case description
-          when Hash then description["message"] || description["property"]
-          when String then description
-          end
-          text ||= [ json["title"], json["detail"] ].compact.join(": ").presence
-          violations = Array(json["violacoes"]).filter_map { |item| [ item["propriedade"], item["razao"] ].compact.join(" ") if item.is_a?(Hash) }
-          text = [ text, *violations ].compact.join("; ").presence || json["error"] || json["mensagem"]
-          text.to_s.gsub(/[[:cntrl:]]/, " ").squish.first(200).presence || "resposta de erro do fornecedor"
-        end
+        # Mensagem curta e segura de uma resposta de erro (RFC 7807 do Pix ou o formato das cobranças da Efí).
+        def error_message(json) = PixBcb.error_message(json)
       end
     end
   end

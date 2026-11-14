@@ -20,6 +20,7 @@ module Payments
       adopt_external_id(instrument, notification)
       return Outcome.new(:ignored, "instrumento ainda não emitido no fornecedor") if instrument.external_id.blank?
       return Outcome.new(:ignored, "fornecedor indisponível") unless instrument.account.provider_available?
+      return Outcome.new(:ignored, "fornecedor na janela fora do ar") if instrument.account.adapter.quiet?(instrument.kind)
 
       issued = consult(instrument)
       instrument.update_columns(reconciled_at: Time.current)
@@ -51,11 +52,14 @@ module Payments
       def apply(instrument, issued, notification)
         outcomes = []
         instrument.with_lock do
-          if issued.status == "paid" && instrument.state.in?(PAYABLE_STATES)
+          if issued.status == "paid" && (instrument.state.in?(PAYABLE_STATES) || still_payable_there?(instrument))
             outcomes << settle(instrument, issued, notification)
           elsif issued.status.in?(%w[canceled expired]) && instrument.state_active?
             instrument.update!(state: issued.status)
             outcomes << Outcome.new(:applied, issued.status == "canceled" ? "instrumento cancelado no fornecedor" : "instrumento vencido")
+          elsif issued.status.in?(%w[canceled expired]) && still_payable_there?(instrument)
+            # O cancelado só aqui deixou de ser pagável no fornecedor (12, revisão 5, R284o): a conciliação para de conferi-lo.
+            instrument.update!(response_summary: instrument.response_summary.merge("canceled_locally_closed_at" => Time.current.iso8601))
           end
           outcomes << refund(instrument, issued, notification) if instrument.state_paid? && issued.refunded_cents.to_i > instrument.refunded_cents
         end
@@ -104,6 +108,11 @@ module Payments
         end
         instrument.update!(refunded_cents: issued.refunded_cents)
         Outcome.new(:applied, "devolução registrada como estorno")
+      end
+
+      # Cancelado só aqui (R284o) e ainda pagável no fornecedor: o pagamento que vier entra como o de qualquer instrumento.
+      def still_payable_there?(instrument)
+        instrument.state_canceled? && instrument.response_summary["canceled_locally_at"].present? && instrument.response_summary["canceled_locally_closed_at"].blank?
       end
 
       def hint(notification, instrument)

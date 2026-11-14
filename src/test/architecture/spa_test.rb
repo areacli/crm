@@ -40,7 +40,9 @@ class SpaArchitectureTest < ActiveSupport::TestCase
     assert_empty links, "link com parâmetro em inglês"
     campos = VIEWS.flat_map { |arquivo| File.read(arquivo).scan(/\bname="(#{internos.join("|")})"/).flatten.map { |nome| "#{arquivo.delete_prefix(Rails.root.to_s)}: #{nome}" } }
     assert_empty campos, "campo com parâmetro em inglês"
-    leituras = (Dir[Rails.root.join("app/controllers/**/*.rb")] + VIEWS - [ Rails.root.join("app/controllers/errors_controller.rb").to_s, Rails.root.join("app/views/customer_contacts/statuses/edit.html.erb").to_s ])
+    # A volta da autorização no fornecedor (12, revisão 5) lê `state`, `code` e `error`, que o OAuth fixa; não são parâmetros nossos.
+    leituras = (Dir[Rails.root.join("app/controllers/**/*.rb")] + VIEWS - [ Rails.root.join("app/controllers/errors_controller.rb").to_s, Rails.root.join("app/views/customer_contacts/statuses/edit.html.erb").to_s,
+                                                                            Rails.root.join("app/controllers/settings/payment_accounts/connection_returns_controller.rb").to_s ])
                .flat_map { |arquivo| File.read(arquivo).scan(/\bparams\[:(#{internos.join("|")})\](?!\[)/).flatten.map { |nome| "#{arquivo.delete_prefix(Rails.root.to_s)}: #{nome}" } }
     assert_empty leituras, "leitura de parâmetro em inglês"
     assert_equal FilterValue::VALUES.size, FilterValue::VALUES.values.uniq.size, "dois valores internos com o mesmo nome na URL"

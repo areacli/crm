@@ -25,10 +25,29 @@ module Payments
       run
     end
 
+    # Desde a revisão 5: os dias vêm do manifesto de cada fornecedor (`reconcile_after_days`, R284r; sem declaração, os da configuração), e entram também
+    # os cancelados só aqui que o fornecedor ainda aceita (R284o), até ele os mostrar vencidos ou cancelados. Os ativos usam o índice de sempre; os
+    # cancelados só aqui são poucos (só de fornecedor sem cancelamento) e vão pelo credor.
     def due(now = Time.current)
-      limit = now - Rails.configuration.x.payments.reconcile_after_days.days
-      PaymentInstrument.where(tenant_id: @tenant.id, state: "active").where.not(external_id: nil)
-                       .where("reconciled_at <= ? or (reconciled_at is null and coalesce(issued_at, created_at) <= ?)", limit, limit).order(:id)
+      default_days = Rails.configuration.x.payments.reconcile_after_days
+      special = Payments::Providers.names.filter_map do |name|
+        days = Payments::Providers.manifest(name).capabilities[:reconcile_after_days]
+        [ name, days ] if days && days != default_days
+      end
+      groups = [ [ nil, default_days ], *special.group_by(&:last).map { |days, pairs| [ pairs.map(&:first), days ] } ]
+      sql = groups.map do |providers, days|
+        limit = now - days.days
+        filter = providers ? sanitize("provider in (?)", providers) : (special.any? ? sanitize("provider not in (?)", special.map(&:first)) : "true")
+        "(#{filter} and #{sanitize('(reconciled_at <= ? or (reconciled_at is null and coalesce(issued_at, created_at) <= ?))', limit, limit)})"
+      end.join(" or ")
+      base = PaymentInstrument.where(tenant_id: @tenant.id).where.not(external_id: nil).where(sql)
+      # Duas consultas unidas, para cada uma usar o seu caminho: os ativos pelo índice parcial de sempre; os cancelados só aqui, poucos, pelo credor.
+      active = base.where(state: "active")
+      canceled = base.where(state: "canceled").where("response_summary ? 'canceled_locally_at' and not response_summary ? 'canceled_locally_closed_at'")
+      PaymentInstrument.from("(#{active.to_sql} union all #{canceled.to_sql}) payment_instruments").order(:id)
     end
+
+    private
+      def sanitize(*arguments) = ActiveRecord::Base.sanitize_sql_array(arguments)
   end
 end

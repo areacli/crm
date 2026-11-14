@@ -117,6 +117,7 @@ document.addEventListener("input", (evento) => {
         const lista = formulario.querySelector("#cartao-parcelas")
         if (escolhida && lista?.querySelector(`option[value="${escolhida}"]`)) lista.value = escolhida
         formulario.dataset.bandeira = bandeira
+        formulario.querySelector("#bandeira-escolhida").value = bandeira
       }
     } catch (erro) {
       // Sem bandeira, ficam as parcelas padrão; o erro de verdade aparece ao pagar.

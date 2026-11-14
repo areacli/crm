@@ -9,7 +9,7 @@ class PaymentEvent < ApplicationRecord
   belongs_to :account, class_name: "PaymentAccount", inverse_of: :events
   belongs_to :instrument, class_name: "PaymentInstrument", optional: true
 
-  enum :kind, { paid: "paid", refunded: "refunded", canceled: "canceled", expired: "expired", check: "check", other: "other" }, prefix: true, validate: true
+  enum :kind, { paid: "paid", refunded: "refunded", canceled: "canceled", expired: "expired", check: "check", other: "other", unreadable: "unreadable" }, prefix: true, validate: true
   enum :state, { received: "received", applied: "applied", ignored: "ignored", review: "review", failed: "failed" }, prefix: true, validate: true
 
   validates :event_id, presence: true, length: { maximum: 200 }
@@ -20,8 +20,10 @@ class PaymentEvent < ApplicationRecord
 
   scope :pending, -> { where(state: %w[received failed]) }
 
-  # Guarda um aviso normalizado da conta. Devolve [evento, novo?]. Repetido: ignora, ou reabre quando o aviso diz `reprocess` e o anterior já terminou.
-  def self.record(account, notification)
+  # Guarda um aviso normalizado da conta. Devolve [evento, a processar?]. Repetido: ignora, ou reabre quando o aviso diz `reprocess` e o anterior já
+  # terminou. `reopen_ignored` (a lista de pagos, 12, R284d): reabre o repetido que terminou "ignorado" (o fornecedor ainda mostrava o instrumento
+  # ativo quando o webhook chegou); o aplicado e o "para conferir" não se tocam.
+  def self.record(account, notification, reopen_ignored: false)
     event = new(tenant_id: account.tenant_id, account: account, event_id: notification.event_id, kind: notification.kind, external_id: notification.external_id,
                 amount_cents: notification.amount_cents, occurred_at: notification.occurred_at, previous_status: notification.previous_status&.first(40),
                 current_status: notification.current_status&.first(40), summary: summary_of(notification))
@@ -29,7 +31,7 @@ class PaymentEvent < ApplicationRecord
     [ event, true ]
   rescue ActiveRecord::RecordNotUnique
     existing = find_by!(account_id: account.id, event_id: notification.event_id)
-    reopened = notification.reprocess && existing.state.in?(%w[applied ignored])
+    reopened = (notification.reprocess && existing.state.in?(%w[applied ignored])) || (reopen_ignored && existing.state_ignored?)
     existing.update!(state: "received", outcome: nil, attempts: 0, processed_at: nil) if reopened
     [ existing, reopened ]
   end
