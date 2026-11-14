@@ -7,6 +7,8 @@ module Payments
     def create(tenant:, channel:, modality:, provider:, environment:, nickname:, values: {})
       account = tenant.payment_accounts.build(channel: channel, modality: modality, provider: provider, environment: environment, nickname: nickname)
       account.assign_values(**values)
+      # O fornecedor que grava a URL do aviso em cada pedido recebe a chave da URL já na criação (12, revisão 5, R284m): ela nunca troca com o segredo.
+      account.secrets = account.secrets.merge("webhook_url_key" => SecureRandom.base58(40)) if account.provider_available? && WebhookUrl.per_charge?(account)
       ApplicationRecord.transaction do
         account.save!
         log(account, "created", "nickname", nil, account.nickname)

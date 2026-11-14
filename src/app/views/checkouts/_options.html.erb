@@ -3,6 +3,9 @@
 <div id="opcoes" hx-get="<%= checkout_situation_path(checkout) %>" hx-trigger="cable:checkout-changed from:body" hx-swap="outerHTML">
   <% if checkout.state_paid? %>
     <%= aviso(tom: :success) { tag.p t("payments.checkout.page.paid") } %>
+  <% elsif checkout.state_card_approved? && checkout.instruments.any? { |i| i.card? && i.state_active? && i.response_summary["in_analysis"] } %>
+    <%# 12, revisão 5, R284u: o fornecedor deixou o cartão em análise de risco; espera o aviso, sem nova tentativa. %>
+    <%= aviso(tom: :info) { tag.p t("payments.checkout.page.card_in_analysis") } %>
   <% elsif checkout.state_card_approved? %>
     <%= aviso(tom: :success) { tag.p t("payments.checkout.page.card_approved") } %>
   <% elsif checkout.state_card_unconfirmed? %>

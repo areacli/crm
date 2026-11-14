@@ -94,11 +94,11 @@ Precisa de um endereço **HTTPS público** para a Efí chamar (um túnel ou o do
 # Conta de Pix (a de boleto e a de cartão não precisam de registro: a Efí recebe a URL em cada cobrança).
 pix = PaymentAccount.find(<id da conta de Pix>)
 pix.rotate_webhook_secret!          # mostra o segredo uma vez; guarde-o. A URL leva só um HMAC derivado dele.
-puts Payments::WebhookUrl.for(pix)  # https://<CRM_PUBLIC_URL>/webhooks/pagamentos/contas/<id>?hmac=<64 hex>
+puts Payments::WebhookUrl.for(pix)  # https://<CRM_PUBLIC_URL>/webhooks/pagamentos/contas/<id>?hmac=<32 hex> (desde a revisão 4 da 12; o de 64 continua aceito)
 ```
 
 ```sh
-bin/rails "crm:payments:register_pix_webhook[<id da conta de Pix>]"  # PUT /v2/webhook/:chave com x-skip-mtls-checking e ?ignorar=
+bin/rails "crm:payments:register_webhook[<id da conta de Pix>]"  # PUT /v2/webhook/:chave com x-skip-mtls-checking e ?ignorar=; grava a data na integração
 ```
 
 As contas de boleto e de cartão precisam do segredo do webhook gerado (tela da conta, "Gerar segredo do webhook") **antes** de emitir: é dele que sai o `hmac` da `notification_url` de cada cobrança. Para ver os avisos chegando: `PaymentEvent.order(:id).last(5)` no console, e o painel do Sidekiq (fila `webhooks`).

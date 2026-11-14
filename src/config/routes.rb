@@ -157,8 +157,11 @@ Rails.application.routes.draw do
     resource :payment_policy, path: "politicas-de-pagamento", only: %i[show update]
     # Integrações (12, "contas de pagamento"): fornecedor de boleto, Pix e cartão por meio de pagamento e ambiente. A lista é o detalhe de cada
     # método de recebimento (16, R373): não há página própria.
+    # Volta da autorização no fornecedor (12, revisão 5, R284k): endereço fixo, o mesmo cadastrado na aplicação da instalação no fornecedor.
+    get "integracoes/conexao/retorno", to: "payment_accounts/connection_returns#show", as: :payment_account_connection_return
     resources :payment_accounts, path: "integracoes", path_names: { new: "nova", edit: "editar" }, except: %i[index show] do
       resource :activation, path: "ativacao", only: %i[create destroy], module: :payment_accounts
+      resource :connection, path: "conexao", path_names: { new: "nova" }, only: %i[new destroy], module: :payment_accounts
       resource :webhook_secret, path: "segredo-do-webhook", only: :create, module: :payment_accounts
       resource :connection_test, path: "teste-de-conexao", only: :create, module: :payment_accounts
     end

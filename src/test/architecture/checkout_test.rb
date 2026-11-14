@@ -7,10 +7,11 @@ class CheckoutArchitectureTest < ActiveSupport::TestCase
 
   def sources(glob) = Dir[ROOT.join(glob)].reject { |file| File.directory?(file) }
 
-  test "nenhum campo de cartão tem atributo name: só payment_token e installments são enviados" do
+  # Desde a revisão 5 (R284t), vai também o nome da bandeira, que o navegador descobre pelos primeiros dígitos (nunca o número).
+  test "nenhum campo de cartão tem atributo name: só payment_token, installments e o nome da bandeira são enviados" do
     named = sources("app/views/checkouts/**/*.erb").flat_map { |file| File.read(file).scan(/<(?:input|select|textarea)\b[^>]*>/m) }.select { |tag| tag.match?(/\sname\s*=|name:/) }
-    assert_equal 2, named.size, named.inspect
-    assert named.all? { |tag| tag.match?(/name="(payment_token|installments)"/) }, named.inspect
+    assert_equal 3, named.size, named.inspect
+    assert named.all? { |tag| tag.match?(/name="(payment_token|installments|brand)"/) }, named.inspect
     card_fields = sources("app/views/checkouts/**/*.erb").flat_map { |file| File.read(file).scan(/<input\b[^>]*id="cartao-[^>]*>/m) }
     assert_equal 4, card_fields.size
     assert card_fields.none? { |tag| tag.match?(/\sname\s*=/) }, "campo de cartão com name"
@@ -23,10 +24,10 @@ class CheckoutArchitectureTest < ActiveSupport::TestCase
     end
   end
 
-  test "o servidor só lê payment_token e installments no POST do cartão, e o formulário não aceita outro dado" do
+  test "o servidor só lê payment_token, installments e a bandeira no POST do cartão, e o formulário não aceita outro dado" do
     source = File.read(ROOT.join("app/controllers/checkouts/card_payments_controller.rb"))
     assert_includes source, "params.expect(:payment_token, :installments)"
-    assert_empty source.scan(/params(?:\.expect\((?!:payment_token, :installments\))|\[(?!:token\]))/), "o POST do cartão só lê o token do link, payment_token e installments"
+    assert_empty source.scan(/params(?:\.expect\((?!:payment_token, :installments\))|\[(?!:token\]|:brand\]))/), "o POST do cartão só lê o token do link, payment_token, installments e a bandeira"
     assert_no_match(/params\[:(number|cvv|card|holder|expir)/, source)
     models = sources("app/{controllers,models,jobs,views}/**/*").reject { |f| f.include?("providers/fake") }
     offenders = models.select { |file| File.read(file).match?(/\b(card_number|cvv|cvc|security_code|card_holder|expiration_month|expiration_year|cardNumber)\b/i) }

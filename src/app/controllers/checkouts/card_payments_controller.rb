@@ -8,7 +8,8 @@ module Checkouts
 
     def create
       payment_token, installments = params.expect(:payment_token, :installments)
-      outcome = Payments::CardCharger.new.charge(checkout, payment_token: payment_token, installments: installments)
+      # A bandeira (só o nome, que o navegador descobriu) vai para o fornecedor que calcula os juros do parcelamento por ela (12, revisão 5).
+      outcome = Payments::CardCharger.new.charge(checkout, payment_token: payment_token, installments: installments, brand: params[:brand])
       status = outcome.kind.in?(%i[invalid not_payable]) ? :unprocessable_content : :ok
       render partial: "checkouts/options", locals: { checkout: checkout.reload, card: Payments::CardForm.for(checkout), outcome: outcome }, status: status
     end

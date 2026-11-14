@@ -9,6 +9,14 @@ module Payments
       event.increment!(:attempts)
       account = event.account
       return event.finish!(:ignored, I18n.t("payments.events.provider_unavailable")) unless account.provider_available?
+      # Na janela fora do ar do fornecedor (12, revisão 4, R284h) a consulta não sai: o aviso volta depois dela, ainda "recebido".
+      if (ends = account.adapter.quiet_until(account.modality))
+        event.decrement!(:attempts)
+        return ProcessPaymentEventJob.set(wait_until: ends + Issuer::QUIET_MARGIN).perform_later(event)
+      end
+
+      # Aviso num formato que o adaptador não lê (12, revisão 5, R284s): vai a "para conferir" sem consultar o fornecedor.
+      return event.finish!(:review, I18n.t("payments.events.unreadable")) if event.kind_unreadable?
 
       notifications = account.adapter.expand_notification(account, event.to_notification)
       return event.finish!(:ignored, I18n.t("payments.events.nothing_to_do")) if notifications.empty?

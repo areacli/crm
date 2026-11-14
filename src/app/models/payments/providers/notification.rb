@@ -1,7 +1,7 @@
 module Payments
   module Providers
-    # Aviso do fornecedor normalizado (12, parte D). `event_id` é a chave da idempotência (R282). `kind`: paid, refunded, canceled, expired, other, ou
-    # check (o aviso só traz um token e o estado vem de `expand_notification`, que consulta o fornecedor). `external_id` é o identificador do fornecedor
+    # Aviso do fornecedor normalizado (12, parte D). `event_id` é a chave da idempotência (R282). `kind`: paid, refunded, canceled, expired, other, unreadable (aviso
+    # autenticado num formato que o adaptador não lê: vai a "para conferir", 12, revisão 5, R284s) ou check (o aviso só traz um token e o estado vem de `expand_notification`, que consulta o fornecedor). `external_id` é o identificador do fornecedor
     # (`charge_id`, `txid`); `custom_id`, o nosso; `end_to_end_id`, o do Pix. `reprocess`: o mesmo identificador pode voltar com mudança nova (a Efí
     # reusa o token enquanto a cobrança muda de estado), então o repetido reabre o aviso em vez de ser ignorado. Nada aqui é dado do pagador nem de cartão.
     Notification = Data.define(:event_id, :kind, :external_id, :amount_cents, :occurred_at, :token, :end_to_end_id, :custom_id, :previous_status, :current_status, :reprocess) do

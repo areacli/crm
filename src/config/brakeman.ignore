@@ -229,6 +229,29 @@
         89
       ],
       "note": "A busca e a faixa entram por SQL montado no próprio CustomerList: datas, credores e faixas passam por sanitize_sql_array, e o texto buscado fica no scope, com parâmetros."
+    },
+    {
+      "warning_type": "Redirect",
+      "warning_code": 18,
+      "fingerprint": "bbe8e2a84960d61d30fbc4ccda3a15b19a36d008a89a9aaefc411fee14a6541a",
+      "check_name": "Redirect",
+      "message": "Possible unprotected redirect",
+      "file": "app/controllers/settings/payment_accounts/connections_controller.rb",
+      "line": 11,
+      "link": "https://brakemanscanner.org/docs/warning_types/redirect/",
+      "code": "redirect_to(Payments::Connection.new(Current.user).start(PaymentAccount.find(params[:payment_account_id]), session), :allow_other_host => true, :status => :see_other)",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Settings::PaymentAccounts::ConnectionsController",
+        "method": "new"
+      },
+      "user_input": "Payments::Connection.new(Current.user).start(PaymentAccount.find(params[:payment_account_id]), session)",
+      "confidence": "Weak",
+      "cwe_id": [
+        601
+      ],
+      "note": "Falso positivo: o endereço é montado pelo adaptador a partir do domínio fixo de autorização do fornecedor (CONNECT_HOSTS) e do ambiente da integração; o parâmetro só escolhe a integração, que passa pela política (permissão 14). É a ida do gestor à página de autorização do fornecedor (12, revisão 5, R284k)."
     }
   ],
   "brakeman_version": "8.0.2",

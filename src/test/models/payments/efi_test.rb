@@ -199,7 +199,7 @@ class PaymentsEfiTest < ActiveSupport::TestCase
     assert @efi.test_connection(boleto_account).ok?
     assert @efi.test_connection(pix_account).ok?
     use_efi_client(efi_client.on(:post, "/v1/authorize", status: 401, body: { "error" => "invalid_client" }))
-    Payments::Providers::Efi::TokenStore.reset!
+    Payments::Providers::TokenStore.reset!
     result = @efi.test_connection(boleto_account)
     assert_equal false, result.ok
     assert_match(/Credencial recusada pela Efí/, result.message)

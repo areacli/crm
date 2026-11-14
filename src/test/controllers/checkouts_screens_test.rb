@@ -107,11 +107,11 @@ class CheckoutsScreensTest < ActionDispatch::IntegrationTest
     assert_select "form[data-cartao]", false
   end
 
-  test "os campos do cartão não têm atributo name: o formulário só envia payment_token e parcelas (R278)" do
+  test "os campos do cartão não têm atributo name: o formulário só envia payment_token, parcelas e a bandeira (R278; 12, revisão 5)" do
     get checkout_path(@checkout)
     form = page.at_css("form[data-cartao]")
     named = form.css("[name]").map { |field| field["name"] }
-    assert_equal %w[installments payment_token], named.sort
+    assert_equal %w[brand installments payment_token], named.sort
     card_inputs = form.css("#cartao-numero, #cartao-titular, #cartao-validade, #cartao-codigo")
     assert_equal 4, card_inputs.size
     assert card_inputs.none? { |input| input.key?("name") }

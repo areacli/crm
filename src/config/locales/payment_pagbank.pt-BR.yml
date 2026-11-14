@@ -1,0 +1,97 @@
+pt-BR:
+  payments:
+    # Conexão por autorização (12, revisão 5, R284k e R284l): qualquer fornecedor que a declare.
+    connection:
+      title: "Conexão com o %{provider}"
+      connected: "Conectada em %{date}"
+      connected_as: "Conectada em %{date} (conta %{label})"
+      not_connected: "Não conectada ao %{provider}: conecte para emitir."
+      never: "Não conectada"
+      lost: "Desconectada em %{date}: autorize de novo"
+      connect: "Conectar ao %{provider}"
+      reconnect: "Conectar de novo"
+      disconnect: "Desconectar"
+      disconnect_title: "Desconectar do %{provider}?"
+      disconnect_message: "A integração deixa de emitir até alguém conectar de novo. O que já foi emitido não muda."
+      connect_help: "Você vai à página do %{provider} para autorizar o CRM a operar a conta do credor e volta aqui. O cliente que paga nunca vai a essa página."
+      not_authorization: "Esta integração não usa conexão por autorização."
+      no_app: "A instalação não tem a aplicação do %{provider} configurada para este ambiente (configuração de operação)."
+      no_public_url: "Sem endereço público configurado (CRM_PUBLIC_URL): o %{provider} não teria para onde voltar."
+      bad_state: "A volta da autorização não confere (pedido vencido, já usado ou de outra sessão). Conecte de novo pela integração."
+      denied: "A autorização não foi concedida no fornecedor."
+      done: "Integração %{nickname} conectada."
+      failed: "A conexão não foi feita: %{detail}"
+      disconnected_done: "Integração %{nickname} desconectada."
+      disconnected: "Integração desconectada do %{provider}: autorize de novo na integração."
+      no_refresh_token: "o fornecedor não deu token de renovação"
+    fields:
+      connection:
+        label: "Conexão"
+    accounts:
+      history:
+        connected: "Conectada ao fornecedor"
+        connection_failed: "Falha ao conectar"
+        connection_renewed: "Conexão renovada"
+        connection_lost: "Conexão perdida"
+        disconnected: "Desconectada"
+    webhook_registration:
+      per_charge_line: "O endereço do aviso vai em cada pedido"
+    instruments:
+      due_date_unsupported: "Este fornecedor não muda o vencimento: emita outro instrumento."
+    events:
+      unreadable: "Aviso num formato que o CRM não lê: confira no painel do fornecedor."
+    providers:
+      pagbank:
+        name: "PagBank"
+        errors:
+          refused: "O PagBank recusou o pedido: %{detail}"
+          rejected: "O PagBank não aceitou o pedido: %{detail}"
+          unavailable: "O PagBank está indisponível no momento."
+          unexpected: "Resposta inesperada do PagBank."
+          not_found: "O PagBank não encontrou o pedido."
+          declined: "Recusado pela análise de risco do PagBank."
+          payer_address: "O boleto do PagBank pede o endereço completo do pagador (logradouro, bairro, cidade, UF e CEP)."
+          boleto_minimum: "O boleto do PagBank tem valor mínimo de R$ 0,20."
+          no_cancel: "O PagBank não cancela pela API: o cancelamento é feito só no CRM."
+          pdf_missing: "O PagBank não devolveu o PDF do boleto."
+          pdf_host: "O PDF do boleto veio de um endereço que não é o de boletos do PagBank."
+          pdf_download: "Não foi possível baixar o PDF do boleto (HTTP %{status})."
+          pdf_invalid: "O arquivo do boleto não é um PDF."
+          nothing_to_refund: "O pedido não tem pagamento a devolver."
+          installments_unavailable: "O PagBank não informou o parcelamento escolhido para esta bandeira."
+          no_public_key: "O PagBank não devolveu a chave pública do cartão."
+          sdk_missing: "O kit de cartão do PagBank não está instalado (bin/rails \"crm:payments:card_sdk[pagbank]\")."
+          authorization_refused: "O PagBank recusou a autorização: %{detail}"
+          bad_webhook_auth: "Aviso sem a autenticação esperada."
+        fields:
+          webhook_url_key:
+            label: "Chave da URL do aviso"
+            help: "Gerada na criação da integração. Não troca com o segredo do webhook, porque o PagBank guarda o endereço em cada pedido."
+          expire_days:
+            label: "Dias até o vencimento"
+            help: "Vencimento padrão quando a emissão não diz outro. No Pix, o QR Code vale até 23h59 do vencimento."
+          fine_percent:
+            label: "Multa (%)"
+          interest_percent:
+            label: "Juros ao mês (%)"
+          discount_percent:
+            label: "Desconto até o vencimento (%)"
+          write_off_days:
+            label: "Dias para baixa"
+            help: "Dias depois do vencimento em que o boleto ainda pode ser pago. É também o prazo em que um boleto cancelado aqui continua pagável no PagBank."
+          message:
+            label: "Instruções do boleto"
+            help: "Até 150 caracteres, em duas linhas de 75."
+          max_installments:
+            label: "Máximo de parcelas"
+          interest_free_installments:
+            label: "Parcelas sem juros"
+            help: "Até esta quantidade, o credor assume os juros. Acima dela, o comprador paga os juros que o PagBank calcula, e o pagamento entra pelo valor cobrado."
+          soft_descriptor:
+            label: "Nome na fatura do cartão"
+            help: "Até 22 caracteres, sem acento."
+  notices:
+    kinds:
+      payment_connection_lost:
+        title: "A integração %{account} foi desconectada do %{provider}"
+        body: "Credor %{tenant_name}. O fornecedor recusou a renovação do acesso: a integração não emite até alguém conectar de novo."
