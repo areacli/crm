@@ -19,6 +19,7 @@ class PagbankCheckoutTest < ActionDispatch::IntegrationTest
   end
 
   test "a política de conteúdo só tem o nosso domínio; o formulário leva o módulo do PagBank, a chave pública e o SDK daqui (R284t)" do
+    skip "SDK do PagBank fora do repositório público: rode crm:payments:card_sdk[pagbank]" unless Rails.root.join("vendor/javascript", Payments::Providers::Pagbank::SDK_FILE).exist?
     get checkout_path(@checkout)
     assert_response :success
     csp = csp_of(response)

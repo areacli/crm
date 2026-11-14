@@ -60,6 +60,7 @@ pt-BR:
           nothing_to_refund: "O pedido não tem pagamento a devolver."
           installments_unavailable: "O PagBank não informou o parcelamento escolhido para esta bandeira."
           no_public_key: "O PagBank não devolveu a chave pública do cartão."
+          sdk_missing: "O kit de cartão do PagBank não está instalado (bin/rails \"crm:payments:card_sdk[pagbank]\")."
           authorization_refused: "O PagBank recusou a autorização: %{detail}"
           bad_webhook_auth: "Aviso sem a autenticação esperada."
         fields:

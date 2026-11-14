@@ -222,7 +222,10 @@ module Payments
       def refund_card(account, external_id, amount_cents:) = refund(account, external_id, amount_cents)
 
       # Valores públicos para o navegador: a chave pública da conta (não é segredo), o endereço do SDK no nosso domínio e a integridade dele.
+      # Sem o arquivo do kit (ele fica fora do repositório público), o cartão não é oferecido: `CardForm` recebe o erro e a página segue sem cartão.
       def card_checkout_config(account)
+        raise Error, I18n.t("payments.providers.pagbank.errors.sdk_missing") unless Rails.root.join("vendor/javascript", SDK_FILE).exist?
+
         { "public_key" => public_key(account), "sdk_url" => ActionController::Base.helpers.asset_path(SDK_FILE),
           "sdk_integrity" => "sha256-#{[ [ SDK_SHA256 ].pack('H*') ].pack('m0')}" }
       end

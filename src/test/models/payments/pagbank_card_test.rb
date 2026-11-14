@@ -89,6 +89,7 @@ class PaymentsPagbankCardTest < ActiveSupport::TestCase
   end
 
   test "a chave pública é pedida uma vez, guardada na integração e renovada depois de um ano; a página recebe o SDK do nosso domínio com integridade" do
+    skip "SDK do PagBank fora do repositório público: rode crm:payments:card_sdk[pagbank]" unless Rails.root.join("vendor/javascript", Payments::Providers::Pagbank::SDK_FILE).exist?
     client = use_pagbank_client(pagbank_client.on(:post, "/public-keys", body: { "public_key" => "MIIBIjANBgkq-CHAVE", "created_at" => 1_700_000_000 }))
     config = @pagbank.card_checkout_config(@account)
     assert_equal "MIIBIjANBgkq-CHAVE", config["public_key"]
