@@ -60,13 +60,16 @@ module Demo
       system_ids.flat_map { |id| open.where(source_system_id: id).limit(30 / system_ids.size).to_a }
     end
 
-    # Estornos parciais de pagamentos já aplicados do credor.
+    # Estornos parciais de pagamentos já aplicados do credor. No credor com mais de um sistema, cada linha diz o sistema do pagamento estornado (17,
+    # R416): sem a coluna, as linhas eram recusadas sempre que os últimos pagamentos vinham de um sistema (a V5 confirma pagamentos do Planilha logo antes).
     def reversals(tenant)
       stamp = Time.current.strftime("%Y%m%d%H%M%S")
-      rows = [ "metodo_recebimento;identificador_pagamento;identificador_estorno;data_estorno;valor;motivo" ]
-      Payment.where(tenant_id: tenant.id, status: "applied").where("reversed_cents < amount_cents").joins(:channel).order(id: :desc).limit(10)
-             .pluck("payment_channels.code", :identifier, :amount_cents, :reversed_cents).each_with_index do |(code, identifier, amount, reversed), index|
-        rows << [ code, identifier, "R#{stamp}#{index}", Date.current.strftime("%d/%m/%Y"), Money.format([ (amount - reversed) / 3, 1 ].max), "contestação do pagador" ].join(";")
+      rows = [ "metodo_recebimento;identificador_pagamento;identificador_estorno;data_estorno;valor;motivo;sistema" ]
+      Payment.where(tenant_id: tenant.id, status: "applied").where("reversed_cents < amount_cents").joins(:channel, :source_system).order(id: :desc).limit(10)
+             .pluck("payment_channels.code", :identifier, :amount_cents, :reversed_cents, "source_systems.name", "source_systems.role")
+             .each_with_index do |(code, identifier, amount, reversed, system, role), index|
+        rows << [ code, identifier, "R#{stamp}#{index}", Date.current.strftime("%d/%m/%Y"), Money.format([ (amount - reversed) / 3, 1 ].max), "contestação do pagador",
+                  (role == "crm" ? "" : system) ].join(";")
       end
       write("estornos", rows)
     end
