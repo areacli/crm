@@ -67,8 +67,8 @@
   <% if d[:pagamentos].empty? %><p class="vazio">Nenhum pagamento.</p><% else %>
     <div class="tabela" tabindex="0"><table>
       <caption class="apenas-leitor-de-tela">Pagamentos</caption>
-      <thead><tr><th scope="col">Identificador</th><th scope="col">Título</th><th scope="col">Data</th><th scope="col" data-numerico>Valor</th><th scope="col" data-numerico>Estornado</th><th scope="col">Canal</th></tr></thead>
-      <tbody><% d[:pagamentos].each do |p| %><tr><th scope="row"><%= p[:identificador] %></th><td><%= p[:titulo].presence || "—" %></td><td><%= date_br(Date.iso8601(p[:pago_em])) %></td><td data-numerico><%= money(p[:valor_centavos]) %></td><td data-numerico><%= money(p[:estornado_centavos]) %></td><td><%= p[:canal] %></td></tr><% end %></tbody>
+      <thead><tr><th scope="col">Identificador</th><th scope="col">Título</th><th scope="col">Data</th><th scope="col" data-numerico>Valor</th><th scope="col" data-numerico>Estornado</th><th scope="col">Meio</th><th scope="col">Fornecedor</th><th scope="col">Conta</th></tr></thead>
+      <tbody><% d[:pagamentos].each do |p| %><tr><th scope="row"><%= p[:identificador] %></th><td><%= p[:titulo].presence || "—" %></td><td><%= date_br(Date.iso8601(p[:pago_em])) %></td><td data-numerico><%= money(p[:valor_centavos]) %></td><td data-numerico><%= money(p[:estornado_centavos]) %></td><td><%= PaymentMethod.label(p[:meio]) %></td><td><%= p[:fornecedor] %></td><td><%= p[:conta] %></td></tr><% end %></tbody>
     </table></div>
   <% end %>
   <% if d[:estornos].any? %>

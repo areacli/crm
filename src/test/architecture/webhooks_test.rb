@@ -64,9 +64,8 @@ class WebhooksArchitectureTest < ActiveSupport::TestCase
     assert_no_match(/PaymentInstrument\.find_by|PaymentInstrument\.find\(/, text)
   end
 
-  test "o pagamento do instrumento passa por ExternalPayment, o mesmo caminho do webhook genérico e da planilha" do
+  test "o pagamento do instrumento passa por ExternalPayment, o mesmo caminho da planilha" do
     assert_match(/ExternalPayment/, source("app/models/payments/instrument_sync.rb"))
-    assert_match(/ExternalPayment/, source("app/models/payments/webhook_processor.rb"))
     assert_match(/Processor\.new\.run/, source("app/models/payments/external_payment.rb"))
     assert_match(/ReversalProcessor\.new\.run/, source("app/models/payments/external_payment.rb"))
   end

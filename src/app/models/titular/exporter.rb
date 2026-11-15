@@ -63,8 +63,8 @@ module Titular
       end
 
       def payments
-        payment_scope.includes(:channel, :bill).order(:paid_on, :id).map do |p|
-          { identificador: p.identifier, canal: p.channel.description, titulo: p.bill&.number, pago_em: p.paid_on.iso8601, valor_centavos: p.amount_cents, meio: p.payment_method,
+        payment_scope.includes(:bill).order(:paid_on, :id).map do |p|
+          { identificador: p.identifier, fornecedor: p.provider_label, conta: p.account_code, titulo: p.bill&.number, pago_em: p.paid_on.iso8601, valor_centavos: p.amount_cents, meio: p.payment_method,
             situacao: p.status, aplicado_centavos: p.applied_cents, credito_centavos: p.credit_cents, estornado_centavos: p.reversed_cents }
         end
       end

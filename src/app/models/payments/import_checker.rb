@@ -101,8 +101,7 @@ module Payments
         reversals = import.reversals?
         # Tabela recém-carregada não tem estatísticas: sem ANALYZE o planejador subestima o tamanho e escolhe plano ruim.
         ActiveRecord::Base.connection.execute("analyze payment_rows")
-        import.update!(progress_percent: 55, progress_label: "Conferindo canais e repetições")
-        reject_unknown_channels(import, reversals)
+        import.update!(progress_percent: 55, progress_label: "Conferindo repetições")
         reject_repeated(import, reversals)
         # 17, R418: o pendente reenviado com outro sistema não é "já registrado": a linha aponta o pendente, que troca de sistema na confirmação.
         Repoint.mark(import) unless reversals
@@ -121,21 +120,14 @@ module Payments
         end
       end
 
-      # R49: método de recebimento (antes "canal") não cadastrado ou desativado (no estorno, o desativado é aceito: revisão 5).
-      def reject_unknown_channels(import, reversals)
-        channels = PaymentChannel.where(tenant_id: import.tenant_id)
-        codes = (reversals ? channels : channels.where(active: true)).pluck(:code)
-        reject(import, PaymentRow.where(import_id: import.id, ok: true).where.not(channel_code: codes).order(:line).pluck(:line).index_with { "método de recebimento não cadastrado ou desativado" })
-      end
-
-      # R48 e R61: o repetido no mesmo arquivo é recusado; vale a primeira ocorrência.
+      # R48 e R61: o repetido no mesmo arquivo (mesmo fornecedor, conta e identificador; 03, revisão 12) é recusado; vale a primeira ocorrência.
       def reject_repeated(import, reversals)
         label = reversals ? "estorno repetido na linha " : "pagamento repetido na linha "
         repeated = Sql.rows(<<~SQL, import.id)
           select line, first_line from (
             select line, first_value(line) over w as first_line, row_number() over w as rn
             from payment_rows where import_id = ? and ok
-            window w as (partition by channel_code, identifier order by line)) d where rn > 1
+            window w as (partition by provider, account_key, identifier order by line)) d where rn > 1
         SQL
         reject(import, repeated.to_h { |row| [ row["line"].to_i, "#{label}#{row['first_line']}" ] })
       end
@@ -144,24 +136,24 @@ module Payments
       def mark_already_registered(import, reversals)
         table = reversals ? "payment_reversals" : "payments"
         label = reversals ? "estorno já registrado, ignorado" : "pagamento já registrado, ignorado"
-        lines = Sql.rows(<<~SQL, import.tenant_id, import.tenant_id, import.id).map { |row| row["line"].to_i }
-          select r.line from payment_rows r join payment_channels ch on ch.tenant_id = ? and ch.code = r.channel_code
-          join #{table} x on x.tenant_id = ? and x.channel_id = ch.id and x.identifier = r.identifier
+        lines = Sql.rows(<<~SQL, import.tenant_id, import.id).map { |row| row["line"].to_i }
+          select r.line from payment_rows r
+          join #{table} x on x.tenant_id = ? and x.provider = r.provider and x.account_key = r.account_key and x.identifier = r.identifier
           where r.import_id = ? and r.ok
         SQL
         reject(import, lines.index_with { label }, ignored: true)
       end
 
-      # R61: pagamento não encontrado no canal; data anterior ao pagamento; título de cliente anonimizado; valor maior que o saldo estornável.
+      # R61: pagamento não encontrado (pelo fornecedor, pela conta e pelo identificador); data anterior ao pagamento; título de cliente anonimizado; valor maior que o saldo estornável.
       def reject_reversal_problems(import)
         t = import.tenant_id
         i = import.id
-        found = "from payment_rows r join payment_channels ch on ch.tenant_id = ? and ch.code = r.channel_code"
-        match = "p.tenant_id = ? and p.channel_id = ch.id and p.identifier = r.payment_identifier"
+        found = "from payment_rows r"
+        match = "p.tenant_id = ? and p.provider = r.provider and p.account_key = r.account_key and p.identifier = r.payment_identifier"
         lines = ->(sql, *binds) { Sql.rows(sql, *binds).map { |row| row["line"].to_i } }
 
-        reject(import, lines.call("select r.line #{found} where r.import_id = ? and r.ok and not exists (select 1 from payments p where #{match})", t, i, t).index_with { "pagamento não encontrado no método de recebimento" })
-        reject(import, lines.call("select r.line #{found} join payments p on #{match} where r.import_id = ? and r.ok and r.paid_on < p.paid_on", t, t, i)
+        reject(import, lines.call("select r.line #{found} where r.import_id = ? and r.ok and not exists (select 1 from payments p where #{match})", i, t).index_with { "pagamento não encontrado" })
+        reject(import, lines.call("select r.line #{found} join payments p on #{match} where r.import_id = ? and r.ok and r.paid_on < p.paid_on", t, i)
                           .index_with { "data do estorno anterior ao pagamento" })
 
         # 07, revisão 5: estorno de título de cliente anonimizado é recusado quando todos os clientes do contrato estão anonimizados; com um
@@ -171,15 +163,15 @@ module Payments
           where r.import_id = ? and r.ok and exists (select 1 from contract_customers cc where cc.contract_id = b.contract_id)
             and not exists (select 1 from contract_customers cc join customers cu on cu.id = cc.customer_id where cc.contract_id = b.contract_id and cu.anonymized_at is null)
         SQL
-        reject(import, lines.call("select r.line #{found} join payments p on #{match} #{anonymized}", t, t, i).index_with { "título de cliente anonimizado" })
+        reject(import, lines.call("select r.line #{found} join payments p on #{match} #{anonymized}", t, i).index_with { "título de cliente anonimizado" })
 
         # Valor acima do que ainda não foi estornado do pagamento, somando as linhas do próprio arquivo em ordem.
-        over = Sql.rows(<<~SQL, t, t, i)
+        over = Sql.rows(<<~SQL, t, i)
           select x.line, x.reversible - (x.cum - x.amount_cents) as left_cents from (
             select r.line, r.amount_cents, p.amount_cents - p.reversed_cents as reversible,
                    sum(r.amount_cents) over (partition by p.id order by r.paid_on, r.line) as cum
-            from payment_rows r join payment_channels ch on ch.tenant_id = ? and ch.code = r.channel_code
-            join payments p on p.tenant_id = ? and p.channel_id = ch.id and p.identifier = r.payment_identifier
+            from payment_rows r
+            join payments p on #{match}
             where r.import_id = ? and r.ok) x where x.cum > x.reversible
         SQL
         reject(import, over.to_h { |row| [ row["line"].to_i, "valor maior que o saldo estornável de R$ #{Money.format([ row['left_cents'].to_i, 0 ].max)}" ] })
@@ -190,7 +182,7 @@ module Payments
       # pagamento; vazia, só no estorno de pagamento do CRM (promessa, acordo, instrumento pago). Pagamento de sistema pausado não recebe estorno (R398).
       def reject_other_system(import, found)
         systems = Systems.new(import.tenant_id)
-        rows = Sql.rows("select r.line, r.source_system_id as declared, p.source_system_id as parent #{found} where r.import_id = ? and r.ok order by r.line", import.tenant_id, import.tenant_id, import.id)
+        rows = Sql.rows("select r.line, r.source_system_id as declared, p.source_system_id as parent #{found} where r.import_id = ? and r.ok order by r.line", import.tenant_id, import.id)
         reject(import, rows.filter_map do |row|
           parent = systems.find(row["parent"].to_i)
           declared = row["declared"]&.to_i

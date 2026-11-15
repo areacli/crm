@@ -49,6 +49,9 @@ pt-BR:
       group_help:
         access: "O que liga o CRM à conta do credor no fornecedor. Chaves e certificado são cifrados ao salvar e não voltam para a tela."
         charge: "O que vai em cada instrumento emitido por esta integração."
+      account_code:
+        label: "Conta"
+        help: "Agência e conta, código do convênio ou o id da conta no fornecedor, escrita como vem na coluna conta das planilhas de pagamentos e de estornos. O pagamento dos instrumentos desta integração leva esta conta."
       replace:
         title: "Trocar fornecedor: %{modality}"
         warning: "A integração %{nickname} deixa de emitir %{modality} em %{environment} quando a troca terminar. %{vigentes}"

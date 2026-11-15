@@ -3,8 +3,11 @@
 # de cartão de crédito) é um subconjunto (`ISSUABLE`).
 module PaymentMethod
   KEYS = %w[pix pix_recurring boleto credit_card debit_card transfer cash other].freeze
-  # Para o `enum` dos modelos: chave => valor gravado.
+  # Só o CRM registra (03, revisão 12): o uso de crédito do contrato num acordo ou num título. A planilha e a promessa não aceitam.
+  INTERNAL = %w[contract_credit].freeze
+  # Para o `enum` dos modelos: chave => valor gravado. A promessa usa `ENUM`; o pagamento, `ALL_ENUM`.
   ENUM = KEYS.to_h { |key| [ key.to_sym, key ] }.freeze
+  ALL_ENUM = (KEYS + INTERNAL).to_h { |key| [ key.to_sym, key ] }.freeze
 
   # Os meios que o CRM emite (16, R377) e o tipo de instrumento de cada um (o cartão é o link de checkout).
   ISSUABLE = { "boleto" => "boleto", "pix" => "pix", "credit_card" => "card" }.freeze

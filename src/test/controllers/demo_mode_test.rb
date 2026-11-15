@@ -45,7 +45,7 @@ class DemoModeTest < ActionDispatch::IntegrationTest
     assert_redirected_to root_path
     assert users(:joana).reload.authenticate("senha-de-teste-1"), "a senha não mudou"
 
-    post settings_payment_accounts_path, params: { payment_account: { tenant_id: @alfa.id, modality: "boleto", provider: "fake", nickname: "x" } }
+    post settings_payment_accounts_path, params: { payment_account: { tenant_id: @alfa.id, account_code: "0001-2", modality: "boleto", provider: "fake", nickname: "x" } }
     assert_redirected_to root_path
     assert_equal 0, PaymentAccount.count
 
@@ -75,8 +75,6 @@ class DemoModeTest < ActionDispatch::IntegrationTest
   # Decisão do Paulo (15/11/2026, "demo entra"): a vitrine mostra os fornecedores reais e os campos de cada um; salvar continua fechado.
   test "na demonstração, os meios e a integração nova abrem com os fornecedores reais, e salvar a integração é recusado (16, revisão 1)" do
     entrar(users(:joana))
-    get settings_channels_path, headers: TRECHO
-    assert_response :success
     get settings_payment_methods_path, headers: TRECHO
     assert_response :success
     get new_settings_payment_account_path(credor: @alfa.id, meio: "pix", ambiente: "producao", fornecedor: "efi"), headers: TRECHO
@@ -84,9 +82,8 @@ class DemoModeTest < ActionDispatch::IntegrationTest
     assert_select "input[type=radio][value=bradesco]"
     assert_select "input[type=radio][value=pagbank]"
     assert_select "input[type=password][name='payment_account[secrets][client_secret]']"
-    channel = make_channel(@alfa)
     assert_no_difference -> { PaymentAccount.count } do
-      post settings_payment_accounts_path, params: { payment_account: { tenant_id: @alfa.id, channel_id: channel.id, modality: "boleto", provider: "fake", environment: "sandbox", nickname: "Na vitrine",
+      post settings_payment_accounts_path, params: { payment_account: { tenant_id: @alfa.id, account_code: "0001-2", modality: "boleto", provider: "fake", environment: "sandbox", nickname: "Na vitrine",
                                                                         config: { connection_result: "ok" }, secrets: { api_key: "x" } } }, headers: TRECHO
     end
     assert_equal Demo::Restrictions::MESSAGE, evento_da_spa["aviso"]
@@ -132,12 +129,11 @@ class DemoModeTest < ActionDispatch::IntegrationTest
   end
 
   test "os arquivos fictícios de pagamentos e estornos saem dos títulos e pagamentos do credor" do
-    channel = make_channel(@alfa)
     bill = make_bill(@alfa, number: "NF-77", amount_cents: 50_000)
     path = Demo::Files.for("payments", @alfa)
     rows = File.readlines(path, chomp: true)
-    assert_equal "metodo_recebimento;identificador;documento;titulo;data_pagamento;valor;meio", rows.first
-    assert(rows.any? { |row| row.include?(";NF-77;") && row.start_with?(channel.code) })
+    assert_equal "fornecedor;conta;identificador;documento;titulo;data_pagamento;valor;meio", rows.first
+    assert(rows.any? { |row| row.include?(";NF-77;") && row.start_with?("Banco Exemplo;0001-12345-6;") })
     assert(rows.any? { |row| row.include?("NF-9999/1") }, "uma linha de título que não existe")
     File.delete(path)
     assert_equal 1, File.readlines(Demo::Files.reversals(@alfa).tap { |p| @reversal_path = p }).size
@@ -146,7 +142,6 @@ class DemoModeTest < ActionDispatch::IntegrationTest
   end
 
   test "com mais de um sistema, os arquivos fictícios trazem os ids e a coluna sistema, e passam na conferência (17)" do
-    make_channel(@alfa)
     make_bill(@alfa, number: "NF-77", amount_cents: 50_000)
     joana = users(:joana)
     erp = SourceSystems::Manager.new(joana).create(tenant: @alfa, name: "ERP Acadêmico", key_kind: "own_id")
@@ -167,7 +162,7 @@ class DemoModeTest < ActionDispatch::IntegrationTest
     # Os pagamentos: cada linha diz o sistema do título, e a do sistema de id próprio leva o id.
     path = Demo::Files.for("payments", @alfa)
     rows = File.readlines(path, chomp: true)
-    assert_equal "metodo_recebimento;identificador;documento;titulo;data_pagamento;valor;meio;sistema;id_titulo", rows.first
+    assert_equal "fornecedor;conta;identificador;documento;titulo;data_pagamento;valor;meio;sistema;id_titulo", rows.first
     assert(rows.any? { |row| row.include?(";NF-77;") && row.end_with?(";Planilha;") })
     assert(rows.any? { |row| row.match?(/;ERP Acadêmico;LAN-\d+-\d\z/) })
     import = service.start(tenant: @alfa, user: joana, file: path, mode: :incremental, kind: "payments")

@@ -1,11 +1,10 @@
-# Conta de pagamento do credor (12, R260): o vínculo com um fornecedor de boleto, Pix ou cartão, por modalidade e ambiente, ligado a um canal
-# de recebimento. Os campos vêm do manifesto do fornecedor. Os comuns ficam em `config`; os secretos e os arquivos (certificado .p12), em
+# Conta de pagamento do credor (12, R260): o vínculo com um fornecedor de boleto, Pix ou cartão, por modalidade e ambiente (desde a revisão 9
+# da 12, sem método de recebimento). Os campos vêm do manifesto do fornecedor. Os comuns ficam em `config`; os secretos e os arquivos (certificado .p12), em
 # `secrets`, cifrado pelo Active Record Encryption (R262) e nunca devolvido (R261). De cada certificado só se guarda titular, validade e
 # impressão digital, em `file_details`.
 class PaymentAccount < ApplicationRecord
   include TenantScoped
 
-  belongs_to :channel, class_name: "PaymentChannel", inverse_of: :payment_accounts
   has_many :instruments, class_name: "PaymentInstrument", foreign_key: :account_id, inverse_of: :account, dependent: :restrict_with_error
   has_many :events, class_name: "PaymentEvent", foreign_key: :account_id, inverse_of: :account, dependent: :destroy
   # Troca de fornecedor (16, revisão 1, R373c): a integração nova aponta a que ela substitui; com conexão por autorização, fica desativada até a conexão voltar.
@@ -18,11 +17,12 @@ class PaymentAccount < ApplicationRecord
   attribute :secrets, :json, default: -> { {} }
   encrypts :secrets
 
-  normalizes :nickname, with: ->(value) { value.to_s.strip }
+  normalizes :nickname, :account_code, with: ->(value) { value.to_s.strip }
 
   validates :nickname, presence: true, length: { maximum: 100 }, uniqueness: { scope: :tenant_id }
+  # A conta no fornecedor (16, revisão 2; 12, R260): o pagamento dos instrumentos desta integração leva fornecedor e conta (03, R48).
+  validates :account_code, presence: true, length: { maximum: 100 }
   validate :provider_supports_modality
-  validate :channel_of_same_tenant
   validate :only_one_active
   validate :fields_valid
   validate :pending_files_valid
@@ -134,10 +134,6 @@ class PaymentAccount < ApplicationRecord
       same = replaces.tenant_id == tenant_id && replaces.modality == modality && replaces.environment == environment
       # A anterior já saiu de uso neste mesmo ato (troca com credenciais) ou ainda está ativa (troca à espera da conexão).
       errors.add(:base, I18n.t("payments.methods.replace.not_active")) unless same && (replaces.active? || replaces.active_previously_changed?(from: true, to: false))
-    end
-
-    def channel_of_same_tenant
-      errors.add(:channel, :other_tenant) if channel && tenant_id != channel.tenant_id
     end
 
     def only_one_active

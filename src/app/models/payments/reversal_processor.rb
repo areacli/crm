@@ -59,7 +59,7 @@ module Payments
             effects.defer_wait(row, amount, route.reason) if commit
             payment[:reversed] += amount
             touched_payments[payment_id] = true
-            reversals << { tenant_id: tenant_id, channel_id: row["channel_id"].to_i, payment_id: payment_id, import_id: import.id, identifier: row["identifier"],
+            reversals << { tenant_id: tenant_id, payment_method: row["payment_method"], provider: row["provider"], account_key: row["account_key"], payment_id: payment_id, import_id: import.id, identifier: row["identifier"],
                            reversed_on: row["reversed_on"], amount_cents: amount, from_credit_cents: 0, from_bill_cents: 0, reason: "à espera do gestor" }
             next
           elsif route.kind == :settlement
@@ -68,7 +68,7 @@ module Payments
             summary[:from_bill_cents] += amount
             payment[:reversed] += amount
             touched_payments[payment_id] = true
-            reversals << { tenant_id: tenant_id, channel_id: row["channel_id"].to_i, payment_id: payment_id, import_id: import.id, identifier: row["identifier"],
+            reversals << { tenant_id: tenant_id, payment_method: row["payment_method"], provider: row["provider"], account_key: row["account_key"], payment_id: payment_id, import_id: import.id, identifier: row["identifier"],
                            reversed_on: row["reversed_on"], amount_cents: amount, from_credit_cents: 0, from_bill_cents: amount, reason: row["reason"] }
             next
           elsif route.kind == :renegotiated_original
@@ -79,7 +79,7 @@ module Payments
             summary[:from_bill_cents] += amount
             payment[:reversed] += amount
             touched_payments[payment_id] = true
-            reversals << { tenant_id: tenant_id, channel_id: row["channel_id"].to_i, payment_id: payment_id, import_id: import.id, identifier: row["identifier"],
+            reversals << { tenant_id: tenant_id, payment_method: row["payment_method"], provider: row["provider"], account_key: row["account_key"], payment_id: payment_id, import_id: import.id, identifier: row["identifier"],
                            reversed_on: row["reversed_on"], amount_cents: amount, from_credit_cents: 0, from_bill_cents: amount, reason: row["reason"] }
             next
           end
@@ -164,7 +164,7 @@ module Payments
           payment[:reversed] += amount
           payment[:status] = "cancelled" if row["bill_id"].nil? && row["promise_id"].nil? && row["agreement_id"].nil? && payment[:reversed] >= row["payment_amount"].to_i
           touched_payments[payment_id] = true
-          reversals << { tenant_id: tenant_id, channel_id: row["channel_id"].to_i, payment_id: payment_id, import_id: import.id, identifier: row["identifier"],
+          reversals << { tenant_id: tenant_id, payment_method: row["payment_method"], provider: row["provider"], account_key: row["account_key"], payment_id: payment_id, import_id: import.id, identifier: row["identifier"],
                          reversed_on: row["reversed_on"], amount_cents: amount, from_credit_cents: from_credit, from_bill_cents: from_bill, reason: row["reason"] }
         end
 
@@ -330,13 +330,12 @@ module Payments
         tenant = import.tenant
         payment_ids = reversals.map { |row| row[:payment_id] } + credits.map { |row| row[:payment_id] } + allocations.map { |row| row[:payment_id] } +
                       abatement_rows.map(&:first) + payments.keys
-        payment_of = known(Payment.where(id: payment_ids.uniq).preload(:channel), tenant)
+        payment_of = known(Payment.where(id: payment_ids.uniq), tenant)
         bill_of = known(Bill.where(id: (allocations.map { |row| row[:bill_id] } + abatement_rows.map { |row| row[1] } + bills.keys + changes.map { |row| row[:subject_id] }).uniq).preload(:contract, :customer), tenant)
-        channel_of = PaymentChannel.where(id: reversals.map { |row| row[:channel_id] }.uniq).index_by(&:id)
         contract_of = Contract.where(id: credits.map { |row| row[:contract_id] }.uniq).index_by(&:id)
 
         reversals.each do |row|
-          PaymentReversal.create!(tenant: tenant, channel: channel_of.fetch(row[:channel_id]), payment: payment_of.fetch(row[:payment_id]), import: import, identifier: row[:identifier],
+          PaymentReversal.create!(tenant: tenant, payment_method: row[:payment_method], provider: row[:provider], account_key: row[:account_key], payment: payment_of.fetch(row[:payment_id]), import: import, identifier: row[:identifier],
                                   reversed_on: row[:reversed_on], amount_cents: row[:amount_cents], from_credit_cents: row[:from_credit_cents], from_bill_cents: row[:from_bill_cents],
                                   reason: row[:reason])
         end

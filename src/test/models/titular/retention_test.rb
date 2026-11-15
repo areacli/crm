@@ -56,7 +56,7 @@ class RetentionTest < ActiveSupport::TestCase
     customer = make_full_customer(@alfa, ended_on: years_ago(8))
     assert_includes due_ids, customer.id
 
-    PaymentReversal.create!(tenant: @alfa, channel: customer.payment.channel, payment: customer.payment, identifier: "E1", reversed_on: Date.current - 10, amount_cents: 1)
+    PaymentReversal.create!(tenant: @alfa, payment: customer.payment, identifier: "E1", reversed_on: Date.current - 10, amount_cents: 1)
     assert_not_includes due_ids, customer.id, "estorno recente recomeça o prazo"
 
     semfato = Customer.create!(tenant: @alfa, document: PaymentsHelper::JOAO, name: "Sem fato")
@@ -175,7 +175,7 @@ class RetentionTest < ActiveSupport::TestCase
 
   test "pagamento pendente com o documento do cliente mantém a relação em aberto" do
     customer = make_full_customer(@alfa, ended_on: years_ago(6))
-    Payment.create!(tenant: @alfa, channel: customer.payment.channel, identifier: "P", document: customer.document, bill_number: "X", paid_on: Date.current, amount_cents: 10,
+    Payment.create!(provider: "itau", provider_name: "Itaú", account_key: "0341123456", account_code: "0341-12345-6", tenant: @alfa, identifier: "P", document: customer.document, bill_number: "X", paid_on: Date.current, amount_cents: 10,
                     payment_method: "pix", status: "pending")
 
     assert_not_includes due_ids, customer.id

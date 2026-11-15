@@ -19,7 +19,6 @@ module DiscrepanciesHelper
 
   # Título de Maria com um pagamento aplicado (o canal é criado se faltar); devolve o título recarregado.
   def paid_bill(tenant: tenants(:alfa), number: "NF-1024/3", amount_cents: 100_000, paid_cents: 40_000, **options)
-    make_channel(tenant) unless PaymentChannel.exists?(tenant: tenant, code: PaymentsHelper::CHANNEL_CODE)
     bill = make_bill(tenant, number: number, amount_cents: amount_cents, **options)
     pay_bill(bill, paid_cents) if paid_cents.positive?
     bill.reload

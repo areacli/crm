@@ -189,7 +189,6 @@ class Agreements::PaymentFlowTest < ActiveSupport::TestCase
 
   test "V10: o pagamento com o número de acordo de outro credor não toca o acordo" do
     beta = tenants(:beta)
-    make_channel(beta)
     make_bill(beta, number: "NB-1", document: PaymentsHelper::JOAO, contract_code: "CB-1", name: "João")
     travel_day(Date.new(2026, 11, 4))
     run_payments_import([ pay_line("ACD-000001-00", Date.new(2026, 11, 4), 34_366, documento: PaymentsHelper::JOAO) ], tenant: beta, confirm: true)

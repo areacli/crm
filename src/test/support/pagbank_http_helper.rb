@@ -30,10 +30,9 @@ module PagbankHttpHelper
 
   # Integração PagBank criada como o gestor a cria (chave da URL gerada) e, se `connected`, já conectada, com o token valendo por uma hora.
   def make_pagbank_account(tenant, modality: "pix", environment: "sandbox", connected: true, config: {}, expires_at: 1.hour.from_now)
-    channel = tenant.payment_channels.first || make_channel(tenant)
     base = { "boleto" => { "fine_percent" => 2, "interest_percent" => 1, "write_off_days" => 30, "message" => "Não receber depois de 30 dias do vencimento." },
              "card" => { "max_installments" => 6, "interest_free_installments" => 3, "soft_descriptor" => "Escola Alfa" } }.fetch(modality, {})
-    account = Payments::AccountManager.new(users(:joana)).create(tenant: tenant, channel: channel, modality: modality, provider: "pagbank", environment: environment,
+    account = Payments::AccountManager.new(users(:joana)).create(tenant: tenant, account_code: "0001-99999-0", modality: modality, provider: "pagbank", environment: environment,
                                                                  nickname: "PagBank #{modality} #{SecureRandom.hex(2)}", values: { config: base.merge(config) })
     return account unless connected
 

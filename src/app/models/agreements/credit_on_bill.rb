@@ -24,8 +24,8 @@ module Agreements
         raise Refused, I18n.t("agreements.credit_use.above_due", due: Money.format(due_cents(bill, today))) if cents > due_cents(bill, today)
 
         agreement = bill.agreement || bill.origin_agreement
-        payment = Payment.create!(tenant_id: bill.tenant_id, channel: CreditUse.channel_for(bill.tenant), identifier: "CRED-USO-#{SecureRandom.hex(5)}", document: bill.customer.document,
-                                  bill_number: bill.number, bill: bill, paid_on: today, amount_cents: cents, payment_method: "other", status: "applied")
+        payment = Payment.create!(tenant_id: bill.tenant_id, **CreditUse::PAYMENT, identifier: "CRED-USO-#{SecureRandom.hex(5)}", document: bill.customer.document,
+                                  bill_number: bill.number, bill: bill, paid_on: today, amount_cents: cents, status: "applied")
         outcome = TitleSettler.pay!(payment, bill, cents, today, tolerance: agreement&.tolerance_spec)
         raise Refused, I18n.t("agreements.credit_use.above_due", due: Money.format(due_cents(bill, today))) if outcome.applied.zero?
 
@@ -42,8 +42,7 @@ module Agreements
     def undo!(entry, cents, _reversed_on)
       bill = Bill.find(entry.bill_id)
       left = cents
-      channel = PaymentChannel.find_by(tenant_id: bill.tenant_id, code: CreditUse::CHANNEL_CODE)
-      Payment.where(bill_id: bill.id, channel_id: channel&.id).order(id: :desc).each do |payment|
+      Payment.where(bill_id: bill.id, payment_method: CreditUse::METHOD).order(id: :desc).each do |payment|
         break unless left.positive?
 
         left -= AllocationUndo.call(payment, bill.reload, cents: left).cash

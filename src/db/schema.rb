@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_15_100000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_15_200000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -966,7 +966,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_15_100000) do
 
   create_table "payment_accounts", force: :cascade do |t|
     t.bigint "tenant_id", null: false
-    t.bigint "channel_id", null: false
     t.string "modality", limit: 10, null: false
     t.string "provider", limit: 30, null: false
     t.string "environment", limit: 12, null: false
@@ -987,7 +986,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_15_100000) do
     t.datetime "webhook_registered_at"
     t.string "webhook_registered_url", limit: 300
     t.bigint "replaces_id"
-    t.index ["channel_id"], name: "index_payment_accounts_on_channel_id"
+    t.string "account_code", limit: 100, null: false
     t.index ["replaces_id"], name: "index_payment_accounts_on_replaces_id", unique: true, where: "(replaces_id IS NOT NULL)"
     t.index ["tenant_id", "modality", "environment"], name: "index_payment_accounts_active_unique", unique: true, where: "active"
     t.index ["tenant_id", "nickname"], name: "index_payment_accounts_on_tenant_id_and_nickname", unique: true
@@ -1005,19 +1004,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_15_100000) do
     t.index ["bill_id"], name: "index_payment_allocations_on_bill_id"
     t.index ["payment_id"], name: "index_payment_allocations_on_payment_id"
     t.check_constraint "component::text = ANY (ARRAY['interest'::character varying::text, 'fine'::character varying::text, 'fees'::character varying::text, 'correction'::character varying::text, 'principal'::character varying::text, 'late'::character varying::text, 'installment_interest'::character varying::text, 'inherited_installment_interest'::character varying::text, 'inherited_late'::character varying::text])", name: "payment_allocations_component"
-  end
-
-  create_table "payment_channels", force: :cascade do |t|
-    t.bigint "tenant_id", null: false
-    t.string "kind", limit: 20, null: false
-    t.string "code", limit: 100, null: false
-    t.string "description", limit: 200, null: false
-    t.boolean "active", default: true, null: false
-    t.string "webhook_adapter", limit: 30, default: "signed_json", null: false
-    t.text "webhook_secret"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["tenant_id", "code"], name: "index_payment_channels_on_tenant_id_and_code", unique: true
   end
 
   create_table "payment_checkouts", force: :cascade do |t|
@@ -1205,7 +1191,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_15_100000) do
 
   create_table "payment_reversals", force: :cascade do |t|
     t.bigint "tenant_id", null: false
-    t.bigint "channel_id", null: false
     t.bigint "payment_id", null: false
     t.bigint "import_id"
     t.string "identifier", limit: 200, null: false
@@ -1216,8 +1201,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_15_100000) do
     t.string "reason", limit: 300
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "payment_method", limit: 20, null: false
+    t.string "provider", limit: 100, null: false
+    t.string "account_key", limit: 100, null: false
     t.index ["payment_id"], name: "index_payment_reversals_on_payment_id"
-    t.index ["tenant_id", "channel_id", "identifier"], name: "idx_on_tenant_id_channel_id_identifier_a11ff2a5cd", unique: true
+    t.index ["tenant_id", "provider", "account_key", "identifier"], name: "idx_on_tenant_id_provider_account_key_identifier_329e626e8e", unique: true
     t.index ["tenant_id", "reversed_on"], name: "index_payment_reversals_on_tenant_id_and_reversed_on"
     t.check_constraint "amount_cents > 0 AND from_credit_cents >= 0 AND from_bill_cents >= 0", name: "payment_reversals_amounts"
   end
@@ -1225,7 +1213,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_15_100000) do
   create_table "payment_rows", id: false, force: :cascade do |t|
     t.bigint "import_id", null: false
     t.integer "line", null: false
-    t.string "channel_code", limit: 100, null: false
+    t.string "provider", limit: 100, null: false
     t.string "identifier", limit: 200, null: false
     t.string "document", limit: 14
     t.string "bill_number", limit: 100
@@ -1243,14 +1231,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_15_100000) do
     t.string "external_bill_id", limit: 100
     t.bigint "target_bill_id"
     t.bigint "repoint_payment_id"
-    t.index ["import_id", "channel_code", "identifier"], name: "idx_on_import_id_channel_code_identifier_ab3d619076"
+    t.string "provider_name", limit: 100
+    t.string "account_key", limit: 100, null: false
+    t.string "account_code", limit: 100
     t.index ["import_id", "line"], name: "index_payment_rows_on_import_id_and_line", unique: true
     t.index ["import_id", "ok", "paid_on", "rank", "line"], name: "index_payment_rows_on_stream_order"
+    t.index ["import_id", "provider", "account_key", "identifier"], name: "idx_on_import_id_provider_account_key_identifier_519aecfb98"
   end
 
   create_table "payments", force: :cascade do |t|
     t.bigint "tenant_id", null: false
-    t.bigint "channel_id", null: false
     t.bigint "import_id"
     t.string "identifier", limit: 200, null: false
     t.string "document", limit: 14, null: false
@@ -1274,10 +1264,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_15_100000) do
     t.bigint "possession_operation_ids", default: [], null: false, array: true
     t.bigint "source_system_id", null: false
     t.string "external_bill_id", limit: 100
+    t.string "provider", limit: 100, null: false
+    t.string "provider_name", limit: 100, null: false
+    t.string "account_key", limit: 100, null: false
+    t.string "account_code", limit: 100, null: false
     t.index ["agreement_id"], name: "index_payments_on_agreement_id", where: "(agreement_id IS NOT NULL)"
     t.index ["bill_id"], name: "index_payments_on_bill_id"
-    t.index ["tenant_id", "channel_id", "identifier"], name: "index_payments_on_tenant_id_and_channel_id_and_identifier", unique: true
     t.index ["tenant_id", "paid_on"], name: "index_payments_on_tenant_id_and_paid_on"
+    t.index ["tenant_id", "provider", "account_key", "identifier"], name: "idx_on_tenant_id_provider_account_key_identifier_b722a64cab", unique: true
     t.index ["tenant_id"], name: "index_payments_pending_by_tenant", where: "((status)::text = 'pending'::text)"
     t.check_constraint "amount_cents > 0", name: "payments_amount_positive"
     t.check_constraint "applied_cents >= 0 AND credit_cents >= 0 AND reversed_cents >= 0 AND credit_reversed_cents >= 0", name: "payments_parts_not_negative"
@@ -1640,18 +1634,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_15_100000) do
     t.index ["tenant_id", "status", "id"], name: "index_value_discrepancies_on_tenant_id_and_status_and_id"
   end
 
-  create_table "webhook_events", force: :cascade do |t|
-    t.bigint "tenant_id", null: false
-    t.bigint "channel_id", null: false
-    t.string "event_id", limit: 200, null: false
-    t.string "status", limit: 20, default: "received", null: false
-    t.jsonb "payload", default: {}, null: false
-    t.string "outcome", limit: 300
-    t.datetime "received_at", default: -> { "CURRENT_TIMESTAMP" }, null: false
-    t.datetime "processed_at"
-    t.index ["channel_id", "event_id"], name: "index_webhook_events_on_channel_id_and_event_id", unique: true
-  end
-
   create_table "work_queues", force: :cascade do |t|
     t.bigint "tenant_id", null: false
     t.string "subject", limit: 10, null: false
@@ -1827,11 +1809,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_15_100000) do
   add_foreign_key "operation_trail_events", "tenants"
   add_foreign_key "operation_trail_events", "users"
   add_foreign_key "payment_accounts", "payment_accounts", column: "replaces_id", on_delete: :nullify
-  add_foreign_key "payment_accounts", "payment_channels", column: "channel_id"
   add_foreign_key "payment_accounts", "tenants"
   add_foreign_key "payment_allocations", "bills", on_delete: :restrict
   add_foreign_key "payment_allocations", "payments", on_delete: :restrict
-  add_foreign_key "payment_channels", "tenants"
   add_foreign_key "payment_checkouts", "bills"
   add_foreign_key "payment_checkouts", "customers"
   add_foreign_key "payment_checkouts", "payment_promises", column: "promise_id"
@@ -1863,13 +1843,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_15_100000) do
   add_foreign_key "payment_promises", "users", column: "decided_by_id", on_delete: :nullify
   add_foreign_key "payment_promises", "users", on_delete: :nullify
   add_foreign_key "payment_reversals", "imports", on_delete: :nullify
-  add_foreign_key "payment_reversals", "payment_channels", column: "channel_id", on_delete: :restrict
   add_foreign_key "payment_reversals", "payments", on_delete: :restrict
   add_foreign_key "payment_reversals", "tenants"
   add_foreign_key "payments", "agreements", on_delete: :restrict
   add_foreign_key "payments", "bills", on_delete: :restrict
   add_foreign_key "payments", "imports", on_delete: :nullify
-  add_foreign_key "payments", "payment_channels", column: "channel_id", on_delete: :restrict
   add_foreign_key "payments", "payment_promises", column: "promise_id", on_delete: :restrict
   add_foreign_key "payments", "source_systems", on_delete: :restrict
   add_foreign_key "payments", "tenants"
@@ -1909,8 +1887,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_15_100000) do
   add_foreign_key "value_discrepancies", "imports", on_delete: :nullify
   add_foreign_key "value_discrepancies", "tenants"
   add_foreign_key "value_discrepancies", "users", column: "handled_by_id", on_delete: :nullify
-  add_foreign_key "webhook_events", "payment_channels", column: "channel_id", on_delete: :restrict
-  add_foreign_key "webhook_events", "tenants"
   add_foreign_key "work_queues", "segments"
   add_foreign_key "work_queues", "tenants"
 end

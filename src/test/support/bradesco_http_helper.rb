@@ -27,8 +27,7 @@ module BradescoHttpHelper
 
   # Integração Bradesco pronta. Pix: credenciais e .p12; boleto: beneficiário e contrato do exemplo do manual (agência 2856, conta 0222652, carteira 09).
   def make_bradesco_account(tenant, modality: "pix", environment: "sandbox", nickname: nil, config: {})
-    channel = tenant.payment_channels.first || make_channel(tenant)
-    account = tenant.payment_accounts.build(channel: channel, modality: modality, provider: "bradesco", environment: environment,
+    account = tenant.payment_accounts.build(account_code: "0001-99999-0", modality: modality, provider: "bradesco", environment: environment,
                                             nickname: nickname || "Bradesco #{modality} #{SecureRandom.hex(2)}")
     files = {}
     secrets = {}

@@ -89,7 +89,7 @@ module Agreements
       # O recuperado do estorno decidido entra no mês da decisão (R64, AL1).
       def record_reversal(wait, today)
         payment = wait.payment
-        PaymentReversal.create!(tenant_id: wait.tenant_id, channel_id: payment.channel_id, payment: payment, identifier: "DEC-#{wait.id}", reversed_on: today, amount_cents: wait.amount_cents,
+        PaymentReversal.create!(tenant_id: wait.tenant_id, payment: payment, identifier: "DEC-#{wait.id}", reversed_on: today, amount_cents: wait.amount_cents,
                                 from_bill_cents: wait.amount_cents, reason: "decisão do gestor sobre estorno à espera")
       end
 

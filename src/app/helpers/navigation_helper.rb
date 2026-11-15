@@ -4,8 +4,7 @@ module NavigationHelper
   SETTINGS_TABS = [
     [ "Dados do credor", :settings_tenant_registry_path, "change_settings" ],
     [ "Carteira", :settings_portfolio_path, "change_settings" ],
-    [ "Métodos de recebimento", :settings_channels_path, %w[change_settings change_financial_policies] ],
-    # 16, revisão 1 (R373d): as integrações por meio, só com a 14.
+    # 16, revisões 1 e 2 (R373d): as integrações por meio, só com a 14; "Métodos de recebimento" saiu.
     [ "Meios de pagamento", :settings_payment_methods_path, "change_financial_policies" ],
     [ "Políticas de pagamento", :settings_payment_policy_path, "change_financial_policies" ],
     [ "Segmentos", :settings_segments_path, %w[change_settings change_financial_policies] ],

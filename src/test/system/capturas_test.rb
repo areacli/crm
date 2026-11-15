@@ -27,11 +27,7 @@ class CapturasTest < ApplicationSystemTestCase
                      amount_cents: 15_000 + index * 4_700 + bill * 2_300)
       end
     end
-    # Incremento 3: canais, pagamentos aplicados (quitado, parcial, excedente em crédito e pendente) e uma conferência de pagamentos.
-    @channel = make_channel(@tenant, code: "341-1234-56789")
-    @channel.update!(description: "Conta bancária principal")
-    make_channel(@tenant, code: "1029384756").update!(kind: :card, description: "Adquirente de cartão, loja virtual")
-    @channel.regenerate_webhook_secret!
+    # Incremento 3: pagamentos aplicados (quitado, parcial, excedente em crédito e pendente) e uma conferência de pagamentos.
     @paid_customer = Customer.order(:id).first
     @paid_customer.bills.order(:id).each_with_index do |bill, index|
       lines = [ payment_line("identificador" => "PIX-#{index}", "documento" => @paid_customer.document, "titulo" => bill.number,
@@ -44,7 +40,7 @@ class CapturasTest < ApplicationSystemTestCase
                                       summary: { lines: 310, valid: 298, rejected: 3, ignored: 9, amount_formatted: "98.400,00",
                                                  effect: { settled: 270, partial: 12, credits: 9, credit_cents: 310_000, pending_new: 6, pending_cents: 180_000,
                                                            applied_cents: 9_530_000 } })
-    @payments_import.rejections.create!(line: 12, reason: "método de recebimento não cadastrado ou desativado")
+    @payments_import.rejections.create!(line: 12, reason: "fornecedor obrigatório")
     @payments_import.rejections.create!(line: 31, reason: "título não informado")
     @payments_import.rejections.create!(line: 45, reason: "pagamento já registrado, ignorado", ignored: true)
     # Incremento 4: acionamentos de três operadores nos últimos dias, em dois clientes.
@@ -216,7 +212,7 @@ class CapturasTest < ApplicationSystemTestCase
     pix.assign_values(secrets: { "certificate_password" => "senha-da-captura" }, files: { "certificate" => p12_upload(subject: "CN=Escola Alfa Educação Ltda,O=Escola Alfa", days: 200, password: "senha-da-captura") })
     pix.save!
     make_account(@tenant, modality: "boleto", nickname: "Boleto principal", environment: "production")
-    efi_card = @tenant.payment_accounts.build(channel: @channel, modality: "card", provider: "efi", environment: "sandbox", nickname: "Cartão Efí (homologação)")
+    efi_card = @tenant.payment_accounts.build(account_code: "0001-99999-0", modality: "card", provider: "efi", environment: "sandbox", nickname: "Cartão Efí (homologação)")
     efi_card.assign_values(config: { "payee_code" => "a1b2c3d4", "max_installments" => "6" }, secrets: { "client_id" => "Client_Id_da_captura", "client_secret" => "Client_Secret_da_captura" })
     efi_card.save!
     manager = Payments::AccountManager.new(users(:joana))
@@ -269,8 +265,6 @@ class CapturasTest < ApplicationSystemTestCase
     "importar-pagamentos" => -> { new_import_path(tipo: "pagamentos") },
     # Só uma importação por credor pode esperar confirmação: a da carteira já foi fotografada, então sai de cena.
     "conferencia-de-pagamentos" => -> { Import.where(kind: "portfolio").update_all(status: "discarded"); @payments_import.update!(status: :checked); import_path(@payments_import) },
-    "canais-de-recebimento" => -> { settings_channels_path },
-    "canal-de-recebimento" => -> { edit_settings_channel_path(@channel) },
     "politicas-de-pagamento" => -> { settings_payment_policy_path },
     "ficha-com-pagos-e-credito" => -> { customer_path(@paid_customer, aba: "pagamentos") },
     # Incremento 4: acionamentos.

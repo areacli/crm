@@ -9,7 +9,7 @@ module Settings
       @tenant = params[:credor].present? ? @tenants.find_by(id: params[:credor]) : @tenants.first
       return head :not_found unless @tenant
 
-      @accounts = policy_scope(PaymentAccount).where(tenant_id: @tenant.id).includes(:channel).order(:created_at).to_a
+      @accounts = policy_scope(PaymentAccount).where(tenant_id: @tenant.id).order(:created_at).to_a
       # Os meios que algum fornecedor instalado emite; um meio novo entra quando algum fornecedor o emitir (R373a).
       @modalities = Payments::Providers::MODALITIES.select { |modality| Payments::Providers.for_modality(modality).any? }
       retired = @accounts.reject(&:active?).map(&:id)

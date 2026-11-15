@@ -6,7 +6,6 @@ class Promises::PaymentFlowTest < ActiveSupport::TestCase
 
   setup do
     @alfa = tenants(:alfa)
-    make_channel(@alfa)
     travel_day(TODAY)
     @customer, @nf1, @nf2 = promise_scenario(@alfa)
     @promise = register_promise(@customer, [ @nf1, @nf2 ])
@@ -228,7 +227,6 @@ class Promises::PaymentFlowTest < ActiveSupport::TestCase
 
   test "V10 e MT-10: o mesmo número em dois credores é resolvido só no credor da importação" do
     beta = tenants(:beta)
-    make_channel(beta)
     travel_day(TODAY)
     customer_b, bill_b, = promise_scenario(beta, charges: false, document: PaymentsHelper::JOAO, contract_code: "CT-B", name: "João")
     promise_b = register_promise(customer_b, [ bill_b ], user: users(:ana))

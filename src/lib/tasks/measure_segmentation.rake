@@ -42,7 +42,6 @@ namespace :crm do
       extra = contracts.each_slice(3).filter_map { |a, b, _| b && { contract_id: b, customer_id: links.fetch(a), roles: [] } }
       MeasureData.insert(ContractCustomer, extra)
       results = ContactResult.where(tenant_id: t).pluck(:id, :kind)
-      channel = PaymentChannel.insert_all!([ { tenant_id: t, kind: "bank", code: "MED", description: "Medição", created_at: now, updated_at: now } ], returning: %w[id]).rows.flatten.first
 
       measure.call("massa: acionamentos, contatos, promessas, acordos e pagamentos") do
         attempts = contracts.each_with_index.flat_map do |id, i|
@@ -76,7 +75,7 @@ namespace :crm do
         MeasureData.insert(Payment, contracts.each_with_index.filter_map do |id, i|
           next unless i % 3 == 0
 
-          { tenant_id: t, channel_id: channel, identifier: "P#{i}", document: "0", bill_number: "x", bill_id: bills.fetch(id).last, paid_on: Date.current - (i % 120), amount_cents: 1000 + i % 9000,
+          { tenant_id: t, provider: "medicao", provider_name: "Medição", account_key: "med", account_code: "MED", identifier: "P#{i}", document: "0", bill_number: "x", bill_id: bills.fetch(id).last, paid_on: Date.current - (i % 120), amount_cents: 1000 + i % 9000,
             payment_method: %w[pix boleto transfer][i % 3], status: "applied", created_at: now, updated_at: now }
         end)
       end
@@ -162,7 +161,7 @@ namespace :crm do
     end
     MeasureData.clear(t, %w[payments payment_promises contact_attempts customer_contacts changes task_runs])
     AgreementBill.where(contract_id: contracts).delete_all
-    MeasureData.clear(t, %w[agreements payment_channels])
+    MeasureData.clear(t, %w[agreements])
     MeasureData.wipe_portfolio(t)
     Membership.where(tenant_id: t).delete_all
     tenant.destroy

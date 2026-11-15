@@ -1,7 +1,7 @@
 // V5 na demonstração (CRM_DEMO=1), contra o ambiente publicado e pelo caminho que o usuário usa, na casca da SPA em EasyUI (decisão 0028; fase 8 do port):
 // entra com o usuário público, abre cada tela numa aba, envia arquivo de quase 50 MB nas três importações (o arquivo é trocado por um fictício, então o que se
 // confere é que ele CHEGA: nginx, Thruster, Rails), recusa arquivo acima de 50 MB, registra um acionamento, aprova e recusa uma promessa pendente, aprova uma
-// proposta de acordo e abre o termo, cria um contato, exporta os dados de um cliente, muda e desfaz uma política, cria e exclui um método de recebimento,
+// proposta de acordo e abre o termo, cria um contato, exporta os dados de um cliente, muda e desfaz uma política,
 // confere o que a demonstração fecha, o link público de pagamento (sem login), o isolamento do operador e o da operação de cobrança.
 //
 //   deploy/rails/v5/v5.sh v5-demo.mjs http://127.0.0.1:3220            (ou BASE_URL=... V5_EMAIL=... V5_SENHA=... node v5-demo.mjs)
@@ -136,7 +136,7 @@ const telas = [
     ['/importacoes/nova?tipo=pagamentos', 'Importar pagamentos'], ['/importacoes/nova?tipo=estornos', 'Importar estornos'], ['/divergencias-de-valor', 'Divergências de valor'],
     ['/acordos', 'Acordos'], ['/acordos/pendentes', 'Acordos pendentes'], ['/promessas/pendentes', 'Promessas pendentes'], ['/estornos-a-espera', 'Estornos à espera do gestor'],
     ['/arquivo-de-acordos', 'Arquivo de acordos'], ['/distribuicao', 'Distribuição'], ['/filas', 'Filas'], ['/operacoes', 'Operações credenciadas'], ['/guarda-de-dados', 'Guarda de dados'],
-    ['/configuracao/dados-do-credor', 'Dados do credor'], ['/configuracao/carteira', 'Carteira'], ['/configuracao/metodos-de-recebimento', 'Métodos de recebimento'], ['/configuracao/meios-de-pagamento', 'Meios de pagamento'],
+    ['/configuracao/dados-do-credor', 'Dados do credor'], ['/configuracao/carteira', 'Carteira'], ['/configuracao/meios-de-pagamento', 'Meios de pagamento'],
     ['/configuracao/politicas-de-pagamento', 'Políticas de pagamento'], ['/configuracao/segmentos', 'Segmentos'], ['/configuracao/enquadramento-financeiro', 'Enquadramento financeiro'],
     ['/configuracao/promessas-e-acordos', 'Promessas e acordos'], ['/configuracao/indices', 'Índices do Banco Central'], ['/configuracao/resultados-de-acionamento', 'Resultados de acionamento'],
     ['/sistemas', 'Sistemas'],
@@ -328,21 +328,6 @@ await passo('política de pagamento: mudar e desfazer', async () => {
     await aviso(/salvas|salvos|atualizad/i);
 });
 
-await passo('método de recebimento: criar e excluir', async () => {
-    await aba('/configuracao/metodos-de-recebimento', 'Métodos de recebimento');
-    await raiz().locator('.cabecalho-da-pagina a.botao', { hasText: 'Criar método de recebimento' }).click();
-    await dialogo().waitFor();
-    await escolher('Tipo', 'Conta bancária');
-    await dialogo().locator('input[name="payment_channel[code]"]').fill('V5-TESTE');
-    await dialogo().locator('input[name="payment_channel[description]"]').fill('Método da V5');
-    await gravarDialogo('Salvar');
-    await raiz().locator('.datagrid-row a', { hasText: 'V5-TESTE' }).first().click();
-    await raiz().locator('h1', { hasText: 'Método V5-TESTE' }).first().waitFor();
-    await confirmar('Excluir', 'Excluir método de recebimento');
-    await raiz().locator('h1', { hasText: 'Métodos de recebimento' }).first().waitFor();
-    if ((await raiz().locator('.datagrid-row', { hasText: 'V5-TESTE' }).count()) > 0) throw new Error('o método de recebimento continua na lista');
-});
-
 // O link de pagamento de exemplo: público (sem login), de outro contexto de navegador; segue página do servidor.
 await passo('link público de pagamento: boleto, Pix e cartão, sem login', async () => {
     const publico = await novaPagina();
@@ -433,7 +418,7 @@ await passo('o operador só enxerga a Escola Alfa (nunca a Clínica Beta) e não
     await entrar(outro, EMAIL.replace('gestor@', 'operador@'), 'demonstracao-operador');
     await raiz(outro).locator('h1', { hasText: 'Resumo da carteira' }).first().waitFor();
     if ((await outro.getByText('Clínica Beta').count()) > 0) throw new Error('o operador vê a Clínica Beta');
-    await falhaNaAba('/configuracao/metodos-de-recebimento', outro);
+    await falhaNaAba('/configuracao/meios-de-pagamento', outro);
     await aba('/clientes', 'Clientes', outro);
     await raiz(outro).locator('.datagrid-row').first().waitFor();
     if ((await outro.getByText('Clínica Beta').count()) > 0) throw new Error('o operador vê a Clínica Beta na lista');
@@ -444,7 +429,7 @@ await passo('a operação vê o nome dela no cabeçalho, só o que foi distribu�
     const op = await novaPagina();
     await entrar(op, EMAIL.replace('gestor@', 'operacao@'), 'demonstracao-operacao');
     await op.locator('#operacao-atual:not([hidden])', { hasText: 'Recupera' }).waitFor();
-    for (const rota of ['/distribuicao', '/operacoes', '/configuracao/metodos-de-recebimento']) await falhaNaAba(rota, op);
+    for (const rota of ['/distribuicao', '/operacoes', '/configuracao/meios-de-pagamento']) await falhaNaAba(rota, op);
     await aba('/clientes', 'Clientes', op);
     await raiz(op).locator('.datagrid-row').first().waitFor();
     const n = await total(op);

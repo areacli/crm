@@ -114,7 +114,6 @@ namespace :crm do
     tenant = Tenant.provision!("Medição de pagamentos #{Time.current.strftime('%H%M%S')}")
     user = User.create!(name: "Medição", email_address: "medicao#{tenant.id}@exemplo.com.br", password: SecureRandom.base58(24))
     Membership.create!(user: user, tenant: tenant, profile: tenant.profiles.find_by!(name: "Gestor"))
-    channel = PaymentChannel.create!(tenant: tenant, kind: :account, code: "341-1234-56789", description: "Conta de medição")
     ActiveJob::Base.queue_adapter = :test
 
     measure = lambda do |label, &work|
@@ -167,7 +166,7 @@ namespace :crm do
     methods = %w[pix boleto cartão\ de\ crédito transferência]
     payments_path = Rails.root.join("tmp", "pagamentos-#{tenant.id}.csv").to_s
     File.open(payments_path, "wb") do |file|
-      file.write "metodo_recebimento;identificador;documento;titulo;data_pagamento;valor;meio#{';sistema;id_titulo' if erp}\n"
+      file.write "fornecedor;conta;identificador;documento;titulo;data_pagamento;valor;meio#{';sistema;id_titulo' if erp}\n"
       count.times do |index|
         amount = 10_000 + ((index * 7919) % 200_000)
         # 60% quitam, 20% parciais, 10% a mais, 10% de título inexistente.
@@ -179,7 +178,7 @@ namespace :crm do
         end
         system = (index.odd? ? [ erp.name, number.sub("NF-", "LAN-") ] : [ SourceSystem::DEFAULT_NAME, "" ]) if erp
         number = "" if erp && index.odd?
-        file.write [ channel.code, "ID-#{index}", FakeData.cpf(index), number, (Date.current - 1).strftime("%d/%m/%Y"), Money.format(value), methods[index % 4], *system ].join(";") + "\n"
+        file.write [ "Banco de medição", "0001-1", "ID-#{index}", FakeData.cpf(index), number, (Date.current - 1).strftime("%d/%m/%Y"), Money.format(value), methods[index % 4], *system ].join(";") + "\n"
       end
     end
     service = Portfolio::ImportService.new
@@ -193,12 +192,12 @@ namespace :crm do
     # Estornos de pagamentos que quitaram (índice múltiplo de 10), 30% do valor de cada um.
     reversals_path = Rails.root.join("tmp", "estornos-#{tenant.id}.csv").to_s
     File.open(reversals_path, "wb") do |file|
-      file.write "metodo_recebimento;identificador_pagamento;identificador_estorno;data_estorno;valor;motivo#{';sistema' if erp}\n"
+      file.write "meio;fornecedor;conta;identificador_pagamento;identificador_estorno;data_estorno;valor;motivo#{';sistema' if erp}\n"
       reversal_count.times do |position|
         index = position * 10
         amount = 10_000 + ((index * 7919) % 200_000)
         # Os estornados são os de índice múltiplo de 10, do sistema padrão: a coluna `sistema` é a do pagamento estornado.
-        file.write [ channel.code, "ID-#{index}", "EST-#{index}", Date.current.strftime("%d/%m/%Y"), Money.format(amount * 3 / 10), "contestação", *(SourceSystem::DEFAULT_NAME if erp) ].join(";") + "\n"
+        file.write [ methods[index % 4], "Banco de medição", "0001-1", "ID-#{index}", "EST-#{index}", Date.current.strftime("%d/%m/%Y"), Money.format(amount * 3 / 10), "contestação", *(SourceSystem::DEFAULT_NAME if erp) ].join(";") + "\n"
       end
     end
     reversal = measure.call("envio do arquivo de #{reversal_count} estornos") { service.start(tenant: tenant, user: user, file: reversals_path, mode: :incremental, kind: "reversals") }
@@ -212,7 +211,6 @@ namespace :crm do
     [ payments_path, reversals_path ].each { |path| File.delete(path) if File.exist?(path) }
     [ PaymentAllocation.where(payment_id: Payment.where(tenant_id: tenant.id).select(:id)), *[ Abatement, Credit, PaymentReversal, Payment, Change ].map { |model| model.unscoped.where(tenant_id: tenant.id) } ].each(&:delete_all)
     MeasureData.wipe_portfolio(tenant.id)
-    PaymentChannel.where(tenant_id: tenant.id).delete_all
     tenant.contact_results.delete_all
     Membership.where(tenant_id: tenant.id).delete_all
     user.destroy
@@ -488,12 +486,11 @@ namespace :crm do
     today = Date.current
     MeasureData.portfolio(t, count, document: ->(i) { i.to_s.rjust(11, "0") },
                                          bill: ->(i, _n) { { number: "NF-#{i}", due_date: today - 2300, amount_cents: 10_000, paid_cents: 10_000, paid_on: today - 2200, status: "paid", description: "Mensalidade de Cliente #{i}" } })
-    channel = PaymentChannel.create!(tenant: tenant, kind: :account, code: "MEDICAO", description: "Canal de medição")
     people = Customer.where(tenant_id: t).order(:id).pluck(:id, :document, :name)
     bills = Bill.where(tenant_id: t).pluck(:customer_id, :id, :number).to_h { |customer, id, number| [ customer, [ id, number ] ] }
     MeasureData.insert(Payment, people.map do |id, document, _name|
       bill_id, number = bills.fetch(id)
-      { tenant_id: t, channel_id: channel.id, identifier: "P-#{bill_id}", document: document, bill_number: number, bill_id: bill_id, paid_on: today - 2200, amount_cents: 10_000,
+      { tenant_id: t, provider: "bancodemedicao", provider_name: "Banco de medição", account_key: "00011", account_code: "0001-1", identifier: "P-#{bill_id}", document: document, bill_number: number, bill_id: bill_id, paid_on: today - 2200, amount_cents: 10_000,
         payment_method: "pix", status: "applied", applied_cents: 10_000 }
     end)
     MeasureData.insert(CustomerContact, people.flat_map do |id, _document, _name|
@@ -526,7 +523,6 @@ namespace :crm do
 
     MeasureData.clear(t, %w[bill_value_versions changes customer_contacts contact_attempts payments task_runs])
     MeasureData.wipe_portfolio(t)
-    PaymentChannel.where(tenant_id: t).delete_all
     tenant.contact_results.delete_all
     Membership.where(tenant_id: t).delete_all
     user.destroy
@@ -613,19 +609,18 @@ namespace :crm do
     end
 
     # Baixa por componente (R226): P pagamentos, 60% quitam o valor atualizado, 25% parciais, 15% de valor original.
-    channel = PaymentChannel.create!(tenant: tenant, kind: :account, code: "341-1234-56789", description: "Conta de medição")
     path = Rails.root.join("tmp", "pagamentos-encargos-#{t}.csv").to_s
     valuations = BillValuation.where(tenant_id: t).order(:bill_id).limit(payments).pluck(:bill_id, :total_cents, :principal_cents)
     numbers = Bill.where(id: valuations.map(&:first)).pluck(:id, :number, :customer_id).to_h { |id, number, customer| [ id, [ number, customer ] ] }
     documents = Customer.where(id: numbers.values.map(&:last)).pluck(:id, :document).to_h
     File.open(path, "wb") do |file|
-      file.write "metodo_recebimento;identificador;documento;titulo;data_pagamento;valor;meio;estado_final\n"
+      file.write "fornecedor;conta;identificador;documento;titulo;data_pagamento;valor;meio;estado_final\n"
       valuations.each_with_index do |(bill_id, total, principal), index|
         value = case index % 20 when 0..11 then total when 12..16 then total / 2 else principal end
         number, customer = numbers.fetch(bill_id)
         # 11, R226: 5% das linhas (um terço das de valor original) trazem o estado final "quitado", e a diferença vira abatimento do credor.
         final_state = index % 20 == 17 ? "quitado" : ""
-        file.write [ channel.code, "ID-#{index}", documents.fetch(customer), number, (Date.current - 1).strftime("%d/%m/%Y"), Money.format(value), "pix", final_state ].join(";") + "\n"
+        file.write [ "Banco de medição", "0001-1", "ID-#{index}", documents.fetch(customer), number, (Date.current - 1).strftime("%d/%m/%Y"), Money.format(value), "pix", final_state ].join(";") + "\n"
       end
     end
     service = Portfolio::ImportService.new
@@ -640,7 +635,6 @@ namespace :crm do
     PaymentAllocation.where(payment_id: Payment.where(tenant_id: t).select(:id)).delete_all
     MeasureData.clear(t, %w[bill_valuations abatements credits payment_reversals payments changes task_runs bill_value_versions value_discrepancies])
     MeasureData.wipe_portfolio(t)
-    PaymentChannel.where(tenant_id: t).delete_all
     tenant.contact_results.delete_all
     Membership.where(tenant_id: t).delete_all
     user.destroy
@@ -687,7 +681,6 @@ namespace :crm do
 
     MeasureData.portfolio(t, customers, bill: ->(i, _n) { { number: "NF-#{i}", due_date: Date.current - (30 + (i % 60)), amount_cents: 5000 + (i * 7919) % 250_000 } })
     MeasureData.analyze("customers", "contracts", "bills", "contract_customers")
-    channel = PaymentChannel.create!(tenant: tenant, kind: :account, code: "341-1234-56789", description: "Conta de medição")
     result = tenant.contact_results.find_by!(allows_promise: true, name: "Prometeu pagar")
     tier = Tier.catch_all_of(tenant)
     first_ids = Customer.where(tenant_id: t).order(:id).limit(promises).pluck(:id)
@@ -724,9 +717,9 @@ namespace :crm do
     direct_rows = Bill.where(tenant_id: t).where("bills.customer_id > ?", first_ids.last).joins(:customer).order("bills.id").limit(direct).pluck(:number, "customers.document", :amount_cents).map { |n, d, c| { "number" => n, "document" => d, "total" => c } }
     pay_date = (Date.current - 6).strftime("%d/%m/%Y")
     File.open(path, "wb") do |file|
-      file.write "metodo_recebimento;identificador;documento;titulo;data_pagamento;valor;meio\n"
+      file.write "fornecedor;conta;identificador;documento;titulo;data_pagamento;valor;meio\n"
       (promise_rows.map { |row| [ row, "pix" ] } + direct_rows.map { |row| [ row, "boleto" ] }).each_with_index do |(row, method), index|
-        file.write [ channel.code, "ID-#{index}", row.fetch("document"), row.values.first, pay_date, Money.format(row.values.last.to_i), method ].join(";") + "\n"
+        file.write [ "Banco de medição", "0001-1", "ID-#{index}", row.fetch("document"), row.values.first, pay_date, Money.format(row.values.last.to_i), method ].join(";") + "\n"
       end
     end
     import = Portfolio::ImportService.new.start(tenant: tenant, user: user, file: path, mode: :incremental, kind: "payments")
@@ -753,7 +746,6 @@ namespace :crm do
     Payment.where(tenant_id: t).update_all(promise_id: nil)
     MeasureData.clear(t, %w[reversal_waits credits payment_reversals payments changes task_runs bill_value_versions value_discrepancies bill_valuations payment_promises contact_attempts])
     MeasureData.wipe_portfolio(t)
-    PaymentChannel.where(tenant_id: t).delete_all
     tenant.contact_results.delete_all
     Membership.where(tenant_id: t).delete_all
     user.destroy
@@ -828,13 +820,12 @@ namespace :crm do
     measure.call("tarefa diária dos acordos (quebra e em atraso)", 120) { Agreements::Daily.new(tenant).apply }
     puts "  quebrados: #{Agreement.where(tenant_id: t, state: 'broken').count}; em atraso: #{Agreement.where(tenant_id: t, state: 'active_late').count}; em dia: #{Agreement.where(tenant_id: t, state: 'active_on_time').count}"
 
-    channel = PaymentChannel.create!(tenant: tenant, kind: :account, code: "341-1234-56789", description: "Conta de medição")
     path = Rails.root.join("tmp", "pagamentos-acordos-#{t}.csv").to_s
     rows = Bill.where(tenant_id: t, kind: "agreement").where("bills.number like '%-02'").joins(:customer).order("bills.id").limit(payments).pluck(:number, "customers.document").map { |number, document| { "number" => number, "document" => document } }
     pay_date = Date.current.strftime("%d/%m/%Y")
     File.open(path, "wb") do |file|
-      file.write "metodo_recebimento;identificador;documento;titulo;data_pagamento;valor;meio\n"
-      rows.each_with_index { |row, index| file.write [ channel.code, "AG-#{index}", row["document"], row["number"], pay_date, "300,00", "pix" ].join(";") + "\n" }
+      file.write "fornecedor;conta;identificador;documento;titulo;data_pagamento;valor;meio\n"
+      rows.each_with_index { |row, index| file.write [ "Banco de medição", "0001-1", "AG-#{index}", row["document"], row["number"], pay_date, "300,00", "pix" ].join(";") + "\n" }
     end
     import = Portfolio::ImportService.new.start(tenant: tenant, user: user, file: path, mode: :incremental, kind: "payments")
     measure.call("conferência de #{rows.size} pagamentos de parcela pelo número", 120) { import.checker.run(import) }
@@ -846,8 +837,8 @@ namespace :crm do
     # (N10) e reavaliam os acordos em lotes.
     reversal_path = Rails.root.join("tmp", "estornos-acordos-#{t}.csv").to_s
     File.open(reversal_path, "wb") do |file|
-      file.write "metodo_recebimento;identificador_pagamento;identificador_estorno;data_estorno;valor;motivo\n"
-      rows.size.times { |index| file.write [ channel.code, "AG-#{index}", "EST-#{index}", pay_date, "300,00", "contestação" ].join(";") + "\n" }
+      file.write "meio;fornecedor;conta;identificador_pagamento;identificador_estorno;data_estorno;valor;motivo\n"
+      rows.size.times { |index| file.write [ "pix", "Banco de medição", "0001-1", "AG-#{index}", "EST-#{index}", pay_date, "300,00", "contestação" ].join(";") + "\n" }
     end
     reversal_import = Portfolio::ImportService.new.start(tenant: tenant, user: user, file: reversal_path, mode: :incremental, kind: "reversals")
     measure.call("conferência de #{rows.size} estornos de parcela", 120) { reversal_import.checker.run(reversal_import) }
@@ -885,7 +876,6 @@ namespace :crm do
     Bill.where(tenant_id: t).delete_all
     Agreement.where(tenant_id: t).delete_all
     MeasureData.wipe_portfolio(t)
-    PaymentChannel.where(tenant_id: t).delete_all
     tenant.contact_results.delete_all
     Membership.where(tenant_id: t).delete_all
     user.destroy
@@ -901,9 +891,8 @@ namespace :crm do
 
     count = (args[:count].presence || 2_000).to_i
     tenant = Tenant.provision!("Medição de instrumentos #{Time.current.strftime('%H%M%S')}")
-    channel = PaymentChannel.create!(tenant: tenant, kind: :account, code: "MED-#{tenant.id}", description: "Canal de medição", active: true)
     accounts = %w[boleto pix].to_h do |kind|
-      account = tenant.payment_accounts.build(channel: channel, modality: kind, provider: "fake", environment: "production", nickname: "Medição #{kind}")
+      account = tenant.payment_accounts.build(account_code: "0001-1", modality: kind, provider: "fake", environment: "production", nickname: "Medição #{kind}")
       account.assign_values(config: { "connection_result" => "ok", "pix_key" => "medicao@exemplo.com.br" }, secrets: { "api_key" => "medicao" })
       account.save!
       [ kind, account ]
@@ -936,7 +925,6 @@ namespace :crm do
     PaymentInstrument.where(tenant_id: tenant.id).delete_all
     Change.where(tenant_id: tenant.id).delete_all
     PaymentAccount.where(tenant_id: tenant.id).delete_all
-    PaymentChannel.where(tenant_id: tenant.id).delete_all
     Customer.where(tenant_id: tenant.id).delete_all
     tenant.contact_results.delete_all
     Membership.where(tenant_id: tenant.id).delete_all
@@ -953,8 +941,7 @@ namespace :crm do
     count = (args[:count].presence || 2_000).to_i
     paid_count = count * (args[:paid_percent].presence || 10).to_i / 100
     tenant = Tenant.provision!("Medição de conciliação #{Time.current.strftime('%H%M%S')}")
-    channel = PaymentChannel.create!(tenant: tenant, kind: :account, code: "MED-#{tenant.id}", description: "Canal de medição", active: true)
-    account = tenant.payment_accounts.build(channel: channel, modality: "pix", provider: "fake", environment: "production", nickname: "Medição Pix")
+    account = tenant.payment_accounts.build(account_code: "0001-1", modality: "pix", provider: "fake", environment: "production", nickname: "Medição Pix")
     account.assign_values(config: { "connection_result" => "ok", "pix_key" => "medicao@exemplo.com.br" }, secrets: { "api_key" => "medicao" })
     account.save!
     ActiveJob::Base.queue_adapter = :test
@@ -1006,7 +993,6 @@ namespace :crm do
     Contract.where(tenant_id: tenant.id).delete_all
     Import.where(tenant_id: tenant.id).destroy_all
     PaymentAccount.where(tenant_id: tenant.id).delete_all
-    PaymentChannel.where(tenant_id: tenant.id).delete_all
     tenant.contact_results.delete_all
     Membership.where(tenant_id: tenant.id).delete_all
     tenant.destroy

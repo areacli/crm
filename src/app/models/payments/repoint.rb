@@ -1,6 +1,6 @@
 module Payments
-  # 17, R418: reenviar um pagamento PENDENTE com o mesmo método de recebimento e identificador e OUTRO sistema troca o sistema dele e o reavalia. A linha do
-  # arquivo não vira pagamento novo (a identidade continua por método e identificador, R419): ela só aponta o pendente (`payment_rows.repoint_payment_id`),
+  # 17, R418: reenviar um pagamento PENDENTE com o mesmo fornecedor, conta e identificador e OUTRO sistema troca o sistema dele e o reavalia. A linha do
+  # arquivo não vira pagamento novo (a identidade continua por fornecedor, conta e identificador, R419; 03, revisão 12): ela só aponta o pendente (`payment_rows.repoint_payment_id`),
   # que entra no fluxo da importação já no sistema novo. Com o mesmo sistema, ou com o pagamento já aplicado, a linha é "pagamento já registrado".
   module Repoint
     Sql = Portfolio::Sql
@@ -9,10 +9,10 @@ module Payments
 
     # Conferência, antes da regra do já registrado: marca as linhas de reenvio e as tira do fluxo, sem recusa. Nada muda no pagamento ainda.
     def mark(import)
-      found = Sql.rows(<<~SQL, import.tenant_id, import.tenant_id, import.id)
+      found = Sql.rows(<<~SQL, import.tenant_id, import.id)
         select r.line, p.id as payment_id
-        from payment_rows r join payment_channels ch on ch.tenant_id = ? and ch.code = r.channel_code
-        join payments p on p.tenant_id = ? and p.channel_id = ch.id and p.identifier = r.identifier
+        from payment_rows r
+        join payments p on p.tenant_id = ? and p.provider = r.provider and p.account_key = r.account_key and p.identifier = r.identifier
         where r.import_id = ? and r.ok and r.source_system_id is not null and p.status = 'pending' and p.source_system_id <> r.source_system_id
         order by r.line
       SQL

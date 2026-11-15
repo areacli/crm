@@ -33,13 +33,13 @@ module Portfolio
       end
 
       def payment_events
-        direct = bill.payments.applied.includes(:channel).order(:paid_on, :id).map do |payment|
-          Event.new(payment.paid_on, payment.created_at, :payment, payment.applied_cents, "Pagamento #{payment.identifier} (#{payment.channel.description}) aplicado ao título")
+        direct = bill.payments.applied.order(:paid_on, :id).map do |payment|
+          Event.new(payment.paid_on, payment.created_at, :payment, payment.applied_cents, "Pagamento #{payment.how_paid} aplicado ao título")
         end
         # Pagamento de promessa ou de acordo, repartido entre títulos: o que caiu neste título vem da alocação (10, R194; 11, R227).
-        shared = Payment.applied.includes(:channel).where(bill_id: nil, id: PaymentAllocation.where(bill_id: bill.id).select(:payment_id)).order(:paid_on, :id).filter_map do |payment|
+        shared = Payment.applied.where(bill_id: nil, id: PaymentAllocation.where(bill_id: bill.id).select(:payment_id)).order(:paid_on, :id).filter_map do |payment|
           cents = PaymentAllocation.where(payment_id: payment.id, bill_id: bill.id).sum(:amount_cents)
-          Event.new(payment.paid_on, payment.created_at, :payment, cents, "Pagamento #{payment.identifier} (#{payment.channel.description}) aplicado ao título") if cents.positive?
+          Event.new(payment.paid_on, payment.created_at, :payment, cents, "Pagamento #{payment.how_paid} aplicado ao título") if cents.positive?
         end
         direct + shared
       end

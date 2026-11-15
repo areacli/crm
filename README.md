@@ -18,7 +18,7 @@ https://crm.areacli.com, com dados fictícios recriados todo dia às 4h (horári
 
 | Usuário | Senha | O que pode fazer |
 |---|---|---|
-| `gestor@demo.crm.areacli.com` | `demonstracao-gestor` | Gestor na Escola Alfa e operador na Clínica Beta: importar e confirmar carteira, pagamentos e estornos; registrar acionamentos; aprovar promessas e acordos; métodos de recebimento, políticas de pagamento, segmentos e encargos; réguas; transferir crédito entre contratos; direitos do titular. Usuários, perfis, senhas, dados do credor e contas de pagamento ficam fechados (só leitura) |
+| `gestor@demo.crm.areacli.com` | `demonstracao-gestor` | Gestor na Escola Alfa e operador na Clínica Beta: importar e confirmar carteira, pagamentos e estornos; registrar acionamentos; aprovar promessas e acordos; políticas de pagamento, segmentos e encargos; réguas; transferir crédito entre contratos; direitos do titular. Usuários, perfis, senhas, dados do credor e contas de pagamento ficam fechados (só leitura) |
 | `operador@demo.crm.areacli.com` | `demonstracao-operador` | Operador na Escola Alfa (a Clínica Beta não aparece): consultar clientes e fichas, registrar acionamentos, editar o cadastro do cliente e negociar acordos |
 | `operacao@demo.crm.areacli.com` | `demonstracao-operacao` | Pessoa de uma operação de cobrança parceira na Escola Alfa: vê só os clientes distribuídos à operação dela (Row-Level Security do PostgreSQL), com o nome da operação no cabeçalho, e não abre a configuração nem a distribuição |
 
@@ -40,10 +40,8 @@ Estado atual da aplicação em Rails (fotos recriadas a cada incremento por `dep
 | Faixas de atraso (lista com "Criar faixa", "Excluir" e prévia) e tratamento do a vencer, por credor | Usuários e seus perfis em cada credor |
 | ![Perfis de permissões](docs/telas/perfis.png) | ![Importar pagamentos](docs/telas/importar-pagamentos.png) |
 | Perfis com as 16 permissões | Envio da planilha de pagamentos (e a de estornos), com colunas e planilha-modelo |
-| ![Conferência de pagamentos](docs/telas/conferencia-de-pagamentos.png) | ![Métodos de recebimento](docs/telas/canais-de-recebimento.png) |
-| Conferência antes de confirmar: quitados, baixas parciais, créditos, pendentes e ignorados | Métodos de recebimento do credor (por onde o dinheiro entra), com as integrações no detalhe de cada um |
-| ![Método de recebimento](docs/telas/canal-de-recebimento.png) | ![Políticas de pagamento](docs/telas/politicas-de-pagamento.png) |
-| Método de recebimento: dados, webhook de pagamento assinado e integrações | Políticas de pagamento por credor |
+| ![Conferência de pagamentos](docs/telas/conferencia-de-pagamentos.png) | ![Políticas de pagamento](docs/telas/politicas-de-pagamento.png) |
+| Conferência antes de confirmar: quitados, baixas parciais, créditos, pendentes e ignorados | Políticas de pagamento por credor |
 | ![Ficha com pagos e crédito](docs/telas/ficha-com-pagos-e-credito.png) | ![Ficha com acionamentos](docs/telas/ficha-com-acionamentos.png) |
 | Ficha: pagamentos aplicados e crédito por contrato, com transferência entre contratos | Ficha: formulário de acionamento e histórico |
 | ![Lista de acionamentos](docs/telas/acionamentos.png) | ![Resultados de acionamento](docs/telas/resultados-de-acionamento.png) |

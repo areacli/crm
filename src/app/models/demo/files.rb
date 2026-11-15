@@ -33,12 +33,11 @@ module Demo
     # Pagamentos dos títulos em cobrança do dia: quitam, pagam metade, pagam a mais, e uma linha de título que não existe. No credor com mais de um sistema
     # (17, R416 e R417), cada linha diz o sistema do título, e a do sistema de id próprio leva o id do título.
     def payments(tenant)
-      channel = tenant.payment_channels.where(active: true).order(:id).first
       stamp = Time.current.strftime("%Y%m%d%H%M%S")
       systems = Payments::Systems.new(tenant.id)
       names = systems.multiple? ? SourceSystem.where(tenant_id: tenant.id, status: "active").where.not(role: "crm").order(:id).pluck(:id, :name).to_h : {}
       extra = names.any? ? [ Payments::SheetModel::SYSTEM_COLUMN ] + (systems.own_ids? ? [ Payments::SheetModel::BILL_ID_COLUMN ] : []) : []
-      rows = [ (%w[metodo_recebimento identificador documento titulo data_pagamento valor meio] + extra).join(";") ]
+      rows = [ (%w[fornecedor conta identificador documento titulo data_pagamento valor meio] + extra).join(";") ]
       payable(tenant, names.keys).each_with_index do |bill, index|
         cents = case index % 3
         when 0 then bill.amount_cents
@@ -46,9 +45,9 @@ module Demo
         else bill.amount_cents + 1_500
         end
         system = [ names[bill.source_system_id], bill.external_id.to_s ].first(extra.size)
-        rows << ([ channel&.code, "V#{stamp}#{index}", bill.customer.document, bill.number, Date.current.strftime("%d/%m/%Y"), Money.format(cents), "pix" ] + system).join(";")
+        rows << ([ Dataset::PROVIDERS.fetch("pix"), Dataset::ACCOUNTS.fetch("pix"), "V#{stamp}#{index}", bill.customer.document, bill.number, Date.current.strftime("%d/%m/%Y"), Money.format(cents), "pix" ] + system).join(";")
       end
-      rows << ([ channel&.code, "V#{stamp}X", FakeData.cpf(3), "NF-9999/1", Date.current.strftime("%d/%m/%Y"), "200,00", "pix" ] + [ names.values.first, "" ].first(extra.size)).join(";")
+      rows << ([ Dataset::PROVIDERS.fetch("pix"), Dataset::ACCOUNTS.fetch("pix"), "V#{stamp}X", FakeData.cpf(3), "NF-9999/1", Date.current.strftime("%d/%m/%Y"), "200,00", "pix" ] + [ names.values.first, "" ].first(extra.size)).join(";")
       write("pagamentos", rows)
     end
 
@@ -64,11 +63,12 @@ module Demo
     # R416): sem a coluna, as linhas eram recusadas sempre que os últimos pagamentos vinham de um sistema (a V5 confirma pagamentos do Planilha logo antes).
     def reversals(tenant)
       stamp = Time.current.strftime("%Y%m%d%H%M%S")
-      rows = [ "metodo_recebimento;identificador_pagamento;identificador_estorno;data_estorno;valor;motivo;sistema" ]
-      Payment.where(tenant_id: tenant.id, status: "applied").where("reversed_cents < amount_cents").joins(:channel, :source_system).order(id: :desc).limit(10)
-             .pluck("payment_channels.code", :identifier, :amount_cents, :reversed_cents, "source_systems.name", "source_systems.role")
-             .each_with_index do |(code, identifier, amount, reversed, system, role), index|
-        rows << [ code, identifier, "R#{stamp}#{index}", Date.current.strftime("%d/%m/%Y"), Money.format([ (amount - reversed) / 3, 1 ].max), "contestação do pagador",
+      rows = [ "meio;fornecedor;conta;identificador_pagamento;identificador_estorno;data_estorno;valor;motivo;sistema" ]
+      Payment.where(tenant_id: tenant.id, status: "applied").where("reversed_cents < amount_cents").where.not(payment_method: Agreements::CreditUse::METHOD)
+             .joins(:source_system).order(id: :desc).limit(10)
+             .pluck(:payment_method, :provider_name, :account_code, :identifier, :amount_cents, :reversed_cents, "source_systems.name", "source_systems.role")
+             .each_with_index do |(method, provider, account, identifier, amount, reversed, system, role), index|
+        rows << [ PaymentMethod.label(method), provider, account, identifier, "R#{stamp}#{index}", Date.current.strftime("%d/%m/%Y"), Money.format([ (amount - reversed) / 3, 1 ].max), "contestação do pagador",
                   (role == "crm" ? "" : system) ].join(";")
       end
       write("estornos", rows)

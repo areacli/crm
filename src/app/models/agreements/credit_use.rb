@@ -4,7 +4,10 @@ module Agreements
   # título). O operador usa o crédito, no todo ou em parte, como pagamento da entrada ou como abatimento do valor do acordo (política "Como o crédito entra").
   # O crédito é consumido no aceite (lançamento negativo no contrato de origem) e volta disponível se o acordo é cancelado ou quebra antes da efetivação.
   module CreditUse
-    CHANNEL_CODE = "CRM-CREDITO".freeze
+    # O pagamento que o CRM registra com o crédito do contrato (03, revisão 12): meio interno, fornecedor e conta "CRM"; a planilha não aceita esse meio.
+    METHOD = "contract_credit".freeze
+    PAYMENT = { payment_method: METHOD, provider: PaymentProvider::CRM, provider_name: PaymentProvider::CRM_NAME, account_key: PaymentProvider::CRM,
+                account_code: PaymentProvider::CRM_NAME }.freeze
 
     # `requested`: o que o operador pediu; `distribution`: [[id do contrato, centavos]] já na ordem de consumo; `offered`: o máximo que as políticas deixam usar;
     # `mode`: "down_payment" ou "rebate"; `error`: chave da recusa, ou nil.
@@ -130,8 +133,8 @@ module Agreements
       date = at.to_date
       ledger = LedgerLoader.new(agreement.tenant, today: date).one(entry)
       result = TitlePayment.call(ledger, date: date, amount: cents, tolerance: agreement.tolerance_spec)
-      payment = Payment.create!(tenant_id: agreement.tenant_id, channel: channel_for(agreement.tenant), identifier: "CRED-#{agreement.number}", document: agreement.customer.document,
-                                bill_number: entry.number, bill: entry, agreement_id: agreement.id, paid_on: date, amount_cents: cents, payment_method: "other", status: "applied",
+      payment = Payment.create!(tenant_id: agreement.tenant_id, **PAYMENT, identifier: "CRED-#{agreement.number}", document: agreement.customer.document,
+                                bill_number: entry.number, bill: entry, agreement_id: agreement.id, paid_on: date, amount_cents: cents, status: "applied",
                                 applied_cents: result.applied, credit_cents: result.excess)
       result.parts.each { |component, part| PaymentAllocation.create!(payment: payment, bill: entry, component: component, amount_cents: part) }
       result.abatements.each do |kind, parts|
@@ -139,14 +142,6 @@ module Agreements
       end
       entry.update!(paid_cents: entry.paid_cents + result.face_covered, status: (result.settled ? "paid" : entry.status), paid_on: (result.settled ? date : nil))
       result
-    end
-
-    def channel_for(tenant)
-      PaymentChannel.find_or_create_by!(tenant_id: tenant.id, code: CHANNEL_CODE) do |channel|
-        channel.kind = :account
-        channel.description = "Crédito do contrato (CRM)"
-        channel.active = false
-      end
     end
   end
 end

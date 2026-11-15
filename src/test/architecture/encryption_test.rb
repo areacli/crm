@@ -3,16 +3,15 @@ require "test_helper"
 # Segredos fora de log, de HTML e de fixture (12, R261, R262, R270): varre as colunas `encrypts` de todos os modelos.
 class EncryptionArchitectureTest < ActionDispatch::IntegrationTest
   test "toda coluna cifrada está na lista de atributos conhecidos (um modelo novo com `encrypts` entra aqui de propósito)" do
-    assert_equal [ "PaymentAccount.secrets", "PaymentChannel.webhook_secret" ], KeyRotation.targets.map { |model, attribute| "#{model.name}.#{attribute}" }.sort
+    assert_equal [ "PaymentAccount.secrets" ], KeyRotation.targets.map { |model, attribute| "#{model.name}.#{attribute}" }.sort
   end
 
   test "nenhum valor de coluna cifrada aparece no log de teste nem no HTML devolvido" do
     secrets = { api_key: sentinel("api"), certificate_password: sentinel("senha"), webhook: nil }
     alfa = tenants(:alfa)
-    channel = make_channel(alfa)
     post session_path, params: { email_address: users(:joana).email_address, password: "senha-de-teste-1" }
 
-    post settings_payment_accounts_path, params: { payment_account: { tenant_id: alfa.id, channel_id: channel.id, modality: "pix", provider: "fake", environment: "sandbox", nickname: "Arquitetura",
+    post settings_payment_accounts_path, params: { payment_account: { tenant_id: alfa.id, account_code: "0001-2", modality: "pix", provider: "fake", environment: "sandbox", nickname: "Arquitetura",
                                                                        config: { connection_result: "ok", pix_key: "pix@alfa.com.br" },
                                                                        secrets: { api_key: secrets[:api_key], certificate_password: secrets[:certificate_password] },
                                                                        files: { certificate: p12_upload(password: secrets[:certificate_password]) } } }
@@ -21,12 +20,11 @@ class EncryptionArchitectureTest < ActionDispatch::IntegrationTest
     post settings_payment_account_webhook_secret_path(account)
     webhook_secret = flash[:webhook_secret]
     post settings_payment_account_connection_test_path(account)
-    channel.regenerate_webhook_secret!
-    [ settings_payment_accounts_path, edit_settings_payment_account_path(account), edit_settings_channel_path(channel), settings_channels_path ].each do |path|
+    [ settings_payment_methods_path, edit_settings_payment_account_path(account) ].each do |path|
       get path
       bodies << response.body
     end
-    values = secrets.values.compact + [ channel.reload.webhook_secret, account.reload.secrets["certificate"] ]
+    values = secrets.values.compact + [ account.reload.secrets["certificate"] ]
     values.each { |value| bodies.each { |body| assert_not_includes body, value, "valor secreto apareceu no HTML" } }
 
     Rails.logger.flush if Rails.logger.respond_to?(:flush)

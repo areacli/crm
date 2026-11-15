@@ -40,10 +40,9 @@ module PaymentAccountsHelper
 
   def sentinel(name = SecureRandom.hex(6)) = "#{SENTINEL_PREFIX}#{name}"
 
-  # Conta do fornecedor falso, ativa, ligada a um canal do credor.
+  # Conta do fornecedor falso, ativa, do credor.
   def make_account(tenant, modality: "boleto", environment: "sandbox", nickname: nil, secrets: { "api_key" => "chave-1" }, config: { "connection_result" => "ok" }, active: true, provider: "fake")
-    channel = tenant.payment_channels.first || make_channel(tenant)
-    account = tenant.payment_accounts.build(channel: channel, modality: modality, provider: provider, environment: environment, nickname: nickname || "Conta #{modality} #{environment} #{SecureRandom.hex(2)}", active: active)
+    account = tenant.payment_accounts.build(modality: modality, provider: provider, environment: environment, account_code: "0001-99999-0", nickname: nickname || "Conta #{modality} #{environment} #{SecureRandom.hex(2)}", active: active)
     account.assign_values(config: config, secrets: secrets)
     account.save!
     account

@@ -138,9 +138,9 @@ class SourceSystemTest < ActiveSupport::TestCase
 
   test "R417: pagamento sem sistema informado é do padrão do credor; o uso de crédito do contrato é do CRM" do
     bill = make_bill(@alfa)
-    attributes = { tenant: @alfa, document: bill.customer.document, bill_number: bill.number, bill: bill, paid_on: Date.current, amount_cents: 1_000, payment_method: "pix", status: "pending" }
-    imported = Payment.create!(**attributes, channel: make_channel(@alfa), identifier: "PIX-1")
-    credit = Payment.create!(**attributes, channel: Agreements::CreditUse.channel_for(@alfa), identifier: "CRED-1")
+    attributes = { tenant: @alfa, document: bill.customer.document, bill_number: bill.number, bill: bill, paid_on: Date.current, amount_cents: 1_000, status: "pending" }
+    imported = Payment.create!(**attributes, **paid_via, identifier: "PIX-1")
+    credit = Payment.create!(**attributes, **Agreements::CreditUse::PAYMENT, identifier: "CRED-1")
 
     assert_equal @sheet, imported.source_system
     assert_equal @crm, credit.source_system
@@ -148,7 +148,6 @@ class SourceSystemTest < ActiveSupport::TestCase
 
   test "R416: com um só sistema além do CRM, o pagamento que a importação grava é dele, sem a coluna `sistema`" do
     @erp.destroy!
-    make_channel(@alfa)
     make_bill(@alfa)
     run_payments_import([ payment_line ], confirm: true)
 

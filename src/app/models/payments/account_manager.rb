@@ -7,8 +7,8 @@ module Payments
     # `replaces`: a integração ativa que a nova substitui ("Trocar fornecedor", 16, revisão 1, R373c). Com credenciais, a anterior sai e a nova entra no mesmo
     # ato (primeiro sai a anterior: só uma ativa por credor, meio e ambiente). Com conexão por autorização, a nova nasce desativada, e a troca se completa
     # na volta da conexão (`complete_replacement`); até lá, a anterior continua emitindo.
-    def create(tenant:, channel:, modality:, provider:, environment:, nickname:, values: {}, replaces: nil)
-      account = tenant.payment_accounts.build(channel: channel, modality: modality, provider: provider, environment: environment, nickname: nickname, replaces: replaces)
+    def create(tenant:, modality:, provider:, environment:, nickname:, account_code:, values: {}, replaces: nil)
+      account = tenant.payment_accounts.build(modality: modality, provider: provider, environment: environment, nickname: nickname, account_code: account_code, replaces: replaces)
       account.assign_values(**values)
       # O fornecedor que grava a URL do aviso em cada pedido recebe a chave da URL já na criação (12, revisão 5, R284m): ela nunca troca com o segredo.
       account.secrets = account.secrets.merge("webhook_url_key" => SecureRandom.base58(40)) if account.provider_available? && WebhookUrl.per_charge?(account)
@@ -44,15 +44,15 @@ module Payments
     end
 
     # Apelido e campos comuns mudam com antes e depois; segredo e arquivo trocados registram só o nome do campo.
-    def update(account, nickname:, channel: nil, values: {})
+    def update(account, nickname:, account_code: nil, values: {})
       account.nickname = nickname
-      account.channel = channel if channel
+      account.account_code = account_code unless account_code.nil?
       account.assign_values(**values)
       ApplicationRecord.transaction do
         before_config = account.config_was || {}
         account.save!
         log(account, "updated", "nickname", account.nickname_before_last_save, account.nickname) if account.saved_change_to_nickname?
-        log(account, "updated", "channel", PaymentChannel.find_by(id: account.channel_id_before_last_save)&.code, account.channel.code) if account.saved_change_to_channel_id?
+        log(account, "updated", "account_code", account.account_code_before_last_save, account.account_code) if account.saved_change_to_account_code?
         config_changes(before_config, account.config).each { |name, (before, after)| log(account, "updated", name, before, after) }
         account.replaced_secrets.uniq.each { |name| log(account, "secret_replaced", name, nil, nil) }
         account.replaced_files.uniq.each { |name| log(account, "file_replaced", name, nil, nil) }

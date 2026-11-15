@@ -21,7 +21,7 @@
         </div>
         <div class="campo">
           <label for="contact_attempt_promise_payment_method">Meio de pagamento</label>
-          <%= select_tag "contact_attempt[promise_payment_method]", options_for_select(Payment.payment_methods.keys.map { |method| [ t("payments.methods.#{method}"), method ] }, form.value(:promise_payment_method)), prompt: "Escolha o meio", id: "contact_attempt_promise_payment_method" %>
+          <%= select_tag "contact_attempt[promise_payment_method]", options_for_select(PaymentMethod.options, form.value(:promise_payment_method)), prompt: "Escolha o meio", id: "contact_attempt_promise_payment_method" %>
         </div>
         <div class="campo">
           <label for="contact_attempt_promise_on">Data prometida</label>

@@ -14,7 +14,6 @@ class DemoRestrictionsTest < ActiveSupport::TestCase
     assert_not Demo::Restrictions.closed?("settings/payment_accounts", "new", "GET")
     assert Demo::Restrictions.closed?("settings/payment_accounts/connections", "new", "GET")
     assert Demo::Restrictions.closed?("settings/payment_accounts/connections", "destroy", "DELETE")
-    assert_not Demo::Restrictions.closed?("settings/channels", "create", "POST"), "canais de recebimento continuam abertos (a V5 cria e apaga um)"
     assert_not Demo::Restrictions.closed?("customers/contact_attempts", "create", "POST")
   end
 

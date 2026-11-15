@@ -1,14 +1,22 @@
 <%# Campos do manifesto do fornecedor, nos grupos Acesso e Cobrança (16, revisão 1, R373b; 12, revisão 8, R259). Locais: form, account.
-    Segredo e arquivo entram em branco e nunca voltam (R261). O fornecedor de conexão por autorização não tem credencial: o grupo Acesso diz como conectar. %>
+    Segredo e arquivo entram em branco e nunca voltam (R261). O fornecedor de conexão por autorização não tem credencial: o grupo Acesso diz como conectar.
+    O grupo Acesso sempre aparece, porque abre com a conta da integração (16, revisão 2; 12, R260), comum a todo fornecedor. %>
 <% manifest = account.manifest %>
 <% visible = account.fields.reject(&:generated) %>
 <% authorization = Payments::Connection.authorization?(account) %>
 <% Payments::Providers::Manifest::GROUPS.each do |group| %>
   <% group_fields = visible.select { |field| field.group == group } %>
-  <% next if group_fields.empty? && !(group == "access" && authorization) %>
+  <% next if group_fields.empty? && group != "access" %>
   <fieldset class="grupo-da-integracao">
     <legend><%= t("payments.methods.groups.#{group}") %></legend>
     <p class="ajuda-do-grupo"><%= t("payments.methods.group_help.#{group}") %></p>
+    <% if group == "access" %>
+      <div class="campo">
+        <%= label_tag "campo-account-code", t("payments.methods.account_code.label") %>
+        <%= text_field_tag "payment_account[account_code]", account.account_code, id: "campo-account-code", required: true, maxlength: 100, "aria-describedby": "campo-account-code-ajuda" %>
+        <small id="campo-account-code-ajuda"><%= t("payments.methods.account_code.help") %></small>
+      </div>
+    <% end %>
     <% if group == "access" && authorization %>
       <% provider = manifest.label %>
       <% if account.new_record? && local_assigns[:replaced] %>
