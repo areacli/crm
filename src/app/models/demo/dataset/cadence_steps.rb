@@ -17,8 +17,11 @@ module Demo
           collection = collection_cadence(tenant, pieces, task, segments)
           upcoming = upcoming_cadence(tenant, pieces)
           campaign(tenant, pieces)
-          [ collection, upcoming ].each { |cadence| cadence.update!(enabled: true, enabled_since: today.beginning_of_day - 8.days) }
+          # O despachante da régua (Sidekiq, a cada minuto) grava como "não rodou no dia" as horas dos dias anteriores de toda régua ligada desde antes
+          # delas. Ligadas "desde agora" enquanto as rodadas passadas são montadas, ele não as toca; depois, a data volta a 8 dias atrás.
+          [ collection, upcoming ].each { |cadence| cadence.update!(enabled: true, enabled_since: Time.current) }
           past_rounds(tenant)
+          Cadence.where(id: [ collection.id, upcoming.id ]).update_all(enabled_since: today.beginning_of_day - 8.days)
         end
 
         def cadence_segments(tenant)
@@ -78,7 +81,11 @@ module Demo
             day = today - ago
             slots = Cadence.where(tenant: tenant, enabled: true).filter_map { |cadence| [ cadence, Cadences::Schedule.slot(cadence, day) ] if Cadences::Schedule.slot(cadence, day) }
             slots.group_by(&:last).each do |slot, pairs|
-              pairs.each { |cadence, _| CadenceRound.create!(tenant: tenant, cadence: cadence, scheduled_for: slot) }
+              # Se o despachante gravou a hora antes deste passo (a recriação de 15/11/2026 parou aqui com a chave repetida), ela volta a "prevista".
+              pairs.each do |cadence, _|
+                CadenceRound.find_or_initialize_by(tenant: tenant, cadence: cadence, scheduled_for: slot)
+                            .update!(state: "scheduled", late: false, failure: nil, finished_at: nil, dispatched_at: nil)
+              end
               round = Cadences::Round.new(tenant, slot)
               round.decide
               round.prioritize

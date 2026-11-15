@@ -166,6 +166,36 @@ class DemoDatasetTest < ActiveSupport::TestCase
     assert_equal "demo_reset", run.name
   end
 
+  # O despachante da régua roda a cada minuto no Sidekiq, ao lado da recriação. Em 15/11/2026 ele gravou uma hora de dias anteriores entre a régua
+  # ligada e as rodadas passadas da carga, e a recriação parou na chave repetida, com a Escola Alfa pela metade e sem a Clínica Beta.
+  module DispatcherDuringPastRounds
+    def past_rounds(tenant)
+      if Thread.current[:demo_dispatcher_tick]
+        CadencesDispatchJob.new.perform
+        cadence = Cadence.where(tenant: tenant, enabled: true).order(:id).first
+        slot = Cadences::Schedule.slot(cadence, today - 1)
+        CadenceRound.insert_all([ { tenant_id: tenant.id, cadence_id: cadence.id, scheduled_for: slot, state: "failed", failure: "não rodou no dia",
+                                    finished_at: Time.current, created_at: Time.current, updated_at: Time.current } ], unique_by: %i[cadence_id scheduled_for])
+      end
+      super
+    end
+  end
+  Demo::Dataset.prepend(DispatcherDuringPastRounds)
+
+  test "a recriação termina mesmo com o despachante da régua rodando antes das rodadas passadas" do
+    Thread.current[:demo_dispatcher_tick] = true
+    run = reset_without_network
+    assert_predicate run, :succeeded?
+    assert_equal 2, Tenant.count
+    alpha = Tenant.find_by!(name: "Escola Alfa")
+    yesterday = CadenceRound.where(tenant: alpha, scheduled_for: (Date.current - 1).all_day)
+    assert_predicate yesterday, :exists?
+    assert_not yesterday.where(failure: "não rodou no dia").exists?, "a hora gravada pelo despachante voltou a rodar na carga"
+    assert Cadence.where(tenant: alpha, enabled: true).all? { |cadence| cadence.enabled_since < Date.current.beginning_of_day - 7.days }
+  ensure
+    Thread.current[:demo_dispatcher_tick] = nil
+  end
+
   test "recusa fora do modo de demonstração" do
     Rails.configuration.x.demo.enabled = false
     assert_raises(Demo::Reset::Refused) { Demo::Reset.new.call }

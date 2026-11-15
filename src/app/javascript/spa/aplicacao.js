@@ -1,5 +1,5 @@
 // A casca da SPA (decisão 0028): leiaute, menu, abas, entrada e sessão.
-import { ligarVitrine } from "spa/vitrine"
+import { ligarEntrarComo, ligarVitrine } from "spa/vitrine"
 import * as abas from "spa/abas"
 import { configurar } from "spa/espera"
 import { esc } from "spa/formatos"
@@ -198,6 +198,7 @@ function ligarEntrada() {
 
 export function partida() {
   ligarVitrine()
+  ligarEntrarComo()
   $.parser.auto = false
   configurar({ sessaoVencida: () => mostrarEntrada(cascaMontada ? "A sessão terminou. Entre de novo para continuar; as abas continuam abertas." : null), senhaTemporaria: mostrarDefinirSenha })
   ligarEntrada()

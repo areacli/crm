@@ -21,9 +21,13 @@ class DemoScreensSystemTest < ApplicationSystemTestCase
   test "a entrada mostra os usuários da demonstração sem rolagem lateral, e o celular vê o aviso com o endereço das telas" do
     visit root_path
     within("#entrada-form") do
+      assert_button "Gestor"
+      assert_button "Operação terceirizada"
+      find("summary", text: "Ver e-mails e senhas").click
       assert_selector "code", text: Demo.email("gestor")
       assert_selector "code", text: Demo.password("operador")
     end
+    assert_link "Como foi feito, no Blog AreaCli", href: "https://blog.areacli.com/criei-um-crm/"
     assert_acessivel
     assert_no_horizontal_scroll
     page.driver.browser.page.command("Emulation.setDeviceMetricsOverride", width: 390, height: 844, deviceScaleFactor: 2, mobile: true)
@@ -36,25 +40,40 @@ class DemoScreensSystemTest < ApplicationSystemTestCase
     page.driver.browser.page.command("Emulation.setTouchEmulationEnabled", enabled: false)
   end
 
-  # O carrossel é só da demonstração: telas com legenda, navegação pelos botões, e cada usuário e senha numa linha, sem quebrar no meio.
-  test "a entrada da demonstração mostra as telas em carrossel e as credenciais em linhas inteiras" do
+  # Padrões de interface, revisão 46: o botão do usuário da demonstração preenche o e-mail e a senha e entra pelo mesmo formulário.
+  test "o botão do usuário da demonstração entra sem digitar" do
+    # A senha pública fica de fora da regra de senha parecida com o e-mail, como na carga da demonstração (Demo::Dataset#public_user).
+    gestor = User.new(name: "Gestor da demonstração", email_address: Demo.email("gestor"), password: Demo.password("gestor"))
+    gestor.save!(validate: false)
+    Membership.create!(user: gestor, tenant: @alfa, profile: profiles(:alfa_manager))
     visit root_path
-    assert_selector "[data-vitrine-tela][data-atual] figcaption", text: "O retrato da carteira"
-    find("[data-vitrine-passo='1']").click
-    assert_selector "[data-vitrine-tela][data-atual] figcaption", text: "Tudo de um cliente"
-    find("[data-vitrine-ir='3']").click
-    assert_selector "[data-vitrine-tela][data-atual] figcaption", text: "Simule o acordo"
-    assert_acessivel
-    alturas = page.evaluate_script("[...document.querySelectorAll('.entrada-demonstracao dd')].map((dd) => dd.getBoundingClientRect().height)")
-    assert_operator alturas.max, :<, 22, "credencial quebrou de linha"
-    assert_equal 6, alturas.size
+    click_button "Gestor"
+    assert_selector "#usuario", text: "Gestor da demonstração"
   end
 
-  test "fora da demonstração a entrada não tem carrossel" do
+  # O carrossel é só da demonstração: seis telas com nome, a régua primeiro, a escolha pelo nome, "Pausar" e a tela inteira sem rolar em 1.366 × 620.
+  test "a entrada da demonstração mostra as telas em carrossel, com a régua primeiro, e cabe em 1.366 × 620" do
+    page.driver.resize(1366, 620)
+    visit root_path
+    assert_selector ".vitrine-abas button[aria-current]", text: "Régua"
+    assert_selector ".vitrine-legenda", text: "Régua de cobrança."
+    click_button "Pagamento"
+    assert_selector "[data-vitrine-tela][data-atual] img[alt^='Página de pagamento']"
+    assert_selector ".vitrine-legenda", text: "Pix, boleto ou cartão"
+    click_button "Pausar"
+    assert_button "Continuar"
+    assert_acessivel
+    rola = page.evaluate_script("(() => { const e = document.querySelector('#entrada'); return e.scrollHeight > e.clientHeight || e.scrollWidth > e.clientWidth })()")
+    assert_not rola, "a entrada rola em 1.366 × 620"
+  end
+
+  test "fora da demonstração a entrada é a tela dividida, sem carrossel nem usuários públicos" do
     Rails.configuration.x.demo.enabled = false
     visit root_path
     assert_selector "#entrada-form"
+    assert_selector ".entrada-lado .entrada-titulo", text: "CRM de cobrança."
     assert_no_selector "[data-vitrine]"
+    assert_no_selector "[data-entrar-como]"
   end
 
   test "a faixa fica no alto da casca, e a importação avisa que o arquivo é descartado" do
