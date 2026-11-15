@@ -7,6 +7,8 @@ class PaymentsBradescoBoletoTest < ActiveSupport::TestCase
   include ActiveJob::TestHelper
 
   setup do
+    # O boleto do Bradesco não sai das 0h às 3h (R284h): o relógio fica às 10h do dia, senão os testes falham quando rodam de madrugada.
+    travel_to Time.current.change(hour: 10)
     @alfa = tenants(:alfa)
     @bradesco = Payments::Providers::Bradesco.new
     Payments::Providers::Bradesco.boleto_auth = BradescoHttpHelper::TestBoletoAuth.new

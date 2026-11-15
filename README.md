@@ -31,13 +31,13 @@ Estado atual da aplicação em Rails (fotos recriadas a cada incremento por `dep
 | | |
 |---|---|
 | ![Resumo da carteira](docs/telas/resumo.png) | ![Lista de clientes](docs/telas/clientes.png) |
-| Resumo da carteira: totais somados dos credores a que a pessoa tem acesso, faixas de atraso por cliente e por título (quando iguais), valor atualizado | Lista de clientes com busca, filtros e ordenação |
+| Resumo da carteira: totais somados dos credores a que a pessoa tem acesso, com filtro de credor; faixas de atraso por cliente e por título (as padrão do sistema em todos os credores, as do credor quando escolhido), valor atualizado | Lista de clientes com busca, filtros e ordenação |
 | ![Ficha do cliente](docs/telas/ficha-do-cliente.png) | ![Conferência da importação da carteira](docs/telas/conferencia-da-carteira.png) |
 | Ficha do cliente: dados, totais e títulos | Conferência antes de confirmar a carga: o que entra, o que sai, as linhas recusadas e os acréscimos informados comparados com os calculados |
 | ![Importações](docs/telas/importacoes.png) | ![Importar carteira](docs/telas/importar-carteira.png) |
 | Importações do credor, com o andamento em tempo real | Envio da planilha, com a tabela de colunas e a planilha-modelo |
 | ![Configuração da carteira](docs/telas/configuracao.png) | ![Usuários do credor](docs/telas/usuarios.png) |
-| Faixas de atraso e tratamento do a vencer, por credor | Usuários e seus perfis em cada credor |
+| Faixas de atraso (lista com "Criar faixa", "Excluir" e prévia) e tratamento do a vencer, por credor | Usuários e seus perfis em cada credor |
 | ![Perfis de permissões](docs/telas/perfis.png) | ![Importar pagamentos](docs/telas/importar-pagamentos.png) |
 | Perfis com as 16 permissões | Envio da planilha de pagamentos (e a de estornos), com colunas e planilha-modelo |
 | ![Conferência de pagamentos](docs/telas/conferencia-de-pagamentos.png) | ![Métodos de recebimento](docs/telas/canais-de-recebimento.png) |

@@ -2,6 +2,9 @@ module Portfolio
   # Faixas de atraso do credor (R18): começam em 1 dia, não têm buraco nem sobreposição e a última é aberta.
   # Cada faixa é { from: início, to: fim ou nil }.
   class AgingBrackets
+    # De 1 a 10 faixas (padrões de interface, T6; 01, revisão 8).
+    MAXIMUM = 10
+
     attr_reader :brackets
 
     def initialize(brackets) = @brackets = brackets.freeze
@@ -9,6 +12,7 @@ module Portfolio
     # @raise [InvalidBrackets]
     def self.from(input)
       raise InvalidBrackets, "informe ao menos uma faixa" if input.blank?
+      raise InvalidBrackets, "no máximo #{MAXIMUM} faixas" if input.size > MAXIMUM
 
       brackets = input.map do |bracket|
         bracket = bracket.to_h.with_indifferent_access
@@ -33,6 +37,14 @@ module Portfolio
 
     # As faixas guardadas (jsonb) voltam como hashes de chave texto.
     def self.from_stored(stored) = from(stored)
+
+    # Prévia da tela das faixas: os rótulos das linhas preenchidas, em ordem de início, como foram digitadas (a validação é a do salvar).
+    # É a mesma conta de `spa/faixas`, que a refaz a cada tecla.
+    def self.preview(rows)
+      rows.filter_map { |from, to| [ Integer(from.to_s, exception: false), Integer(to.to_s, exception: false) ] if from.present? }
+          .select(&:first).sort_by(&:first)
+          .map { |from, to| to ? "#{from}–#{to}" : "mais de #{from - 1}" }
+    end
 
     # Índice da faixa (a partir de 0) em que os dias de atraso caem; nil para quem não está em atraso.
     def index_for(days_overdue)

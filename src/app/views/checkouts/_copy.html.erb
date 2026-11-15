@@ -1,0 +1,7 @@
+<%# locals: (field:) %>
+<%# 12, revisão 7, R280b: copia o código do campo e diz ao lado, em palavras, o que aconteceu (checkout.js). %>
+<div class="copiar">
+  <button type="button" data-copiar="<%= field %>" data-variant="secondary"
+          data-copiado="<%= t("payments.checkout.page.copied") %>" data-nao-copiado="<%= t("payments.checkout.page.copy_failed") %>"><%= t("payments.checkout.page.copy") %></button>
+  <p id="<%= field %>-situacao" role="status"></p>
+</div>

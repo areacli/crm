@@ -43,6 +43,43 @@ class CheckoutsScreensSystemTest < ApplicationSystemTestCase
     assert_link "Abrir o boleto (PDF)", href: checkout_boleto_path(@checkout)
   end
 
+  # A área de transferência do navegador sem tela não se lê no teste: a página troca a escrita por uma que guarda o texto, e o teste confere o que foi pedido.
+  def capture_clipboard(works: true)
+    page.execute_script(<<~JS)
+      window.__copiado = []
+      navigator.clipboard.writeText = (texto) => #{works ? "{ window.__copiado.push(texto); return Promise.resolve() }" : "Promise.reject(new Error('negado'))"}
+      document.execCommand = () => #{works}
+    JS
+  end
+
+  test "o botão copia o copia e cola do Pix e a linha digitável do boleto e diz que copiou (12, revisão 7, R280b)" do
+    visit checkout_path(@checkout)
+    capture_clipboard
+    within("section[aria-labelledby='forma-pix']") do
+      assert_selector "dt", text: "Beneficiário"
+      assert_selector "dt", text: "Data limite"
+      click_button "Copiar para a área de transferência"
+      assert_selector "[role=status]", text: "Copiado."
+    end
+    within("section[aria-labelledby='forma-boleto']") do
+      click_button "Copiar para a área de transferência"
+      assert_selector "[role=status]", text: "Copiado."
+    end
+    assert_equal @checkout.instruments.where(kind: %w[pix boleto]).order(Arel.sql("kind = 'boleto'")).map { _1.pix? ? _1.copy_paste : _1.digitable_line },
+                 page.evaluate_script("window.__copiado")
+    assert_acessivel
+  end
+
+  test "se o navegador não deixa copiar, a página diz e deixa o código selecionado (R280b)" do
+    visit checkout_path(@checkout)
+    capture_clipboard(works: false)
+    within("section[aria-labelledby='forma-pix']") do
+      click_button "Copiar para a área de transferência"
+      assert_selector "[role=status]", text: "O navegador não deixou copiar"
+    end
+    assert_equal "pix-copia-e-cola", page.evaluate_script("document.activeElement.id")
+  end
+
   test "o cartão é aprovado pelo módulo do fornecedor, sem violação da política de conteúdo, e o servidor só vê o token e as parcelas" do
     visit checkout_path(@checkout)
     watch_policy_violations
