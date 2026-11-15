@@ -3,6 +3,7 @@ import { montarGrade, transformarTabela } from "spa/grade"
 import { montarCalculos } from "spa/calculo"
 import { aplicarLimites, montarDeslizantes } from "spa/deslizantes"
 import "spa/inline"
+import "spa/faixas"
 
 const $ = window.jQuery
 

@@ -13,9 +13,7 @@ module Settings
       service = Portfolio::SettingsService.new
       case params[:section]
       when "brackets"
-        # Linha em branco ou marcada "Remover" não conta.
-        rows = params.fetch(:brackets, []).map { |row| row.permit(:from, :to, :remove).to_h }.reject { |row| row["remove"] == "1" || (row["from"].blank? && row["to"].blank?) }.map { |row| row.slice("from", "to") }
-        service.update_brackets(tenant, rows, Current.user)
+        service.update_brackets(tenant, bracket_rows, Current.user)
       when "upcoming"
         service.update_upcoming_display(tenant, params[:upcoming_display], Current.user)
       when "discrepancy"
@@ -28,15 +26,16 @@ module Settings
       panel_finish(settings_portfolio_path, notice: "Configuração de #{tenant.name} salva.", atualizar: true)
     rescue Portfolio::InvalidBrackets, ActiveRecord::RecordInvalid => error
       @settings = settings_scope
-      # As faixas voltam como foram digitadas (as marcadas "Remover" saem), com as linhas em branco de sobra.
-      if params[:section] == "brackets"
-        @rows = params.fetch(:brackets, []).map { |row| row.permit(:from, :to, :remove).to_h }.reject { |row| row["remove"] == "1" || (row["from"].blank? && row["to"].blank?) }.map { |row| [ row["from"].presence, row["to"].presence ] }
-      end
+      # As faixas voltam como foram digitadas, sem as linhas em branco (a tela acrescenta a sua).
+      @rows = bracket_rows.map { |row| [ row["from"].presence, row["to"].presence ] } if params[:section] == "brackets"
       @error = { tenant_id: tenant.id, message: "#{error.message.capitalize}." }
       render :show, status: :unprocessable_content
     end
 
     private
       def settings_scope = policy_scope(TenantSetting).includes(:tenant).joins(:tenant).order("tenants.name")
+
+      # As linhas da lista de faixas (T6): a linha em branco não conta; as excluídas na tela já não vêm.
+      def bracket_rows = params.fetch(:brackets, []).map { |row| row.permit(:from, :to).to_h }.reject { |row| row["from"].blank? && row["to"].blank? }
   end
 end

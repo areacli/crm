@@ -2,17 +2,19 @@
 <section class="cartao" aria-labelledby="forma-boleto">
   <header>
     <h2 id="forma-boleto"><%= t("payments.checkout.page.boleto") %></h2>
-    <p><%= t("payments.checkout.page.boleto_hint", date: date_br(instrument.due_on)) %></p>
   </header>
-  <div>
+  <div class="instrumento-boleto">
     <% if instrument.due_on < Date.current %>
       <%= aviso(tom: :warning) { tag.p t("payments.checkout.page.boleto_overdue", due: date_br(instrument.due_on), until: date_br(checkout.boleto_payable_until(instrument))) } %>
     <% end %>
+    <%= render "checkouts/details", checkout: checkout, instrument: instrument %>
     <div class="campo">
       <label for="boleto-linha-digitavel"><%= t("payments.checkout.page.digitable_line") %></label>
-      <input id="boleto-linha-digitavel" type="text" readonly value="<%= instrument.digitable_line %>">
-      <button type="button" data-copiar="boleto-linha-digitavel" data-variant="secondary"><%= t("payments.checkout.page.copy") %></button>
+      <textarea id="boleto-linha-digitavel" readonly rows="2"><%= instrument.digitable_line %></textarea>
     </div>
-    <p><a class="botao" href="<%= checkout_boleto_path(checkout) %>"><%= t("payments.checkout.page.open_boleto") %></a></p>
+    <div class="acoes-do-instrumento">
+      <%= render "checkouts/copy", field: "boleto-linha-digitavel" %>
+      <a class="botao" href="<%= checkout_boleto_path(checkout) %>"><%= t("payments.checkout.page.open_boleto") %></a>
+    </div>
   </div>
 </section>

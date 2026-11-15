@@ -1,0 +1,182 @@
+<%# O trecho que o filtro de credor refaz (`spa/lista`, `#resultado`). %>
+<div id="resultado" aria-live="polite">
+<% if @summary.nil? %>
+  <p class="vazio">Nenhuma carteira para mostrar. Importe a carteira para ver o resumo.</p>
+<% else %>
+<% summary = @summary %>
+<% hide_upcoming = summary[:upcoming_display] != "separate" && summary[:upcoming_display] != "summed" %>
+<% agr = summary[:agreements] %>
+<%# Só números e barras: cada definição vai no (i) do indicador, num popover. %>
+<dl class="kpis" aria-label="Indicadores da carteira">
+  <%= kpi "Clientes em cobrança", number_br(summary[:customers]), definicao: "Clientes com ao menos um título em cobrança nos credores que você consulta." %>
+  <%= kpi "Títulos", number_br(summary[:bills]), definicao: "Títulos em cobrança, vencidos e a vencer." %>
+  <%= kpi "Vencido", money(summary[:overdue_cents]), detalhe: (summary[:upcoming_display] == "summed" ? "Com a vencer: #{money(summary[:overdue_cents] + summary[:upcoming_cents])}" : nil),
+          definicao: "Saldo dos títulos vencidos, pelo valor original menos o pago." %>
+  <%= kpi "A vencer", (hide_upcoming ? "—" : money(summary[:upcoming_cents])), definicao: "Saldo dos títulos ainda no prazo. Cada credor escolhe se o mostra à parte, somado ao vencido ou só na ficha." %>
+  <%= kpi "Atualizado", money(summary[:updated][:total_cents]), detalhe: (summary[:updated][:calculated_on] ? "até #{date_br(summary[:updated][:calculated_on])}" : nil),
+          definicao: "Principal corrigido, multa, juros e honorários dos títulos vencidos, pelas regras de cada credor, até a data do último cálculo." %>
+  <%= kpi "Créditos dos contratos", money(summary[:credit_cents]), definicao: "Crédito disponível nos contratos. Inclui o excedente de título com valor reduzido; não entra no recuperado." %>
+</dl>
+
+<dl class="kpis" aria-label="Recuperação e acordos">
+  <% summary[:recovered].each do |month| %>
+    <%= kpi "Recuperado em #{month[:label]}", money(month[:total_cents]),
+            definicao: "O que foi aplicado a títulos pela data do pagamento, menos os estornos conforme a política de cada credor. Crédito e pagamento pendente não entram." %>
+  <% end %>
+  <%= kpi "Pagamentos pendentes", number_br(summary[:pending_count]), detalhe: money(summary[:pending_cents]), definicao: "Pagamentos recebidos que ainda não se ligaram a um título." %>
+  <%= kpi "Dos quais em acordo", money(agr[:in_agreement_cents]), detalhe: "#{number_br(agr[:in_agreement_count])} acordos", definicao: "Valor dos títulos em acordo em #{agr[:label]}. Já está no total em cobrança; não se soma duas vezes." %>
+  <%= kpi "Acordos aceitos no mês", number_br(agr[:accepted]), detalhe: money(agr[:accepted_cents]), definicao: "Acordos aceitos em #{agr[:label]}." %>
+  <%= kpi "Desconto concedido no mês", money(agr[:discount_total]), definicao: "Contado na efetivação do acordo; o acordo cancelado depois dela o tira no mês do cancelamento." %>
+</dl>
+
+<%# Quadros em pares de mesmas colunas (padrões de interface, revisão 42, P29): recuperado e acordos pelos dois meses; os descontos, sem par, sob os acordos. %>
+<div class="duas-colunas">
+    <section class="cartao" aria-labelledby="meio">
+      <header><h2 id="meio">Recuperado por meio</h2></header>
+      <% methods = summary[:recovered].flat_map { |month| month[:methods].keys }.uniq.sort_by { |method| -summary[:recovered].sum { |month| month[:methods][method].to_i } } %>
+      <% if methods.empty? %>
+        <p class="vazio">Nenhum pagamento no período.</p>
+      <% else %>
+        <div class="tabela" tabindex="0">
+          <table>
+            <caption class="apenas-leitor-de-tela">Recuperado por meio de pagamento, mês a mês</caption>
+            <thead><tr><th scope="col">Meio</th><% summary[:recovered].each do |month| %><th scope="col" data-numerico><%= month[:label] %></th><% end %></tr></thead>
+            <tbody>
+              <% methods.each do |method| %>
+                <tr><th scope="row"><%= t("payments.methods.#{method}") %></th><% summary[:recovered].each do |month| %><td data-numerico><%= month[:methods][method] ? money(month[:methods][method]) : "—" %></td><% end %></tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      <% end %>
+    </section>
+
+  <div class="coluna-de-cartoes">
+  <section class="cartao" aria-labelledby="acordos">
+    <header><h2 id="acordos">Acordos por mês</h2></header>
+    <div class="tabela" tabindex="0">
+      <table>
+        <caption class="apenas-leitor-de-tela">Acordos, mês a mês</caption>
+        <thead><tr><th scope="col">Situação</th><th scope="col" data-numerico><%= agr[:label] %></th><th scope="col" data-numerico><%= agr[:previous_label] %></th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Aceitos</th><td data-numerico><%= number_br(agr[:accepted]) %></td><td data-numerico><%= number_br(agr[:previous][:accepted]) %></td></tr>
+          <tr><th scope="row">Quebrados</th><td data-numerico><%= number_br(agr[:broken]) %></td><td data-numerico><%= number_br(agr[:previous][:broken]) %></td></tr>
+          <tr><th scope="row">Quitados</th><td data-numerico><%= number_br(agr[:settled]) %></td><td data-numerico><%= number_br(agr[:previous][:settled]) %></td></tr>
+          <tr><th scope="row">Ativos em dia</th><td data-numerico><%= number_br(agr[:on_time]) %></td><td data-numerico>—</td></tr>
+          <tr><th scope="row">Ativos em atraso</th><td data-numerico><%= number_br(agr[:late]) %></td><td data-numerico>—</td></tr>
+          <% if agr[:waiting].positive? %><tr><th scope="row">Estornos à espera do gestor</th><td data-numerico><%= number_br(agr[:waiting]) %></td><td data-numerico>—</td></tr><% end %>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+    <section class="cartao" aria-labelledby="descontos">
+      <header><h2 id="descontos">Descontos e abatimentos do mês</h2></header>
+      <div class="tabela" tabindex="0">
+        <table>
+          <caption class="apenas-leitor-de-tela">Descontos e abatimentos concedidos em <%= agr[:label] %></caption>
+          <%# Sem o cabeçalho, a grade da SPA não tinha colunas e o cartão saía vazio (achado nas fotos da fase 8). %>
+          <thead><tr><th scope="col">Concessão</th><th scope="col" data-numerico><%= agr[:label] %></th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Desconto concedido</th><td data-numerico><%= money(agr[:discount_total]) %></td></tr>
+            <% agr[:discounts].each do |component, cents| %><tr><th scope="row">Desconto: <%= t("agreements.components.#{component}").downcase %></th><td data-numerico><%= money(cents) %></td></tr><% end %>
+            <% agr[:abatements].each do |kind, cents| %><tr><th scope="row">Abatimento: <%= t("agreements.abatement_kinds.#{kind}").downcase %></th><td data-numerico><%= money(cents) %></td></tr><% end %>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="duas-colunas">
+  <section class="cartao" aria-labelledby="acionamentos">
+    <header>
+      <h2 id="acionamentos">Acionamentos</h2>
+      <%= informacao "Acionamentos", "Pela data do contato. O cliente acionado mais de uma vez conta uma vez em cada tipo." %>
+    </header>
+    <div class="tabela" tabindex="0">
+      <table>
+        <caption class="apenas-leitor-de-tela">Acionamentos nos últimos 7 e 30 dias</caption>
+        <thead>
+          <tr>
+            <th scope="col" rowspan="2">Tipo do resultado</th>
+            <% summary[:contacts].each do |window| %><th scope="colgroup" colspan="2" data-numerico>Últimos <%= window[:days] %> dias</th><% end %>
+          </tr>
+          <tr>
+            <% summary[:contacts].each do |window| %>
+              <th scope="col" data-numerico><span class="apenas-leitor-de-tela"><%= window[:days] %> dias: </span>Acionamentos</th><th scope="col" data-numerico><span class="apenas-leitor-de-tela"><%= window[:days] %> dias: </span>Clientes</th>
+            <% end %>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row">Total</th>
+            <% summary[:contacts].each do |window| %><td data-numerico><%= number_br(window[:total][:attempts]) %></td><td data-numerico><%= number_br(window[:total][:customers]) %></td><% end %>
+          </tr>
+          <% ContactResult::KINDS.each_key do |kind| %>
+            <tr>
+              <th scope="row"><%= t("contacts.kinds.#{kind}") %></th>
+              <% summary[:contacts].each do |window| %><td data-numerico><%= number_br(window[:kinds][kind][:attempts]) %></td><td data-numerico><%= number_br(window[:kinds][kind][:customers]) %></td><% end %>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="cartao" aria-labelledby="promessas">
+    <header>
+      <h2 id="promessas">Promessas</h2>
+      <%= informacao "Promessas", "Promessas registradas pela data do registro; cumpridas, cumpridas com atraso e quebradas pela data do encerramento. Canceladas, recusadas e não aprovadas ficam fora." %>
+    </header>
+    <div class="tabela" tabindex="0">
+      <table>
+        <caption class="apenas-leitor-de-tela">Promessas nos últimos 7 e 30 dias</caption>
+        <thead><tr><th scope="col">Indicador</th><% summary[:promises].each do |window| %><th scope="col" data-numerico>Últimos <%= window[:days] %> dias</th><% end %></tr></thead>
+        <tbody>
+          <% [ [ "Promessas registradas", :promises ], [ "Promessas cumpridas", :fulfilled ], [ "Cumpridas com atraso", :late ], [ "Quebradas", :broken ] ].each do |label, key| %>
+            <tr><th scope="row"><%= label %></th><% summary[:promises].each do |window| %><td data-numerico><%= number_br(window[key]) %></td><% end %></tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<%# As tabelas por faixa nunca somem (01, revisão 8): em todos os credores, as faixas padrão do sistema; com um credor, as dele. %>
+<% if summary[:default_brackets] %>
+  <p><small>Faixas padrão do sistema. Escolha um credor para ver as faixas dele.</small></p>
+<% end %>
+<div class="duas-colunas">
+  <% [ [ "Por cliente", "Cada cliente na faixa do título mais atrasado, com todo o seu vencido.", summary[:by_customer], "Clientes" ],
+       [ "Por título", "Cada título vencido na faixa do próprio atraso.", summary[:by_bill], "Títulos" ] ].each do |title, help, rows, unit| %>
+    <% total = [ rows.sum { |row| row[:cents] }, 1 ].max %>
+    <% maximum = [ rows.map { |row| row[:cents] }.max.to_i, 1 ].max %>
+    <section class="cartao" aria-labelledby="faixas-<%= title.parameterize %>">
+      <header>
+        <h2 id="faixas-<%= title.parameterize %>">Faixas de atraso — <%= title %></h2>
+        <%= informacao "Faixas #{title.downcase}", help %>
+      </header>
+      <div class="tabela" tabindex="0">
+        <table>
+          <thead><tr><th scope="col">Faixa (dias)</th><th scope="col" data-numerico><%= unit %></th><th scope="col" data-numerico>Vencido</th><th scope="col" data-numerico>Atualizado</th><th scope="col" data-numerico>Parte do vencido</th></tr></thead>
+          <tbody>
+            <% rows.each do |row| %>
+              <tr>
+                <td><%= row[:label] %></td>
+                <td data-numerico><%= number_br(row[:count]) %></td>
+                <td data-numerico><%= money(row[:cents]) %></td>
+                <td data-numerico><%= money(row[:updated_cents]) %></td>
+                <%# A barra mede contra a maior faixa; o texto ao lado é a parte do vencido total (P29.7). %>
+                <td data-numerico><span class="proporcao"><meter value="<%= row[:cents] %>" min="0" max="<%= maximum %>" aria-hidden="true"></meter><%= number_to_percentage(100.0 * row[:cents] / total, precision: 0, locale: :"pt-BR") %></span></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  <% end %>
+</div>
+
+<% end %>
+</div>

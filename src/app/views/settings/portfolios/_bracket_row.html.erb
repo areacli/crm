@@ -1,0 +1,6 @@
+<%# Uma linha da lista de faixas. A numeração dos rótulos é refeita por `spa/faixas` quando uma linha entra ou sai. %>
+<tr>
+  <td><input type="number" min="1" name="brackets[][from]" value="<%= from %>" aria-label="Faixa <%= number %>: de"></td>
+  <td><input type="number" min="1" name="brackets[][to]" value="<%= to %>" aria-label="Faixa <%= number %>: até"></td>
+  <td><button type="button" data-variant="link" data-excluir-faixa aria-label="Excluir a faixa <%= number %>">Excluir</button></td>
+</tr>

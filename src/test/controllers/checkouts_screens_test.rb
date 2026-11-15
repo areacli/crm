@@ -26,7 +26,41 @@ class CheckoutsScreensTest < ActionDispatch::IntegrationTest
     assert_select "section h2", text: "Cartão de crédito"
     assert_equal %w[Pix Boleto], page.css("section.cartao h2").map(&:text).first(2), "o Pix é o destaque"
     assert_select "textarea[readonly]#pix-copia-e-cola", text: /00020126/
-    assert_select "input#boleto-linha-digitavel[readonly][value^='34191']"
+    assert_select "textarea[readonly]#boleto-linha-digitavel", text: /\A34191/
+  end
+
+  def instrument_data(section_id)
+    page.css("section[aria-labelledby='#{section_id}'] dl.dados-do-instrumento > div").to_h { |row| [ row.at_css("dt").text.strip, row.at_css("dd").text.squish ] }
+  end
+
+  test "Pix e boleto mostram beneficiário, valor e data limite, e o botão copia o código (12, revisão 7, R280b)" do
+    @alfa.update!(cnpj: "11222333000181", legal_name: "Escola Alfa Ltda")
+    due = Date.current + 10
+    get checkout_path(@checkout)
+    assert_equal({ "Beneficiário" => "Escola Alfa Ltda CNPJ 11.222.333/0001-81", "Valor" => "R$ 999,00", "Data limite" => due.strftime("%d/%m/%Y") }, instrument_data("forma-pix"))
+    assert_equal({ "Beneficiário" => "Escola Alfa Ltda CNPJ 11.222.333/0001-81", "Valor" => "R$ 999,00", "Vencimento" => due.strftime("%d/%m/%Y"),
+                   "Data limite" => (due + 30).strftime("%d/%m/%Y") }, instrument_data("forma-boleto"))
+    assert_select "button[data-copiar='pix-copia-e-cola']", text: "Copiar para a área de transferência"
+    assert_select "button[data-copiar='boleto-linha-digitavel']", text: "Copiar para a área de transferência"
+    assert_select "p#pix-copia-e-cola-situacao[role=status]"
+    assert_select "p#boleto-linha-digitavel-situacao[role=status]"
+  end
+
+  test "beneficiário sem razão social nem CNPJ: o nome do credor; o do boleto cadastrado na integração vale para o boleto (R280b)" do
+    @checkout.instruments.find_by(kind: "boleto").account.update!(config: { "connection_result" => "ok", "beneficiary_name" => "Associação Alfa de Ensino", "beneficiary_document" => "11.222.333/0001-81" })
+    get checkout_path(@checkout)
+    assert_equal "Escola Alfa", instrument_data("forma-pix")["Beneficiário"]
+    assert_equal "Associação Alfa de Ensino CNPJ 11.222.333/0001-81", instrument_data("forma-boleto")["Beneficiário"]
+  end
+
+  test "a data limite não passa da validade do link, e o boleto sem dias para baixa mostra só a data limite (R280b)" do
+    due = Date.current + 10
+    @checkout.update!(expires_at: (due + 5).end_of_day)
+    get checkout_path(@checkout)
+    assert_equal (due + 5).strftime("%d/%m/%Y"), instrument_data("forma-boleto")["Data limite"]
+    @checkout.instruments.find_by(kind: "boleto").account.update!(config: { "connection_result" => "ok", "write_off_days" => 0 })
+    get checkout_path(@checkout)
+    assert_equal({ "Beneficiário" => "Escola Alfa", "Valor" => "R$ 999,00", "Data limite" => due.strftime("%d/%m/%Y") }, instrument_data("forma-boleto"))
   end
 
   test "mostra só o primeiro nome do pagador e nenhum documento (a página não vaza dados do pagador)" do

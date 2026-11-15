@@ -2,8 +2,9 @@ module Portfolio
   # Resumo da carteira (R23): um só conjunto de totais, somados sobre os credores em que o usuário pode consultar a carteira (decisão do Paulo,
   # 25/10/2026; antes havia um resumo por credor, MT-20). Totais e duas distribuições por faixa de atraso, em tabela: por cliente (cada cliente
   # na faixa do título mais atrasado, com todo o seu vencido; visão da cobrança) e por título (cada título vencido na faixa do próprio atraso; visão
-  # do financeiro). As faixas são configuradas por credor: as tabelas por faixa só existem quando os credores visíveis têm as mesmas faixas; se
-  # diferirem, `labels`, `by_customer` e `by_bill` vêm nulos e a tela mostra uma nota. Todas as consultas são de conjunto, por lista de credores
+  # do financeiro). As faixas são configuradas por credor (R18): o resumo de um credor só usa as dele; o de vários credores usa sempre as faixas padrão do
+  # sistema (`TenantSetting::DEFAULT_BRACKETS`; 01, revisão 8), que classificam cada título pelos próprios dias de atraso, então a soma tem sentido
+  # qualquer que seja a configuração de cada credor. As tabelas por faixa nunca somem. Todas as consultas são de conjunto, por lista de credores
   # (`tenant_id in (?)`, mesmos índices de antes), sem laço por credor; o que depende da configuração do credor (exibição do a vencer, política
   # do mês do estorno) é separado por política, também em consultas de conjunto.
   class Summary
@@ -12,8 +13,14 @@ module Portfolio
       @reference = reference
     end
 
-    # Os totais de todos os credores em que o usuário pode consultar a carteira (V10: o que não tem a permissão fica fora da soma).
-    def totals = compute(Tenant.includes(:setting).where(id: @user.tenant_ids_with("view_portfolio")).order(:name).to_a)
+    # Os credores em que o usuário pode consultar a carteira (V10: o que não tem a permissão fica fora da soma), em ordem de nome.
+    def tenants = @tenants ||= Tenant.includes(:setting).where(id: @user.tenant_ids_with("view_portfolio")).order(:name).to_a
+
+    # Os totais de todos esses credores ou, com o filtro (01, revisão 8, R23), só os de um deles. Credor fora dos visíveis não filtra: vale "Todos os credores".
+    def totals(tenant_id: nil)
+      chosen = tenants.find { |tenant| tenant.id == tenant_id.to_i } if tenant_id.present?
+      compute(chosen ? [ chosen ] : tenants)
+    end
 
     # Os totais de um credor só (usado pelos testes e pelas medições).
     def for_tenant(tenant) = compute([ tenant ])
@@ -23,9 +30,9 @@ module Portfolio
         return nil if tenants.empty?
 
         ids = tenants.map(&:id)
-        stored = tenants.map { |tenant| tenant.setting.aging_brackets }.uniq
-        same_brackets = stored.size == 1
-        brackets = AgingBrackets.from_stored(stored.first) if same_brackets
+        # Um credor: as faixas dele. Vários: as faixas padrão do sistema (01, revisão 8).
+        default_brackets = tenants.size > 1
+        brackets = AgingBrackets.from_stored(default_brackets ? TenantSetting::DEFAULT_BRACKETS : tenants.first.setting.aging_brackets)
         totals = Sql.rows(<<~SQL, @reference, @reference, @reference, ids).to_h { |row| [ row["tenant_id"].to_i, row ] }
           select tenant_id, count(distinct customer_id) as customers, count(*) as bills,
                  coalesce(sum(greatest(amount_cents - paid_cents, 0)) filter (where due_date < ?::date), 0) as overdue_cents,
@@ -40,27 +47,24 @@ module Portfolio
         detail_only = ->(tenant) { tenant.setting.upcoming_display == "detail_only" }
         customers = tenants.sum { |tenant| (totals[tenant.id] || {}).fetch(detail_only.call(tenant) ? "customers_overdue" : "customers", 0).to_i }
         sum = ->(key) { totals.values.sum { |row| row[key].to_i } }
-        by_bill = by_customer = nil
         updated = valuations(ids, brackets)
-        if same_brackets
-          # A data de referência entra uma só vez, por parâmetro, numa CTE; as faixas a repetem em cada WHEN pela coluna.
-          by_bill = Sql.rows(<<~SQL, @reference, ids)
-            with r as (select ?::date as d)
-            select #{brackets.sql_index('(r.d - due_date)')} as idx, count(*) as n, sum(greatest(amount_cents - paid_cents, 0)) as cents
-            from bills, r where tenant_id in (?) and status = 'active' and due_date < r.d group by 1
-          SQL
-          by_customer = Sql.rows(<<~SQL, @reference, ids)
-            with r as (select ?::date as d)
-            select #{brackets.sql_index('max_days')} as idx, count(*) as n, sum(overdue) as cents from (
-              select max(r.d - due_date) as max_days, sum(greatest(amount_cents - paid_cents, 0)) as overdue
-              from bills, r where tenant_id in (?) and status = 'active' and due_date < r.d group by customer_id
-            ) c group by 1
-          SQL
-        end
+        # A data de referência entra uma só vez, por parâmetro, numa CTE; as faixas a repetem em cada WHEN pela coluna.
+        by_bill = Sql.rows(<<~SQL, @reference, ids)
+          with r as (select ?::date as d)
+          select #{brackets.sql_index('(r.d - due_date)')} as idx, count(*) as n, sum(greatest(amount_cents - paid_cents, 0)) as cents
+          from bills, r where tenant_id in (?) and status = 'active' and due_date < r.d group by 1
+        SQL
+        by_customer = Sql.rows(<<~SQL, @reference, ids)
+          with r as (select ?::date as d)
+          select #{brackets.sql_index('max_days')} as idx, count(*) as n, sum(overdue) as cents from (
+            select max(r.d - due_date) as max_days, sum(greatest(amount_cents - paid_cents, 0)) as overdue
+            from bills, r where tenant_id in (?) and status = 'active' and due_date < r.d group by customer_id
+          ) c group by 1
+        SQL
         { tenants: tenants.size, updated: updated, customers: customers, customers_overdue: sum.call("customers_overdue"), bills: sum.call("bills"),
           overdue_cents: sum.call("overdue_cents"), upcoming_cents: sum.call("upcoming_cents"),
-          upcoming_display: displays.uniq.size == 1 ? displays.first : "mixed", same_brackets: same_brackets,
-          labels: brackets&.labels, by_customer: brackets && distribution(brackets, by_customer, updated[:by_customer]), by_bill: brackets && distribution(brackets, by_bill, updated[:by_bill]) }
+          upcoming_display: displays.uniq.size == 1 ? displays.first : "mixed", default_brackets: default_brackets,
+          labels: brackets.labels, by_customer: distribution(brackets, by_customer, updated[:by_customer]), by_bill: distribution(brackets, by_bill, updated[:by_bill]) }
           .merge(payments(tenants)).merge(contacts: contacts(ids), promises: promises(ids), agreements: agreements(ids))
       end
 
@@ -71,16 +75,15 @@ module Portfolio
 
     private
       # Valor atualizado dos credores (09, R176): total, por faixa (do cliente e do título) e por segmento do contrato, somado no banco sobre `bill_valuations` (soma dos credores visíveis; os segmentos de mesmo nome
-      # somam, e as faixas só entram quando os credores têm as mesmas). Consulta: `bill_valuations (tenant_id)` e a chave de `bills`.
+      # somam; as faixas são as do resumo, do credor ou as padrão). Consulta: `bill_valuations (tenant_id)` e a chave de `bills`.
       def valuations(ids, brackets)
         total = Sql.one("select coalesce(sum(total_cents), 0) as cents, max(calculated_on) as on_date from bill_valuations where tenant_id in (?)", ids)
-        by_bill = by_customer = {}
-        by_bill = Sql.rows(<<~SQL, @reference, ids).to_h { |row| [ row["idx"].to_i, row["cents"].to_i ] } if brackets
+        by_bill = Sql.rows(<<~SQL, @reference, ids).to_h { |row| [ row["idx"].to_i, row["cents"].to_i ] }
           with r as (select ?::date as d)
           select #{brackets.sql_index('(r.d - b.due_date)')} as idx, sum(v.total_cents) as cents
           from bill_valuations v join bills b on b.id = v.bill_id, r where v.tenant_id in (?) group by 1
         SQL
-        by_customer = Sql.rows(<<~SQL, @reference, ids).to_h { |row| [ row["idx"].to_i, row["cents"].to_i ] } if brackets
+        by_customer = Sql.rows(<<~SQL, @reference, ids).to_h { |row| [ row["idx"].to_i, row["cents"].to_i ] }
           with r as (select ?::date as d)
           select #{brackets.sql_index('max_days')} as idx, sum(total) as cents from (
             select max(r.d - b.due_date) as max_days, sum(v.total_cents) as total

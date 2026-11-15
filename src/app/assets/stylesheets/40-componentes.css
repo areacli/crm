@@ -207,4 +207,24 @@
   /* Campo do cartão posto pelo fornecedor na página de pagamento (12, revisão 6, R284ab: os quadros do Mercado Pago): a mesma caixa dos nossos campos. */
   .campo [data-campo-do-fornecedor] { min-height: var(--altura-controle); border: 1px solid var(--cor-linha-forte); border-radius: var(--raio-controle); background: var(--cor-branco); padding: 0 var(--espaco-2); }
   .campo [data-campo-do-fornecedor] iframe { width: 100%; height: 2rem; border: 0; }
+
+  /* Página de pagamento (12, revisão 7, R280b), na camada dos componentes para valer sobre o campo e o textarea: no Pix, o QR Code e, ao lado, os dados do instrumento, o copia e cola e o botão de copiar; no celular, um embaixo do outro.
+     No boleto, os dados acima da linha digitável. Os dados são uma lista de rótulo e valor em duas colunas. */
+  body[data-pagina="pagamento"] .instrumento-pix { display: flex; flex-wrap: wrap; gap: var(--espaco-4); align-items: flex-start; }
+  body[data-pagina="pagamento"] .instrumento-pix > img { flex: 0 0 auto; }
+  body[data-pagina="pagamento"] .instrumento-pix > div { flex: 1 1 18rem; min-width: 0; display: grid; gap: var(--espaco-3); }
+  body[data-pagina="pagamento"] .instrumento-boleto { display: grid; gap: var(--espaco-3); }
+  body[data-pagina="pagamento"] .dados-do-instrumento { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--espaco-1) var(--espaco-3); margin: 0; }
+  body[data-pagina="pagamento"] .dados-do-instrumento > div { display: contents; }
+  body[data-pagina="pagamento"] .dados-do-instrumento dt { color: var(--cor-texto-suave); font-size: var(--texto-legenda); padding-top: 0.15em; }
+  body[data-pagina="pagamento"] .dados-do-instrumento dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+  body[data-pagina="pagamento"] .dados-do-instrumento dd small { display: block; font-weight: 400; color: var(--cor-texto-suave); font-size: var(--texto-legenda); }
+  body[data-pagina="pagamento"] .instrumento-pix .campo, body[data-pagina="pagamento"] .instrumento-boleto .campo { max-width: none; }
+  /* O código cabe inteiro no campo, que cresce com ele onde o navegador sabe (field-sizing); a linha digitável quebra no celular em vez de ser cortada. */
+  body[data-pagina="pagamento"] :is(#pix-copia-e-cola, #boleto-linha-digitavel) { field-sizing: content; min-height: 0; resize: none; word-break: break-all; }
+  body[data-pagina="pagamento"] .acoes-do-instrumento { display: flex; flex-wrap: wrap; gap: var(--espaco-2) var(--espaco-3); align-items: flex-start; justify-content: space-between; }
+  body[data-pagina="pagamento"] .copiar { display: flex; flex-wrap: wrap; gap: var(--espaco-1) var(--espaco-2); align-items: center; }
+  body[data-pagina="pagamento"] .copiar p { margin: 0; font-size: var(--texto-legenda); font-weight: 600; }
+  body[data-pagina="pagamento"] .copiar p[data-tom="sucesso"] { color: var(--cor-sucesso-texto); }
+  body[data-pagina="pagamento"] .copiar p[data-tom="aviso"] { color: var(--cor-atencao-texto); font-weight: 400; }
 }

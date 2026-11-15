@@ -90,33 +90,45 @@ class Portfolio::QuerySummaryTest < ActiveSupport::TestCase
     assert_equal [ 70_000, 0 ], beta[:by_bill].map { |row| row[:cents] }
   end
 
-  test "o resumo soma os credores visíveis; com faixas diferentes traz os totais e não as tabelas por faixa (25/10/2026)" do
+  test "o resumo de todos os credores soma os credores e distribui pelas faixas padrão, mesmo com faixas diferentes (01, revisão 8)" do
     total = Portfolio::Summary.new(users(:ana), reference: REFERENCE).totals
 
     assert_equal 2, total[:tenants]
     assert_equal [ 3, 5, 220_000, 100_000 ], [ total[:customers], total[:bills], total[:overdue_cents], total[:upcoming_cents] ]
-    assert_equal false, total[:same_brackets]
-    assert_nil total[:labels]
-    assert_nil total[:by_bill]
-    assert_nil total[:by_customer]
-  end
-
-  test "com as mesmas faixas nos credores, as tabelas por faixa somam os credores" do
-    @beta.setting.update!(aging_brackets: @alfa.setting.aging_brackets)
-    total = Portfolio::Summary.new(users(:ana), reference: REFERENCE).totals
-
-    assert total[:same_brackets]
+    assert total[:default_brackets]
+    assert_equal Portfolio::AgingBrackets.from(TenantSetting::DEFAULT_BRACKETS).labels, total[:labels]
+    # A Beta tem 1–60 e mais de 60; o título dela de 38 dias entra em 31–60 das faixas padrão, ao lado do de 38 dias da Alfa.
     assert_equal [ 0, 2, 0, 1, 0, 0 ], total[:by_bill].map { |row| row[:count] }
     assert_equal 170_000, total[:by_bill][1][:cents]
     assert_equal [ 0, 1, 0, 1, 0, 0 ], total[:by_customer].map { |row| row[:count] }
     assert_equal 220_000, total[:by_customer].sum { |row| row[:cents] }
   end
 
+  test "com o filtro de credor, o resumo é só daquele credor, com as faixas dele (01, revisão 8)" do
+    summary = Portfolio::Summary.new(users(:ana), reference: REFERENCE)
+    beta = summary.totals(tenant_id: @beta.id)
+
+    assert_equal [ 1, 1, 70_000 ], [ beta[:tenants], beta[:bills], beta[:overdue_cents] ]
+    assert_not beta[:default_brackets]
+    assert_equal [ "1–60", "mais de 60" ], beta[:labels]
+    assert_equal [ 70_000, 0 ], beta[:by_bill].map { |row| row[:cents] }
+    assert_equal summary.for_tenant(@beta).except(:agreements), beta.except(:agreements)
+  end
+
+  test "credor fora dos que o usuário consulta não filtra: vale todos os credores dele (V10)" do
+    other = Tenant.create!(name: "Outro credor")
+    only_alfa = Portfolio::Summary.new(users(:joana), reference: REFERENCE)
+
+    assert_equal [ @alfa ], only_alfa.tenants
+    assert_equal [ 1, 150_000 ], only_alfa.totals(tenant_id: other.id).values_at(:tenants, :overdue_cents)
+    assert_equal [ 1, 150_000 ], only_alfa.totals(tenant_id: @beta.id).values_at(:tenants, :overdue_cents)
+  end
+
   test "o resumo só soma os credores em que o usuário consulta a carteira (V10) e quem tem um credor vê o dele" do
     only_alfa = Portfolio::Summary.new(users(:joana), reference: REFERENCE).totals
     assert_equal 1, only_alfa[:tenants]
     assert_equal [ 2, 4, 150_000 ], [ only_alfa[:customers], only_alfa[:bills], only_alfa[:overdue_cents] ]
-    assert only_alfa[:same_brackets]
+    assert_not only_alfa[:default_brackets]
     assert_equal Portfolio::Summary.new(users(:joana), reference: REFERENCE).for_tenant(@alfa).except(:agreements), only_alfa.except(:agreements)
   end
 
