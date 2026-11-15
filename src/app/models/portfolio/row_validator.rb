@@ -34,14 +34,14 @@ module Portfolio
       return [ nil, "título no formato de número de promessa (PRM-)" ] if Promises.number?(values["titulo"])
       return [ nil, "título no formato de número de acordo (ACD-)" ] if Agreements.number?(values["titulo"])
 
-      %i[due_date amount roles surcharges].each { |field| return [ nil, record.format_problems[field] ] if record.format_problems[field] }
+      %i[due_date amount roles surcharges started_on].each { |field| return [ nil, record.format_problems[field] ] if record.format_problems[field] }
 
       surcharges = record.surcharges
       [ ParsedRow.new(line: record.position, document: record.document, name: values["nome"], contacts: record.contacts, warnings: record.warnings, contract: values["contrato"].presence, number: values["titulo"], due_date: record.due_date,
                       amount_cents: record.amount_cents, description: values["descricao"].presence, roles: record.roles, product: values["produto"].presence,
                       penalty_cents: surcharges[0], interest_cents: surcharges[1], correction_cents: surcharges[2], other_cents: surcharges[3],
                       external_bill_id: (values["id_titulo"].presence if @own_id), external_contract_id: (values["id_contrato"].presence if @own_id),
-                      external_customer_id: values["id_cliente"].presence), nil ]
+                      external_customer_id: values["id_cliente"].presence, started_on: record.started_on), nil ]
     end
   end
 end

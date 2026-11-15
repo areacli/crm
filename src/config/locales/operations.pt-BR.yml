@@ -120,6 +120,7 @@ pt-BR:
     queues: "Enquadramento das filas de %{tenant}."
     distribution: "Enquadramento da distribuição de %{tenant}."
     financial: "Enquadramento financeiro de %{tenant}."
+    cadence: "Régua de %{tenant}."
   distributions:
     out_of_reach: "registro fora do seu alcance"
     create:

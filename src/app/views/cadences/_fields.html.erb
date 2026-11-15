@@ -1,0 +1,48 @@
+<%# Campos da régua (21, R428, R437, R437a). Locais: form, cadence, milestone (o marco só se escolhe ao criar). %>
+<div class="campo">
+  <%= form.label :name, "Nome" %>
+  <%= form.text_field :name, value: cadence.name, required: true, maxlength: 100 %>
+  <small>Único no credor.</small>
+</div>
+<% if milestone %>
+  <div class="campo">
+    <%= form.label :milestone, "Marco" %>
+    <%= form.select :milestone, Cadences::Catalog::MILESTONES.keys.map { |key| [ t("cadences.milestones.#{key}"), key ] }, { selected: cadence.milestone }, required: true %>
+    <small>A data de onde a régua conta os dias. Não muda depois de criada: para outro marco, crie outra régua.</small>
+  </div>
+<% end %>
+<fieldset>
+  <legend>Dias da agenda</legend>
+  <%= hidden_field_tag "cadence[schedule_days][]", "" %>
+  <% %w[Dom Seg Ter Qua Qui Sex Sáb].each_with_index do |day, index| %>
+    <label><%= check_box_tag "cadence[schedule_days][]", index, Array(cadence.schedule_days).include?(index), id: "dia-#{index}" %> <%= day %></label>
+  <% end %>
+</fieldset>
+<div class="campo">
+  <%= form.label :schedule_time, "Horário" %>
+  <%= form.select :schedule_time, (0..23).flat_map { |hour| [ format("%02d:00", hour), format("%02d:30", hour) ] }, selected: cadence.schedule_time %>
+  <small>Horário de Brasília, de meia em meia hora. Escolha um horário depois da carga habitual.</small>
+</div>
+<div class="campo">
+  <label><%= form.check_box :skip_national_holidays, checked: cadence.skip_national_holidays %> Não rodar em feriado nacional</label>
+</div>
+<div class="campo">
+  <%= form.label :valid_from, "Vigência de" %>
+  <%= form.date_field :valid_from, value: cadence.valid_from, required: true %>
+</div>
+<div class="campo">
+  <%= form.label :valid_until, "Vigência até" %>
+  <%= form.date_field :valid_until, value: cadence.valid_until %>
+  <small>Opcional. Passada a data, a régua fica desligada.</small>
+</div>
+<fieldset>
+  <legend>Prazos de retorno</legend>
+  <% Cadences::Catalog::KINDS.each do |kind| %>
+    <div class="campo">
+      <%= label_tag "prazo-#{kind}", t("cadences.kinds.#{kind}") %>
+      <%= number_field_tag "cadence[return_hours][#{kind}]", Cadences::Catalog.return_hours(cadence, kind), id: "prazo-#{kind}", min: 1, max: 720 %>
+      <small>horas</small>
+    </div>
+  <% end %>
+  <small>Depois do prazo, o item sem retorno do executor aparece como alerta na rodada; o retorno que chegar depois ainda vale.</small>
+</fieldset>

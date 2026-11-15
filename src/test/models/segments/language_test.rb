@@ -169,6 +169,44 @@ class SegmentsLanguageTest < ActiveSupport::TestCase
     assert_equal [ recent.id ], ids(@alfa, expr("contracts", none.merge("quantifier" => "some")))
   end
 
+  test "R262, revisão 8: \"há N dias ou mais\" pega os itens de N dias atrás ou de antes; um recorte por condição" do
+    result = contact_results(:alfa_promised)
+    recent = make_contract(@alfa, "C-HR", bills: [ { overdue: 10 } ])
+    old = make_contract(@alfa, "C-HO", bills: [ { overdue: 10 } ])
+    attempt(recent, result, 5)
+    attempt(old, result, 15)
+    older = { "path" => "contact_attempts", "quantifier" => "some", "older_than_days" => 10 }
+    assert_equal [ old.id ], ids(@alfa, expr("contracts", older))
+    assert_equal "algum acionamento há 10 dias ou mais", Segments::Text.new(expr("contracts", older)).short_text.lines.last.strip
+    assert_not expr("contracts", older.merge("within_days" => 30)).tap(&:valid?).errors.empty?
+    assert_not expr("contracts", { "path" => "bills", "quantifier" => "some", "older_than_days" => 10 }).tap(&:valid?).errors.empty?, "títulos não têm data"
+  end
+
+  test "13, revisão 7: dias em cobrança, iniciado há e o sorteio do titular" do
+    late = make_contract(@alfa, "C-DC1", bills: [ { overdue: 40 } ])
+    fresh = make_contract(@alfa, "C-DC2", bills: [ { overdue: 3 } ])
+    clean = make_contract(@alfa, "C-DC3", bills: [ { overdue: -5 } ])
+    ArrearsEpisode.refresh(@alfa, "contracts")
+    assert_equal [ late.id ], ids(@alfa, expr("contracts", { "path" => "collection_days", "op" => "gte", "value" => 30 }))
+    assert_equal [ fresh.id ], ids(@alfa, expr("contracts", { "path" => "collection_days", "op" => "lt", "value" => 30 })), "sem atraso, vazio: não entra"
+
+    late.update!(started_on: Date.current - 400)
+    assert_equal [ late.id ], ids(@alfa, expr("contracts", { "path" => "started_days", "op" => "gte", "value" => 365 }))
+
+    late.customers.first.update_columns(draw: 3)
+    [ fresh, clean ].each { |contract| contract.customers.first.update_columns(draw: 50) }
+    assert_equal [ late.id ], ids(@alfa, expr("contracts", { "path" => "holder.draw", "op" => "lt", "value" => 10 }))
+    assert_equal [ late.customers.first.id ], ids(@alfa, expr("customers", { "path" => "draw", "op" => "lt", "value" => 10 }))
+  end
+
+  test "13, revisão 7: dias em cobrança do cliente, pelos contratos dele" do
+    ana = customer_of(@alfa, FakeData.cpf(61))
+    make_contract(@alfa, "C-CL1", bills: [ { overdue: 50 } ], customers: [ ana ])
+    make_contract(@alfa, "C-CL2", bills: [ { overdue: 5 } ], customers: [ customer_of(@alfa, FakeData.cpf(62)) ])
+    ArrearsEpisode.refresh(@alfa, "customers")
+    assert_equal [ ana.id ], ids(@alfa, expr("customers", { "path" => "collection_days", "op" => "gte", "value" => 30 }))
+  end
+
   test "R257 e R263: pai do contrato e outros contratos do titular, sem o próprio" do
     ana = customer_of(@alfa, FakeData.cpf(31))
     first = make_contract(@alfa, "C-A1", bills: [ { overdue: 10 } ], customers: [ ana ])

@@ -1,0 +1,44 @@
+<% content_for :title, "Réguas" %>
+<% content_for :cable_channels, @cable if @cable %>
+<%= pagina "Réguas", subtitulo: "O que cada público recebe em cada momento. A prioridade decide entre réguas que rodam no mesmo horário: o mesmo tipo sobre o mesmo objeto fica com a de cima." do %>
+  <%= link_to "Ver comandos", cadence_commands_path(credor: @tenant&.id), class: "botao", data: { variant: "secondary" } %>
+  <%= link_to "Ver peças", settings_message_pieces_path(credor: @tenant&.id), class: "botao", data: { variant: "secondary" } %>
+  <%= abrir_painel "Criar régua", new_cadence_path(credor: @tenant&.id) %>
+<% end %>
+<%= render "cadences/tenants", rota: :cadences_path %>
+
+<div id="reguas" data-spa-vivo="<%= request.fullpath %>">
+  <% if @cadences.empty? %>
+    <p class="vazio">Nenhuma régua neste credor. Crie a primeira: ela nasce desligada, e nada sai até você conferir e ligar.</p>
+  <% else %>
+    <div class="tabela" tabindex="0">
+      <table>
+        <caption class="apenas-leitor-de-tela">Réguas do credor, por prioridade</caption>
+        <thead><tr><th scope="col" data-numerico>Prioridade</th><th scope="col">Régua</th><th scope="col">Marco</th><th scope="col">Agenda</th><th scope="col">Vigência</th><th scope="col">Situação</th><th scope="col">Última rodada</th><th scope="col" data-numerico>Comandos</th><th scope="col"><span class="apenas-leitor-de-tela">Ações</span></th></tr></thead>
+        <tbody>
+          <% @cadences.each_with_index do |cadence, index| %>
+            <% round = @last_rounds[cadence.id] %>
+            <tr id="regua-<%= cadence.id %>">
+              <td data-numerico><%= cadence.position %></td>
+              <th scope="row"><%= link_to cadence.name, cadence_path(cadence) %><br><small><%= t("cadences.subjects.#{cadence.subject}") %> · <%= cadence.lanes.size %> <%= cadence.lanes.size == 1 ? "raia" : "raias" %> · <%= cadence.columns.size %> <%= cadence.columns.size == 1 ? "coluna" : "colunas" %></small></th>
+              <td><%= t("cadences.milestones.#{cadence.milestone}") %></td>
+              <td><%= agenda_da_regua(cadence) %></td>
+              <td><%= cadence.valid_until ? "#{date_br(cadence.valid_from)} a #{date_br(cadence.valid_until)}" : "desde #{date_br(cadence.valid_from)}" %></td>
+              <td><%= cadence.enabled? ? situacao("Ligada", tom: :success) : situacao(cadence.disabled_reason ? "Desligada · #{cadence.disabled_reason}" : "Desligada", tom: :neutral) %></td>
+              <td><%= round ? safe_join([ datetime_br(round.scheduled_for), " ", situacao_da_rodada(round) ]) : tag.small("nunca rodou") %></td>
+              <td data-numerico><%= round ? number_br(@commands[round.id].to_i) : "—" %></td>
+              <td data-acoes>
+                <%= menu_de_linha("regua-menu-#{cadence.id}", "Ações de #{cadence.name}") do %>
+                  <%= link_to "Ver rodadas", cadence_rounds_path(cadence) %>
+                  <% if index.positive? %><%= button_to "Mover para cima", priority_cadence_path(cadence, para: cadence.position - 1), data: { variant: "secondary" } %><% end %>
+                  <% if index < @cadences.size - 1 %><%= button_to "Mover para baixo", priority_cadence_path(cadence, para: cadence.position + 1), data: { variant: "secondary" } %><% end %>
+                <% end %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+    <p><small>Mudar a prioridade de uma régua ligada passa pela conferência do impacto. A régua nova entra no fim da lista.</small></p>
+  <% end %>
+</div>

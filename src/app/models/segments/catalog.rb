@@ -32,6 +32,10 @@ module Segments
       return_days: { type: :days },
       return_user: { type: :user },
       updated_value: { type: :money },
+      # 13, revisão 7 (régua, RG13a e RG13b): dias desde a data de início informada na carga (`inicio_contrato`) e desde a entrada no episódio de
+      # atraso em curso (`ArrearsEpisode`), que não recua quando o título mais antigo é pago. Vazios sem a data e sem atraso.
+      started_days: { type: :days },
+      collection_days: { type: :days },
       # 17, R425: o sistema do credor de onde o contrato veio. `:reference` é o valor guardado pelo id e escrito pelo nome; `of` diz de que lista.
       system: { type: :reference, of: :system }
     }.freeze
@@ -44,7 +48,11 @@ module Segments
       balance: { type: :money },
       # 15, R352 (revisão 1): o retorno combinado no último acionamento do cliente.
       return_days: { type: :days },
-      return_user: { type: :user }
+      return_user: { type: :user },
+      # 13, revisão 7: dias desde a entrada no episódio de atraso do cliente (todos os contratos dele no credor) e o sorteio, 0 a 99, fixo por
+      # cliente (grupo de controle da régua, RG18; não identifica ninguém, R264).
+      collection_days: { type: :days },
+      draw: { type: :count }
     }.freeze
 
     BILL_KINDS = %w[common agreement break reversal].freeze
@@ -104,6 +112,14 @@ module Segments
         gender: :m,
         fields: { person_type: { type: :option, options: %w[person company] } },
         qualifiers: [], main: :person_type, sums: []
+      },
+      # 13, R261a (revisão 8; régua, R448): os comandos da régua cujo objeto é o contrato (do contrato) ou o cliente e os contratos dele (do cliente),
+      # com a data da rodada. A peça e a régua são guardadas pelo id e escritas pelo nome, como o resultado de acionamento.
+      commands: {
+        gender: :m, dated: true,
+        fields: { kind: { type: :option, options: Cadences::Catalog::KINDS }, piece: { type: :reference, of: :piece },
+                  cadence: { type: :reference, of: :cadence }, state: { type: :option, options: CadenceCommand::STATES.values } },
+        qualifiers: [], main: :piece, sums: []
       }
     }.freeze
 
@@ -113,8 +129,8 @@ module Segments
 
     # O que cada sujeito lê diretamente (R255, R256, R258 a R261).
     SUBJECT_COLLECTIONS = {
-      "contracts" => %w[bills contact_attempts contacts promises agreements payments customers],
-      "customers" => %w[contracts bills contact_attempts contacts promises agreements payments]
+      "contracts" => %w[bills contact_attempts contacts promises agreements payments customers commands],
+      "customers" => %w[contracts bills contact_attempts contacts promises agreements payments commands]
     }.freeze
 
     module_function

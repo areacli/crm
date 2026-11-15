@@ -26,6 +26,14 @@ module Payments
       instrument
     end
 
+    # A emissão de quem já está num job e devolve o retorno na hora (o executor da régua, 21, R447): grava e emite sem outro job. O mesmo `custom_id`
+    # devolve o mesmo instrumento, e o que já saiu de `emitting` não é emitido de novo.
+    def issue_now(**attributes)
+      instrument = build(**attributes)
+      perform(instrument) if instrument.state_emitting?
+      instrument.reload
+    end
+
     # Lote: um job por instrumento, espaçados pelo limite de taxa (instrumento que já existia não é enfileirado de novo).
     def request_batch(requests, per_minute: nil)
       interval = 60.0 / [ per_minute || self.class.per_minute, 1 ].max

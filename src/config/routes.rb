@@ -19,6 +19,8 @@ Rails.application.routes.draw do
     resource :name, path: "nome", path_names: { edit: "editar" }, only: %i[edit update], module: :customers
     # Linha do tempo da lateral (padrões de interface, revisão 24): o trecho que a ficha troca no filtro e na paginação (`data-trecho`).
     resource :timeline, path: "linha-do-tempo", only: :show, module: :customers
+    # A situação na régua (21, R444): calculada na hora, por régua ligada.
+    resource :cadence_situation, path: "nas-reguas", only: :show, module: :customers
     resources :contacts, path: "contatos", path_names: { new: "novo", edit: "editar" }, controller: "customer_contacts", only: %i[new create edit update] do
       resource :status, path: "situacao", path_names: { new: "nova", edit: "editar" }, only: %i[edit update], controller: "customer_contacts/statuses"
     end
@@ -147,6 +149,8 @@ Rails.application.routes.draw do
   end
 
   namespace :settings, path: "configuracao" do
+    # Peças da mensageria (21, R446): o cadastro mínimo que a régua usa no lugar do dono (permissão 24).
+    resources :message_pieces, path: "mensageria/pecas", path_names: { new: "nova", edit: "editar" }, only: %i[index new create edit update]
     resource :tenant_registry, path: "dados-do-credor", only: %i[show update]
     resource :retention_period, path: "prazo-de-guarda", only: :update
     resource :portfolio, path: "carteira", only: %i[show update]
@@ -220,11 +224,31 @@ Rails.application.routes.draw do
     resources :queue_settings, path: "ajustes", module: :settings, path_names: { edit: "editar" }, only: %i[edit update]
     resources :queue_groups, path: "grupos", module: :settings, path_names: { new: "novo", edit: "editar" }, only: %i[index new create edit update destroy]
     resources :queue_strategies, path: "estrategias", module: :settings, path_names: { edit: "editar" }, only: %i[edit update]
+    # Tarefas (21, R446; 15, revisão 3): o que a régua põe na fila de trabalho, com instrução e prazo (permissão 21).
+    resources :queue_tasks, path: "tarefas", module: :settings, path_names: { new: "nova", edit: "editar" }, only: %i[index new create edit update]
     resources :releases, path: "entregas", module: :queue_boards, only: [] do
       member { post :create, path: "liberar" }
     end
     get "", to: "queue_boards#index", as: :board
     get ":id", to: "queue_boards#show", as: :board_queue, constraints: { id: /\d+/ }
+  end
+
+  # Réguas (21): a lista, o diagrama de raias e as mudanças (que passam pela conferência na régua ligada), as rodadas e os comandos (permissão 24).
+  get "reguas/comandos", to: "cadences/commands#index", as: :cadence_commands
+  resources :cadences, path: "reguas", path_names: { new: "nova", edit: "editar" }, only: %i[index show new create edit update] do
+    member do
+      post :enable, path: "ligar"
+      post :disable, path: "desligar"
+      post :priority, path: "prioridade"
+      get :review, path: "conferencia"
+      post :confirm, path: "confirmar"
+    end
+    resources :lanes, path: "raias", controller: "cadences/lanes", path_names: { new: "nova" }, only: %i[new create destroy] do
+      member { post :move, path: "mover" }
+    end
+    resources :columns, path: "colunas", controller: "cadences/columns", path_names: { new: "nova" }, only: %i[new create destroy]
+    resources :cells, path: "acoes", controller: "cadences/cells", path_names: { new: "nova" }, only: %i[new create destroy]
+    resources :rounds, path: "rodadas", controller: "cadences/rounds", only: :index
   end
 
   # Operações (14; padrões de interface, revisões 22 e 30): área própria do menu, no grupo "Distribuição do trabalho", fora da configuração. Os controladores seguem no módulo

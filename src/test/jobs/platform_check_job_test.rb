@@ -9,7 +9,7 @@ class PlatformCheckJobTest < ActiveJob::TestCase
     end
   end
 
-  test "as cinco filas são as do Sidekiq" do
+  test "as seis filas são as do Sidekiq" do
     sidekiq = YAML.safe_load(ERB.new(Rails.root.join("config/sidekiq.yml").read).result, permitted_classes: [ Symbol ], symbolize_names: true)
 
     assert_equal PlatformCheckJob::QUEUES, sidekiq[:queues].map(&:to_s)
@@ -18,7 +18,7 @@ class PlatformCheckJobTest < ActiveJob::TestCase
   test "a tarefa enfileira um job em cada fila" do
     Rails.application.load_tasks unless Rake::Task.task_defined?("crm:platform_check")
 
-    assert_enqueued_jobs 5, only: PlatformCheckJob do
+    assert_enqueued_jobs 6, only: PlatformCheckJob do
       Rake::Task["crm:platform_check"].reenable
       capture_io { Rake::Task["crm:platform_check"].invoke }
     end

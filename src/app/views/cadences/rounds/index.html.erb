@@ -1,0 +1,7 @@
+<% content_for :title, "Rodadas · #{@cadence.name}" %>
+<% content_for :cable_channels, @cable %>
+<%= pagina "Rodadas · #{@cadence.name}", subtitulo: "Toda hora prevista aparece aqui, inclusive as que não rodaram. As contagens se atualizam com os retornos dos executores." do %>
+  <%= link_to "Voltar ao desenho", cadence_path(@cadence), class: "botao", data: { variant: "secondary" } %>
+  <%= link_to "Ver comandos", cadence_commands_path(credor: @tenant.id, regua: @cadence.id), class: "botao", data: { variant: "secondary" } %>
+<% end %>
+<%= render "cadences/rounds/result" %>

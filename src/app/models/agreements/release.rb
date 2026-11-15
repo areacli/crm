@@ -15,7 +15,7 @@ module Agreements
         entry = agreement.entry_title
         reverse_credit_payments(agreement, entry, on)
         move_entry_payments(agreement, entry, on) if entry
-        Bill.where(agreement_id: agreement.id).where.not(status: "paid").update_all(status: "canceled", updated_at: Time.current)
+        Bill.where(agreement_id: agreement.id).where.not(status: "paid").change_status_to!("canceled")
         agreement.agreement_bills.update_all(held: false)
         CreditUse.release!(agreement, user: @actor)
         attributes = { state: to, reason: reason, closed_at: Time.current }

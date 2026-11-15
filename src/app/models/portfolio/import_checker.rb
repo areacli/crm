@@ -126,6 +126,7 @@ module Portfolio
         import.update!(progress_percent: 65, progress_label: "Procurando repetições e nomes divergentes")
         reject_divergent_names(import)
         reject_divergent_identities(import)
+        reject_divergent_start_dates(import)
         import.source_system.key_own_id? ? reject_duplicate_ids(import) : reject_duplicate_bills(import)
         # Os contatos das linhas recusadas (nomes divergentes, título repetido) não entram: saem da preparação aqui, uma vez, e a confirmação
         # não precisa juntar de novo com as linhas aceitas.
@@ -159,6 +160,25 @@ module Portfolio
           lines = rows.where(external_customer_id: ids).pluck(:external_customer_id, :line).group_by(&:first)
           rejections = lines.flat_map do |id, pairs|
             reason = "documentos diferentes para o mesmo id de cliente: linhas #{join_lines(firsts.fetch(id).map(&:last).sort)}"
+            pairs.map { |(_, line)| { import_id: import.id, line: line, reason: reason } }
+          end
+          ApplicationRecord.transaction do
+            ImportRejection.insert_all!(rejections)
+            ImportRow.where(import_id: import.id, line: rejections.pluck(:line)).update_all(ok: false)
+          end
+        end
+      end
+
+      # 01 (revisão de 14/11/2026): datas de início diferentes para o mesmo contrato no arquivo recusam todas as linhas do contrato, como a R7. O
+      # contrato é o código declarado (em chave natural) ou o id do contrato (em id próprio); a linha sem contrato declarado não entra na conta.
+      def reject_divergent_start_dates(import)
+        key = import.source_system.key_own_id? ? :external_contract_id : :contract
+        rows = ImportRow.where(import_id: import.id, ok: true).where.not(key => nil).where.not(started_on: nil)
+        rows.group(key).having("count(distinct started_on) > 1").pluck(key).each_slice(500) do |contracts|
+          firsts = rows.where(key => contracts).group(key, :started_on).minimum(:line).group_by { |(contract, _), _| contract }
+          lines = ImportRow.where(import_id: import.id, ok: true, key => contracts).pluck(key, :line).group_by(&:first)
+          rejections = lines.flat_map do |contract, pairs|
+            reason = "datas de início diferentes para o mesmo contrato: linhas #{join_lines(firsts.fetch(contract).map(&:last).sort)}"
             pairs.map { |(_, line)| { import_id: import.id, line: line, reason: reason } }
           end
           ApplicationRecord.transaction do

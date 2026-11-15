@@ -5,7 +5,8 @@
 # `agreements (customer_id)` e as das distribuições; cada fonte lê só as linhas até a página pedida.
 class CustomerTimeline
   PER_PAGE = 10
-  KINDS = %w[atendimento distribuicao].freeze
+  # 21, R444: a pílula "Régua", com os comandos do cliente e dos contratos dele.
+  KINDS = %w[atendimento distribuicao regua].freeze
 
   # Um evento: quando (`at`, para ordenar), se mostra a hora, o tipo do filtro, o que é (:contact_attempt, :agreement ou :distribution) e o registro.
   Event = Data.define(:at, :with_time, :kind, :source, :record)
@@ -46,6 +47,7 @@ class CustomerTimeline
       list = []
       list += [ method(:attempt_events), method(:agreement_events) ] if kind.nil? || kind == "atendimento"
       list << method(:distribution_events) if @distributions && (kind.nil? || kind == "distribuicao")
+      list << method(:cadence_events) if kind.nil? || kind == "regua"
       list
     end
 
@@ -53,7 +55,22 @@ class CustomerTimeline
       list = []
       list += [ attempts.count, agreements.count ] if kind.nil? || kind == "atendimento"
       list << distribution_list.size if @distributions && (kind.nil? || kind == "distribuicao")
+      list << cadence_items.count if kind.nil? || kind == "regua"
       list
+    end
+
+    # Os itens dos comandos da régua sobre o cliente ou sobre os contratos dele (21, R444): pelos índices `(customer_id, created_at)` e
+    # `(contract_id, created_at)` dos itens.
+    def cadence_items
+      contracts = @contract ? [ @contract.id ] : ContractCustomer.where(customer_id: @customer.id).select(:contract_id)
+      scope = CadenceCommandItem.where(contract_id: contracts)
+      scope = scope.or(CadenceCommandItem.where(customer_id: @customer.id, contract_id: nil)) unless @contract
+      scope
+    end
+
+    def cadence_events(limit)
+      cadence_items.includes(decision: :column, command: [ { round: :cadence }, { action: %i[message_piece queue_task] } ]).order(created_at: :desc, id: :desc).limit(limit)
+                   .map { |item| Event.new(item.created_at, true, "regua", :cadence, item) }
     end
 
     def attempts

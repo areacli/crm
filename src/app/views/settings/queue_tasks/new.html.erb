@@ -1,0 +1,4 @@
+<%= formulario_de_painel(titulo: "Nova tarefa", url: queues_queue_tasks_path(credor: @tenant.id), enviar: "Criar", escopo: :queue_task, variante: :modal, tamanho: :small,
+                         erro: @task.errors.full_messages.to_sentence.presence) do |form| %>
+  <%= render "settings/queue_tasks/fields", form: form, task: @task %>
+<% end %>

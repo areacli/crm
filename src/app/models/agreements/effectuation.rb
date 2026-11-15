@@ -20,8 +20,8 @@ module Agreements
         agreement.update!(state: "active_on_time", effectuated_at: at, effectuated_by: by)
         # A confirmação de pagamentos pode já ter gravado os originais como renegociados: o acordo anterior é achado pelos originais, em qualquer situação.
         previous_ids = Bill.where(id: agreement.agreement_bills.select(:bill_id)).where.not(agreement_id: nil).distinct.pluck(:agreement_id)
-        Bill.where(id: agreement.agreement_bills.select(:bill_id), status: "active").update_all(status: "renegotiated", updated_at: Time.current)
-        Bill.where(agreement_id: agreement.id, status: "scheduled").update_all(status: "active", updated_at: Time.current)
+        Bill.where(id: agreement.agreement_bills.select(:bill_id), status: "active").change_status_to!("renegotiated")
+        Bill.where(agreement_id: agreement.id, status: "scheduled").change_status_to!("active")
         AgreementEvent.log!(agreement, "effectuated", user: actor, data: { "by" => by })
         Change.record!(tenant_id: agreement.tenant_id, user: actor, subject_type: "agreement", subject_id: agreement.id, event: "state_changed", field: "state",
                        before: "awaiting_effectuation", after: "active_on_time", note: by)

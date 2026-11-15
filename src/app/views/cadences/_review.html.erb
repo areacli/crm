@@ -1,0 +1,49 @@
+<%# Resultado da conferência da régua (21, R442), refeito quando o WebSocket avisa. Locais: result (nil enquanto confere), failure. %>
+<div id="conferencia-da-regua" data-spa-vivo="<%= request.fullpath %>">
+  <% if failure %>
+    <%= aviso(tom: :danger) { tag.p(failure) } %>
+    <%= link_to "Voltar ao desenho", cadence_path(@cadence), class: "botao", data: { variant: "secondary", mesma_aba: true } %>
+  <% elsif result.nil? %>
+    <p class="carregando" role="status">Conferindo o impacto… O resultado aparece aqui sozinho.</p>
+  <% else %>
+    <% summary = result["summary"] || {} %>
+    <section class="cartao" aria-labelledby="impacto">
+      <header><h2 id="impacto"><%= result["slot"] ? "Rodada simulada: #{datetime_br(Time.zone.parse(result['slot']))}" : "Sem rodada prevista na agenda" %></h2></header>
+      <div>
+        <dl class="numeros-da-conferencia">
+          <div><dt>Comandos</dt><dd><%= number_br(result["commands"]) %></dd></div>
+          <div><dt>Entram pela primeira coluna</dt><dd><%= number_br(result["first_column"]) %></dd></div>
+          <div><dt>Entram no meio</dt><dd><%= number_br(result["middle"]) %></dd></div>
+          <div><dt>Colunas puladas</dt><dd><%= number_br(result["skipped"]) %></dd></div>
+          <div><dt>Despriorizados</dt><dd><%= number_br(result["deprioritized"]) %></dd></div>
+          <div><dt>Fora do episódio</dt><dd><%= number_br(summary["out_of_episode"].to_i) %></dd></div>
+          <div><dt>Sem marco</dt><dd><%= number_br(summary["without_milestone"].to_i) %></dd></div>
+        </dl>
+        <% if result["middle"].to_i.positive? %>
+          <p><small>Quem entra no meio já passou de colunas e recebe de uma vez a última alcançada. Para deixar o estoque antigo de fora, inclua uma coluna vazia que marque o fim.</small></p>
+        <% end %>
+        <% if summary["lane_error"] %><%= aviso(tom: :warning) { tag.p("A raia #{summary.dig('lane_error', 'position')} tem #{summary.dig('lane_error', 'reason')}: quem não coube nas raias de cima não recebe nada.") } %><% end %>
+        <% rows = result["rows"].select { |row| row["commands"].positive? } %>
+        <% if rows.any? %>
+          <% actions = CadenceAction.where(id: rows.map { |row| row["action_id"] }).includes(:message_piece, :queue_task, :lane, :column).index_by(&:id) %>
+          <div class="tabela" tabindex="0">
+            <table>
+              <caption class="apenas-leitor-de-tela">Comandos por raia, coluna e ação</caption>
+              <thead><tr><th scope="col" data-numerico>Raia</th><th scope="col">Coluna</th><th scope="col">Ação</th><th scope="col" data-numerico>Comandos</th><th scope="col" data-numerico>Itens</th></tr></thead>
+              <tbody>
+                <% rows.each do |row| %>
+                  <% action = actions[row["action_id"]] %>
+                  <tr><td data-numerico><%= action&.lane&.position %></td><td><%= action&.column&.label %></td><th scope="row"><%= action ? Cadences::Labels.action(action) : "—" %></th><td data-numerico><%= number_br(row["commands"]) %></td><td data-numerico><%= number_br(row["items"]) %></td></tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+        <% end %>
+        <div class="acoes" data-rodape>
+          <%= button_to "Confirmar a mudança", confirm_cadence_path(@cadence, token: @token), data: { variant: "primary" } %>
+          <%= link_to "Descartar", cadence_path(@cadence), class: "botao", data: { variant: "secondary", mesma_aba: true } %>
+        </div>
+      </div>
+    </section>
+  <% end %>
+</div>

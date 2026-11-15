@@ -1,0 +1,227 @@
+pt-BR:
+  cadences:
+    milestones:
+      bill_due: "Vencimento da fatura"
+      contract_arrears: "Maior atraso do contrato"
+      customer_arrears: "Maior atraso do cliente"
+      contract_in_collection: "Em cobrança desde (contrato)"
+      customer_in_collection: "Em cobrança desde (cliente)"
+      contract_start: "Início do contrato"
+      contract_creation: "Criação do contrato"
+      customer_registration: "Cadastro do cliente"
+    kinds:
+      sms: "SMS"
+      email: "E-mail"
+      whatsapp: "WhatsApp"
+      letter: "Carta"
+      issue_instrument: "Emitir instrumento"
+      proposal: "Proposta de acordo"
+      promise: "Promessa"
+      task: "Tarefa"
+      negativation: "Negativação"
+      protest: "Protesto"
+      lawsuit: "Ajuizamento"
+      credit_suspension: "Suspensão do crédito"
+    proposal_forms:
+      cash: "à vista"
+      installments: "parcelado"
+    proposal_concessions:
+      max: "concessão máxima"
+      min: "concessão mínima"
+      none: "sem concessão"
+    promise_values:
+      total_open: "total em aberto"
+      overdue_only: "só o vencido"
+    issue_objects:
+      bill: "a fatura"
+      overdue_bills: "faturas vencidas"
+      agreement_bills: "títulos de acordo"
+      promise: "promessa"
+    channels:
+      sms: "SMS"
+      email: "E-mail"
+      whatsapp: "WhatsApp"
+      letter: "Carta"
+    subjects:
+      contracts: "Contratos"
+      customers: "Clientes"
+    default_lane: "Trilha padrão"
+    operations:
+      update: "Editar a régua (nome, agenda, vigência ou prazos)"
+      enable: "Ligar a régua"
+      disable: "Desligar a régua"
+      add_lane: "Incluir uma raia"
+      remove_lane: "Excluir uma raia"
+      move_lane: "Mover uma raia"
+      add_column: "Incluir uma coluna"
+      remove_column: "Excluir uma coluna"
+      add_action: "Incluir uma ação"
+      remove_action: "Excluir uma ação"
+      move_priority: "Mudar a prioridade"
+    create:
+      done: "Régua %{name} criada, desligada."
+    update:
+      done: "Régua salva."
+    enable:
+      done: "Régua ligada."
+    disable:
+      done: "Régua desligada."
+    priority:
+      done: "Prioridade mudada."
+    confirm:
+      done: "Mudança confirmada; vale a partir da próxima rodada."
+    lanes:
+      create:
+        done: "Raia incluída."
+      move:
+        done: "Raia movida."
+      destroy:
+        done: "Raia excluída."
+    columns:
+      create:
+        done: "Coluna incluída."
+      destroy:
+        done: "Coluna excluída."
+    cells:
+      create:
+        done: "Ação incluída."
+      destroy:
+        done: "Ação excluída."
+    round_states:
+      scheduled: "agendada"
+      running: "em andamento"
+      completed: "concluída"
+      completed_with_failures: "concluída com falhas"
+      failed: "falhou"
+    item_states:
+      queued: "na fila"
+      executed: "executado"
+      failed: "falhou"
+      no_return: "sem retorno"
+      discarded: "descartado"
+    situation:
+      without_milestone: "sem marco: falta a data que o marco exige"
+      out_of_episode: "fora do episódio"
+      lane_without_actions: "raia sem ações"
+      before_first_column: "ainda antes da primeira coluna"
+      waiting: "a coluna ainda não disparou; sai na próxima rodada, se continuar assim"
+      deprioritized: "despriorizado por %{cadence}"
+      customer: "o cliente"
+    issue_due:
+      zero: "vence na rodada"
+      one: "vence em 1 dia"
+      other: "vence em %{count} dias"
+    reissue: "reemite"
+    contract_without_code: "contrato sem código"
+    contract_number: "contrato nº %{id}"
+    customer_number: "cliente nº %{id}"
+    simulated: "simulado: %{action} · %{target}"
+    errors:
+      stale: "A régua ou um segmento das raias mudou depois da sua conferência; confira de novo."
+      default_lane: "A trilha padrão fica sempre por último e não sai da régua."
+    still_valid:
+      cadence_off: "régua desligada"
+      action_removed: "ação retirada da célula"
+      moved_lane: "mudou de raia: %{lane}"
+      no_lane: "nenhuma raia (raia com erro)"
+      out_of_episode: "saiu do episódio"
+      paid: "saiu do episódio: título pago às %{time}"
+      next_column: "a coluna seguinte já foi alcançada"
+  instruments:
+    request:
+      nothing: "Nada a emitir."
+      issued:
+        one: "%{kind} emitido, %{names}"
+        other: "%{count} %{kind} emitidos: %{names}"
+      no_object:
+        bill: "a fatura não está em aberto"
+        overdue_bills: "nenhuma fatura vencida em aberto"
+        agreement_bills: "nenhum título de acordo em aberto"
+        promise: "nenhuma promessa aprovada em aberto"
+      already_active: "já tem %{kind} vigente"
+      zero: "valor zero"
+      failed: "a emissão falhou"
+      promise_closed: "a promessa não está aberta ou passou da data"
+      promise_method: "a promessa foi combinada por %{method}"
+      bill_closed: "o título não está em aberto"
+  activerecord:
+    attributes:
+      cadence:
+        name: "Nome"
+        milestone: "Marco"
+        schedule_days: "Dias da agenda"
+        schedule_time: "Horário"
+        valid_from: "Vigência de"
+        valid_until: "Vigência até"
+        return_hours: "Prazos de retorno"
+        enabled: "A régua"
+      cadence_lane:
+        segment: "Segmento"
+      cadence_column:
+        offset_days: "Momento"
+      cadence_action:
+        kind: "Tipo"
+        message_piece: "Peça"
+        queue_task: "Tarefa"
+        payment_method: "Meio de pagamento"
+        params: "Parâmetro"
+        column: "Coluna"
+      message_piece:
+        name: "Nome"
+        channel: "Canal"
+      queue_task:
+        name: "Nome"
+        instruction: "Instrução"
+        due_days: "Prazo em dias"
+    errors:
+      models:
+        cadence:
+          attributes:
+            valid_until:
+              before_start: "não pode ser antes do início da vigência"
+            schedule_days:
+              blank: "precisa de pelo menos um dia"
+              invalid: "são de domingo a sábado, sem repetir"
+            schedule_time:
+              invalid: "vai de meia em meia hora (:00 ou :30)"
+            return_hours:
+              invalid: "vão de 1 a 720 horas, por tipo"
+            enabled:
+              without_actions: "só liga com pelo menos uma coluna com ação"
+        cadence_lane:
+          attributes:
+            segment:
+              other_tenant: "é de outro credor"
+              other_subject: "seleciona outro público que o da régua"
+        cadence_column:
+          attributes:
+            offset_days:
+              below_milestone: "este marco aceita colunas a partir de %{minimum}"
+        cadence_action:
+          attributes:
+            column:
+              other_cadence: "é de outra régua"
+            message_piece:
+              other_channel: "é de outro canal"
+              other_tenant: "é de outro credor"
+            queue_task:
+              other_tenant: "é de outro credor"
+            params:
+              due_days: "o vencimento vai de 0 a 60 dias depois da rodada"
+              issue_object: "escolha o que emitir: faturas vencidas, títulos de acordo ou promessa"
+              proposal: "escolha a forma e a concessão"
+              promise: "escolha o valor da promessa"
+          inactive_parameter: "O parâmetro está inativo ou não existe mais no credor."
+          repeated_in_cell: "Esta ação já está na célula."
+  settings:
+    message_pieces:
+      create:
+        done: "Peça %{name} criada."
+      update:
+        done: "Peça %{name} salva."
+    queue_tasks:
+      create:
+        done: "Tarefa %{name} criada."
+      update:
+        done: "Tarefa %{name} salva."
+

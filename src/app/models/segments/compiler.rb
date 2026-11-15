@@ -151,6 +151,7 @@ module Segments
               column = Fields.customer(found[:name], "x")
               @needs << :customer_contracts if %w[overdue_days balance].include?(found[:name])
               @needs << :customer_return if %w[return_days return_user].include?(found[:name])
+              @needs << :customer_episode if found[:name] == "collection_days"
               return parent_attribute(found[:parent], compare(column, spec, node))
             end
 
@@ -158,6 +159,7 @@ module Segments
             note_contract_needs(found[:name]) if @subject == "contracts"
             @needs << :customer_return if @subject == "customers" && %w[return_days return_user].include?(found[:name])
             @needs << :customer_contracts if @subject == "customers" && %w[overdue_days balance].include?(found[:name])
+            @needs << :customer_episode if @subject == "customers" && found[:name] == "collection_days"
             compare(column, spec, node)
           end
 
@@ -230,11 +232,13 @@ module Segments
             compare(Fields.item(name, field, "x", @today_param), spec[:fields].fetch(field.to_sym), where)
           end
 
+          # "em N dias": os itens dos últimos N dias; "há N dias ou mais" (13, R262, revisão 8): os de N dias atrás ou de antes.
           def window(name, node)
-            days = node["within_days"]
-            return nil if days.blank?
-
-            "#{Sources.date_of(name)} >= (#{@today_param} - #{param(Integer(days), 'integer')})"
+            if node["within_days"].present?
+              "#{Sources.date_of(name)} >= (#{@today_param} - #{param(Integer(node['within_days']), 'integer')})"
+            elsif node["older_than_days"].present?
+              "#{Sources.date_of(name)} <= (#{@today_param} - #{param(Integer(node['older_than_days']), 'integer')})"
+            end
           end
 
           def filter_clause(parts) = parts.empty? ? "" : " filter (where #{parts.join(' and ')})"
@@ -269,6 +273,7 @@ module Segments
             @needs << :product_largest if name == "product_largest"
             @needs << :updated if name == "updated_value"
             @needs << :last_return if %w[return_days return_user].include?(name)
+            @needs << :episode if name == "collection_days"
           end
 
           def note_collection_needs(name, node)
@@ -327,8 +332,9 @@ module Segments
           "case when #{column} is null or btrim(#{column}) = '' then null else regexp_replace(translate(lower(btrim(#{column})), '#{ACCENTED}', '#{PLAIN}'), '\\s+', ' ', 'g') end"
         end
 
-        CONTRACT = %w[overdue_days balance overdue_percent age_days person_type product product_largest broke_agreement in_arrears in_collection updated_value return_days return_user system].freeze
-        CUSTOMER = %w[person_type customer_days overdue_days balance return_days return_user].freeze
+        CONTRACT = %w[overdue_days balance overdue_percent age_days person_type product product_largest broke_agreement in_arrears in_collection updated_value return_days return_user system
+                      started_days collection_days].freeze
+        CUSTOMER = %w[person_type customer_days overdue_days balance return_days return_user collection_days draw].freeze
 
         def contract(name, table)
           raise ArgumentError, name unless CONTRACT.include?(name.to_s)
@@ -363,6 +369,9 @@ module Segments
           in [ "payments", "amount" ] then "#{table}.amount_cents"
           in [ "contracts" | "other_contracts", _ ] then contract(field, table)
           in [ "customers", "person_type" ] then "#{table}.person_type"
+          in [ "commands", "kind" | "state" ] then "#{table}.#{field}"
+          in [ "commands", "piece" ] then "#{table}.message_piece_id"
+          in [ "commands", "cadence" ] then "#{table}.cadence_id"
           end
         end
 
@@ -409,6 +418,18 @@ module Segments
             [ "from contract_customers k join cb x on x.contract_id = k.contract_id", "k.customer_id" ]
           when "customers"
             [ "from contract_customers k join cu x on x.customer_id = k.customer_id", "k.contract_id" ]
+          when "commands"
+            # 13, R261a: o item do comando, com a ação, a régua e a data da rodada. Do contrato, os que têm o contrato como objeto; do cliente, os
+            # dele e os dos contratos dele.
+            items = "select i.state, i.contract_id, i.customer_id, a.kind, a.message_piece_id, r.cadence_id, r.scheduled_for from cadence_command_items i " \
+                    "join cadence_commands m on m.id = i.cadence_command_id join cadence_actions a on a.id = m.cadence_action_id " \
+                    "join cadence_rounds r on r.id = m.cadence_round_id where m.tenant_id = #{tenant}"
+            if contract
+              [ "from (#{items}) x where x.contract_id is not null", "x.contract_id" ]
+            else
+              [ "from (select coalesce(x0.customer_id, k.customer_id) as owner_id, x0.* from (#{items}) x0 " \
+                "left join contract_customers k on x0.customer_id is null and k.contract_id = x0.contract_id) x", "x.owner_id" ]
+            end
           end
         end
 
@@ -439,6 +460,7 @@ module Segments
           when "promises" then BrDate.sql_date("x.created_at")
           when "agreements" then BrDate.sql_date("x.effectuated_at")
           when "payments" then "x.paid_on"
+          when "commands" then BrDate.sql_date("x.scheduled_for")
           end
         end
       end
@@ -461,7 +483,9 @@ module Segments
                    #{needs.include?(:product_largest) ? 'big.product_key' : 'null::text'} as product_largest,
                    #{needs.include?(:updated) ? 'coalesce(upd.total, 0)' : '0::bigint'} as updated_value,
                    #{needs.include?(:last_return) ? "(#{BrDate.sql_date('lr.return_at')} - #{today})" : 'null::integer'} as return_days,
-                   #{needs.include?(:last_return) ? 'case when lr.return_at is not null then lr.user_id end' : 'null::bigint'} as return_user
+                   #{needs.include?(:last_return) ? 'case when lr.return_at is not null then lr.user_id end' : 'null::bigint'} as return_user,
+                   (#{today} - c.started_on) as started_days,
+                   #{needs.include?(:episode) ? "(#{today} - ep.started_on)" : 'null::integer'} as collection_days
             from contracts c
             left join (
               select b.contract_id,
@@ -476,6 +500,7 @@ module Segments
             #{needs.include?(:product_largest) ? "left join (#{biggest_sql(considered)}) big on big.contract_id = c.id" : ''}
             #{needs.include?(:updated) ? "left join (select b.contract_id, sum(v.total_cents) as total from bill_valuations v join bills b on b.id = v.bill_id where #{considered} group by b.contract_id) upd on upd.contract_id = c.id" : ''}
             #{needs.include?(:last_return) ? "left join (#{last_return_of_contracts(tenant, only: only)}) lr on lr.contract_id = c.id" : ''}
+            #{needs.include?(:episode) ? "left join arrears_episodes ep on ep.tenant_id = #{tenant} and ep.subject_type = 'contracts' and ep.subject_id = c.id and ep.ended_on is null" : ''}
             where c.tenant_id = #{tenant}#{" and c.id #{only}" if only}
           SQL
         end
@@ -513,16 +538,19 @@ module Segments
         def customers(needs, tenant, today, only: nil)
           contracts = needs.include?(:customer_contracts)
           returns = needs.include?(:customer_return)
+          episode = needs.include?(:customer_episode)
           <<~SQL
             select cu.id as customer_id,
                    case when cu.anonymized_at is not null then null when length(cu.document) = 11 then 'person' else 'company' end as person_type,
                    (#{today} - #{BrDate.sql_date('cu.created_at')}) as customer_days,
                    #{contracts ? 'coalesce(k.overdue_days, 0)' : '0'} as overdue_days, #{contracts ? 'coalesce(k.balance, 0)' : '0'} as balance,
                    #{returns ? "(#{BrDate.sql_date('lr.return_at')} - #{today})" : 'null::integer'} as return_days,
-                   #{returns ? 'case when lr.return_at is not null then lr.user_id end' : 'null::bigint'} as return_user
+                   #{returns ? 'case when lr.return_at is not null then lr.user_id end' : 'null::bigint'} as return_user,
+                   cu.draw, #{episode ? "(#{today} - ep.started_on)" : 'null::integer'} as collection_days
             from customers cu
             #{returns ? "left join (select distinct on (a.customer_id) a.customer_id, a.return_at, a.user_id from contact_attempts a where a.tenant_id = #{tenant}#{" and a.customer_id = any(#{only})" if only} order by a.customer_id, a.contacted_at desc, a.id desc) lr on lr.customer_id = cu.id" : ''}
             #{contracts ? 'left join (select cc.customer_id, max(cb.overdue_days) as overdue_days, sum(cb.balance) as balance from contract_customers cc join cb on cb.contract_id = cc.contract_id group by 1) k on k.customer_id = cu.id' : ''}
+            #{episode ? "left join arrears_episodes ep on ep.tenant_id = #{tenant} and ep.subject_type = 'customers' and ep.subject_id = cu.id and ep.ended_on is null" : ''}
             where cu.tenant_id = #{tenant}#{" and cu.id = any(#{only})" if only}
           SQL
         end

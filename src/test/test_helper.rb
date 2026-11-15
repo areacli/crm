@@ -21,6 +21,7 @@ require_relative "support/checkouts_helper"
 require_relative "support/webhooks_helper"
 require_relative "support/operations_test_helper"
 require_relative "support/spa_requests_helper"
+require_relative "support/cadences_test_helper"
 require_relative "test_helpers/session_test_helper"
 
 # Sem processos paralelos (poucos testes), o banco é o principal: o RLS entra nele também.

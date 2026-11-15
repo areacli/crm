@@ -1,0 +1,5 @@
+<%= formulario_de_painel(titulo: "Editar #{@cadence.name}", url: cadence_path(@cadence), metodo: :patch, enviar: @cadence.enabled? ? "Conferir o impacto" : "Salvar", escopo: :cadence,
+                         erro: @cadence.errors.full_messages.to_sentence.presence, voltar: cadence_path(@cadence),
+                         descricao: @cadence.enabled? ? "A régua está ligada: a mudança passa pela conferência do impacto antes de valer." : nil) do |form| %>
+  <%= render "cadences/fields", form: form, cadence: @cadence, milestone: false %>
+<% end %>

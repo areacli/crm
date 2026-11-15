@@ -1,0 +1,60 @@
+<%# Incluir ação numa célula (21, R432, R433): primeiro o tipo; depois o parâmetro do tipo. O parâmetro diz o que se quer, não como se faz. %>
+<% titulo = "Incluir ação · raia #{@lane.position} · #{@column.label}" %>
+<% if @kind.nil? %>
+  <% content_for :title, titulo %>
+  <div class="escolha-do-tipo">
+    <p>Escolha o tipo da ação:</p>
+    <ul>
+      <% Cadences::Catalog::KINDS.each do |kind| %>
+        <li><%= abrir_painel safe_join([ icone(CadencesHelper::ICONS.fetch(kind)), " ", t("cadences.kinds.#{kind}") ]), new_cadence_cell_path(@cadence, raia: @lane.id, coluna: @column.id, tipo: kind), variante: "secondary", tamanho: "small", data: { familia: Cadences::Diagram.family(kind) } %></li>
+      <% end %>
+    </ul>
+  </div>
+<% else %>
+  <%= formulario_de_painel(titulo: "#{titulo} · #{t("cadences.kinds.#{@kind}")}", url: cadence_cells_path(@cadence), enviar: @cadence.enabled? ? "Conferir o impacto" : "Incluir",
+                           escopo: :cell, variante: :modal, tamanho: :small, erro: @error) do |form| %>
+    <%= form.hidden_field :lane_id, value: @lane.id %>
+    <%= form.hidden_field :column_id, value: @column.id %>
+    <%= form.hidden_field :kind, value: @kind %>
+    <% if Cadences::Catalog.communication?(@kind) %>
+      <% if @pieces.empty? %>
+        <p class="vazio">Nenhuma peça ativa de <%= t("cadences.channels.#{Cadences::Catalog::COMMUNICATIONS[@kind]}") %>. Crie em Configuração › Peças da mensageria.</p>
+      <% else %>
+        <div class="campo"><%= form.label :message_piece_id, "Peça" %><%= form.select :message_piece_id, @pieces.map { |piece| [ piece.name, piece.id ] }, {}, required: true %></div>
+      <% end %>
+    <% elsif @kind == "task" %>
+      <% if @tasks.empty? %>
+        <p class="vazio">Nenhuma tarefa ativa. Crie em Filas › Tarefas.</p>
+      <% else %>
+        <div class="campo"><%= form.label :queue_task_id, "Tarefa" %><%= form.select :queue_task_id, @tasks.map { |task| [ "#{task.name} (#{task.due_days} dias)", task.id ] }, {}, required: true %></div>
+      <% end %>
+    <% elsif @kind == "issue_instrument" %>
+      <% if @methods.empty? %>
+        <p class="vazio">O credor não tem integração ativa de boleto nem de Pix.</p>
+      <% else %>
+        <div class="campo"><%= form.label :payment_method, "Meio" %><%= form.select :payment_method, @methods.map { |key| [ PaymentMethod.label(key), key ] }, {}, required: true %></div>
+        <div class="campo">
+          <%= label_tag "cell_params_due_days", "Vencimento (dias depois da rodada)" %>
+          <%= number_field_tag "cell[params][due_days]", 3, id: "cell_params_due_days", min: 0, max: Cadences::Catalog::MAX_DUE_DAYS, required: true %>
+          <small>Vale para o que está vencido; o que vence depois leva o próprio vencimento.</small>
+        </div>
+        <% if @cadence.bill_object? %>
+          <%= hidden_field_tag "cell[params][object]", "bill" %>
+          <p>Objeto: a fatura do marco.</p>
+        <% else %>
+          <div class="campo"><%= label_tag "cell_params_object", "Objeto" %><%= select_tag "cell[params][object]", options_for_select(Cadences::Catalog::ISSUE_OBJECTS.map { |key| [ t("cadences.issue_objects.#{key}"), key ] }), id: "cell_params_object" %></div>
+        <% end %>
+        <div class="campo"><label><%= hidden_field_tag "cell[params][reissue]", "0", id: nil %><%= check_box_tag "cell[params][reissue]", "1", false, id: "cell_params_reissue" %> Reemitir se já houver vigente</label></div>
+      <% end %>
+    <% elsif @kind == "proposal" %>
+      <div class="campo"><%= label_tag "cell_params_form", "Forma" %><%= select_tag "cell[params][form]", options_for_select(Cadences::Catalog::PROPOSAL_FORMS.map { |key| [ t("cadences.proposal_forms.#{key}"), key ] }), id: "cell_params_form" %></div>
+      <div class="campo"><%= label_tag "cell_params_concession", "Concessão" %><%= select_tag "cell[params][concession]", options_for_select(Cadences::Catalog::PROPOSAL_CONCESSIONS.map { |key| [ t("cadences.proposal_concessions.#{key}"), key ] }), id: "cell_params_concession" %></div>
+      <small>O que é "concessão máxima" num contrato é do executor, dentro da alçada do item financeiro.</small>
+    <% elsif @kind == "promise" %>
+      <div class="campo"><%= label_tag "cell_params_value", "Valor" %><%= select_tag "cell[params][value]", options_for_select(Cadences::Catalog::PROMISE_VALUES.map { |key| [ t("cadences.promise_values.#{key}"), key ] }), id: "cell_params_value" %></div>
+      <small>No prazo máximo do item financeiro.</small>
+    <% else %>
+      <p><%= t("cadences.kinds.#{@kind}") %> não tem parâmetro nesta versão. O executor ainda é simulado.</p>
+    <% end %>
+  <% end %>
+<% end %>

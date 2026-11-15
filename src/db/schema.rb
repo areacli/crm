@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_14_200000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_14_330000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -214,6 +214,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_14_200000) do
     t.check_constraint "state::text = ANY (ARRAY['pending'::character varying::text, 'approved'::character varying::text, 'refused'::character varying::text, 'not_approved'::character varying::text, 'expired'::character varying::text, 'canceled'::character varying::text, 'awaiting_effectuation'::character varying::text, 'active_on_time'::character varying::text, 'active_late'::character varying::text, 'settled'::character varying::text, 'broken'::character varying::text, 'renegotiated'::character varying::text])", name: "agreements_state"
   end
 
+  create_table "arrears_episodes", force: :cascade do |t|
+    t.bigint "tenant_id", null: false
+    t.string "subject_type", limit: 20, null: false
+    t.bigint "subject_id", null: false
+    t.date "started_on", null: false
+    t.date "ended_on"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["subject_type", "subject_id", "started_on"], name: "index_arrears_episodes_by_subject"
+    t.index ["tenant_id", "subject_type", "subject_id"], name: "index_arrears_episodes_open", unique: true, where: "(ended_on IS NULL)"
+    t.check_constraint "ended_on IS NULL OR ended_on >= (started_on - 1)", name: "arrears_episodes_dates"
+    t.check_constraint "subject_type::text = ANY (ARRAY['contracts'::character varying::text, 'customers'::character varying::text])", name: "arrears_episodes_subject_type"
+  end
+
   create_table "bill_valuations", primary_key: "bill_id", force: :cascade do |t|
     t.bigint "tenant_id", null: false
     t.bigint "principal_cents", null: false
@@ -261,6 +275,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_14_200000) do
     t.virtual "product_key", type: :text, as: "\nCASE\n    WHEN ((product IS NULL) OR (btrim((product)::text) = ''::text)) THEN NULL::text\n    ELSE regexp_replace(translate(lower(btrim((product)::text)), 'áàâãäéèêëíìîïóòôõöúùûüç'::text, 'aaaaaeeeeiiiiooooouuuuc'::text), '\\s+'::text, ' '::text, 'g'::text)\nEND", stored: true
     t.bigint "source_system_id", null: false
     t.string "external_id", limit: 100
+    t.date "closed_on"
+    t.date "reopened_on"
     t.index ["agreement_id"], name: "index_bills_on_agreement", where: "(agreement_id IS NOT NULL)"
     t.index ["contract_id"], name: "index_bills_on_contract_id"
     t.index ["customer_id"], name: "index_bills_on_customer_id"
@@ -272,6 +288,185 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_14_200000) do
     t.check_constraint "(kind::text = ANY (ARRAY['common'::character varying::text, 'agreement'::character varying::text, 'break'::character varying::text, 'reversal'::character varying::text])) AND (kind::text = ANY (ARRAY['agreement'::character varying::text, 'break'::character varying::text])) = (agreement_id IS NOT NULL) AND (kind::text = 'reversal'::text) = (origin_agreement_id IS NOT NULL)", name: "bills_kind"
     t.check_constraint "amount_cents > 0", name: "bills_amount_positive"
     t.check_constraint "paid_cents >= 0", name: "bills_paid_not_negative"
+  end
+
+  create_table "cadence_actions", force: :cascade do |t|
+    t.bigint "cadence_lane_id", null: false
+    t.bigint "cadence_column_id", null: false
+    t.integer "position", null: false
+    t.string "kind", limit: 20, null: false
+    t.jsonb "params", default: {}, null: false
+    t.bigint "message_piece_id"
+    t.bigint "queue_task_id"
+    t.string "payment_method", limit: 20
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.datetime "removed_at"
+    t.index ["cadence_column_id"], name: "index_cadence_actions_on_cadence_column_id"
+    t.index ["cadence_lane_id", "cadence_column_id", "kind", "params", "message_piece_id", "queue_task_id", "payment_method"], name: "index_cadence_actions_unique_in_cell", unique: true, where: "(removed_at IS NULL)", nulls_not_distinct: true
+    t.index ["message_piece_id"], name: "index_cadence_actions_on_message_piece_id", where: "(message_piece_id IS NOT NULL)"
+    t.index ["queue_task_id"], name: "index_cadence_actions_on_queue_task_id", where: "(queue_task_id IS NOT NULL)"
+    t.check_constraint "kind::text = ANY (ARRAY['sms'::character varying::text, 'email'::character varying::text, 'whatsapp'::character varying::text, 'letter'::character varying::text, 'issue_instrument'::character varying::text, 'proposal'::character varying::text, 'promise'::character varying::text, 'task'::character varying::text, 'negativation'::character varying::text, 'protest'::character varying::text, 'lawsuit'::character varying::text, 'credit_suspension'::character varying::text])", name: "cadence_actions_kind"
+  end
+
+  create_table "cadence_columns", force: :cascade do |t|
+    t.bigint "cadence_id", null: false
+    t.integer "offset_days", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.datetime "removed_at"
+    t.index ["cadence_id", "offset_days"], name: "index_cadence_columns_on_cadence_id_and_offset_days", unique: true, where: "(removed_at IS NULL)"
+    t.check_constraint "offset_days >= '-365'::integer AND offset_days <= 3650", name: "cadence_columns_offset"
+  end
+
+  create_table "cadence_command_items", force: :cascade do |t|
+    t.bigint "cadence_command_id", null: false
+    t.bigint "cadence_decision_id", null: false
+    t.bigint "contract_id"
+    t.bigint "customer_id"
+    t.bigint "bill_id"
+    t.string "state", limit: 20, default: "queued", null: false
+    t.string "reason", limit: 300
+    t.string "detail", limit: 300
+    t.datetime "returned_at"
+    t.bigint "payment_instrument_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["cadence_command_id", "cadence_decision_id"], name: "index_cadence_command_items_once", unique: true
+    t.index ["cadence_command_id"], name: "index_cadence_command_items_on_cadence_command_id"
+    t.index ["cadence_decision_id"], name: "index_cadence_command_items_on_cadence_decision_id"
+    t.index ["contract_id", "created_at"], name: "index_cadence_command_items_on_contract_id_and_created_at", where: "(contract_id IS NOT NULL)"
+    t.index ["customer_id", "created_at"], name: "index_cadence_command_items_on_customer_id_and_created_at", where: "(customer_id IS NOT NULL)"
+    t.index ["payment_instrument_id"], name: "index_cadence_command_items_on_payment_instrument_id", where: "(payment_instrument_id IS NOT NULL)"
+    t.check_constraint "state::text = ANY (ARRAY['queued'::character varying::text, 'executed'::character varying::text, 'failed'::character varying::text, 'no_return'::character varying::text, 'discarded'::character varying::text])", name: "cadence_command_items_state"
+  end
+
+  create_table "cadence_commands", force: :cascade do |t|
+    t.bigint "tenant_id", null: false
+    t.bigint "cadence_round_id", null: false
+    t.bigint "cadence_action_id", null: false
+    t.string "kind", limit: 20, null: false
+    t.string "group_key", limit: 60, null: false
+    t.bigint "recipient_customer_id"
+    t.string "state", limit: 20, default: "queued", null: false
+    t.datetime "enqueued_at"
+    t.datetime "claimed_at"
+    t.datetime "deadline_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["cadence_action_id"], name: "index_cadence_commands_on_cadence_action_id"
+    t.index ["cadence_round_id", "group_key"], name: "index_cadence_commands_on_cadence_round_id_and_group_key", unique: true
+    t.index ["cadence_round_id"], name: "index_cadence_commands_to_enqueue", where: "(enqueued_at IS NULL)"
+    t.index ["deadline_at"], name: "index_cadence_commands_waiting_return", where: "((state)::text = 'queued'::text)"
+    t.check_constraint "state::text = ANY (ARRAY['queued'::character varying::text, 'executed'::character varying::text, 'failed'::character varying::text, 'no_return'::character varying::text, 'discarded'::character varying::text])", name: "cadence_commands_state"
+  end
+
+  create_table "cadence_decisions", force: :cascade do |t|
+    t.bigint "cadence_round_id", null: false
+    t.bigint "cadence_id", null: false
+    t.string "object_key", limit: 30, null: false
+    t.string "episode_key", limit: 40, null: false
+    t.bigint "contract_id"
+    t.bigint "customer_id"
+    t.bigint "bill_id"
+    t.bigint "cadence_lane_id", null: false
+    t.bigint "cadence_column_id", null: false
+    t.bigint "cadence_action_id", null: false
+    t.string "kind", limit: 20, null: false
+    t.string "state", limit: 20, default: "decided", null: false
+    t.bigint "deprioritized_by_cadence_id"
+    t.datetime "created_at", null: false
+    t.index ["cadence_round_id", "cadence_action_id", "object_key"], name: "index_cadence_decisions_once_per_round", unique: true
+    t.index ["cadence_round_id", "id"], name: "index_cadence_decisions_on_cadence_round_id_and_id"
+    t.index ["contract_id"], name: "index_cadence_decisions_on_contract_id", where: "(contract_id IS NOT NULL)"
+    t.index ["customer_id"], name: "index_cadence_decisions_on_customer_id", where: "(customer_id IS NOT NULL)"
+    t.check_constraint "state::text = ANY (ARRAY['decided'::character varying::text, 'deprioritized'::character varying::text, 'inactive_parameter'::character varying::text])", name: "cadence_decisions_state"
+  end
+
+  create_table "cadence_firings", force: :cascade do |t|
+    t.bigint "cadence_id", null: false
+    t.string "object_key", limit: 30, null: false
+    t.string "episode_key", limit: 40, null: false
+    t.bigint "cadence_column_id", null: false
+    t.bigint "cadence_round_id", null: false
+    t.datetime "created_at", null: false
+    t.index ["cadence_id", "object_key", "episode_key", "cadence_column_id"], name: "index_cadence_firings_once", unique: true
+  end
+
+  create_table "cadence_lanes", force: :cascade do |t|
+    t.bigint "cadence_id", null: false
+    t.bigint "segment_id"
+    t.integer "position", null: false
+    t.boolean "default", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.datetime "removed_at"
+    t.index ["cadence_id", "position"], name: "index_cadence_lanes_on_cadence_id_and_position"
+    t.index ["cadence_id"], name: "index_cadence_lanes_one_default", unique: true, where: "(\"default\" AND (removed_at IS NULL))"
+    t.index ["segment_id"], name: "index_cadence_lanes_on_segment_id"
+    t.check_constraint "(segment_id IS NULL) = \"default\"", name: "cadence_lanes_segment_unless_default"
+  end
+
+  create_table "cadence_rounds", force: :cascade do |t|
+    t.bigint "tenant_id", null: false
+    t.bigint "cadence_id", null: false
+    t.datetime "scheduled_for", null: false
+    t.string "state", limit: 30, default: "scheduled", null: false
+    t.boolean "late", default: false, null: false
+    t.string "failure", limit: 300
+    t.jsonb "data_as_of", default: {}, null: false
+    t.jsonb "summary", default: {}, null: false
+    t.datetime "dispatched_at"
+    t.datetime "started_at"
+    t.datetime "decided_at"
+    t.datetime "prioritized_at"
+    t.datetime "built_at"
+    t.datetime "finished_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["cadence_id", "scheduled_for"], name: "index_cadence_rounds_on_cadence_id_and_scheduled_for", unique: true
+    t.index ["cadence_id"], name: "index_cadence_rounds_one_running", unique: true, where: "((state)::text = 'running'::text)"
+    t.index ["tenant_id", "scheduled_for"], name: "index_cadence_rounds_on_tenant_id_and_scheduled_for"
+    t.check_constraint "state::text = ANY (ARRAY['scheduled'::character varying::text, 'running'::character varying::text, 'completed'::character varying::text, 'completed_with_failures'::character varying::text, 'failed'::character varying::text])", name: "cadence_rounds_state"
+  end
+
+  create_table "cadence_skips", force: :cascade do |t|
+    t.bigint "cadence_id", null: false
+    t.string "object_key", limit: 30, null: false
+    t.string "episode_key", limit: 40, null: false
+    t.bigint "cadence_column_id", null: false
+    t.bigint "cadence_round_id", null: false
+    t.datetime "created_at", null: false
+    t.index ["cadence_id", "object_key", "episode_key", "cadence_column_id"], name: "index_cadence_skips_once", unique: true
+    t.index ["cadence_round_id"], name: "index_cadence_skips_on_cadence_round_id"
+  end
+
+  create_table "cadences", force: :cascade do |t|
+    t.bigint "tenant_id", null: false
+    t.string "name", limit: 100, null: false
+    t.string "purpose", limit: 20, default: "collection", null: false
+    t.string "milestone", limit: 30, null: false
+    t.string "subject", limit: 20, null: false
+    t.integer "position", null: false
+    t.boolean "enabled", default: false, null: false
+    t.string "disabled_reason", limit: 100
+    t.integer "schedule_days", default: [], null: false, array: true
+    t.string "schedule_time", limit: 5, null: false
+    t.boolean "skip_national_holidays", default: false, null: false
+    t.date "valid_from", null: false
+    t.date "valid_until"
+    t.jsonb "return_hours", default: {}, null: false
+    t.integer "version", default: 1, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.datetime "enabled_since"
+    t.index ["tenant_id", "name"], name: "index_cadences_on_tenant_id_and_name", unique: true
+    t.index ["tenant_id", "position"], name: "index_cadences_on_tenant_id_and_position"
+    t.check_constraint "milestone::text = ANY (ARRAY['bill_due'::character varying::text, 'contract_arrears'::character varying::text, 'customer_arrears'::character varying::text, 'contract_in_collection'::character varying::text, 'customer_in_collection'::character varying::text, 'contract_start'::character varying::text, 'contract_creation'::character varying::text, 'customer_registration'::character varying::text])", name: "cadences_milestone"
+    t.check_constraint "purpose::text = 'collection'::text", name: "cadences_purpose"
+    t.check_constraint "schedule_time::text ~ '^([01][0-9]|2[0-3]):(00|30)$'::text", name: "cadences_schedule_time"
+    t.check_constraint "subject::text = ANY (ARRAY['contracts'::character varying::text, 'customers'::character varying::text])", name: "cadences_subject"
+    t.check_constraint "valid_until IS NULL OR valid_until >= valid_from", name: "cadences_validity"
   end
 
   create_table "changes", force: :cascade do |t|
@@ -360,6 +555,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_14_200000) do
     t.boolean "broke_agreement", default: false, null: false
     t.bigint "source_system_id", null: false
     t.string "external_id", limit: 100
+    t.date "started_on"
     t.index ["tenant_id", "code"], name: "index_contracts_on_tenant_id_and_code", where: "(code IS NOT NULL)"
     t.index ["tenant_id", "source_system_id", "code"], name: "index_contracts_on_system_and_code", unique: true, where: "((external_id IS NULL) AND (code IS NOT NULL))"
     t.index ["tenant_id", "source_system_id", "external_id"], name: "index_contracts_on_system_and_external_id", unique: true, where: "(external_id IS NOT NULL)"
@@ -441,10 +637,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_14_200000) do
     t.string "retained_reason", limit: 300
     t.bigint "retained_by_id"
     t.bigint "source_system_ids", default: [], null: false, array: true
+    t.integer "draw", limit: 2, default: -> { "(floor((random() * (100)::double precision)))::smallint" }, null: false
     t.index "translate(lower((name)::text), 'áàâãäéèêëíìîïóòôõöúùûüç'::text, 'aaaaaeeeeiiiiooooouuuuc'::text) gin_trgm_ops", name: "index_customers_on_folded_name_trgm", using: :gin
     t.index ["document"], name: "index_customers_on_document_prefix", opclass: :varchar_pattern_ops
     t.index ["tenant_id", "document"], name: "index_customers_on_tenant_id_and_document", unique: true
     t.index ["tenant_id"], name: "index_customers_retained_by_tenant", where: "(retained_at IS NOT NULL)"
+    t.check_constraint "draw >= 0 AND draw <= 99", name: "customers_draw_range"
     t.check_constraint "retained_at IS NULL OR anonymized_at IS NULL", name: "customers_anonymized_not_retained"
   end
 
@@ -573,6 +771,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_14_200000) do
     t.string "hold_kind", limit: 20
     t.string "hold_blocked_reason", limit: 300
     t.boolean "hold_confirmed", default: false, null: false
+    t.date "started_on"
     t.index ["import_id", "document", "number"], name: "index_import_rows_on_import_id_and_document_and_number"
     t.index ["import_id", "external_bill_id"], name: "index_import_rows_on_import_id_and_external_bill_id"
   end
@@ -674,6 +873,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_14_200000) do
     t.index ["profile_id"], name: "index_memberships_on_profile_id"
     t.index ["tenant_id"], name: "index_memberships_on_tenant_id"
     t.index ["user_id", "tenant_id"], name: "index_memberships_on_user_id_and_tenant_id", unique: true
+  end
+
+  create_table "message_pieces", force: :cascade do |t|
+    t.bigint "tenant_id", null: false
+    t.string "name", limit: 100, null: false
+    t.string "channel", limit: 10, null: false
+    t.boolean "active", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["tenant_id", "channel", "name"], name: "index_message_pieces_on_tenant_id_and_channel_and_name", unique: true
+    t.check_constraint "channel::text = ANY (ARRAY['sms'::character varying::text, 'email'::character varying::text, 'whatsapp'::character varying::text, 'letter'::character varying::text])", name: "message_pieces_channel"
   end
 
   create_table "municipalities", force: :cascade do |t|
@@ -867,7 +1077,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_14_200000) do
     t.index ["account_id", "event_id"], name: "index_payment_events_on_account_and_event_id", unique: true
     t.index ["instrument_id"], name: "index_payment_events_on_instrument_id", where: "(instrument_id IS NOT NULL)"
     t.index ["tenant_id", "created_at"], name: "index_payment_events_pending", where: "((state)::text = ANY (ARRAY[('received'::character varying)::text, ('failed'::character varying)::text]))"
-    t.check_constraint "kind::text = ANY (ARRAY['paid'::character varying, 'refunded'::character varying, 'canceled'::character varying, 'expired'::character varying, 'check'::character varying, 'other'::character varying, 'unreadable'::character varying]::text[])", name: "payment_events_kind"
+    t.check_constraint "kind::text = ANY (ARRAY['paid'::character varying::text, 'refunded'::character varying::text, 'canceled'::character varying::text, 'expired'::character varying::text, 'check'::character varying::text, 'other'::character varying::text, 'unreadable'::character varying::text])", name: "payment_events_kind"
     t.check_constraint "state::text = ANY (ARRAY['received'::character varying::text, 'applied'::character varying::text, 'ignored'::character varying::text, 'review'::character varying::text, 'failed'::character varying::text])", name: "payment_events_state"
   end
 
@@ -1161,6 +1371,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_14_200000) do
     t.check_constraint "mode::text = ANY (ARRAY['ordered'::character varying::text, 'weighted'::character varying::text, 'round_robin'::character varying::text])", name: "queue_strategies_mode"
   end
 
+  create_table "queue_tasks", force: :cascade do |t|
+    t.bigint "tenant_id", null: false
+    t.string "name", limit: 100, null: false
+    t.string "instruction", limit: 500, null: false
+    t.integer "due_days", null: false
+    t.boolean "active", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["tenant_id", "name"], name: "index_queue_tasks_on_tenant_id_and_name", unique: true
+    t.check_constraint "due_days >= 0 AND due_days <= 365", name: "queue_tasks_due_days"
+  end
+
   create_table "reported_surcharges", force: :cascade do |t|
     t.bigint "tenant_id", null: false
     t.bigint "bill_id", null: false
@@ -1228,10 +1450,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_14_200000) do
     t.datetime "updated_at", null: false
     t.index "tenant_id, lower((name)::text)", name: "index_source_systems_on_tenant_id_and_name", unique: true
     t.index ["tenant_id", "role"], name: "index_source_systems_one_crm_and_default", unique: true, where: "((role)::text <> 'remote'::text)"
-    t.check_constraint "key_kind::text = ANY (ARRAY['own_id'::character varying, 'natural'::character varying]::text[])", name: "source_systems_key_kind"
+    t.check_constraint "key_kind::text = ANY (ARRAY['own_id'::character varying::text, 'natural'::character varying::text])", name: "source_systems_key_kind"
     t.check_constraint "role::text <> 'crm'::text OR status::text = 'active'::text", name: "source_systems_crm_active"
-    t.check_constraint "role::text = ANY (ARRAY['crm'::character varying, 'default'::character varying, 'remote'::character varying]::text[])", name: "source_systems_role"
-    t.check_constraint "status::text = ANY (ARRAY['active'::character varying, 'paused'::character varying]::text[])", name: "source_systems_status"
+    t.check_constraint "role::text = ANY (ARRAY['crm'::character varying::text, 'default'::character varying::text, 'remote'::character varying::text])", name: "source_systems_role"
+    t.check_constraint "status::text = ANY (ARRAY['active'::character varying::text, 'paused'::character varying::text])", name: "source_systems_status"
   end
 
   create_table "task_runs", force: :cascade do |t|
@@ -1303,7 +1525,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_14_200000) do
     t.check_constraint "(promise_counting::text = ANY (ARRAY['promise_only'::character varying::text, 'also_direct'::character varying::text])) AND (promise_after_break::text = ANY (ARRAY['fulfilled'::character varying::text, 'stays_broken'::character varying::text])) AND (promise_partial::text = ANY (ARRAY['prevails'::character varying::text, 'r46'::character varying::text]))", name: "tenant_settings_promise_policies"
     t.check_constraint "charge_fine_pct >= 0::numeric AND charge_fine_pct <= 100::numeric AND charge_interest_pct >= 0::numeric AND charge_interest_pct <= 100::numeric", name: "tenant_settings_charge_pct"
     t.check_constraint "charge_index::text = ANY (ARRAY['none'::character varying::text, 'ipca'::character varying::text, 'inpc'::character varying::text, 'igpm'::character varying::text])", name: "tenant_settings_charge_index"
-    t.check_constraint "customer_record_policy::text = ANY (ARRAY['last_sender'::character varying, 'defined_system'::character varying, 'first_creator'::character varying]::text[])", name: "tenant_settings_customer_record_policy"
+    t.check_constraint "customer_record_policy::text = ANY (ARRAY['last_sender'::character varying::text, 'defined_system'::character varying::text, 'first_creator'::character varying::text])", name: "tenant_settings_customer_record_policy"
     t.check_constraint "installment_rate_pct >= 0::numeric AND installment_rate_pct <= 100::numeric AND (installment_method::text = ANY (ARRAY['none'::character varying::text, 'price'::character varying::text, 'sac'::character varying::text])) AND (agreement_days_convention::text = ANY (ARRAY['calendar'::character varying::text, 'thirty'::character varying::text])) AND (agreement_fine_base::text = ANY (ARRAY['corrected'::character varying::text, 'face'::character varying::text]))", name: "tenant_settings_agreement_params"
     t.check_constraint "operation_default_exposure::text = ANY (ARRAY['overdue'::character varying::text, 'all'::character varying::text])", name: "tenant_settings_operation_exposure"
     t.check_constraint "operation_exposure_business_days >= 0 AND operation_exposure_business_days <= 30", name: "tenant_settings_operation_days"
@@ -1485,6 +1707,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_14_200000) do
   add_foreign_key "agreements", "users", column: "registered_by_id", on_delete: :nullify
   add_foreign_key "agreements", "users", column: "reversal_by_id", on_delete: :nullify
   add_foreign_key "agreements", "users", on_delete: :nullify
+  add_foreign_key "arrears_episodes", "tenants"
   add_foreign_key "bill_valuations", "bills", on_delete: :cascade
   add_foreign_key "bill_valuations", "tenants"
   add_foreign_key "bill_value_versions", "bills", on_delete: :restrict
@@ -1499,6 +1722,35 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_14_200000) do
   add_foreign_key "bills", "imports", column: "withdrawn_import_id", on_delete: :nullify
   add_foreign_key "bills", "source_systems", on_delete: :restrict
   add_foreign_key "bills", "tenants"
+  add_foreign_key "cadence_actions", "cadence_columns"
+  add_foreign_key "cadence_actions", "cadence_lanes"
+  add_foreign_key "cadence_actions", "message_pieces"
+  add_foreign_key "cadence_actions", "queue_tasks"
+  add_foreign_key "cadence_columns", "cadences"
+  add_foreign_key "cadence_command_items", "cadence_commands"
+  add_foreign_key "cadence_command_items", "cadence_decisions"
+  add_foreign_key "cadence_command_items", "payment_instruments"
+  add_foreign_key "cadence_commands", "cadence_actions"
+  add_foreign_key "cadence_commands", "cadence_rounds"
+  add_foreign_key "cadence_commands", "customers", column: "recipient_customer_id"
+  add_foreign_key "cadence_commands", "tenants"
+  add_foreign_key "cadence_decisions", "cadence_actions"
+  add_foreign_key "cadence_decisions", "cadence_columns"
+  add_foreign_key "cadence_decisions", "cadence_lanes"
+  add_foreign_key "cadence_decisions", "cadence_rounds"
+  add_foreign_key "cadence_decisions", "cadences"
+  add_foreign_key "cadence_decisions", "cadences", column: "deprioritized_by_cadence_id"
+  add_foreign_key "cadence_firings", "cadence_columns"
+  add_foreign_key "cadence_firings", "cadence_rounds"
+  add_foreign_key "cadence_firings", "cadences"
+  add_foreign_key "cadence_lanes", "cadences"
+  add_foreign_key "cadence_lanes", "segments"
+  add_foreign_key "cadence_rounds", "cadences"
+  add_foreign_key "cadence_rounds", "tenants"
+  add_foreign_key "cadence_skips", "cadence_columns"
+  add_foreign_key "cadence_skips", "cadence_rounds"
+  add_foreign_key "cadence_skips", "cadences"
+  add_foreign_key "cadences", "tenants"
   add_foreign_key "changes", "imports", on_delete: :nullify
   add_foreign_key "changes", "source_systems", on_delete: :nullify
   add_foreign_key "changes", "tenants"
@@ -1564,6 +1816,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_14_200000) do
   add_foreign_key "memberships", "profiles", on_delete: :restrict
   add_foreign_key "memberships", "tenants"
   add_foreign_key "memberships", "users"
+  add_foreign_key "message_pieces", "tenants"
   add_foreign_key "notices", "users"
   add_foreign_key "operation_members", "operations"
   add_foreign_key "operation_members", "users"
@@ -1632,6 +1885,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_14_200000) do
   add_foreign_key "queue_placements", "tenants"
   add_foreign_key "queue_placements", "work_queues", on_delete: :nullify
   add_foreign_key "queue_strategies", "users"
+  add_foreign_key "queue_tasks", "tenants"
   add_foreign_key "reported_surcharges", "bills", on_delete: :cascade
   add_foreign_key "reported_surcharges", "imports", on_delete: :nullify
   add_foreign_key "reported_surcharges", "tenants"

@@ -1,0 +1,12 @@
+<% content_for :title, "Conferir o impacto da régua" %>
+<% content_for :cable_channels, @cable %>
+<%= pagina "Conferir o impacto: #{@cadence.name}", subtitulo: "O que a próxima rodada da agenda faria com a mudança e os dados de agora. Nada muda até você confirmar." %>
+<section class="cartao" aria-labelledby="mudanca">
+  <header><h2 id="mudanca">A mudança</h2></header>
+  <div>
+    <ul>
+      <% @proposal.operations.each do |operation| %><li><%= t("cadences.operations.#{operation['op']}") %></li><% end %>
+    </ul>
+  </div>
+</section>
+<%= render "cadences/review", result: @result, failure: @failure %>

@@ -51,7 +51,7 @@ module Segments
         details << "Campos: #{spec[:fields].keys.map { |field| t("fields.#{name}.#{field}") }.join(', ')}."
         details << "Atalho entre aspas: compara o campo #{t("fields.#{name}.#{spec[:main]}")}." if spec[:main]
         details << "Qualificadores: #{spec[:qualifiers].map { |qualifier| t("qualifiers.#{name}.#{qualifier}.other") }.join(', ')}." if spec[:qualifiers].any?
-        details << "Aceita a janela \"em N dias\"." if spec[:dated]
+        details << "Aceita a janela \"em N dias\" ou \"há N dias ou mais\"." if spec[:dated]
         Entry.new("colecao-#{name}", t("collections.#{name}.other"), t("collections.#{name}.definition"), short, long, details.join(" "))
       end
     end
@@ -66,6 +66,8 @@ module Segments
         Entry.new("algum", "algum, todos, nenhum, sem", "Se algum item, todos os itens ou nenhum item atende; \"sem\" é nenhum, sem condição sobre o item. \"Todos\" exige pelo menos um item.",
                   *sample("contracts", { "path" => "promises", "quantifier" => "some", "where" => { "field" => "state", "op" => "eq", "value" => "broken" } }), nil),
         Entry.new("janela", "em N dias", "Só os itens dos últimos N dias, contados até hoje.", *sample("contracts", { "path" => "contact_attempts", "quantifier" => "none", "within_days" => 30 }), nil),
+        Entry.new("janela-antiga", "há N dias ou mais", "Só os itens de N dias atrás ou de antes. Uma condição tem um recorte só: \"em N dias\" ou \"há N dias ou mais\".",
+                  *sample("contracts", { "path" => "contact_attempts", "quantifier" => "some", "older_than_days" => 10 }), nil),
         Entry.new("qualquer", "qualquer:", "Abre um grupo: basta uma das condições de dentro. Fora do grupo, todas as linhas valem juntas.", nil, nil, nil),
         Entry.new("nao", "não", "Nega a linha.", "não quebrou acordo", sample("contracts", { "path" => "broke_agreement", "op" => "is", "negate" => true }).last, nil)
       ]

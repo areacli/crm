@@ -99,6 +99,21 @@ module Operations
         (queue_deliveries.subject = 'contracts' AND queue_deliveries.subject_id IN (#{OP_CONTRACTS}))
         OR (queue_deliveries.subject = 'customers' AND queue_deliveries.subject_id IN (#{OP_CUSTOMERS}))
       SQL
+      # Episódios de atraso (21, R434): acompanham o contrato ou o cliente, como as filas.
+      "arrears_episodes" => <<~SQL.squish,
+        (arrears_episodes.subject_type = 'contracts' AND arrears_episodes.subject_id IN (#{OP_CONTRACTS}))
+        OR (arrears_episodes.subject_type = 'customers' AND arrears_episodes.subject_id IN (#{OP_CUSTOMERS}))
+      SQL
+      # Régua (21, R444, R445): a decisão e o item do comando acompanham o contrato ou o cliente do objeto; o usuário de operação vê na ficha só
+      # os do que está pra ele. A configuração, as rodadas e o cabeçalho do comando são da equipe (a operação não configura réguas).
+      "cadence_decisions" => <<~SQL.squish,
+        (cadence_decisions.contract_id IS NOT NULL AND cadence_decisions.contract_id IN (#{OP_CONTRACTS}))
+        OR (cadence_decisions.contract_id IS NULL AND cadence_decisions.customer_id IN (#{OP_CUSTOMERS}))
+      SQL
+      "cadence_command_items" => <<~SQL.squish,
+        (cadence_command_items.contract_id IS NOT NULL AND cadence_command_items.contract_id IN (#{OP_CONTRACTS}))
+        OR (cadence_command_items.contract_id IS NULL AND cadence_command_items.customer_id IN (#{OP_CUSTOMERS}))
+      SQL
       # Lotes de emissão (16, R384, R387): a operação só lê os que ela mesma pediu (a conferência roda no contexto de quem pediu).
       "instrument_batches" => "instrument_batches.created_by_id = crm_user()"
     }.merge(
@@ -131,6 +146,10 @@ module Operations
       SQL
       grant_login!(APP_ROLE, connection) if connection.select_value("SELECT 1 FROM pg_roles WHERE rolname = '#{APP_ROLE}'")
       READS.each do |table, condition|
+        # Com várias migrações pendentes, a primeira chama esta instalação antes de as seguintes criarem as tabelas delas (ensaio da régua,
+        # 14/11/2026): a tabela que ainda não existe fica para a migração que a cria, que também chama a instalação.
+        next unless connection.table_exists?(table)
+
         connection.execute(<<~SQL)
           ALTER TABLE #{table} ENABLE ROW LEVEL SECURITY;
           DROP POLICY IF EXISTS team_all ON #{table};

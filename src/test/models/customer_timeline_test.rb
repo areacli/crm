@@ -34,7 +34,7 @@ class CustomerTimelineTest < ActiveSupport::TestCase
   test "o usuário de operação não tem o filtro nem os eventos de distribuição" do
     Distribution.create!(tenant: @alfa, operation: @operation, customer: @customer, exposure: "overdue", source: "manual", starts_on: Date.current - 5)
     timeline = CustomerTimeline.new(@customer, kind: "distribuicao", distributions: false)
-    assert_equal [ "atendimento" ], timeline.kinds
+    assert_equal %w[atendimento regua], timeline.kinds, "a régua fica: o RLS mostra só os comandos do que está pra operação"
     assert_nil timeline.kind
     assert_not_includes timeline.events.map(&:source), :distribution
   end

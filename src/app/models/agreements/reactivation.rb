@@ -24,7 +24,7 @@ module Agreements
       ApplicationRecord.transaction do
         agreement.lock!
         agreement.agreement_bills.update_all(held: true)
-        Bill.where(agreement_id: agreement.id, status: "canceled").update_all(status: "scheduled", updated_at: Time.current)
+        Bill.where(agreement_id: agreement.id, status: "canceled").change_status_to!("scheduled")
         CreditUse.consume!(agreement, actor, Time.current)
         agreement.update!(state: "awaiting_effectuation", broken_at: nil, break_kind: nil, closed_at: nil, reason: nil, reactivated_at: Time.current)
         AgreementEvent.log!(agreement, "reactivated", user: actor, data: { "from" => "before_effectuation" })
@@ -50,8 +50,8 @@ module Agreements
       ApplicationRecord.transaction do
         agreement.lock!
         quitted = Bill.where(agreement_id: agreement.id, kind: "break").to_a
-        Bill.where(id: quitted.map(&:id)).update_all(status: "canceled", updated_at: Time.current)
-        Bill.where(agreement_id: agreement.id, status: "canceled", kind: "agreement").update_all(status: "active", updated_at: Time.current)
+        Bill.where(id: quitted.map(&:id)).change_status_to!("canceled")
+        Bill.where(agreement_id: agreement.id, status: "canceled", kind: "agreement").change_status_to!("active")
         reopen!(agreement, actor, "single_title")
       end
     end

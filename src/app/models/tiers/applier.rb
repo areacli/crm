@@ -22,6 +22,12 @@ module Tiers
         Recalculation.new(tenant).apply
       end
       Broadcast.changed(tenant)
+      # Conferência única do segmento (13, R272, revisão 8; plano técnico da camada 23, decisão 10): o segmento confirmado vale na hora também
+      # na distribuição e nas filas; a régua lê o segmento quando roda.
+      if proposal.segments.any?
+        DistributionRulesJob.perform_later(tenant)
+        QueuesJob.perform_later(tenant)
+      end
       # 09, R163, R173: a regra nova vale já, para todos os títulos em aberto; o recálculo roda em segundo plano, em até 2 minutos.
       ValuesRecalculationJob.enqueue_for(tenant, reason: "encargos")
     end

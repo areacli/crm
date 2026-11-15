@@ -82,6 +82,11 @@ module Titular
       Sql.run("update contact_attempts set contact_used = case when contact_used is not null then ? end, text = case when text is not null then ? end " \
               "where customer_id in #{targets} and (contact_used is not null or text is not null)", REMOVED, REMOVED)
       Sql.execute("update bills set description = null where customer_id in #{targets} and description is not null")
+      # 21 (restrições, dados pessoais): o comando da régua perde o vínculo com a pessoa (destinatário e cliente do item e da decisão) e fica com o tipo,
+      # o estado e as datas; o contrato do objeto continua, sem nome nem documento.
+      Sql.execute("update cadence_commands set recipient_customer_id = null where recipient_customer_id in #{targets}")
+      Sql.execute("update cadence_command_items set customer_id = null where customer_id in #{targets}")
+      Sql.execute("update cadence_decisions set customer_id = null where customer_id in #{targets}")
       Sql.execute("update payments set document = ap.new_document from anon_payments ap where payments.id = ap.id")
       Sql.run("update payment_reversals set reason = ? where reason is not null and payment_id in (select id from anon_payments)", REMOVED)
       # 10, R132: o motivo de cancelamento e de recusa das promessas feitas pelo cliente é texto livre e sai também.

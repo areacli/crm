@@ -10,7 +10,11 @@ module FilterValue
     "open" => "aberta", "handled" => "tratada", "all" => "todas", "none" => "sem_promessa", "in_force" => "em_vigor", "scheduled" => "agendada", "ended" => "encerrada",
     "batch" => "lote", "rule" => "regra", "team" => "equipe",
     "no_address" => "sem_endereco",
-    "valid" => "valido", "invalid" => "invalido", "do_not_disturb" => "nao_perturbe", "active" => "ativa", "suspended" => "suspensa"
+    "valid" => "valido", "invalid" => "invalido", "do_not_disturb" => "nao_perturbe", "active" => "ativa", "suspended" => "suspensa",
+    # Comandos da régua (21, R441): o estado do comando e o tipo da ação.
+    "queued" => "na_fila", "executed" => "executado", "failed" => "falhou", "no_return" => "sem_retorno", "discarded" => "descartado",
+    "letter" => "carta", "issue_instrument" => "emissao", "proposal" => "proposta", "promise" => "promessa", "task" => "tarefa",
+    "negativation" => "negativacao", "protest" => "protesto", "lawsuit" => "ajuizamento", "credit_suspension" => "suspensao_do_credito"
   }.freeze
   INTERNAL = VALUES.invert.freeze
 

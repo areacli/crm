@@ -6,6 +6,7 @@ require "application_system_test_case"
 # Um incremento novo acrescenta aqui as suas telas, no fim de `TELAS`.
 class CapturasTest < ApplicationSystemTestCase
   include ActiveJob::TestHelper
+  include CadencesTestHelper
 
   setup do
     skip "defina CAPTURAS=1 para recriar as fotos do README" unless ENV["CAPTURAS"] == "1"
@@ -507,6 +508,17 @@ class CapturasTest < ApplicationSystemTestCase
       na_casca new_import_path
       escolher "Sistema", "ERP Acadêmico"
       :current
+    },
+    # Incremento 21 (régua): a lista, o diagrama de raias nas duas densidades, as rodadas, a conferência de ligar e a situação na ficha.
+    "reguas" => -> { prepare_cadences && cadences_path(credor: @tenant.id) },
+    "regua-diagrama" => -> { cadence_path(@cadence) },
+    "regua-compacta" => -> { cadence_path(@cadence, densidade: "compacta") },
+    "regua-rodadas" => -> { cadence_rounds_path(@cadence) },
+    "regua-conferencia" => -> { review_cadence_path(@campaign, token: @campaign_token) },
+    "ficha-nas-reguas" => lambda {
+      na_casca customer_path(@cadence_customer)
+      assert_selector "#nas-reguas li", wait: 15
+      :current
     }
   }.freeze
 
@@ -549,6 +561,36 @@ class CapturasTest < ApplicationSystemTestCase
     [ calls, @late_queue ].each_with_index { |queue, index| QueueGroupQueue.create!(queue_group: group, work_queue: queue, position: index + 1) }
     Queues::Recalculation.new(@tenant).apply
     Queues::NextDelivery.new(users(:ana)).call
+    true
+  end
+
+  # Réguas (21) para as fotos: "Cobrança PF" com o grupo de controle, a raia PF até R$ 500 e a trilha padrão, com as rodadas dos três últimos dias
+  # executadas pelo simulado; "Mensalidades a vencer"; e a "Campanha de fim de ano" desligada, com a conferência de ligar já calculada.
+  def prepare_cadences
+    sms = MessagePiece.create!(tenant: @tenant, name: "Lembrete atraso", channel: "sms")
+    email = MessagePiece.create!(tenant: @tenant, name: "Segunda via", channel: "email")
+    whatsapp = MessagePiece.create!(tenant: @tenant, name: "Oferta de acordo", channel: "whatsapp")
+    letter = MessagePiece.create!(tenant: @tenant, name: "Carta aviso", channel: "letter")
+    task = QueueTask.create!(tenant: @tenant, name: "Ligar para negociar", instruction: "Oferecer o acordo à vista.", due_days: 3)
+    control = Segment.create!(tenant: @tenant, name: "Grupo de controle", subject: "contracts", expression: { "all" => [ { "path" => "holder.draw", "op" => "lt", "value" => 10 } ] })
+    small = Segment.create!(tenant: @tenant, name: "PF até R$ 500", subject: "contracts",
+                            expression: { "all" => [ { "path" => "person_type", "op" => "eq", "value" => "person" }, { "path" => "balance", "op" => "lte", "value" => 50_000 } ] })
+    @cadence = make_cadence(@tenant, lanes: [ [ control, {} ], [ small, { 1 => [ { piece: sms } ], 5 => [ { piece: sms } ], 15 => [ { kind: "email", piece: email }, { kind: "whatsapp", piece: whatsapp } ],
+                                                                     30 => [ { kind: "proposal", params: { "form" => "cash", "concession" => "max" } } ], 45 => [ { kind: "letter", piece: letter } ], 60 => [] } ],
+                                              [ nil, { 5 => [ { piece: sms } ], 30 => [ { kind: "proposal", params: { "form" => "installments", "concession" => "min" } } ], 45 => [ { kind: "task", queue_task_id: task.id } ] } ] ])
+    make_cadence(@tenant, name: "Mensalidades a vencer", milestone: "bill_due", time: "14:00", lanes: [ [ nil, { -3 => [ { piece: MessagePiece.create!(tenant: @tenant, name: "Vence em 3 dias", channel: "sms") } ], 0 => [] } ] ])
+    @campaign = make_cadence(@tenant, name: "Campanha de fim de ano", milestone: "customer_in_collection", enabled: false, time: "10:00",
+                             lanes: [ [ nil, { 0 => [ { kind: "whatsapp", piece: whatsapp } ], 20 => [ { kind: "proposal", params: { "form" => "cash", "concession" => "max" } } ] } ] ])
+    [ 2, 1, 0 ].each do |ago|
+      travel_to(Time.zone.local(Date.current.year, Date.current.month, Date.current.day, 9, 31) - ago.days) do
+        run_rounds(@tenant, slot_today, cadences: [ @cadence ])
+        CadenceCommand.where(state: "queued", claimed_at: nil).find_each { |command| Cadences::Executors.run(command) }
+      end
+    end
+    @campaign_token = Cadences::Proposal.new(@campaign, [ { "op" => "enable" } ]).token
+    Cadences::Review.compute(@tenant, @campaign_token)
+    drop_cadence_temp_tables
+    @cadence_customer = Customer.find(CadenceCommandItem.where.not(contract_id: nil).order(:id).first&.contract&.customers&.first&.id || Customer.where(tenant: @tenant).first.id)
     true
   end
 

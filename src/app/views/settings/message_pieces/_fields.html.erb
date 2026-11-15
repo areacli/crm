@@ -1,0 +1,13 @@
+<%# Campos da peça (21, R446). Locais: form, piece. O canal não muda depois de criada. %>
+<div class="campo">
+  <%= form.label :name, "Nome" %>
+  <%= form.text_field :name, value: piece.name, required: true, maxlength: 100 %>
+</div>
+<div class="campo">
+  <%= form.label :channel, "Canal" %>
+  <%= form.select :channel, MessagePiece::CHANNELS.map { |channel| [ t("cadences.channels.#{channel}"), channel ] }, { selected: piece.channel }, disabled: piece.persisted? %>
+</div>
+<div class="campo">
+  <label><%= form.check_box :active, checked: piece.active %> Ativa</label>
+  <small>Desativada, a peça sai das escolhas e a ação que a usa conta como "parâmetro inativo" na rodada.</small>
+</div>

@@ -11,7 +11,7 @@
   <div>
     <div class="filtro-em-pilulas" role="group" aria-label="Filtrar a linha do tempo">
       <ul>
-        <% [ [ "Todos", nil ], [ "Atendimento", "atendimento" ], [ "Distribuição", "distribuicao" ] ].each do |label, kind| %>
+        <% [ [ "Todos", nil ], [ "Atendimento", "atendimento" ], [ "Distribuição", "distribuicao" ], [ "Régua", "regua" ] ].each do |label, kind| %>
           <% next if kind && !timeline.kinds.include?(kind) %>
           <li><%= link.call(label, kind, 1, aria: { current: (timeline.kind == kind).to_s }) %></li>
         <% end %>
@@ -34,6 +34,12 @@
               <% if (promise = record.promise) %>
                 <small>Promessa <%= promise.label %>, <%= money(promise.total_cents) %> até <%= date_br(promise.promised_on) %> <%= promise_state(promise) %></small>
               <% end %>
+            </li>
+          <% when :cadence %>
+            <li data-evento="regua">
+              <time datetime="<%= event.at.iso8601 %>"><%= datetime_br(event.at) %></time>
+              <p><strong><%= Cadences::Labels.action(record.command.action) %></strong> <%= situacao_do_item(record.state) %></p>
+              <small><%= [ record.command.round.cadence.name, record.decision.column.label, (record.contract&.code if record.contract_id), (record.detail || record.reason) ].compact.join(" · ") %></small>
             </li>
           <% when :agreement %>
             <li data-evento="atendimento">

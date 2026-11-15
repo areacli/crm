@@ -27,8 +27,10 @@ class ProfileTest < ActiveSupport::TestCase
     assert Profile.new(tenant: tenants(:alfa), name: "Auditor", permissions: %w[view_portfolio]).valid?
   end
 
-  test "as 22 permissões têm número e texto em português (18 a 20 da especificação 14; 21 da 15; 22 da 16; 23 da 17)" do
-    assert_equal 22, Permission::ALL.size
+  test "as 23 permissões têm número e texto em português (18 a 20 da especificação 14; 21 da 15; 22 da 16; 23 da 17; 24 da 21)" do
+    assert_equal 23, Permission::ALL.size
+    assert_equal 24, Permission.number("configure_cadence")
+    assert_equal "Configurar régua", Permission.label("configure_cadence")
     assert_equal 23, Permission.number("configure_integration")
     assert_equal "Configurar integração", Permission.label("configure_integration")
     assert_equal 21, Permission.number("manage_queues")

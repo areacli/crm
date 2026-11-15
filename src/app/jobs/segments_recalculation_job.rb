@@ -7,6 +7,9 @@ class SegmentsRecalculationJob < ApplicationJob
   # Os valores atualizados dependem do segmento do contrato: o recálculo deles vem logo depois (09, R173). `import` é a carga que o pediu, para a
   # comparação dos acréscimos "depois de confirmar" (R182).
   def perform(tenant, import = nil)
+    # O episódio de atraso (21, R434) antes de tudo: o atributo `dias em cobrança` lê dele, e a passada diária fecha o episódio no dia sem atraso
+    # mesmo sem rodada da régua no meio (plano técnico da camada 23, decisão 3).
+    ArrearsEpisode.daily(tenant)
     Tiers::Recalculation.new(tenant).call
     # O alcance das operações (14, R313; decisão 0024) muda com a carga (quem figura em cada contrato) e com o dia (início e fim das
     # distribuições, corte da exposição "vencidas").

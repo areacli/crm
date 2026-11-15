@@ -1,0 +1,4 @@
+<%= formulario_de_painel(titulo: "Nova peça", url: settings_message_pieces_path(credor: @tenant.id), enviar: "Criar", escopo: :message_piece, variante: :modal, tamanho: :small,
+                         erro: @piece.errors.full_messages.to_sentence.presence) do |form| %>
+  <%= render "settings/message_pieces/fields", form: form, piece: @piece %>
+<% end %>

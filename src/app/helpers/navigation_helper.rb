@@ -10,7 +10,9 @@ module NavigationHelper
     [ "Enquadramento financeiro", :settings_tiers_path, %w[change_settings change_financial_policies] ],
     [ "Promessas e acordos", :settings_promises_path, "change_financial_policies" ],
     [ "Índices", :settings_indexes_path, %w[change_settings change_financial_policies] ],
-    [ "Resultados de acionamento", :settings_contact_results_path, "manage_contact_results" ]
+    [ "Resultados de acionamento", :settings_contact_results_path, "manage_contact_results" ],
+    # 21, R446: o cadastro mínimo das peças, no lugar do dono até a mensageria existir.
+    [ "Peças da mensageria", :settings_message_pieces_path, "configure_cadence" ]
   ].freeze
 
   # Páginas das operações de cobrança (14; padrões de interface, revisão 22): o submenu do item "Operações", cada uma com a própria permissão.
@@ -24,7 +26,9 @@ module NavigationHelper
   QUEUES_TABS = [
     [ "Visão das filas", :queues_board_path, "manage_queues" ],
     [ "Enquadramento das filas", :queues_work_queues_path, "manage_queues" ],
-    [ "Grupos", :queues_queue_groups_path, "manage_queues" ]
+    [ "Grupos", :queues_queue_groups_path, "manage_queues" ],
+    # 21, R446; 15, revisão 3: as tarefas que a régua põe na fila de trabalho.
+    [ "Tarefas", :queues_queue_tasks_path, "manage_queues" ]
   ].freeze
 
   # "Visão das filas" (`/filas`) só é a atual nela e nas fichas das filas, não nas outras duas.
@@ -72,6 +76,7 @@ module NavigationHelper
                                              [ "Sistemas", source_systems_path, SourceSystemPolicy::KEY, %r{\A/sistemas} ] ] },
       { titulo: "Distribuição", itens: [ [ "Distribuição", distributions_path, "distribute_portfolio", %r{\A/distribuicao} ],
                                       [ "Filas", nil, "manage_queues", %r{\A/filas(/|\?|\z)}, nil, queues_tabs ],
+                                      [ "Réguas", cadences_path, CadencePolicy::KEY, %r{\A/reguas} ],
                                       [ "Operações", nil, OPERATIONS_TABS.map(&:last), %r{\A/operacoes(/|\z)}, nil, operations_tabs ] ] },
       { titulo: "Administração", itens: [ [ "Usuários", memberships_path, "manage_users", %r{\A/usuarios} ],
                                           [ "Perfis", profiles_path, "manage_profiles", %r{\A/perfis} ],

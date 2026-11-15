@@ -17,8 +17,9 @@
       <header><h2 id="onde-e-usado">Onde é usado</h2></header>
       <div>
         <% uses = segment.uses.to_a %>
-        <% if uses.any? %>
-          <ul><% uses.each do |tier| %><li>Enquadramento financeiro, item <%= tier.position %></li><% end %></ul>
+        <% others = segment.other_uses %>
+        <% if uses.any? || others.any? %>
+          <ul><% uses.each do |tier| %><li>Enquadramento financeiro, item <%= tier.position %></li><% end %><% others.each do |use| %><li><%= use %></li><% end %></ul>
           <p><small>Salvar leva à conferência do impacto antes de valer.</small></p>
         <% else %>
           <p><small>Sem uso: mudar não muda nada na carteira.</small></p>

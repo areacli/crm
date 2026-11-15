@@ -335,4 +335,37 @@ class Portfolio::ImportFlowTest < ActiveSupport::TestCase
   ensure
     ActiveRecord::Base.connection.execute("alter table bills drop constraint if exists teste_falha")
   end
+  # 01, revisão de 14/11/2026 (régua, RG13a): a data de início do contrato.
+  START_HEADER = (CsvHelper::HEADER + %w[inicio_contrato]).freeze
+
+  def send_start_dates(lines) = send_file_with_header(lines, START_HEADER)
+
+  def send_file_with_header(lines, header)
+    import = @service.start(tenant: @tenant, user: @user, file: write_csv(lines, header: header), mode: :incremental, original_name: "carteira.csv")
+    perform_enqueued_jobs(only: CheckImportJob)
+    import.reload
+  end
+
+  test "inicio_contrato grava a data no contrato com o histórico, e a coluna vazia não apaga a gravada" do
+    confirm(send_start_dates([ csv_line("titulo" => "NF-1", "inicio_contrato" => "15/02/2024"), csv_line("titulo" => "NF-2", "inicio_contrato" => "") ]))
+    contract = Contract.find_by!(tenant: @tenant, code: "CT-1")
+    assert_equal Date.new(2024, 2, 15), contract.started_on
+    assert Change.exists?(subject_type: "contract", subject_id: contract.id, field: "started_on", after: "2024-02-15")
+
+    confirm(send_start_dates([ csv_line("titulo" => "NF-1", "inicio_contrato" => "") ]))
+    assert_equal Date.new(2024, 2, 15), contract.reload.started_on
+    confirm(send_file([ csv_line("titulo" => "NF-1") ]))
+    assert_equal Date.new(2024, 2, 15), contract.reload.started_on, "a planilha sem a coluna também não apaga"
+  end
+
+  test "datas de início diferentes para o mesmo contrato recusam as linhas dele; data inválida recusa a linha" do
+    lines = [ csv_line("titulo" => "NF-1", "inicio_contrato" => "15/02/2024"), csv_line("titulo" => "NF-2", "inicio_contrato" => "16/02/2024"),
+              csv_line("titulo" => "NF-3", "inicio_contrato" => ""), csv_line("documento" => JOAO, "nome" => "João Pereira", "contrato" => "CT-2", "titulo" => "NF-4", "inicio_contrato" => "31/02/2024") ]
+    reasons = send_start_dates(lines).rejections.order(:line).pluck(:line, :reason).to_h
+
+    assert_equal "datas de início diferentes para o mesmo contrato: linhas 2 e 3", reasons[2]
+    assert_equal "datas de início diferentes para o mesmo contrato: linhas 2 e 3", reasons[3]
+    assert_equal "datas de início diferentes para o mesmo contrato: linhas 2 e 3", reasons[4], "a linha do contrato sem data também sai"
+    assert_equal "data de início do contrato inválida", reasons[5]
+  end
 end
