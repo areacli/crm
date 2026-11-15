@@ -79,6 +79,13 @@
           </div>
         </section>
         <%= render "customers/timeline", customer: @customer, timeline: @timeline, base: { aba: (@tab unless @tab == "titulos"), contrato: @contract&.id }.compact %>
+        <%# A situação na régua (21, R444): calculada na hora, só quando o credor tem régua ligada; o trecho chega logo depois da ficha. %>
+        <% if Cadence.exists?(tenant_id: @customer.tenant_id, enabled: true) %>
+          <section class="cartao" id="nas-reguas" aria-labelledby="nas-reguas-titulo" data-spa-vivo="<%= customer_cadence_situation_path(@customer) %>" data-spa-vivo-confere>
+            <header><h2 id="nas-reguas-titulo">Nas réguas</h2></header>
+            <div><p class="carregando" role="status">Calculando a situação nas réguas…</p></div>
+          </section>
+        <% end %>
       </div>
     </div>
   </div>

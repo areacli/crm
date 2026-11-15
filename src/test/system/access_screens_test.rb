@@ -37,8 +37,8 @@ class AccessScreensSystemTest < ApplicationSystemTestCase
     assert_selector ".aba-raiz h1", text: "Perfis", wait: 10
     find(".aba-raiz .cabecalho-da-pagina .botao", text: "Criar perfil").click
     assert_selector ".aba-raiz h1", text: "Novo perfil", wait: 10
-    # 22 permissões, em quatro grupos, e a marca "disponível para operações" (14, R310).
-    assert_selector ".aba-raiz input[type=checkbox]", count: 23
+    # 23 permissões, em quatro grupos, e a marca "disponível para operações" (14, R310).
+    assert_selector ".aba-raiz input[type=checkbox]", count: 24
     assert_selector ".aba-raiz .grupos-de-permissoes legend", count: 4
   end
 
@@ -49,7 +49,7 @@ class AccessScreensSystemTest < ApplicationSystemTestCase
 
     assert_selector ".aba-raiz h2", text: "Colunas da planilha", wait: 15
     # Tabela de referência: fica tabela, com o formato inteiro (revisão das telas de 13/11/2026), e não vira grade.
-    assert_selector ".aba-raiz table[data-sem-grade] tbody tr", count: 30
+    assert_selector ".aba-raiz table[data-sem-grade] tbody tr", count: 31
     assert_link "Baixar planilha modelo"
   end
 

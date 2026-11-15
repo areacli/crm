@@ -1,0 +1,16 @@
+<%= formulario_de_painel(titulo: "Incluir raia em #{@cadence.name}", url: cadence_lanes_path(@cadence), enviar: @cadence.enabled? ? "Conferir o impacto" : "Incluir", escopo: :lane,
+                         variante: :modal, tamanho: :small, erro: @error,
+                         descricao: "O sujeito fica na primeira raia cujo segmento o pega, de cima para baixo. A trilha padrão fica sempre por último. Raia sem ações deixa o público fora.") do |form| %>
+  <% if @segments.empty? %>
+    <p class="vazio">Nenhum segmento de <%= t("cadences.subjects.#{@cadence.subject}").downcase %> ativo sobrando. Crie um em Configuração › Segmentos.</p>
+  <% else %>
+    <div class="campo">
+      <%= form.label :segment_id, "Segmento" %>
+      <%= form.select :segment_id, @segments.map { |segment| [ segment.name, segment.id ] }, {}, required: true %>
+    </div>
+    <div class="campo">
+      <%= form.label :at, "Posição" %>
+      <%= form.select :at, @lanes.map { |lane| [ "Antes de #{lane.segment.name}", lane.position ] } + [ [ "Antes da trilha padrão", @lanes.size + 1 ] ], selected: @lanes.size + 1 %>
+    </div>
+  <% end %>
+<% end %>

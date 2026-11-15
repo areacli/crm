@@ -11,6 +11,7 @@
     <p class="leitura"><%= text.long_text %></p>
     <p><%= @segment.active? ? situacao("Ativo", tom: :success) : situacao("Desativado", tom: :neutral) %>
       <% uses = @segment.uses.to_a %>
-      <%= uses.any? ? "Usado no enquadramento financeiro, item #{uses.map(&:position).join(', ')}." : "Sem uso." %></p>
+      <% others = @segment.other_uses %>
+      <%= [ ("Usado no enquadramento financeiro, item #{uses.map(&:position).join(', ')}." if uses.any?), (others.map { |use| "#{use}." }.join(" ") if others.any?) ].compact.join(" ").presence || "Sem uso." %></p>
   </div>
 </section>

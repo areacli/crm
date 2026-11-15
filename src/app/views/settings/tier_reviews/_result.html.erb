@@ -54,6 +54,24 @@
           </div>
         </section>
 
+        <% if review["others"].present? %>
+          <%# A conferência única do segmento (13, R272, revisão 8; 21, R443): o efeito nos outros processos que usam o segmento. %>
+          <section class="cartao" aria-labelledby="outros-processos">
+            <header><h2 id="outros-processos">Nos outros processos que usam o segmento</h2></header>
+            <div class="tabela" tabindex="0">
+              <table>
+                <caption class="apenas-leitor-de-tela">Antes e depois, em cada processo</caption>
+                <thead><tr><th scope="col">Processo</th><th scope="col">Item</th><th scope="col" data-numerico>Antes</th><th scope="col" data-numerico>Depois</th></tr></thead>
+                <tbody>
+                  <% review["others"].each do |row| %>
+                    <tr><td><%= t("segments.impact.processes.#{row['process']}") %></td><th scope="row"><%= row["item"] %></th><td data-numerico><%= number_br(row["before"]) %></td><td data-numerico><%= number_br(row["after"]) %></td></tr>
+                  <% end %>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        <% end %>
+
         <% if review["moves"].any? %>
           <section class="cartao" aria-labelledby="movimentos">
             <header><h2 id="movimentos">De onde para onde</h2></header>

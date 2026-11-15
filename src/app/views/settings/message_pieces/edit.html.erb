@@ -1,0 +1,4 @@
+<%= formulario_de_painel(titulo: "Editar #{@piece.name}", url: settings_message_piece_path(@piece, credor: @tenant.id), metodo: :patch, enviar: "Salvar", escopo: :message_piece,
+                         variante: :modal, tamanho: :small, erro: @piece.errors.full_messages.to_sentence.presence) do |form| %>
+  <%= render "settings/message_pieces/fields", form: form, piece: @piece %>
+<% end %>

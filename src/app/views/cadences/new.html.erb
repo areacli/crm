@@ -1,0 +1,12 @@
+<%= formulario_de_painel(titulo: "Nova régua", url: cadences_path, enviar: "Criar", escopo: :cadence, erro: @cadence.errors.full_messages.to_sentence.presence, voltar: cadences_path,
+                         descricao: "A régua nasce desligada, com a trilha padrão. Depois você inclui raias, colunas e ações no diagrama e confere antes de ligar.") do |form| %>
+  <% if @tenants.size > 1 %>
+    <div class="campo">
+      <%= form.label :tenant_id, "Credor" %>
+      <%= form.select :tenant_id, @tenants.map { |tenant| [ tenant.name, tenant.id ] }, { selected: @cadence.tenant_id }, required: true %>
+    </div>
+  <% else %>
+    <%= form.hidden_field :tenant_id, value: @tenants.first&.id %>
+  <% end %>
+  <%= render "cadences/fields", form: form, cadence: @cadence, milestone: true %>
+<% end %>

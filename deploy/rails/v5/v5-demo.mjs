@@ -396,6 +396,26 @@ await passo('sistemas: a simulação de acordo pergunta o sistema de quem tem t�
     throw new Error('nenhum dos 20 primeiros clientes em comum tem títulos para acordo nos dois sistemas');
 });
 
+// Régua (21). A Escola Alfa tem a "Cobrança PF" e a "Mensalidades a vencer" ligadas, com as rodadas dos 7 dias anteriores, e a "Campanha de fim de ano"
+// desligada (Demo::Dataset::CadenceSteps).
+await passo('régua: a lista, o diagrama de raias da Cobrança PF nas duas densidades e as rodadas dos últimos dias', async () => {
+    await aba('/reguas', 'Réguas');
+    for (const nome of ['Cobrança PF', 'Mensalidades a vencer', 'Campanha de fim de ano']) await raiz().locator('.datagrid-row, tr', { hasText: nome }).first().waitFor();
+    await pagina.screenshot({ path: `${PASTA}/reguas.png` });
+    await raiz().locator('a', { hasText: 'Cobrança PF' }).first().click();
+    await ocioso();
+    await raiz().locator('table.raias .cartao-da-acao').first().waitFor();
+    if ((await raiz().locator('table.raias tr.raia').count()) !== 4) throw new Error('a Cobrança PF deveria ter 4 raias');
+    await pagina.screenshot({ path: `${PASTA}/regua.png` });
+    await raiz().locator('a', { hasText: 'Compacto' }).first().click();
+    await ocioso();
+    await raiz().locator('.diagrama[data-densidade="compacta"]').waitFor();
+    await raiz().locator('a', { hasText: 'Ver rodadas' }).first().click();
+    await ocioso();
+    await raiz().locator(':text("concluída"):visible').first().waitFor();
+    await pagina.screenshot({ path: `${PASTA}/rodadas.png` });
+});
+
 await passo('o operador só enxerga a Escola Alfa (nunca a Clínica Beta) e não abre a configuração do credor', async () => {
     const outro = await novaPagina();
     await entrar(outro, EMAIL.replace('gestor@', 'operador@'), 'demonstracao-operador');

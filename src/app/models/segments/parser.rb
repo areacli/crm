@@ -16,6 +16,8 @@ module Segments
     PLAIN = "aaaaaeeeeiiiiooooouuuuc".freeze
     OPS = [ [ ">=", "gte" ], [ "<=", "lte" ], [ "!=", "ne" ], [ "<>", "ne" ], [ "≠", "ne" ], [ "=", "eq" ], [ ">", "gt" ], [ "<", "lt" ] ].freeze
     WINDOW = /\s+em\s+(\d+)\s+dias?\z/
+    # 13, R262 (revisão 8): "há N dias ou mais", depois de dobrar acentos ("ha").
+    WINDOW_OLDER = /\s+ha\s+(\d+)\s+dias?\s+ou\s+mais\z/
 
     # `tenant`: para achar o resultado de acionamento pelo nome. `subject`: o do segmento gravado, que não muda (R304).
     def initialize(tenant, subject: nil)
@@ -120,9 +122,10 @@ module Segments
 
         def node
           node = {}
-          window = @folded.match(Parser::WINDOW)
+          older = @folded.match(Parser::WINDOW_OLDER)
+          window = older || @folded.match(Parser::WINDOW)
           if window
-            node["within_days"] = window[1].to_i
+            node[older ? "older_than_days" : "within_days"] = window[1].to_i
             @text = @text[0, window.begin(0)]
             @folded = @folded[0, window.begin(0)]
           end
@@ -143,7 +146,7 @@ module Segments
           name = collection_name(parent, singular: quantifier && quantifier != "all")
           raise Error, msg(parent || quantifier || aggregate ? "collection" : "start") unless name
           spec = Catalog.collection(name)
-          raise Error, msg("window") if node["within_days"] && !spec[:dated]
+          raise Error, msg("window") if (node["within_days"] || node["older_than_days"]) && !spec[:dated]
           path = parent ? "#{parent}.#{name}" : name
           node["path"] = path
           qualifier = qualifier_name(name, spec, singular: quantifier && quantifier != "all")
@@ -223,7 +226,7 @@ module Segments
 
           def attribute_node(node, parent, name)
             spec = parent ? Catalog::CUSTOMER_ATTRIBUTES.fetch(name.to_sym) : Catalog.attributes_of(@subject).fetch(name.to_sym)
-            raise Error, msg("window") if node["within_days"]
+            raise Error, msg("window") if node["within_days"] || node["older_than_days"]
 
             node["path"] = parent ? "#{parent}.#{name}" : name
             comparison(node, spec, nil, name)
@@ -330,7 +333,8 @@ module Segments
             when :option then option(text, spec, collection, field)
             when :reference
               # O valor é guardado pelo id e escrito pelo nome: resultado de acionamento ou sistema do credor (17, R425), conforme o campo.
-              model, error = spec[:of] == :system ? [ SourceSystem, "system" ] : [ ContactResult, "result" ]
+              model, error = { system: [ SourceSystem, "system" ], piece: [ MessagePiece, "piece" ], cadence: [ Cadence, "cadence" ] }
+                             .fetch(spec[:of], [ ContactResult, "result" ])
               found = model.where(tenant_id: @tenant.id).find { |candidate| Parser.fold(candidate.name) == Parser.fold(text) }
               raise Error, msg(error, text: text) unless found
 

@@ -24,7 +24,17 @@ class Segment < ApplicationRecord
   # Onde o segmento é usado: os itens ativos de enquadramento (R273, R295).
   def uses = tiers.where(active: true).order(:kind, :position)
 
-  def used? = uses.exists?
+  # Os outros processos que usam o segmento (13, R272, revisão 8; 21, R443): distribuição, filas e raias de régua. A mudança de um segmento usado
+  # em qualquer um deles passa pela conferência única.
+  def other_uses
+    distribution = DistributionRuleItem.where(segment_id: id).ordered.map { |item| I18n.t("segments.uses.distribution", position: item.position) }
+    queues = WorkQueue.where(segment_id: id, active: true).order(:position).map { |queue| I18n.t("segments.uses.queue", name: queue.name) }
+    lanes = CadenceLane.where(segment_id: id, removed_at: nil).includes(:cadence).sort_by { |lane| [ lane.cadence.position, lane.position ] }
+                       .map { |lane| I18n.t("segments.uses.cadence", name: lane.cadence.name, position: lane.position) }
+    distribution + queues + lanes
+  end
+
+  def used? = uses.exists? || other_uses.any?
 
   private
     def normalize

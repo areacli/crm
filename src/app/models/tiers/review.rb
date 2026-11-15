@@ -31,7 +31,7 @@ module Tiers
                           "total" => impact.total, "balance_cents" => impact.balance_cents, "mixed" => impact.mixed,
                           "items" => items(proposal, impact), "moves" => impact.rows.sort_by { |row| -row.contracts }.map { |row| { "from" => proposal.name_of(row.from_id), "to" => proposal.name_of(row.to_id), "contracts" => row.contracts, "balance_cents" => row.balance_cents } },
                           "values" => charges.changes_values? ? charges.rows.map { |row| { "name" => row.name, "customers" => row.customers, "before" => row.before_cents, "after" => row.after_cents } } : nil,
-                          "cdc" => charges.cdc_warnings)
+                          "cdc" => charges.cdc_warnings, "others" => Segments::Impact.others(tenant, proposal.segments))
       Rails.cache.write(key(id), result, expires_in: TTL)
       Broadcast.review_ready(tenant)
       BackgroundNotice.finished(requester(data), what: I18n.t("impact_review.name"), where: where(tenant))

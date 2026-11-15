@@ -30,7 +30,13 @@ class SegmentsParserTest < ActiveSupport::TestCase
       tree_of("contracts", { "path" => "bills", "aggregate" => "max", "field" => "overdue_days", "op" => "gte", "value" => 5 }, { "path" => "customers", "aggregate" => "count", "op" => "gte", "value" => 2 }),
       tree_of("contracts", { "path" => "payments", "aggregate" => "sum", "field" => "amount", "op" => "lte", "value" => 100_000, "within_days" => 120 }),
       tree_of("customers", { "path" => "contacts", "qualifier" => "valid", "quantifier" => "none" }, { "path" => "customer_days", "op" => "gte", "value" => 30 }),
-      tree_of("customers", { "path" => "contacts", "quantifier" => "some", "where" => { "field" => "city", "op" => "eq", "value" => "São Paulo" } }, { "path" => "overdue_days", "op" => "gt", "value" => 90 })
+      tree_of("customers", { "path" => "contacts", "quantifier" => "some", "where" => { "field" => "city", "op" => "eq", "value" => "São Paulo" } }, { "path" => "overdue_days", "op" => "gt", "value" => 90 }),
+      # 13, revisões 7 e 8 (régua): os atributos novos e "há N dias ou mais".
+      tree_of("contracts", { "path" => "collection_days", "op" => "gte", "value" => 30 }, { "path" => "started_days", "op" => "lt", "value" => 365 },
+              { "path" => "holder.draw", "op" => "lt", "value" => 10 }),
+      tree_of("customers", { "path" => "draw", "op" => "gte", "value" => 10 }, { "path" => "collection_days", "op" => "between", "value" => [ 5, 60 ] }),
+      tree_of("contracts", { "path" => "contact_attempts", "quantifier" => "some", "where" => { "field" => "result", "op" => "eq", "value" => result.id }, "older_than_days" => 10 }),
+      tree_of("contracts", { "path" => "payments", "aggregate" => "count", "op" => "eq", "value" => 0, "older_than_days" => 60 })
     ]
     trees.each do |tree|
       text = Segments::Text.new(Segments::Expression.new(tree)).short_text

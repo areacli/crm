@@ -9,11 +9,21 @@ module Titular
         credor: @customer.tenant.display_name, exportado_em: Time.current.iso8601, anonimizado: @customer.anonymized?,
         cliente: { nome: @customer.name, documento: (@customer.anonymized? ? nil : @customer.formatted_document), anonimizado_em: @customer.anonymized_at&.iso8601 },
         identidades: identities, contatos: contacts, contratos: contracts, titulos: bills, pagamentos: payments, estornos: reversals, creditos: credits,
-        divergencias_de_valor: discrepancies, promessas: promises, acordos: agreements, instrumentos_de_pagamento: payment_instruments, links_de_pagamento: payment_checkouts, operacoes: operations, acionamentos: attempts, historico: history
+        divergencias_de_valor: discrepancies, promessas: promises, acordos: agreements, instrumentos_de_pagamento: payment_instruments, links_de_pagamento: payment_checkouts, operacoes: operations, acionamentos: attempts,
+        comandos_da_regua: cadence_commands, historico: history
       }
     end
 
     private
+      # 21 (restrições, dados pessoais): os comandos da régua sobre o cliente e os contratos dele, com o retorno do executor.
+      def cadence_commands
+        CadenceCommandItem.where(customer_id: @customer.id).or(CadenceCommandItem.where(contract_id: contract_ids))
+                          .includes(command: [ { round: :cadence }, { action: %i[message_piece queue_task] } ]).order(:created_at, :id).map do |item|
+          { regua: item.command.round.cadence.name, acao: Cadences::Labels.action(item.command.action), rodada: item.command.round.scheduled_for.iso8601,
+            estado: item.state, retorno: item.detail || item.reason, retornado_em: item.returned_at&.iso8601 }
+        end
+      end
+
       # 17, R426: os ids do cliente nos sistemas do credor.
       def identities
         CustomerIdentity.where(customer_id: @customer.id).includes(:source_system).order(:id).map do |identity|

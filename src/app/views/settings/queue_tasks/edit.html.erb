@@ -1,0 +1,4 @@
+<%= formulario_de_painel(titulo: "Editar #{@task.name}", url: queues_queue_task_path(@task, credor: @tenant.id), metodo: :patch, enviar: "Salvar", escopo: :queue_task,
+                         variante: :modal, tamanho: :small, erro: @task.errors.full_messages.to_sentence.presence) do |form| %>
+  <%= render "settings/queue_tasks/fields", form: form, task: @task %>
+<% end %>

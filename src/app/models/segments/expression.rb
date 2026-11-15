@@ -4,7 +4,7 @@ module Segments
   #   { "grammar" => 1, "subject" => "contracts", "all" => [condição, ...] }
   #
   # Condição sobre atributo: { "path", "op", "value", "negate" }; sobre coleção: { "path", "qualifier", e "aggregate" + "field" + "op" + "value"
-  # (quantidade, soma, maior, menor) ou "quantifier" + "where" (algum, todos, nenhum), "within_days", "negate" }; grupo "qualquer":
+  # (quantidade, soma, maior, menor) ou "quantifier" + "where" (algum, todos, nenhum), "within_days" ou "older_than_days", "negate" }; grupo "qualquer":
   # { "any" => [condição, ...] }, um nível só (R254). Dinheiro em centavos, percentual inteiro, dias inteiros; o resultado de acionamento pelo id.
   class Expression
     GRAMMAR = 1
@@ -73,8 +73,12 @@ module Segments
       def check_collection(node, found, where)
         spec = found[:spec]
         add(where, :qualifier) if node["qualifier"].present? && !spec[:qualifiers].include?(node["qualifier"])
-        if node["within_days"].present?
-          days = node["within_days"]
+        # Um recorte de tempo por condição (13, R262, revisão 8): "em N dias" ou "há N dias ou mais".
+        add(where, :window) if node["within_days"].present? && node["older_than_days"].present?
+        %w[within_days older_than_days].each do |key|
+          next if node[key].blank?
+
+          days = node[key]
           add(where, :window) unless spec[:dated] && days.is_a?(Integer) && days.between?(1, Catalog::MAX_WINDOW_DAYS)
         end
         if node["aggregate"].present?

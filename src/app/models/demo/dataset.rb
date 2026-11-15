@@ -18,6 +18,7 @@ module Demo
     include OperationSteps
     include QueueSteps
     include SystemSteps
+    include CadenceSteps
 
     ALPHA = "Escola Alfa".freeze
     BETA = "Clínica Beta".freeze
@@ -132,6 +133,7 @@ module Demo
         step("  filas") { queues(tenant) }
         step("  direitos do titular") { titular(tenant) }
         step("  instrumentos e link de pagamento") { instruments(tenant) }
+        step("  réguas") { cadences(tenant) }
         step("  segundo sistema (#{SystemSteps::NAME})") { second_system(tenant) }
         step("  importação à espera de confirmação") { pending_import(tenant) }
         recalc(tenant)

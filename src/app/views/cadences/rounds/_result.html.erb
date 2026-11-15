@@ -1,0 +1,53 @@
+<%# A lista das rodadas (21, R435), uma linha por hora prevista, com o detalhe por raia, coluna e ação (P26), refeita pelo WebSocket. %>
+<div id="resultado" aria-live="polite" data-spa-vivo="<%= request.fullpath %>">
+  <% if @rounds.empty? %>
+    <p class="vazio">A régua ainda não teve hora prevista.</p>
+  <% else %>
+    <div class="tabela" tabindex="0">
+      <table data-detalhes>
+        <caption class="apenas-leitor-de-tela">Rodadas da régua</caption>
+        <thead><tr><th scope="col">Hora prevista</th><th scope="col">Situação</th><th scope="col">Dados até</th><th scope="col" data-numerico>Avaliados</th><th scope="col" data-numerico>Comandos</th><th scope="col" data-numerico>Executados</th><th scope="col" data-numerico>Falharam</th><th scope="col" data-numerico>Sem retorno</th><th scope="col" data-numerico>Descartados</th><th scope="col" data-numerico>Despriorizados</th><th scope="col" data-numerico>Puladas</th></tr></thead>
+        <tbody>
+          <% @rounds.each do |round| %>
+            <% data = round.data_as_of || {} %>
+            <tr>
+              <th scope="row"><%= alternar_detalhe("rodada-#{round.id}", "rodada de #{datetime_br(round.scheduled_for)}") %><%= datetime_br(round.scheduled_for) %><% if round.started_at %><br><small>rodou <%= round.started_at.in_time_zone.strftime("%-Hh%M") %><%= " a #{round.finished_at.in_time_zone.strftime('%-Hh%M')}" if round.finished_at %></small><% end %></th>
+              <td><%= situacao_da_rodada(round) %><% if round.failure %><br><small><%= round.failure %></small><% end %></td>
+              <td><small><%= [ ("carteira #{datetime_br(Time.zone.parse(data['portfolio']))}" if data["portfolio"]), ("pagamentos #{datetime_br(Time.zone.parse(data['payments']))}" if data["payments"]) ].compact.join(" · ").presence || "—" %></small></td>
+              <td data-numerico><%= round.summary["evaluated"] ? number_br(round.summary["evaluated"]) : "—" %></td>
+              <td data-numerico><%= number_br(@counts.commands(round)) %></td>
+              <td data-numerico><%= number_br(@counts.items(round, "executed")) %></td>
+              <td data-numerico><%= number_br(@counts.items(round, "failed")) %></td>
+              <td data-numerico><%= number_br(@counts.items(round, "no_return")) %></td>
+              <td data-numerico><%= number_br(@counts.items(round, "discarded")) %></td>
+              <td data-numerico><%= number_br(@counts.decisions(round, "deprioritized")) %></td>
+              <td data-numerico><%= number_br(@counts.skips(round)) %></td>
+            </tr>
+            <%= detalhe_da_linha("rodada-#{round.id}", 11) do %>
+              <% details = @counts.details(round) %>
+              <% if details.empty? %>
+                <p class="vazio">Nenhum comando nesta rodada<%= ". Fora do episódio: #{number_br(round.summary['out_of_episode'].to_i)}; sem marco: #{number_br(round.summary['without_milestone'].to_i)}" if round.summary.any? %>.</p>
+              <% else %>
+                <table>
+                  <caption class="apenas-leitor-de-tela">Por raia, coluna e ação</caption>
+                  <thead><tr><th scope="col" data-numerico>Raia</th><th scope="col">Coluna</th><th scope="col">Ação</th><th scope="col" data-numerico>Comandos</th><th scope="col">Retornos</th><th scope="col">Motivos mais comuns</th></tr></thead>
+                  <tbody>
+                    <% details.each do |detail| %>
+                      <tr>
+                        <td data-numerico><%= detail.lane.position %></td><td><%= detail.column.label %></td><th scope="row"><%= Cadences::Labels.action(detail.action) %></th>
+                        <td data-numerico><%= number_br(detail.commands) %></td>
+                        <td><%= safe_join(detail.states.map { |state, count| safe_join([ situacao_do_item(state), " #{number_br(count)}" ]) }, " ") %></td>
+                        <td><small><%= detail.reasons.map { |reason, count| "#{reason} (#{number_br(count)})" }.join(" · ").presence || "—" %></small></td>
+                      </tr>
+                    <% end %>
+                  </tbody>
+                </table>
+              <% end %>
+            <% end %>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+    <%= render "shared/paginacao", pagination: @pagination, unit: "rodadas", path: ->(page) { cadence_rounds_path(@cadence, request.query_parameters.merge("pagina" => page)) } %>
+  <% end %>
+</div>

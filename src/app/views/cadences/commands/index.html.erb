@@ -1,0 +1,26 @@
+<% content_for :title, "Comandos da régua" %>
+<%= pagina "Comandos", subtitulo: "O que as réguas puseram na fila dos executores, com os itens e o retorno de cada um." do %>
+  <%= link_to "Ver réguas", cadences_path(credor: @tenant.id), class: "botao", data: { variant: "secondary" } %>
+<% end %>
+<%= render "cadences/tenants", rota: :cadence_commands_path %>
+<form class="filtros" role="search" action="<%= cadence_commands_path %>" method="get">
+  <input type="hidden" name="credor" value="<%= @tenant.id %>">
+  <div class="campo">
+    <label for="filtro-regua">Régua</label>
+    <select id="filtro-regua" name="regua"><option value="">Todas</option><%= options_for_select(@cadences.map { |cadence| [ cadence.name, cadence.id ] }, params[:regua]) %></select>
+  </div>
+  <div class="campo">
+    <label for="filtro-estado">Estado</label>
+    <select id="filtro-estado" name="estado"><option value="">Todos</option><%= options_for_select(CadenceCommand::STATES.values.map { |state| [ t("cadences.item_states.#{state}"), FilterValue.to_url(state) ] }, params[:estado]) %></select>
+  </div>
+  <div class="campo">
+    <label for="filtro-tipo">Tipo</label>
+    <select id="filtro-tipo" name="tipo"><option value="">Todos</option><%= options_for_select(Cadences::Catalog::KINDS.map { |kind| [ t("cadences.kinds.#{kind}"), FilterValue.to_url(kind) ] }, params[:tipo]) %></select>
+  </div>
+  <div class="campo">
+    <label for="por-pagina">Por página</label>
+    <select id="por-pagina" name="por_pagina"><%= options_for_select(Pagination::PER_PAGE_OPTIONS, @pagination.per_page) %></select>
+  </div>
+  <button type="submit" data-variant="secondary">Filtrar</button>
+</form>
+<%= render "cadences/commands/result" %>

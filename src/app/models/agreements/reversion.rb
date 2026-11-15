@@ -231,7 +231,7 @@ module Agreements
       end
 
       def cancel_titles(agreement)
-        agreement.titles.where.not(status: "canceled").update_all(status: "canceled", updated_at: Time.current)
+        agreement.titles.where.not(status: "canceled").change_status_to!("canceled")
         agreement.reversal_titles.where.not(status: "canceled").each do |bill|
           cancel_reversal_title(bill)
         end
@@ -259,7 +259,7 @@ module Agreements
 
       # Os originais voltam a ativos como estavam antes do aceite (R239); os que o acordo renegociou saem de renegociados.
       def reactivate_originals(agreement)
-        Bill.where(id: agreement.agreement_bills.select(:bill_id), status: "renegotiated").update_all(status: "active", updated_at: Time.current)
+        Bill.where(id: agreement.agreement_bills.select(:bill_id), status: "renegotiated").change_status_to!("active")
       end
 
       # R239, R250, AG5: o acordo revertido era o novo de um acordo sobre acordo: o anterior volta ao estado que tinha, é reavaliado com os títulos que voltam, e a contagem da tolerância e dos

@@ -1,0 +1,29 @@
+<% content_for :title, "Tarefas das filas" %>
+<%= pagina "Tarefas", subtitulo: "O que a régua põe na fila de trabalho do operador, com a instrução e o prazo. Até a fila receber tarefas, o executor é simulado." do %>
+  <%= abrir_painel "Criar tarefa", new_queues_queue_task_path(credor: @tenant.id) %>
+<% end %>
+<%= render "cadences/tenants", rota: :queues_queue_tasks_path %>
+<div id="resultado" aria-live="polite">
+  <% if @tasks.empty? %>
+    <p class="vazio">Nenhuma tarefa. Crie a primeira para usar nas ações de tarefa das réguas.</p>
+  <% else %>
+    <div class="tabela" tabindex="0">
+      <table>
+        <caption class="apenas-leitor-de-tela">Tarefas</caption>
+        <thead><tr><th scope="col">Tarefa</th><th scope="col">Instrução</th><th scope="col" data-numerico>Prazo</th><th scope="col">Usada em</th><th scope="col">Situação</th><th scope="col"><span class="apenas-leitor-de-tela">Ações</span></th></tr></thead>
+        <tbody>
+          <% @tasks.each do |task| %>
+            <tr>
+              <th scope="row"><%= task.name %></th>
+              <td><%= cortado(task.instruction) %></td>
+              <td data-numerico><%= task.due_days %> <%= task.due_days == 1 ? "dia" : "dias" %></td>
+              <td><%= task.cadences.map(&:name).join(", ").presence || "—" %></td>
+              <td><%= task.active? ? situacao("Ativa", tom: :success) : situacao("Desativada", tom: :neutral) %></td>
+              <td data-acoes><%= abrir_painel "Editar", edit_queues_queue_task_path(task, credor: @tenant.id), variante: "secondary" %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
+</div>

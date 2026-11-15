@@ -29,6 +29,8 @@ pt-BR:
         updated_value: { short: "atualizado", long: "valor atualizado", definition: "Soma do valor atualizado (com encargos) dos títulos em cobrança, do último recálculo.", unit: money }
         return_days: { short: "dias para o retorno", long: "dias para o retorno", definition: "Dias entre hoje e o retorno combinado no último acionamento do contrato; negativo se já passou, vazio se não há retorno.", unit: days }
         return_user: { short: "retorno de", long: "retorno combinado por", definition: "Quem registrou o último acionamento do contrato, quando ele tem retorno combinado." }
+        started_days: { short: "iniciado há", long: "dias desde o início", definition: "Dias desde a data de início do contrato informada na carga (coluna inicio_contrato); vazio sem ela.", unit: days }
+        collection_days: { short: "dias em cobrança", long: "dias em cobrança", definition: "Dias desde a entrada no atraso em curso; não recua quando o título mais antigo é pago; vazio sem atraso.", unit: days }
         system: { short: "sistema", long: "sistema", definition: "O sistema do credor de onde o contrato veio, pelo nome dado no cadastro de sistemas." }
       customers:
         person_type: { short: "tipo", long: "tipo", definition: "PF ou PJ, pelo documento do cliente." }
@@ -37,6 +39,8 @@ pt-BR:
         balance: { short: "saldo", long: "saldo dos contratos", definition: "Soma dos saldos em cobrança dos contratos do cliente no credor, sem encargos.", unit: money }
         return_days: { short: "dias para o retorno", long: "dias para o retorno", definition: "Dias entre hoje e o retorno combinado no último acionamento do cliente; negativo se já passou, vazio se não há retorno.", unit: days }
         return_user: { short: "retorno de", long: "retorno combinado por", definition: "Quem registrou o último acionamento do cliente, quando ele tem retorno combinado." }
+        collection_days: { short: "dias em cobrança", long: "dias em cobrança", definition: "Dias desde a entrada no atraso em curso do cliente, por todos os contratos dele no credor; vazio sem atraso.", unit: days }
+        draw: { short: "sorteio", long: "sorteio", definition: "Número de 0 a 99, sorteado quando o cliente entra no CRM e fixo depois; serve para separar um grupo de controle (sorteio < 10 é cerca de 10%)." }
     collections:
       bills: { one: "título", other: "títulos", definition: "Títulos em aberto: com saldo a pagar, vencidos ou a vencer, de qualquer tipo." }
       contact_attempts: { one: "acionamento", other: "acionamentos", definition: "Acionamentos registrados, com resultado, canal e data." }
@@ -47,6 +51,7 @@ pt-BR:
       contracts: { one: "contrato", other: "contratos", definition: "Os contratos do cliente no credor." }
       other_contracts: { one: "outro contrato", other: "outros contratos", definition: "Os outros contratos do cliente, sem o próprio contrato." }
       customers: { one: "cliente", other: "clientes", definition: "Os clientes do contrato, em qualquer papel." }
+      commands: { one: "comando", other: "comandos", definition: "Os comandos da régua sobre o contrato (ou sobre o cliente e os contratos dele), com o tipo, a peça, a régua, o estado e a data da rodada." }
     qualifiers:
       bills:
         overdue: { one: "vencido", other: "vencidos" }
@@ -71,9 +76,10 @@ pt-BR:
       promises: { state: "situação" }
       agreements: { state: "situação", mode: "modalidade" }
       payments: { method: "meio", amount: "valor" }
-      contracts: { overdue_days: "atraso", balance: "saldo", overdue_percent: "% vencido", age_days: "idade", product: "produto", product_largest: "produto maior saldo", broke_agreement: "quebrou acordo", in_arrears: "em atraso", in_collection: "em cobrança", return_days: "dias para o retorno", return_user: "retorno de", system: "sistema" }
-      other_contracts: { overdue_days: "atraso", balance: "saldo", overdue_percent: "% vencido", age_days: "idade", product: "produto", product_largest: "produto maior saldo", broke_agreement: "quebrou acordo", in_arrears: "em atraso", in_collection: "em cobrança", return_days: "dias para o retorno", return_user: "retorno de", system: "sistema" }
+      contracts: { overdue_days: "atraso", balance: "saldo", overdue_percent: "% vencido", age_days: "idade", product: "produto", product_largest: "produto maior saldo", broke_agreement: "quebrou acordo", in_arrears: "em atraso", in_collection: "em cobrança", return_days: "dias para o retorno", return_user: "retorno de", started_days: "iniciado há", collection_days: "dias em cobrança", system: "sistema" }
+      other_contracts: { overdue_days: "atraso", balance: "saldo", overdue_percent: "% vencido", age_days: "idade", product: "produto", product_largest: "produto maior saldo", broke_agreement: "quebrou acordo", in_arrears: "em atraso", in_collection: "em cobrança", return_days: "dias para o retorno", return_user: "retorno de", started_days: "iniciado há", collection_days: "dias em cobrança", system: "sistema" }
       customers: { person_type: "tipo" }
+      commands: { kind: "tipo", piece: "peça", cadence: "régua", state: "estado" }
     aggregates:
       count: { short: "quantidade", long: "quantidade" }
       sum: { short: "soma", long: "a soma do %{field}" }
@@ -92,6 +98,8 @@ pt-BR:
       count_long: { eq: "exatamente %{value}", ne: "um número diferente de %{value}", gt: "mais de %{value}", gte: "pelo menos %{value}", lt: "menos de %{value}", lte: "no máximo %{value}", between: "entre %{low} e %{high}", in: "%{values}" }
     window_short: "em %{days} dias"
     window_long: "nos últimos %{days} dias"
+    window_older_short: "há %{days} dias ou mais"
+    window_older_long: "de %{days} dias atrás ou antes"
     any_short: "qualquer:"
     any_long: "pelo menos uma destas: %{parts}"
     not_short: "não"
@@ -120,9 +128,13 @@ pt-BR:
       agreement_state: { pending: "pendente", approved: "aprovada", refused: "recusada", not_approved: "não aprovada", expired: "expirada", canceled: "cancelada", awaiting_effectuation: "aguardando efetivação", active_on_time: "em dia", active_late: "em atraso", settled: "quitado", broken: "quebrado", renegotiated: "renegociado" }
       mode: { installments: "parcelado", cash: "à vista" }
       method: { pix: "Pix", boleto: "boleto", credit_card: "cartão de crédito", debit_card: "cartão de débito", transfer: "transferência", cash: "dinheiro", other: "outro" }
+      command_kind: { sms: "SMS", email: "e-mail", whatsapp: "WhatsApp", letter: "carta", issue_instrument: "emissão", proposal: "proposta", promise: "promessa", task: "tarefa", negativation: "negativação", protest: "protesto", lawsuit: "ajuizamento", credit_suspension: "suspensão do crédito" }
+      command_state: { queued: "na fila", executed: "executado", failed: "falhou", no_return: "sem retorno", discarded: "descartado" }
     unknown_result: "resultado removido"
     unknown_user: "usuário removido"
     unknown_system: "sistema removido"
+    unknown_piece: "peça removida"
+    unknown_cadence: "régua removida"
     errors:
       subject: "Escolha o que o segmento seleciona: clientes ou contratos."
       grammar: "Versão da linguagem desconhecida."
@@ -133,7 +145,7 @@ pt-BR:
       incomplete: "Complete a condição."
       path: "Atributo não disponível para segmentos."
       qualifier: "Qualificador não disponível para esta coleção."
-      window: "A janela de dias vale só para acionamentos, promessas, acordos e pagamentos, de 1 a 3.650 dias."
+      window: "A janela de dias (\"em N dias\" ou \"há N dias ou mais\", uma por condição) vale só para acionamentos, promessas, acordos e pagamentos, de 1 a 3.650 dias."
       quantifier: "Escolha algum, todos ou nenhum."
       aggregate: "Escolha quantidade, soma, maior ou menor."
       field: "Campo não disponível para esta coleção."
@@ -149,7 +161,7 @@ pt-BR:
       start: "não reconheci o começo. Comece por um dado (atraso, saldo, tipo, produto…), por uma coleção (títulos, acionamentos, contatos…), por \"algum\", \"todos\", \"nenhum\", \"sem\" ou por \"soma\", \"maior\", \"menor\". Veja o glossário."
       collection: "depois disso vem uma coleção (títulos, acionamentos, contatos, promessas, acordos, pagamentos…)."
       aggregate_field: "depois de \"soma\", \"maior\" ou \"menor\" vem o campo (saldo, valor, atraso) e a coleção."
-      window: "\"em N dias\" vale só para acionamentos, promessas, acordos e pagamentos."
+      window: "\"em N dias\" e \"há N dias ou mais\" valem só para acionamentos, promessas, acordos e pagamentos."
       comparison: "vem uma comparação: =, ≠, >, >=, <, <=, entre ou em."
       between: "\"entre\" pede dois valores: entre 30 e 90."
       list: "\"em\" pede uma lista separada por vírgulas: em PF, misto."
@@ -160,6 +172,8 @@ pt-BR:
       result: "não há resultado de acionamento chamado \"%{text}\" neste credor."
       user: "não há usuário chamado \"%{text}\" neste credor."
       system: "não há sistema chamado \"%{text}\" neste credor."
+      piece: "não há peça chamada \"%{text}\" neste credor."
+      cadence: "não há régua chamada \"%{text}\" neste credor."
       quotes: "o valor entre aspas não fechou."
       with: "depois da coleção vem o valor entre aspas, \"com\" e um campo, ou nada."
       field: "o campo não existe nesta coleção. Use: %{fields}."

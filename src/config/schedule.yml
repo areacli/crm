@@ -68,3 +68,18 @@ generate_holidays:
   queue: default
   active_job: true
   description: "Feriados estaduais e das capitais (11, R249): gera as datas dos anos seguintes, das regras que vêm com o sistema"
+
+cadences_dispatch:
+  cron: "* * * * *"
+  class: "CadencesDispatchJob"
+  queue: cadences
+  active_job: true
+  description: "Régua (21, R435): cria as rodadas das horas previstas, marca as que não rodaram e enfileira um job por credor e horário"
+
+cadence_deadlines:
+  cron: "*/10 * * * *"
+  class: "CadenceDeadlinesJob"
+  queue: cadences
+  active_job: true
+  description: "Régua (21, R439): o item ainda na fila depois do prazo de retorno do tipo passa a sem retorno"
+

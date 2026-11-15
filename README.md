@@ -5,7 +5,7 @@
   </picture>
 </h1>
 
-CRM de cobrança: um credor importa a carteira de clientes e títulos a partir de planilhas, acompanha quem deve e quanto, registra os pagamentos e os estornos recebidos pelos seus canais (por planilha ou por webhook assinado), registra os contatos feitos com cada cliente, mantém o cadastro do credor e os vários contatos de cada cliente, controla quem acessa o quê e mantém o histórico de cada alteração. Vários credores convivem no mesmo sistema, e cada pessoa vê só os credores em que tem permissão.
+CRM de cobrança: um credor importa a carteira de clientes e títulos a partir de planilhas, acompanha quem deve e quanto, registra os pagamentos e os estornos recebidos pelos seus canais (por planilha ou por webhook assinado), registra os contatos feitos com cada cliente, desenha réguas (o que cada público recebe em cada momento, com rodadas agendadas que põem os comandos na fila dos executores), mantém o cadastro do credor e os vários contatos de cada cliente, controla quem acessa o quê e mantém o histórico de cada alteração. Vários credores convivem no mesmo sistema, e cada pessoa vê só os credores em que tem permissão.
 
 O projeto é desenvolvido por incrementos, cada um a partir de uma especificação aprovada antes do código. A discussão de cada incremento é contada na série [Criei um CRM](https://blog.areacli.com/criei-um-crm/), no Blog AreaCli.
 
@@ -18,11 +18,11 @@ https://crm.areacli.com, com dados fictícios recriados todo dia às 4h (horári
 
 | Usuário | Senha | O que pode fazer |
 |---|---|---|
-| `gestor@demo.crm.areacli.com` | `demonstracao-gestor` | Gestor na Escola Alfa e operador na Clínica Beta: importar e confirmar carteira, pagamentos e estornos; registrar acionamentos; aprovar promessas e acordos; métodos de recebimento, políticas de pagamento, segmentos e encargos; transferir crédito entre contratos; direitos do titular. Usuários, perfis, senhas, dados do credor e contas de pagamento ficam fechados (só leitura) |
+| `gestor@demo.crm.areacli.com` | `demonstracao-gestor` | Gestor na Escola Alfa e operador na Clínica Beta: importar e confirmar carteira, pagamentos e estornos; registrar acionamentos; aprovar promessas e acordos; métodos de recebimento, políticas de pagamento, segmentos e encargos; réguas; transferir crédito entre contratos; direitos do titular. Usuários, perfis, senhas, dados do credor e contas de pagamento ficam fechados (só leitura) |
 | `operador@demo.crm.areacli.com` | `demonstracao-operador` | Operador na Escola Alfa (a Clínica Beta não aparece): consultar clientes e fichas, registrar acionamentos, editar o cadastro do cliente e negociar acordos |
 | `operacao@demo.crm.areacli.com` | `demonstracao-operacao` | Pessoa de uma operação de cobrança parceira na Escola Alfa: vê só os clientes distribuídos à operação dela (Row-Level Security do PostgreSQL), com o nome da operação no cabeçalho, e não abre a configuração nem a distribuição |
 
-A carteira da Escola Alfa tem 10 mil clientes com títulos desde 2020, pagamentos, estornos, acionamentos, promessas nos oito estados, acordos nos estados principais, divergências de valor, um cliente anonimizado, instrumentos de pagamento do fornecedor falso e um segundo sistema de origem (o "ERP Acadêmico", de id próprio, ao lado da planilha). A página pública de pagamento de exemplo (sem login) fica em `/pagar/demonstracao-pagamento`; no cartão de teste, o último dígito do número escolhe o resultado (1 dados inválidos, 2 recusa, 3 recusa que pode repetir, qualquer outro aprova). A demonstração roda com `CRM_DEMO=1`; os dados vêm da tarefa `bin/rails crm:demo_data` (e `crm:demo_reset` recria tudo).
+A carteira da Escola Alfa tem 10 mil clientes com títulos desde 2020, pagamentos, estornos, acionamentos, promessas nos oito estados, acordos nos estados principais, divergências de valor, um cliente anonimizado, instrumentos de pagamento do fornecedor falso, um segundo sistema de origem (o "ERP Acadêmico", de id próprio, ao lado da planilha) e três réguas (duas ligadas, com as rodadas dos últimos 3 dias; os executores das mensagens, propostas, tarefas e medidas são simulados, e a emissão usa o fornecedor falso). A página pública de pagamento de exemplo (sem login) fica em `/pagar/demonstracao-pagamento`; no cartão de teste, o último dígito do número escolhe o resultado (1 dados inválidos, 2 recusa, 3 recusa que pode repetir, qualquer outro aprova). A demonstração roda com `CRM_DEMO=1`; os dados vêm da tarefa `bin/rails crm:demo_data` (e `crm:demo_reset` recria tudo).
 
 ## Telas
 
@@ -135,6 +135,17 @@ Estado atual da aplicação em Rails (fotos recriadas a cada incremento por `dep
 | No credor com mais de um sistema, o envio da carteira pergunta de qual sistema vem o arquivo, e as colunas de id aparecem | Conferência: o título que troca de devedor fica à espera, e a pessoa confirma a mudança antes de gravar |
 | ![Ficha com sistemas](docs/telas/ficha-com-sistemas.png) | ![Simulação pergunta o sistema](docs/telas/simulacao-pergunta-o-sistema.png) |
 | O mesmo cliente em dois sistemas é um cliente só: a ficha diz de que sistema é cada contrato e cada título | Um acordo reúne títulos de um sistema só: com títulos em mais de um, a simulação pergunta antes |
+
+### Régua
+
+| | |
+|---|---|
+| ![Réguas](docs/telas/reguas.png) | ![Régua como diagrama de raias](docs/telas/regua-diagrama.png) |
+| As réguas do credor por prioridade, com o marco, a agenda, a vigência, a situação e a última rodada | A régua como diagrama de raias: cada raia é um segmento, em ordem, com a trilha padrão por último; as colunas são os momentos a partir do marco, e as ações ficam em cartões na altura da coluna |
+| ![Régua compacta](docs/telas/regua-compacta.png) | ![Rodadas da régua](docs/telas/regua-rodadas.png) |
+| O mesmo diagrama na densidade compacta, para régua extensa: cada ação vira um ícone, com o texto na dica | As rodadas: toda hora prevista, com até quando os dados estavam, os comandos e os retornos dos executores, e o detalhe por raia, coluna e ação |
+| ![Conferência de ligar a régua](docs/telas/regua-conferencia.png) | ![Ficha com a situação nas réguas](docs/telas/ficha-nas-reguas.png) |
+| Ligar passa pela conferência: o que a próxima rodada faria, com quem entra pela primeira coluna e quem entra no meio | Na ficha, a situação em cada régua ligada: a raia, o momento, a última coluna alcançada e a próxima |
 
 ### Padrão de interface: abas, janelas e diálogos
 

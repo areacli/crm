@@ -1,0 +1,38 @@
+<%# A lista dos comandos (21, R441), uma linha por comando, com os itens no detalhe (P26). %>
+<div id="resultado" aria-live="polite">
+  <% if @commands.empty? %>
+    <p class="vazio">Nenhum comando com estes filtros.</p>
+  <% else %>
+    <div class="tabela" tabindex="0">
+      <table data-detalhes>
+        <caption class="apenas-leitor-de-tela">Comandos das réguas</caption>
+        <thead><tr><th scope="col">Rodada</th><th scope="col">Régua</th><th scope="col">Ação</th><th scope="col">Destinatário</th><th scope="col" data-numerico>Itens</th><th scope="col">Estado</th><th scope="col">Prazo do retorno</th></tr></thead>
+        <tbody>
+          <% @commands.each do |command| %>
+            <tr>
+              <th scope="row"><%= alternar_detalhe("comando-#{command.id}", "comando #{command.id}") %><%= datetime_br(command.round.scheduled_for) %></th>
+              <td><%= link_to command.round.cadence.name, cadence_path(command.round.cadence) %></td>
+              <td><%= Cadences::Labels.action(command.action) %></td>
+              <td><%= command.recipient ? link_to(command.recipient.name, customer_path(command.recipient)) : "—" %></td>
+              <td data-numerico><%= number_br(command.items.size) %></td>
+              <td><%= situacao_do_item(command.state) %></td>
+              <td><%= command.deadline_at ? datetime_br(command.deadline_at) : "—" %></td>
+            </tr>
+            <%= detalhe_da_linha("comando-#{command.id}", 7) do %>
+              <table>
+                <caption class="apenas-leitor-de-tela">Itens do comando</caption>
+                <thead><tr><th scope="col">Objeto</th><th scope="col">Estado</th><th scope="col">Retorno</th><th scope="col">Quando</th></tr></thead>
+                <tbody>
+                  <% command.items.each do |item| %>
+                    <tr><th scope="row"><%= Cadences::Labels.object(item.decision) %></th><td><%= situacao_do_item(item.state) %></td><td><%= item.detail || item.reason || "—" %></td><td><%= item.returned_at ? datetime_br(item.returned_at) : "—" %></td></tr>
+                  <% end %>
+                </tbody>
+              </table>
+            <% end %>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+    <%= render "shared/paginacao", pagination: @pagination, unit: "comandos", path: ->(page) { cadence_commands_path(request.query_parameters.merge("pagina" => page)) } %>
+  <% end %>
+</div>

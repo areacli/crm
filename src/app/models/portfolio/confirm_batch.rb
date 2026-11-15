@@ -179,6 +179,7 @@ module Portfolio
           links[[ contract.id, customer.id ]] ||= ContractCustomer.new(contract: contract, customer: customer, roles: [])
           Entry.new(row, customer, contract, bills[@own_id ? row.external_bill_id : [ customer.id, row.number ]], row.amount_cents)
         end
+        write_start_dates(entries)
         entries.each { |entry| evaluate_discrepancy(entry) }
         # R57: título pago neste sistema continua pago e não é atualizado pela carga.
         entries.reject! { |entry| entry.bill && %w[paid renegotiated].include?(entry.bill.status) }
@@ -187,6 +188,18 @@ module Portfolio
         settle(entries)
         write_versions(entries)
         write_surcharges(entries)
+      end
+
+      # Data de início do contrato (01, `inicio_contrato`): a linha que a traz grava no contrato, com o histórico; vazia não apaga a gravada. A
+      # conferência já recusou as linhas do contrato com datas diferentes no arquivo, então todas as do contrato trazem a mesma (ou nenhuma).
+      def write_start_dates(entries)
+        entries.select { |entry| entry.row.started_on }.uniq { |entry| entry.contract.id }.each do |entry|
+          contract = entry.contract
+          next if contract.started_on == entry.row.started_on
+
+          @changes << [ contract, "updated", { field: "started_on", before: contract.started_on&.iso8601, after: entry.row.started_on.iso8601, origin: "load" } ]
+          contract.update!(started_on: entry.row.started_on)
+        end
       end
 
       # Os títulos que as linhas do lote podem atualizar, só os do sistema da carga (R403): em chave natural, os dos clientes do lote, por cliente e

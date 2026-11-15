@@ -1,0 +1,29 @@
+<% content_for :title, "Peças da mensageria" %>
+<%= pagina "Peças da mensageria", subtitulo: "O nome e o canal de cada peça que a régua pode mandar. O texto, as variáveis e a prévia vêm com a mensageria; até lá, o envio é simulado." do %>
+  <%= abrir_painel "Criar peça", new_settings_message_piece_path(credor: @tenant.id) %>
+<% end %>
+<%= render "settings/modelo" %>
+<%= render "cadences/tenants", rota: :settings_message_pieces_path %>
+<div id="resultado" aria-live="polite">
+  <% if @pieces.empty? %>
+    <p class="vazio">Nenhuma peça. Crie a primeira para usar nas ações de SMS, e-mail, WhatsApp e carta.</p>
+  <% else %>
+    <div class="tabela" tabindex="0">
+      <table>
+        <caption class="apenas-leitor-de-tela">Peças da mensageria</caption>
+        <thead><tr><th scope="col">Peça</th><th scope="col">Canal</th><th scope="col">Usada em</th><th scope="col">Situação</th><th scope="col"><span class="apenas-leitor-de-tela">Ações</span></th></tr></thead>
+        <tbody>
+          <% @pieces.each do |piece| %>
+            <tr>
+              <th scope="row"><%= piece.name %></th>
+              <td><%= t("cadences.channels.#{piece.channel}") %></td>
+              <td><%= piece.cadences.map(&:name).join(", ").presence || "—" %></td>
+              <td><%= piece.active? ? situacao("Ativa", tom: :success) : situacao("Desativada", tom: :neutral) %></td>
+              <td data-acoes><%= abrir_painel "Editar", edit_settings_message_piece_path(piece, credor: @tenant.id), variante: "secondary" %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
+</div>

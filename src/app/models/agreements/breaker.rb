@@ -164,7 +164,7 @@ module Agreements
       Bill.create!(tenant_id: agreement.tenant_id, contract_id: oldest.contract_id, customer_id: agreement.customer_id, number: "#{agreement.number}-Q", due_date: oldest.due_date,
                    amount_cents: merged.sum { |item| item["cents"] } + interest, status: "active", kind: "break", agreement_id: agreement.id, product: oldest.product,
                    description: "Título da quebra do acordo #{agreement.number}", composition: composition)
-      Bill.where(id: open.map(&:id)).update_all(status: "canceled", updated_at: Time.current)
+      Bill.where(id: open.map(&:id)).change_status_to!("canceled")
     end
   end
 end

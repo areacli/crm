@@ -1,0 +1,16 @@
+<%# Campos da tarefa (21, R446). Locais: form, task. %>
+<div class="campo">
+  <%= form.label :name, "Nome" %>
+  <%= form.text_field :name, value: task.name, required: true, maxlength: 100 %>
+</div>
+<div class="campo">
+  <%= form.label :instruction, "Instrução" %>
+  <%= form.text_area :instruction, value: task.instruction, required: true, maxlength: 500, rows: 3 %>
+</div>
+<div class="campo">
+  <%= form.label :due_days, "Prazo (dias)" %>
+  <%= form.number_field :due_days, value: task.due_days, min: 0, max: 365, required: true %>
+</div>
+<div class="campo">
+  <label><%= form.check_box :active, checked: task.active %> Ativa</label>
+</div>

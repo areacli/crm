@@ -1,0 +1,9 @@
+<%= formulario_de_painel(titulo: "Incluir coluna em #{@cadence.name}", url: cadence_columns_path(@cadence), enviar: @cadence.enabled? ? "Conferir o impacto" : "Incluir", escopo: :column,
+                         variante: :modal, tamanho: :small, erro: @error,
+                         descricao: "O momento, em dias a partir do marco (negativo antes dele). A última coluna alcançada vale para todo momento depois dela: para limitar a janela, inclua uma coluna vazia, que marca o fim.") do |form| %>
+  <div class="campo">
+    <%= form.label :offset, "Momento (dias)" %>
+    <%= form.number_field :offset, min: @minimum, max: Cadences::Catalog::MAX_OFFSET, required: true %>
+    <small>Este marco aceita a partir de <%= @minimum.negative? ? "D−#{@minimum.abs}" : "D+#{@minimum}" %>.</small>
+  </div>
+<% end %>

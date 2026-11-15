@@ -20,7 +20,7 @@ module Portfolio
                  due_date: row.due_date, amount_cents: row.amount_cents, description: row.description, ok: true, keep_document: false, roles: row.roles,
                  product: row.product, penalty_cents: row.penalty_cents, interest_cents: row.interest_cents, correction_cents: row.correction_cents,
                  other_cents: row.other_cents, external_bill_id: row.external_bill_id, external_contract_id: row.external_contract_id,
-                 external_customer_id: row.external_customer_id }
+                 external_customer_id: row.external_customer_id, started_on: row.started_on }
     end
 
     # Contatos da linha (06, R109). `tenant_keys`: telefone e e-mail do credor, normalizados, para marcar o contato que é igual ao do credor
@@ -43,7 +43,7 @@ module Portfolio
     def add_key_only(line, document, number, external_bill_id: nil)
       @rows << { import_id: @import_id, line: line, document: document, number: number, name: nil, name_key: nil, contract: nil, due_date: nil, amount_cents: nil,
                  description: nil, ok: false, keep_document: false, roles: nil, product: nil, penalty_cents: nil, interest_cents: nil, correction_cents: nil,
-                 other_cents: nil, external_bill_id: external_bill_id, external_contract_id: nil, external_customer_id: nil }
+                 other_cents: nil, external_bill_id: external_bill_id, external_contract_id: nil, external_customer_id: nil, started_on: nil }
     end
 
     # Grava o que está no buffer. Quem chama decide a transação (o lote inteiro, com recusas e avisos, vai junto).

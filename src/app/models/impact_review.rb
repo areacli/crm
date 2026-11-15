@@ -8,7 +8,7 @@ module ImpactReview
     Rails.cache.delete(failure_key(review, token))
     BackgroundNotice.finished(user, what: I18n.t("impact_review.name"), where: where)
   rescue StandardError => error
-    refused = error.is_a?(Queues::Refused) || error.is_a?(Distributions::Refused)
+    refused = error.is_a?(Queues::Refused) || error.is_a?(Distributions::Refused) || error.is_a?(Cadences::Refused)
     reason = refused ? error.message : I18n.t("impact_review.failed")
     Rails.cache.write(failure_key(review, token), reason, expires_in: 30.minutes)
     BackgroundNotice.failed(user, what: I18n.t("impact_review.name"), where: where, reason: reason)

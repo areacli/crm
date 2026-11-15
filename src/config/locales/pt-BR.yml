@@ -84,6 +84,7 @@ pt-BR:
         cidade: "Cidade do endereço"
         uf: "Sigla de um dos 27 estados"
         cep: "8 dígitos, com ou sem hífen"
+        inicio_contrato: "Data de início do contrato no seu sistema, dd/mm/aaaa; vazia não apaga a gravada; a mesma em todas as linhas do contrato"
         id_titulo: "Id do título no sistema, até 100 caracteres; obrigatório em sistema de id próprio e ignorado em chave natural"
         id_contrato: "Id do contrato no sistema, até 100 caracteres; obrigatório em sistema de id próprio e ignorado em chave natural"
         id_cliente: "Id do cliente no sistema, até 100 caracteres; opcional"
@@ -482,6 +483,7 @@ pt-BR:
     manage_queues: "Gerenciar fila"
     issue_payment_instruments: "Emitir instrumentos de pagamento"
     configure_integration: "Configurar integração"
+    configure_cadence: "Configurar régua"
   activerecord:
     models:
       tenant: "Credor"

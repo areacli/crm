@@ -1,0 +1,24 @@
+<%# A situação na régua (21, R444): por régua ligada, a raia, o momento, a última coluna alcançada e se ela disparou (quando e com qual comando) ou
+    por que nada sai, e a próxima coluna com ação. Calculada na hora. Locais: rows, customer. %>
+<section class="cartao" id="nas-reguas" aria-labelledby="nas-reguas-titulo" data-spa-vivo="<%= customer_cadence_situation_path(customer) %>">
+  <header><h2 id="nas-reguas-titulo">Nas réguas</h2></header>
+  <div>
+    <% if rows.empty? %>
+      <p class="vazio">Nenhuma régua ligada avalia este cliente.</p>
+    <% else %>
+      <ul class="situacao-nas-reguas">
+        <% rows.each do |row| %>
+          <li>
+            <p><strong><%= row.cadence.name %></strong> · <%= row.object_label %></p>
+            <p><small>Raia <%= row.lane_label %><%= " · momento #{row.moment.negative? ? "D−#{row.moment.abs}" : "D+#{row.moment}"}" if row.moment %><%= " · última coluna alcançada #{row.reached.label}" if row.reached %></small></p>
+            <% if row.fired_item %>
+              <p><small><%= row.reached.label %> disparou em <%= datetime_br(row.fired_item.created_at) %>: <%= Cadences::Labels.action(row.fired_item.command.action) %> <%= situacao_do_item(row.fired_item.state) %></small></p>
+            <% end %>
+            <% if row.reason %><p><small><%= row.reason %></small></p><% end %>
+            <% if row.next_column %><p><small>Próxima coluna com ação: <%= row.next_column.label %><%= ", em #{row.next_column.offset_days - row.moment} dias, se continuar nesta raia" if row.moment %>.</small></p><% end %>
+          </li>
+        <% end %>
+      </ul>
+    <% end %>
+  </div>
+</section>

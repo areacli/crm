@@ -1,0 +1,97 @@
+<%# A régua como diagrama de raias (21, revisão 1 das telas; protótipo de 14/11/2026): raias em faixas horizontais, com a trilha padrão por último;
+    o eixo do tempo no topo, com o marco e o fim da janela; as ações como cartões na altura da coluna. Densidades confortável e compacta (o
+    cabeçalho das colunas e o nome das raias ficam fixos na rolagem) e o modo de análise, com o resultado da última rodada em cada célula. %>
+<% content_for :title, @cadence.name %>
+<% content_for :cable_channels, @cable %>
+<% compact = @density == "compacta" %>
+<% base = { densidade: (@density if compact), modo: ("analise" if @analysis) }.compact %>
+<%= pagina @cadence.name, subtitulo: "#{t("cadences.milestones.#{@cadence.milestone}")} · #{t("cadences.subjects.#{@cadence.subject}").downcase} · #{agenda_da_regua(@cadence)} · prioridade #{@cadence.position}" do %>
+  <%= @cadence.enabled? ? situacao("Ligada", tom: :success) : situacao(@cadence.disabled_reason ? "Desligada · #{@cadence.disabled_reason}" : "Desligada", tom: :neutral) %>
+  <%= link_to "Ver rodadas", cadence_rounds_path(@cadence), class: "botao", data: { variant: "secondary" } %>
+  <%= abrir_painel "Editar régua", edit_cadence_path(@cadence), variante: "secondary" %>
+  <% if @cadence.enabled? %>
+    <%= confirmar_no_painel "Desligar", titulo: "Desligar #{@cadence.name}?", mensagem: "Vale na hora: a régua não roda mais, e os itens ainda na fila são descartados quando o executor perguntar se ainda valem.", acao: "Desligar", url: disable_cadence_path(@cadence) %>
+  <% else %>
+    <%= button_to "Conferir e ligar", enable_cadence_path(@cadence), data: { variant: "primary" } %>
+  <% end %>
+<% end %>
+
+<div class="barra-do-diagrama">
+  <div class="alternador" role="group" aria-label="Densidade do diagrama">
+    <%= link_to "Confortável", cadence_path(@cadence, **base.except(:densidade)), "aria-current": (compact ? nil : "true"), data: { mesma_aba: true } %>
+    <%= link_to "Compacto", cadence_path(@cadence, **base, densidade: "compacta"), "aria-current": (compact ? "true" : nil), data: { mesma_aba: true } %>
+  </div>
+  <div class="alternador" role="group" aria-label="Modo do diagrama">
+    <%= link_to "Desenho", cadence_path(@cadence, **base.except(:modo)), "aria-current": (@analysis ? nil : "true"), data: { mesma_aba: true } %>
+    <%= link_to "Análise", cadence_path(@cadence, **base, modo: "analise"), "aria-current": (@analysis ? "true" : nil), data: { mesma_aba: true } %>
+  </div>
+  <%= abrir_painel safe_join([ icone("plus"), " Incluir coluna" ]), new_cadence_column_path(@cadence), variante: "secondary", tamanho: "small" %>
+  <%= abrir_painel safe_join([ icone("plus"), " Incluir raia" ]), new_cadence_lane_path(@cadence), variante: "secondary", tamanho: "small" %>
+</div>
+
+<% if @diagram.endless? %>
+  <%= aviso(tom: :warning) { tag.p(safe_join([ tag.strong("A última coluna (#{@diagram.columns.last.label}) tem ação e não tem fim."), " Quem passou dela recebe a ação de uma vez, mesmo com muito tempo de atraso. Para limitar, inclua uma coluna vazia depois dela." ])) } %>
+<% end %>
+<% if @analysis %>
+  <p><small><%= @diagram.last_round ? "Resultado da rodada de #{datetime_br(@diagram.last_round.scheduled_for)} em cada célula: itens executados, com falha, sem retorno e descartados." : "A régua ainda não tem rodada concluída." %></small></p>
+<% end %>
+
+<div id="diagrama" class="diagrama" data-densidade="<%= @density %>" tabindex="0" data-spa-vivo="<%= request.fullpath %>">
+  <% if @diagram.columns.empty? %>
+    <p class="vazio">Inclua a primeira coluna: o momento, em dias a partir do marco, em que a ação sai.</p>
+  <% else %>
+    <table class="raias">
+      <caption class="apenas-leitor-de-tela">Diagrama de raias de <%= @cadence.name %>: cada linha é uma raia, cada coluna um momento a partir do marco</caption>
+      <thead>
+        <tr>
+          <th scope="col" class="canto-do-eixo"><small>Marco</small><strong><%= t("cadences.milestones.#{@cadence.milestone}") %></strong></th>
+          <% @diagram.columns.each do |column| %>
+            <% fim = @diagram.empty_column?(column) %>
+            <th scope="col" class="marca-do-eixo" data-fim="<%= fim %>" data-marco="<%= column.offset_days.zero? %>">
+              <span class="momento"><%= column.label %></span>
+              <span class="nota-do-momento"><%= fim ? "fim" : (column.offset_days.zero? ? "no marco" : "#{column.offset_days.abs} #{column.offset_days.abs == 1 ? 'dia' : 'dias'} #{column.offset_days.negative? ? 'antes' : 'depois'}") %></span>
+              <%= confirmar_no_painel safe_join([ icone("x"), tag.span("Excluir coluna #{column.label}", class: "apenas-leitor-de-tela") ]), title: "Excluir coluna #{column.label}", titulo: "Excluir a coluna #{column.label}?", mensagem: "As ações dela saem de todas as raias.", acao: "Excluir", url: cadence_column_path(@cadence, column), metodo: :delete, class: "excluir-da-marca" %>
+            </th>
+          <% end %>
+        </tr>
+      </thead>
+      <tbody>
+        <% @diagram.lanes.each do |lane| %>
+          <tr class="raia" data-padrao="<%= lane.default? %>" data-sem-acoes="<%= @diagram.lane_without_actions?(lane) %>">
+            <th scope="row" class="nome-da-raia">
+              <span class="numero-da-raia"><%= lane.position %></span>
+              <span>
+                <strong><%= lane.default? ? t("cadences.default_lane") : lane.segment.name %></strong>
+                <small><%= lane.default? ? "Quem nenhuma raia acima pegou" : lane.segment.text.short_text.lines.drop(1).map(&:strip).join(" · ").truncate(compact ? 40 : 120) %></small>
+                <% if @diagram.lane_without_actions?(lane) %><small>Sem ações: este público fica fora.</small><% end %>
+              </span>
+              <% unless lane.default? %>
+                <%= menu_de_linha("raia-menu-#{lane.id}", "Ações da raia #{lane.position}") do %>
+                  <% if lane.position > 1 %><%= button_to "Mover para cima", move_cadence_lane_path(@cadence, lane, para: lane.position - 1), data: { variant: "secondary" } %><% end %>
+                  <% if lane.position < @diagram.lanes.size - 1 %><%= button_to "Mover para baixo", move_cadence_lane_path(@cadence, lane, para: lane.position + 1), data: { variant: "secondary" } %><% end %>
+                  <%= confirmar_no_painel "Excluir raia", titulo: "Excluir a raia #{lane.segment.name}?", mensagem: "Quem ela pegava passa às raias de baixo.", acao: "Excluir", url: cadence_lane_path(@cadence, lane), metodo: :delete %>
+                <% end %>
+              <% end %>
+            </th>
+            <% @diagram.columns.each do |column| %>
+              <% cell = @diagram.cell(lane, column) %>
+              <td class="celula" aria-label="<%= "Raia #{lane.position}, #{column.label}: " + (cell.actions.empty? ? "sem ações" : cell.actions.map { |action| Cadences::Labels.action(action) }.join("; ")) %>">
+                <% cell.actions.each do |action| %>
+                  <span class="acao-da-celula">
+                    <%= cartao_da_acao(action, compact: compact) %>
+                    <%= confirmar_no_painel safe_join([ icone("x"), tag.span("Excluir #{Cadences::Labels.action(action)}", class: "apenas-leitor-de-tela") ]), titulo: "Excluir a ação?", mensagem: "#{Cadences::Labels.action(action)}, na raia #{lane.position} em #{column.label}.", acao: "Excluir", url: cadence_cell_path(@cadence, action), metodo: :delete, class: "excluir-da-acao" %>
+                  </span>
+                <% end %>
+                <% if @analysis && cell.result %>
+                  <span class="resultado-da-celula"><%= safe_join(cell.result.map { |state, count| "#{t("cadences.item_states.#{state}")} #{number_br(count)}" }, " · ") %></span>
+                <% end %>
+                <%= abrir_painel safe_join([ icone("plus"), tag.span("Incluir ação na raia #{lane.position} em #{column.label}", class: "apenas-leitor-de-tela") ]), new_cadence_cell_path(@cadence, raia: lane.id, coluna: column.id), variante: "secondary", tamanho: "small", class: "incluir-na-celula" %>
+              </td>
+            <% end %>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% end %>
+</div>
+<p><small><%= @cadence.enabled? ? "A régua está ligada: incluir, mover e tirar raias, colunas e ações passam pela conferência do impacto antes de valer; desligar vale na hora." : "A régua está desligada: as mudanças valem na hora, e a conferência vem ao ligar." %></small></p>

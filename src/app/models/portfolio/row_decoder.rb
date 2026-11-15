@@ -3,7 +3,7 @@ module Portfolio
   # formato e nunca recusa: o que não pôde ser convertido fica em `format_problems`, e o validador decide, na ordem das regras. `raw` guarda o texto como
   # chegou, porque os limites de tamanho e a chave da R15 leem o texto.
   class RowDecoder
-    Record = Data.define(:position, :extra, :short, :raw, :document, :due_date, :amount_cents, :roles, :surcharges, :contacts, :warnings, :format_problems)
+    Record = Data.define(:position, :extra, :short, :raw, :document, :due_date, :amount_cents, :roles, :surcharges, :contacts, :warnings, :format_problems, :started_on)
 
     # Colunas de acréscimos já aplicados pelo credor (R102), na ordem de ParsedRow.
     SURCHARGES = %w[multa_credor juros_credor correcao_credor outros_credor].freeze
@@ -24,8 +24,11 @@ module Portfolio
         extra
       end
       contacts, warnings = Registry::LoadContacts.parse(values)
+      # Data de início do contrato (01, `inicio_contrato`): vazia não é problema (não apaga a gravada); preenchida, tem de ser uma data.
+      started_on = values["inicio_contrato"].to_s.strip.empty? ? nil : BrDate.parse(values["inicio_contrato"])
+      problems[:started_on] = "data de início do contrato inválida" if started_on.nil? && values["inicio_contrato"].to_s.strip.present?
       Record.new(position: raw.position, extra: raw.extra, short: raw.short, raw: values, document: Document.normalize(values["documento"]), due_date: due_date,
-                 amount_cents: cents, roles: roles, surcharges: surcharges, contacts: contacts, warnings: warnings, format_problems: problems)
+                 amount_cents: cents, roles: roles, surcharges: surcharges, contacts: contacts, warnings: warnings, format_problems: problems, started_on: started_on)
     end
 
     private

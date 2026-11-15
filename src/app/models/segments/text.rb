@@ -97,7 +97,10 @@ module Segments
             quantified(name, spec, node)
           end
         text = "#{prefix}#{text}"
-        node["within_days"].present? ? "#{text} #{t('window_short', days: node['within_days'])}" : text
+        return "#{text} #{t('window_short', days: node['within_days'])}" if node["within_days"].present?
+        return "#{text} #{t('window_older_short', days: node['older_than_days'])}" if node["older_than_days"].present?
+
+        text
       end
 
       # "algum título \"Cartão\"", "sem contato válido", "todos os títulos com tipo = acordo" (SG13, SG14: atalho pelo campo principal).
@@ -136,7 +139,10 @@ module Segments
       def long_collection(found, node)
         name = found[:name]
         spec = found[:spec]
-        window = node["within_days"].present? ? " #{t('window_long', days: node['within_days'])}" : ""
+        window = if node["within_days"].present? then " #{t('window_long', days: node['within_days'])}"
+        elsif node["older_than_days"].present? then " #{t('window_older_long', days: node['older_than_days'])}"
+        else ""
+        end
         if node["aggregate"] == "count"
           number = node["value"] == 1 && %w[eq gte lte].include?(node["op"]) ? :one : :other
           rest = "#{long_count(node)} #{items_long(name, node, number)}#{window}"
@@ -208,7 +214,7 @@ module Segments
         when :money then Text.money(value, full: false)
         when :percent then "#{value}%"
         when :option then option_label(value, field, collection, long: false)
-        when :reference then spec[:of] == :system ? system_name(value) : result_name(value)
+        when :reference then reference_name(spec[:of], value)
         when :user then "\"#{user_name(value)}\""
         else value.to_s
         end
@@ -220,7 +226,7 @@ module Segments
         when :percent then "#{value}%"
         when :days then I18n.t("segment_language.values.days", count: value)
         when :option then option_label(value, field, collection, long: true)
-        when :reference then "\"#{spec[:of] == :system ? system_name(value) : result_name(value)}\""
+        when :reference then "\"#{reference_name(spec[:of], value)}\""
         when :user then "\"#{user_name(value)}\""
         else value.to_s
         end
@@ -230,12 +236,22 @@ module Segments
                       [ "contacts", "kind" ] => "contact_kind", [ "contacts", "status" ] => "status", [ "contacts", "origin" ] => "origin",
                       [ "contact_attempts", "result_kind" ] => "result_kind", [ "contact_attempts", "channel" ] => "channel",
                       [ "promises", "state" ] => "promise_state", [ "agreements", "state" ] => "agreement_state", [ "agreements", "mode" ] => "mode",
-                      [ "payments", "method" ] => "method" }.freeze
+                      [ "payments", "method" ] => "method", [ "commands", "kind" ] => "command_kind", [ "commands", "state" ] => "command_state" }.freeze
 
       def option_label(value, field, collection, long:)
         set = OPTION_SETS[[ collection, field.to_s ]] || OPTION_SETS[[ nil, field.to_s ]]
         set = "person_type_long" if set == "person_type" && long
         set ? t("options.#{set}.#{value}") : value.to_s
+      end
+
+      # O nome do valor guardado pelo id: resultado de acionamento, sistema (17, R425), peça e régua (13, R261a).
+      def reference_name(of, id)
+        case of
+        when :system then system_name(id)
+        when :piece then (@piece_names ||= {})[id] ||= (MessagePiece.find_by(id: id)&.name || t("unknown_piece"))
+        when :cadence then (@cadence_names ||= {})[id] ||= (Cadence.find_by(id: id)&.name || t("unknown_cadence"))
+        else result_name(id)
+        end
       end
 
       def result_name(id)

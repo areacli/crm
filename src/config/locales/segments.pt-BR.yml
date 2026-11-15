@@ -30,6 +30,16 @@ pt-BR:
       failed: "Falhou"
       skipped: "Adiada"
   segments:
+    uses:
+      distribution: "Enquadramento da distribuição, item %{position}"
+      queue: "Fila %{name}"
+      cadence: "Régua %{name}, raia %{position}"
+    impact:
+      team: "Equipe do credor"
+      processes:
+        distribution: "Distribuição"
+        queues: "Filas"
+        cadences: "Réguas (comandos da próxima rodada)"
     none: "Sem segmento"
     condition: "Condição %{number}"
     subjects:

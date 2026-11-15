@@ -63,12 +63,12 @@ module Payments
 
       def issue_boleto(account, custom_id:, amount_cents:, due_on:, payer:, options: {})
         failure(:issue_boleto)
-        remember(custom_id, kind: "boleto", amount_cents: amount_cents, due_on: due_on, digitable_line: digitable_line(amount_cents), pdf: PDF)
+        remember(account, custom_id, kind: "boleto", amount_cents: amount_cents, due_on: due_on, digitable_line: digitable_line(amount_cents), pdf: PDF)
       end
 
       def issue_pix(account, custom_id:, amount_cents:, due_on:, payer:, options: {})
         failure(:issue_pix)
-        remember(custom_id, kind: "pix", amount_cents: amount_cents, due_on: due_on, copy_paste: "00020126#{custom_id.to_s.ljust(10, '0')}5204000053039865802BR",
+        remember(account, custom_id, kind: "pix", amount_cents: amount_cents, due_on: due_on, copy_paste: "00020126#{custom_id.to_s.ljust(10, '0')}5204000053039865802BR",
                             qr_png: (PNG unless self.class.store[:omit_qr]))
       end
 
@@ -99,7 +99,7 @@ module Payments
       def charge_card(account, custom_id:, amount_cents:, installments:, payment_token:, payer:, description: nil, notification_url: nil, brand: nil)
         failure(:charge_card)
         refusal = { "recusado" => [ "security", false ], "tente-depois" => [ "try_later", true ], "dados-invalidos" => [ "invalid_data", true ] }[payment_token]
-        instrument = remember(custom_id, kind: "card", amount_cents: amount_cents, status: refusal ? "declined" : "active", installments: installments, refusal: refusal)
+        instrument = remember(account, custom_id, kind: "card", amount_cents: amount_cents, status: refusal ? "declined" : "active", installments: installments, refusal: refusal)
         record = self.class.store[:instruments].fetch(instrument.external_id)
         code, retry_flag = record[:refusal]
         CardResult.new(external_id: instrument.external_id, status: code ? "declined" : "approved", amount_cents: amount_cents, installments: record[:installments], refusal_code: code,
@@ -152,13 +152,19 @@ module Payments
           raise entry[:error]
         end
 
-        def remember(custom_id, attributes)
+        def remember(account, custom_id, attributes)
           store = self.class.store
           existing = store[:instruments].values.find { |instrument| instrument[:custom_id] == custom_id }
           return issued(existing) if existing
 
-          store[:sequence] += 1
-          external_id = "FAKE-#{attributes[:kind].upcase}-#{store[:sequence]}"
+          # O estado vive no processo e recomeça em cada um (e a recriação da demonstração o limpa de propósito): o número pula os que a integração já
+          # tem gravados, para o instrumento emitido num processo novo (a régua emite todo dia, 21, R447) não repetir o de um já gravado.
+          external_id = nil
+          loop do
+            store[:sequence] += 1
+            external_id = "FAKE-#{attributes[:kind].upcase}-#{store[:sequence]}"
+            break unless account && PaymentInstrument.exists?(account_id: account.id, external_id: external_id)
+          end
           instrument = { custom_id: custom_id, external_id: external_id, status: "active" }.merge(attributes)
           store[:instruments][external_id] = instrument
           issued(instrument)
