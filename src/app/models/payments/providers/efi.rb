@@ -16,10 +16,10 @@ module Payments
         fields: [
           Manifest::Field.new(name: "client_id", type: :secret, required: true),
           Manifest::Field.new(name: "client_secret", type: :secret, required: true),
-          Manifest::Field.new(name: "payee_code", type: :text, modalities: %w[card], required: true, maxlength: 64),
+          Manifest::Field.new(name: "payee_code", group: :access, type: :text, modalities: %w[card], required: true, maxlength: 64),
           Manifest::Field.new(name: "certificate", type: :file, modalities: %w[pix], required: true, format: :pkcs12, password_field: "certificate_password"),
           Manifest::Field.new(name: "certificate_password", type: :secret, modalities: %w[pix]),
-          Manifest::Field.new(name: "pix_key", type: :text, modalities: %w[pix], required: true, maxlength: 77),
+          Manifest::Field.new(name: "pix_key", group: :access, type: :text, modalities: %w[pix], required: true, maxlength: 77),
           Manifest::Field.new(name: "webhook_secret", type: :secret, generated: true),
           # Padrões por modalidade (IP, "Modalidades habilitadas"): valem na emissão quando o pedido não diz outra coisa.
           Manifest::Field.new(name: "expire_days", type: :number, modalities: %w[boleto pix], min: 1, max: 365, default: 5),

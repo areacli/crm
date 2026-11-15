@@ -4,14 +4,41 @@ module Payments
   class AccountManager
     def initialize(actor) = @actor = actor
 
-    def create(tenant:, channel:, modality:, provider:, environment:, nickname:, values: {})
-      account = tenant.payment_accounts.build(channel: channel, modality: modality, provider: provider, environment: environment, nickname: nickname)
+    # `replaces`: a integração ativa que a nova substitui ("Trocar fornecedor", 16, revisão 1, R373c). Com credenciais, a anterior sai e a nova entra no mesmo
+    # ato (primeiro sai a anterior: só uma ativa por credor, meio e ambiente). Com conexão por autorização, a nova nasce desativada, e a troca se completa
+    # na volta da conexão (`complete_replacement`); até lá, a anterior continua emitindo.
+    def create(tenant:, channel:, modality:, provider:, environment:, nickname:, values: {}, replaces: nil)
+      account = tenant.payment_accounts.build(channel: channel, modality: modality, provider: provider, environment: environment, nickname: nickname, replaces: replaces)
       account.assign_values(**values)
       # O fornecedor que grava a URL do aviso em cada pedido recebe a chave da URL já na criação (12, revisão 5, R284m): ela nunca troca com o segredo.
       account.secrets = account.secrets.merge("webhook_url_key" => SecureRandom.base58(40)) if account.provider_available? && WebhookUrl.per_charge?(account)
+      waits = replaces && account.provider_available? && Connection.authorization?(account)
+      account.active = false if waits
       ApplicationRecord.transaction do
+        if replaces
+          replaces.lock!
+          # Só a ativa se troca: a que saiu de uso entre a página e o "Salvar" recusa a troca.
+          unless replaces.active?
+            account.errors.add(:base, I18n.t("payments.methods.replace.not_active"))
+            raise ActiveRecord::RecordInvalid, account
+          end
+          retire(replaces, account) unless waits
+        end
         account.save!
-        log(account, "created", "nickname", nil, account.nickname)
+        log(account, replaces ? "replacing" : "created", "nickname", nil, account.nickname, note: replaces&.nickname)
+      end
+      account
+    end
+
+    # Completa a troca à espera da conexão: a anterior sai e a nova entra, no mesmo ato. Sem troca pendente, não faz nada.
+    def complete_replacement(account)
+      return account unless account.replaces_id && !account.active?
+
+      ApplicationRecord.transaction do
+        previous = account.replaces&.lock!
+        retire(previous, account) if previous&.active?
+        account.update!(active: true)
+        log(account, "replacement_completed", "active", "false", "true", note: previous&.nickname)
       end
       account
     end
@@ -61,6 +88,12 @@ module Payments
     end
 
     private
+      # A integração substituída sai de uso, com o nome da que entra no histórico.
+      def retire(previous, account)
+        previous.update!(active: false)
+        log(previous, "replaced", "active", "true", "false", note: account.nickname)
+      end
+
       def switch(account, active, event)
         account.update!(active: active)
         log(account, event, "active", (!active).to_s, active.to_s)

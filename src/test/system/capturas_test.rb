@@ -29,8 +29,8 @@ class CapturasTest < ApplicationSystemTestCase
     end
     # Incremento 3: canais, pagamentos aplicados (quitado, parcial, excedente em crédito e pendente) e uma conferência de pagamentos.
     @channel = make_channel(@tenant, code: "341-1234-56789")
-    @channel.update!(description: "Itaú, conta principal")
-    make_channel(@tenant, code: "1029384756").update!(kind: :card, description: "Cielo, loja virtual")
+    @channel.update!(description: "Conta bancária principal")
+    make_channel(@tenant, code: "1029384756").update!(kind: :card, description: "Adquirente de cartão, loja virtual")
     @channel.regenerate_webhook_secret!
     @paid_customer = Customer.order(:id).first
     @paid_customer.bills.order(:id).each_with_index do |bill, index|
@@ -412,9 +412,10 @@ class CapturasTest < ApplicationSystemTestCase
       assert_selector ".aba-raiz h2", text: "Entrada e parcelas"
       :current
     },
-    # Incremento 12, parte A: contas de pagamento.
-    "contas-de-pagamento" => -> { settings_channels_path },
-    "nova-conta-de-pagamento" => -> { new_settings_payment_account_path(credor: @tenant.id, modalidade: "pix", fornecedor: "efi") },
+    # Incremento 12, parte A, e 16, revisão 1: as integrações por meio de pagamento, a integração nova pelo quadro do meio e a troca de fornecedor.
+    "contas-de-pagamento" => -> { settings_payment_methods_path(credor: @tenant.id) },
+    "nova-conta-de-pagamento" => -> { new_settings_payment_account_path(credor: @tenant.id, meio: "pix", ambiente: "homologacao", fornecedor: "efi") },
+    "trocar-fornecedor" => -> { new_settings_payment_account_path(substitui: @pix_account.id, fornecedor: "bradesco") },
     "conta-de-pagamento" => -> { edit_settings_payment_account_path(@pix_account) },
     # Incremento 12, parte C: a página pública de pagamento (sem login), com o token de exemplo da captura.
     "pagamento-do-cliente" => -> { checkout_path(@checkout) },
@@ -621,7 +622,7 @@ class CapturasTest < ApplicationSystemTestCase
   # Telas longas, fotografadas com a janela mais alta para mostrar o que importa (o histórico, o formulário).
   ALTAS = %w[editor-de-segmento editor-com-erro glossario-dos-segmentos enquadramento-financeiro conferencia-do-enquadramento ficha-com-acionamentos ficha-com-contatos formulario-de-promessa configuracao-de-promessas ficha-com-promessas politica-de-correcao exportacao-de-dados guarda-de-dados indices novo-segmento ficha-com-segmentos segmentos
              regra-de-encargos conferencia-de-encargos conferencia-da-carteira resumo ficha-com-valor-atualizado simulacao-de-acordo termo-do-acordo lista-de-acordos proposta-de-acordo acordo-efetivado acordo-quebrado ficha-com-titulos-de-acordo
-             acordo-em-reversao ficha-com-credito-por-estado estornos-a-espera simulacao-de-acordo-sobre-acordo nova-conta-de-pagamento conta-de-pagamento pagamento-do-cliente].freeze
+             acordo-em-reversao ficha-com-credito-por-estado estornos-a-espera simulacao-de-acordo-sobre-acordo nova-conta-de-pagamento trocar-fornecedor conta-de-pagamento pagamento-do-cliente contas-de-pagamento].freeze
 
   # Abre a tela pelo endereço, como um link de fora: a casca abre a aba (ou a janela) e a foto espera os pedidos terminarem. As abas da foto anterior saem
   # (a casca guarda as abas abertas), para cada foto mostrar uma aba só, ao lado do Resumo.

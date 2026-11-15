@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_14_330000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_15_100000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -986,7 +986,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_14_330000) do
     t.bigint "our_number_last"
     t.datetime "webhook_registered_at"
     t.string "webhook_registered_url", limit: 300
+    t.bigint "replaces_id"
     t.index ["channel_id"], name: "index_payment_accounts_on_channel_id"
+    t.index ["replaces_id"], name: "index_payment_accounts_on_replaces_id", unique: true, where: "(replaces_id IS NOT NULL)"
     t.index ["tenant_id", "modality", "environment"], name: "index_payment_accounts_active_unique", unique: true, where: "active"
     t.index ["tenant_id", "nickname"], name: "index_payment_accounts_on_tenant_id_and_nickname", unique: true
     t.check_constraint "environment::text = ANY (ARRAY['sandbox'::character varying::text, 'production'::character varying::text])", name: "payment_accounts_environment"
@@ -1824,6 +1826,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_14_330000) do
   add_foreign_key "operation_trail_events", "operations"
   add_foreign_key "operation_trail_events", "tenants"
   add_foreign_key "operation_trail_events", "users"
+  add_foreign_key "payment_accounts", "payment_accounts", column: "replaces_id", on_delete: :nullify
   add_foreign_key "payment_accounts", "payment_channels", column: "channel_id"
   add_foreign_key "payment_accounts", "tenants"
   add_foreign_key "payment_allocations", "bills", on_delete: :restrict

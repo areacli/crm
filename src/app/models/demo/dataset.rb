@@ -22,8 +22,10 @@ module Demo
 
     ALPHA = "Escola Alfa".freeze
     BETA = "Clínica Beta".freeze
-    CHANNELS = { "pix" => [ "341-1234-56789", :account, "Itaú, conta principal" ], "boleto" => [ "2847193", :agreement, "Convênio de cobrança, Bradesco" ],
-                 "cartão de crédito" => [ "1029384756", :card, "Cielo, loja virtual" ], "transferência" => [ "341-1234-56789", :account, nil ] }.freeze
+    # Métodos de recebimento sem marca de banco ou de adquirente (decisão do Paulo, 15/11/2026): as integrações da vitrine são todas do fornecedor falso, e um
+    # nome de marca ao lado delas parecia uma integração que não existe. Os códigos são os da planilha de exemplo e não mudam.
+    CHANNELS = { "pix" => [ "341-1234-56789", :account, "Conta bancária principal" ], "boleto" => [ "2847193", :agreement, "Convênio de cobrança" ],
+                 "cartão de crédito" => [ "1029384756", :card, "Adquirente de cartão, loja virtual" ], "transferência" => [ "341-1234-56789", :account, nil ] }.freeze
     # Segmentos da demonstração (13): nome, sujeito, condições e posição no enquadramento financeiro (nil: sem uso, só para a lista).
     SEGMENTS = [
       [ "Mensalidade recente", "contracts", [ { "path" => "product", "op" => "eq", "value" => "Mensalidade" }, { "path" => "overdue_days", "op" => "lte", "value" => 90 } ], 1 ],
@@ -145,7 +147,7 @@ module Demo
         registry(tenant, trade_name: "Clínica Beta", street: "Rua XV de Novembro", number: "250", district: "Centro", city: "Curitiba", state: "PR", zip: "80020310",
                          email: "financeiro@clinicabeta.exemplo.com.br", phone: "(41) 3222-1000")
         link(@manager, tenant, "Operador")
-        channel = PaymentChannel.create!(tenant: tenant, kind: :account, code: "001-4455-90210", description: "Banco do Brasil, conta da clínica")
+        channel = PaymentChannel.create!(tenant: tenant, kind: :account, code: "001-4455-90210", description: "Conta bancária da clínica")
         tenant.setting.update!(charge_fine_pct: 2, charge_interest_pct: 1, charge_index: "ipca")
         Tier.catch_all_of(tenant).update!(interest_kind: "fixed")
         Charges::RuleHistory.record!(tenant, since: Date.new(2020, 1, 1))

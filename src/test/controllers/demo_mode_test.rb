@@ -66,16 +66,30 @@ class DemoModeTest < ActionDispatch::IntegrationTest
     assert_equal Demo::Restrictions::MESSAGE, response.parsed_body["erro"]
     assert_equal profiles(:alfa_operator), memberships(:carlos_alfa).reload.profile
 
-    get new_settings_payment_account_path, headers: TRECHO
+    get edit_password_path, headers: TRECHO
     assert_response :success
     assert_select "h1", "Fechado na demonstração"
     assert_select "aside", text: Demo::Restrictions::MESSAGE
   end
 
-  test "a lista dos métodos de recebimento, com as integrações, continua aberta para leitura (16, R373)" do
+  # Decisão do Paulo (15/11/2026, "demo entra"): a vitrine mostra os fornecedores reais e os campos de cada um; salvar continua fechado.
+  test "na demonstração, os meios e a integração nova abrem com os fornecedores reais, e salvar a integração é recusado (16, revisão 1)" do
     entrar(users(:joana))
     get settings_channels_path, headers: TRECHO
     assert_response :success
+    get settings_payment_methods_path, headers: TRECHO
+    assert_response :success
+    get new_settings_payment_account_path(credor: @alfa.id, meio: "pix", ambiente: "producao", fornecedor: "efi"), headers: TRECHO
+    assert_response :success
+    assert_select "input[type=radio][value=bradesco]"
+    assert_select "input[type=radio][value=pagbank]"
+    assert_select "input[type=password][name='payment_account[secrets][client_secret]']"
+    channel = make_channel(@alfa)
+    assert_no_difference -> { PaymentAccount.count } do
+      post settings_payment_accounts_path, params: { payment_account: { tenant_id: @alfa.id, channel_id: channel.id, modality: "boleto", provider: "fake", environment: "sandbox", nickname: "Na vitrine",
+                                                                        config: { connection_result: "ok" }, secrets: { api_key: "x" } } }, headers: TRECHO
+    end
+    assert_equal Demo::Restrictions::MESSAGE, evento_da_spa["aviso"]
   end
 
   test "o texto e o contato digitados no acionamento são trocados por texto fictício" do

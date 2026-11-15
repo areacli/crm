@@ -154,13 +154,14 @@ Rails.application.routes.draw do
     resource :tenant_registry, path: "dados-do-credor", only: %i[show update]
     resource :retention_period, path: "prazo-de-guarda", only: :update
     resource :portfolio, path: "carteira", only: %i[show update]
-    # Métodos de recebimento (16, R373; antes "canais de recebimento"): uma tela só, com as integrações no detalhe de cada método.
+    # Métodos de recebimento (16, R373; antes "canais de recebimento"): os códigos da planilha, com os meios que entram por cada um.
     resources :channels, path: "metodos-de-recebimento", path_names: { new: "novo", edit: "editar" }, except: :show do
       resource :webhook_secret, path: "segredo-do-webhook", only: :create, module: :channels
     end
     resource :payment_policy, path: "politicas-de-pagamento", only: %i[show update]
-    # Integrações (12, "contas de pagamento"): fornecedor de boleto, Pix e cartão por meio de pagamento e ambiente. A lista é o detalhe de cada
-    # método de recebimento (16, R373): não há página própria.
+    # Meios de pagamento (16, revisão 1, R373a): a lista das integrações, um quadro por meio. Integrações (12, "contas de pagamento"): fornecedor de
+    # boleto, Pix e cartão de crédito por meio de pagamento e ambiente, criadas e trocadas a partir do quadro do meio.
+    get "meios-de-pagamento", to: "payment_methods#index", as: :payment_methods
     # Volta da autorização no fornecedor (12, revisão 5, R284k): endereço fixo, o mesmo cadastrado na aplicação da instalação no fornecedor.
     get "integracoes/conexao/retorno", to: "payment_accounts/connection_returns#show", as: :payment_account_connection_return
     resources :payment_accounts, path: "integracoes", path_names: { new: "nova", edit: "editar" }, except: %i[index show] do

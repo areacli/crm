@@ -16,8 +16,8 @@ module Payments
         modalities: %w[boleto pix card],
         fields: [
           Manifest::Field.new(name: "api_key", type: :secret, required: true),
-          Manifest::Field.new(name: "connection_result", type: :select, required: true, options: %w[ok refused unavailable], default: "ok"),
-          Manifest::Field.new(name: "pix_key", type: :text, modalities: %w[pix], required: true, maxlength: 77),
+          Manifest::Field.new(name: "connection_result", group: :access, type: :select, required: true, options: %w[ok refused unavailable], default: "ok"),
+          Manifest::Field.new(name: "pix_key", group: :access, type: :text, modalities: %w[pix], required: true, maxlength: 77),
           Manifest::Field.new(name: "certificate", type: :file, modalities: %w[pix], format: :pkcs12, password_field: "certificate_password"),
           Manifest::Field.new(name: "certificate_password", type: :secret, modalities: %w[pix]),
           Manifest::Field.new(name: "webhook_secret", type: :secret, generated: true),

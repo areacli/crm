@@ -1,0 +1,15 @@
+<% content_for :title, "Configuração · Meios de pagamento" %>
+<%= pagina t("payments.methods.title"), subtitulo: t("payments.methods.subtitle") %>
+<%= render "settings/modelo" %>
+
+<% if @tenants.size > 1 %>
+  <form class="filtros" role="search" action="<%= settings_payment_methods_path %>" method="get">
+    <div class="campo">
+      <label for="credor">Credor</label>
+      <select id="credor" name="credor"><%= options_for_select(@tenants.map { |tenant| [ tenant.name, tenant.id ] }, @tenant.id) %></select>
+    </div>
+    <button type="submit" data-variant="secondary">Filtrar</button>
+  </form>
+<% end %>
+
+<%= render "settings/payment_methods/result" %>

@@ -8,6 +8,9 @@ class PaymentAccount < ApplicationRecord
   belongs_to :channel, class_name: "PaymentChannel", inverse_of: :payment_accounts
   has_many :instruments, class_name: "PaymentInstrument", foreign_key: :account_id, inverse_of: :account, dependent: :restrict_with_error
   has_many :events, class_name: "PaymentEvent", foreign_key: :account_id, inverse_of: :account, dependent: :destroy
+  # Troca de fornecedor (16, revisão 1, R373c): a integração nova aponta a que ela substitui; com conexão por autorização, fica desativada até a conexão voltar.
+  belongs_to :replaces, class_name: "PaymentAccount", optional: true, inverse_of: :replacement
+  has_one :replacement, class_name: "PaymentAccount", foreign_key: :replaces_id, inverse_of: :replaces, dependent: nil
 
   enum :modality, { boleto: "boleto", pix: "pix", card: "card" }, validate: true
   enum :environment, { sandbox: "sandbox", production: "production" }, validate: true
@@ -23,6 +26,7 @@ class PaymentAccount < ApplicationRecord
   validate :only_one_active
   validate :fields_valid
   validate :pending_files_valid
+  validate :replaces_same_slot, on: :create
 
   scope :active, -> { where(active: true) }
 
@@ -42,6 +46,9 @@ class PaymentAccount < ApplicationRecord
 
   # R269: a conta que emitiu instrumento só se desativa.
   def used? = instruments.exists?
+
+  # A troca de fornecedor que espera a conexão por autorização (R373c): a nova ainda desativada, com a substituída ativa.
+  def waiting_replacement? = replaces_id.present? && !active? && replaces&.active?
 
   def secret_set?(name) = secrets[name.to_s].present?
 
@@ -118,6 +125,15 @@ class PaymentAccount < ApplicationRecord
       if !provider_available? then errors.add(:provider, :unavailable)
       elsif modality.present? && !manifest.supports?(modality) then errors.add(:modality, :unsupported)
       end
+    end
+
+    # Só se troca a integração ativa, pelo mesmo credor, meio e ambiente (R373c).
+    def replaces_same_slot
+      return unless replaces
+
+      same = replaces.tenant_id == tenant_id && replaces.modality == modality && replaces.environment == environment
+      # A anterior já saiu de uso neste mesmo ato (troca com credenciais) ou ainda está ativa (troca à espera da conexão).
+      errors.add(:base, I18n.t("payments.methods.replace.not_active")) unless same && (replaces.active? || replaces.active_previously_changed?(from: true, to: false))
     end
 
     def channel_of_same_tenant

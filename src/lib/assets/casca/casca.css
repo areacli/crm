@@ -622,3 +622,11 @@ ul.observacoes-do-calculo { margin: 8px 0 0; padding-left: 18px; color: var(--te
 .situacao-nas-reguas li { padding: 8px 0; border-bottom: 1px solid var(--linha); }
 .situacao-nas-reguas p { margin: 0 0 2px; }
 .linha-do-tempo li[data-evento="regua"]::before { background: var(--laranja); transform: rotate(45deg); }
+
+/* Meios de pagamento (16, revisão 1, R373b): a escolha do fornecedor, uma opção por linha com o que ele pede antes; a explicação de cada grupo de campos. */
+.aba-raiz .cartao fieldset.escolha-de-fornecedor { display: grid; gap: 6px; }
+.aba-raiz .cartao fieldset.escolha-de-fornecedor label { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 8px; align-items: baseline; margin: 0; padding: 8px 10px; border: 1px solid var(--linha); border-radius: 3px; cursor: pointer; }
+.aba-raiz .cartao fieldset.escolha-de-fornecedor label:has(input:checked) { border-color: var(--azul); background: var(--fundo-suave); box-shadow: inset 3px 0 0 var(--azul); }
+.aba-raiz .cartao fieldset.escolha-de-fornecedor label small { grid-column: 2; color: var(--texto-fraco); font-size: 13px; }
+.aba-raiz .cartao fieldset.grupo-da-integracao { display: grid; gap: 12px; }
+.aba-raiz .cartao fieldset .ajuda-do-grupo { margin: 0; color: var(--texto-fraco); font-size: 13px; }

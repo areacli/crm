@@ -1,7 +1,7 @@
 <% content_for :title, "Configuração · Métodos de recebimento" %>
-<%= pagina "Métodos de recebimento", subtitulo: "Por onde o dinheiro entra. O código é o que a planilha de pagamentos traz; as integrações com fornecedores ficam no detalhe de cada método." do %>
+<% subtitulo = policy(PaymentAccount).index? ? safe_join([ "Por onde o dinheiro entra. O código é o que a planilha de pagamentos traz. Quem emite boleto, Pix e cartão de crédito fica em ", link_to("Meios de pagamento", settings_payment_methods_path), "." ]) : "Por onde o dinheiro entra. O código é o que a planilha de pagamentos traz." %>
+<%= pagina "Métodos de recebimento", subtitulo: subtitulo do %>
   <% if policy(PaymentChannel).new? %><%= abrir_painel "Criar método de recebimento", new_settings_channel_path %><% end %>
-  <% if policy(PaymentAccount).new? %><%= link_to "Criar integração", new_settings_payment_account_path, class: "botao", data: { variant: "secondary" } %><% end %>
 <% end %>
 <%= render "settings/modelo" %>
 

@@ -62,7 +62,7 @@ pt-BR:
       modalities:
         boleto: "Boleto"
         pix: "Pix"
-        card: "Cartão"
+        card: "Cartão de crédito"
       environments:
         sandbox: "Homologação"
         production: "Produção"
@@ -92,6 +92,9 @@ pt-BR:
         deleted: "Conta excluída"
         tested: "Conexão testada"
         webhook_secret_generated: "Segredo do webhook gerado"
+        replaced: "Trocada por outra integração"
+        replacing: "Criada para trocar outra integração"
+        replacement_completed: "Troca completada"
     providers:
       fake:
         name: "Fornecedor de teste (falso)"

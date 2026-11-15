@@ -22,8 +22,8 @@ module Payments
         modalities: %w[boleto pix card],
         fields: [
           # A ficha do boleto é desenhada aqui e imprime o beneficiário como o Mercado Pago o tem (a confirmar na homologação).
-          Manifest::Field.new(name: "beneficiary_name", type: :text, modalities: %w[boleto], required: true, maxlength: 100),
-          Manifest::Field.new(name: "beneficiary_document", type: :text, modalities: %w[boleto], required: true, maxlength: 18),
+          Manifest::Field.new(name: "beneficiary_name", group: :access, type: :text, modalities: %w[boleto], required: true, maxlength: 100),
+          Manifest::Field.new(name: "beneficiary_document", group: :access, type: :text, modalities: %w[boleto], required: true, maxlength: 18),
           Manifest::Field.new(name: "expire_days", type: :number, modalities: %w[boleto pix], min: 1, max: 30, default: 3),
           Manifest::Field.new(name: "max_installments", type: :number, modalities: %w[card], min: 1, max: 12, default: 1)
         ],

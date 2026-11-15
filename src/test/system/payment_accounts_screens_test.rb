@@ -13,25 +13,32 @@ class PaymentAccountsScreensSystemTest < ApplicationSystemTestCase
     entrar_na_casca
   end
 
-  # Na SPA (fase 7): a nova integração num formulário só (a escolha traz os campos do fornecedor sem trocar de tela), a edição numa aba própria; o axe saiu da área
-  # interna (plano, D7).
-  test "lista, escolha, cadastro e edição nas abas, sem rolar na horizontal" do
-    visit settings_channels_path # o endereço antigo leva à aba na casca
-    assert_selector ".aba-raiz h1", text: "Métodos de recebimento", wait: 15
-    find(".aba-raiz .datagrid-header [aria-label='Mostrar os detalhes de todas as linhas']", match: :first).click
+  # Na SPA (fase 7; 16, revisão 1): a página dos meios com um quadro por meio; a integração nova sai do quadro com o meio e o ambiente, e a escolha do
+  # fornecedor traz os campos dele sem trocar de tela; a edição numa aba própria. O axe saiu da área interna (plano, D7).
+  test "meios, escolha do fornecedor, cadastro e edição nas abas, sem rolar na horizontal" do
+    visit settings_payment_methods_path # o endereço leva à aba na casca
+    assert_selector ".aba-raiz h1", text: "Meios de pagamento", wait: 15
     assert_text "Pix Alfa"
     assert_text "Falhou"
+    assert_selector ".aba-raiz section.cartao h2", text: "Cartão de crédito"
     assert_no_horizontal_scroll
 
-    find(".aba-raiz .cabecalho-da-pagina .botao", text: "Criar integração").click
-    assert_selector ".aba-raiz h1", text: "Nova integração", wait: 10
-    assert_text "Escolha o meio de pagamento e o fornecedor"
-    escolher "Meio de pagamento", "Pix"
-    escolher "Fornecedor", "Efí"
+    within(".aba-raiz section[aria-labelledby=meio-pix]") { find("a.botao", text: "Criar integração").click }
+    assert_selector ".aba-raiz h1", text: "Nova integração: Pix", wait: 10
+    assert_text "Escola Alfa · Produção" # o Pix Alfa é de homologação: o quadro oferece criar o de produção
+    assert_no_selector "input[name='payment_account[nickname]']"
+    find("label", text: "Efí").click
     # O campo de arquivo vira o `filebox` do EasyUI, que esconde o campo real.
-    assert_selector ".aba-raiz label", text: "Certificado (.p12)", wait: 10
+    assert_selector ".aba-raiz legend", text: "Acesso", wait: 10
+    assert_selector ".aba-raiz label", text: "Certificado (.p12)"
     assert_selector "input[type=file][name='payment_account[files][certificate]']", visible: :all
     assert_field "Client Secret", type: "password"
+    assert_field "Apelido", with: "Pix Efí"
+    # Trocar de fornecedor troca os campos e a sugestão do apelido.
+    find("label", text: "PagBank").click
+    assert_field "Apelido", with: "Pix PagBank", wait: 10
+    assert_no_selector "input[name='payment_account[secrets][client_secret]']", visible: :all
+    assert_text "Você autoriza na página do PagBank"
     assert_no_horizontal_scroll
 
     abrir_aba edit_settings_payment_account_path(@account)

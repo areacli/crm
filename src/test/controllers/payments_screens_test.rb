@@ -121,8 +121,8 @@ class PaymentsScreensTest < ActionDispatch::IntegrationTest
   # Na SPA (fase 7), o item marcado é da casca (`spa/aplicacao`); o `menu.json` traz o submenu Configuração com as seções que o usuário vê.
   test "o item Configuração do menu traz as seções que o usuário vê, e a página delas responde como trecho" do
     entrar(make_user(@alfa, %w[change_financial_policies]))
-    # Com a 14 aparecem Métodos de recebimento (16), Políticas de pagamento, Segmentos e Enquadramento financeiro (13), Promessas e acordos (10, R206) e Índices (08, R158).
-    assert_equal [ "Métodos de recebimento", "Políticas de pagamento", "Segmentos", "Enquadramento financeiro", "Promessas e acordos", "Índices" ], submenu_do_menu("Configuração")
+    # Com a 14 aparecem Métodos de recebimento e Meios de pagamento (16, revisão 1), Políticas de pagamento, Segmentos e Enquadramento financeiro (13), Promessas e acordos (10, R206) e Índices (08, R158).
+    assert_equal [ "Métodos de recebimento", "Meios de pagamento", "Políticas de pagamento", "Segmentos", "Enquadramento financeiro", "Promessas e acordos", "Índices" ], submenu_do_menu("Configuração")
     get settings_payment_policy_path, headers: TRECHO
     assert_response :success
     assert_select "h1", text: "Políticas de pagamento"

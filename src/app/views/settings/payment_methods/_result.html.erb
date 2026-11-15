@@ -1,0 +1,99 @@
+<%# Um quadro por meio (16, revisão 1, R373a), de cima para baixo, com uma linha por ambiente (Produção e depois Homologação): a integração ativa, a troca à
+    espera da conexão (R373c) ou "Sem integração" com "Criar integração". As desativadas ficam no detalhe da linha do ambiente (P26). Nenhum segredo (12, R261). %>
+<div id="resultado" class="pagina-em-secoes" aria-live="polite">
+  <% @modalities.each do |modality| %>
+    <% of_modality = @accounts.select { |account| account.modality == modality } %>
+    <% environments = %w[production sandbox] %>
+    <% resumo = environments.map { |environment| active = of_modality.find { |account| account.environment == environment && account.active? }; "#{t("payments.accounts.environments.#{environment}")}: #{active ? provider_name(active.provider) : t("payments.methods.not_emitting").downcase}" }.join(" · ") %>
+    <section class="cartao" aria-labelledby="meio-<%= modality %>">
+      <header><h2 id="meio-<%= modality %>"><%= modality_label(modality) %></h2><p><%= resumo %></p></header>
+      <div class="tabela" tabindex="0">
+        <table data-detalhes>
+          <caption class="apenas-leitor-de-tela">Integrações de <%= modality_label(modality) %></caption>
+          <thead>
+            <tr>
+              <th scope="col">Ambiente</th><th scope="col">Fornecedor</th><th scope="col">Apelido</th><th scope="col">Método de recebimento</th><th scope="col">Acesso</th>
+              <th scope="col">Último teste</th><th scope="col">Aviso de pagamento</th><th scope="col">Situação</th><th scope="col"><span class="apenas-leitor-de-tela">Ações</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% environments.each do |environment| %>
+              <% in_environment = of_modality.select { |account| account.environment == environment } %>
+              <% active = in_environment.find(&:active?) %>
+              <% waiting = in_environment.find { |account| !account.active? && account.replaces_id.present? && account.replaces_id == active&.id } %>
+              <% retired = in_environment - [ active, waiting ] %>
+              <% environment_label = t("payments.accounts.environments.#{environment}") %>
+              <% detail_id = "desativadas-#{modality}-#{environment}" %>
+              <tr>
+                <th scope="row"><% if retired.any? %><%= alternar_detalhe(detail_id, "#{modality_label(modality)} em #{environment_label.downcase}") %><% end %><%= environment_label %></th>
+                <% if active %>
+                  <td><%= provider_name(active.provider) %></td>
+                  <td><%= link_to active.nickname, edit_settings_payment_account_path(active) %></td>
+                  <td><%= "#{active.channel.code} · #{active.channel.description}" %></td>
+                  <td><%= account_access_line(active) %></td>
+                  <td><%= account_last_test(active) %></td>
+                  <td><%= account_notice_line(active) %></td>
+                  <td><%= situacao("Ativa", tom: :success) %></td>
+                  <td data-acoes>
+                    <%= menu_de_linha("integracao-#{active.id}", "Ações da integração #{active.nickname}") do %>
+                      <%= link_to "Abrir", edit_settings_payment_account_path(active), class: "botao" %>
+                      <% if active.provider_available? %><%= button_to "Testar conexão", settings_payment_account_connection_test_path(active), method: :post %><% end %>
+                      <% if waiting.nil? && (Payments::Providers.for_modality(modality) - [ active.provider ]).any? %>
+                        <%= link_to "Trocar fornecedor", new_settings_payment_account_path(substitui: active.id), class: "botao" %>
+                      <% end %>
+                      <%= confirmar_no_painel "Desativar", titulo: "Desativar a integração?", mensagem: "#{modality_label(modality)} deixa de ser emitido em #{environment_label.downcase} até outra integração entrar. O que já foi emitido não muda.", acao: "Desativar integração", url: settings_payment_account_activation_path(active), metodo: :delete %>
+                    <% end %>
+                  </td>
+                <% else %>
+                  <td>—</td>
+                  <td><%= t("payments.methods.none_line") %></td>
+                  <td>—</td><td>—</td><td>—</td><td>—</td>
+                  <td><%= situacao(t("payments.methods.not_emitting"), tom: :neutral) %></td>
+                  <td data-acoes><%= link_to "Criar integração", new_settings_payment_account_path(credor: @tenant.id, meio: FilterValue.to_url(modality), ambiente: FilterValue.to_url(environment)), class: "botao", data: { variant: "secondary" } %></td>
+                <% end %>
+              </tr>
+              <% if waiting %>
+                <tr>
+                  <th scope="row"><%= environment_label %></th>
+                  <td><%= provider_name(waiting.provider) %></td>
+                  <td><%= link_to waiting.nickname, edit_settings_payment_account_path(waiting) %></td>
+                  <td><%= "#{waiting.channel.code} · #{waiting.channel.description}" %></td>
+                  <td><%= account_access_line(waiting) %></td>
+                  <td><%= account_last_test(waiting) %></td>
+                  <td><%= account_notice_line(waiting) %></td>
+                  <td><%= situacao(t("payments.methods.waiting_connection"), tom: :warning) %></td>
+                  <td data-acoes>
+                    <%= menu_de_linha("integracao-#{waiting.id}", "Ações da integração #{waiting.nickname}") do %>
+                      <% if waiting.provider_available? %><%= link_to t("payments.connection.connect", provider: waiting.manifest.label), new_settings_payment_account_connection_path(waiting), target: "_top", class: "botao" %><% end %>
+                      <%= link_to "Abrir", edit_settings_payment_account_path(waiting), class: "botao" %>
+                      <%= confirmar_no_painel "Desistir", titulo: "Desistir da troca?", mensagem: "A integração #{waiting.nickname} é excluída, e #{modality_in_sentence(modality)} continua pela integração #{active.nickname}.", acao: "Desistir da troca", url: settings_payment_account_path(waiting), metodo: :delete %>
+                    <% end %>
+                  </td>
+                </tr>
+              <% end %>
+              <% if retired.any? %>
+                <%= detalhe_da_linha(detail_id, 9) do %>
+                  <table>
+                    <caption><%= t("payments.methods.inactive_caption", modality: modality_label(modality), environment: environment_label.downcase) %></caption>
+                    <thead><tr><th scope="col">Fornecedor</th><th scope="col">Apelido</th><th scope="col">Método de recebimento</th><th scope="col">Desativada em</th><th scope="col" data-numerico>Instrumentos vigentes</th></tr></thead>
+                    <tbody>
+                      <% retired.each do |account| %>
+                        <tr>
+                          <td><%= provider_name(account.provider) %></td>
+                          <th scope="row"><%= link_to account.nickname, edit_settings_payment_account_path(account) %></th>
+                          <td><%= "#{account.channel.code} · #{account.channel.description}" %></td>
+                          <td><%= @retired_at[account.id] ? datetime_br(@retired_at[account.id]) : "—" %></td>
+                          <td data-numerico><%= number_with_delimiter(@open_counts.fetch(account.id, 0)) %></td>
+                        </tr>
+                      <% end %>
+                    </tbody>
+                  </table>
+                <% end %>
+              <% end %>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  <% end %>
+</div>
