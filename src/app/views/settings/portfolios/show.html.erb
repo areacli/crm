@@ -5,6 +5,7 @@
 <%# Modelo Configuração (design system, 9): um cartão por credor; as faixas numa tabela curta de campos, com as salvas ao lado, e cada política na sua linha.
     Na recusa (422), a SPA troca a lista pela que o servidor refez, com as faixas digitadas e a mensagem (`data-refazer-no-erro`). %>
 <div class="pagina-em-secoes" data-refazer-no-erro>
+<% several_tenants = Current.user.tenant_ids_with("view_portfolio").size > 1 %>
 <% @settings.each do |setting| %>
   <% tenant = setting.tenant %>
   <% error = @error if @error && @error[:tenant_id] == tenant.id %>
@@ -16,33 +17,35 @@
       <%= form_with url: settings_portfolio_path, method: :patch do |form| %>
         <%= hidden_field_tag :credor, tenant.id, id: nil %>
         <%= hidden_field_tag :section, "brackets", id: nil %>
-        <fieldset>
+        <%# Lista editável (padrões de interface, T6; 01, revisão 8): uma linha em branco, "Criar faixa" e "Excluir" na hora, sem salvar, de 1 a 10 faixas, e a prévia
+            acompanhando o que se digita (`spa/faixas`). A validação da R18 é a do salvar. %>
+        <fieldset data-faixas data-maximo="<%= Portfolio::AgingBrackets::MAXIMUM %>">
           <legend>Faixas de atraso (dias)</legend>
           <% rows = error && @rows ? @rows : setting.aging_brackets.map { |bracket| [ bracket["from"], bracket["to"] ] } %>
-          <% rows += Array.new([ 7 - rows.size, 2 ].max) { [ nil, nil ] } %>
+          <% rows += [ [ nil, nil ] ] if rows.size < Portfolio::AgingBrackets::MAXIMUM %>
           <div class="faixas-edicao">
             <div>
               <table class="campos-em-tabela">
                 <caption class="apenas-leitor-de-tela">Faixas de atraso de <%= tenant.name %></caption>
-                <thead><tr><th scope="col">De</th><th scope="col">Até</th><th scope="col">Remover</th></tr></thead>
+                <thead><tr><th scope="col">De</th><th scope="col">Até</th><th scope="col"><span class="apenas-leitor-de-tela">Ações</span></th></tr></thead>
                 <tbody>
                   <% rows.each_with_index do |(from, to), index| %>
-                    <tr>
-                      <td><input type="number" min="1" id="from-<%= tenant.id %>-<%= index %>" name="brackets[][from]" value="<%= from %>" aria-label="Faixa <%= index + 1 %>: de"></td>
-                      <td><input type="number" min="1" id="to-<%= tenant.id %>-<%= index %>" name="brackets[][to]" value="<%= to %>" aria-label="Faixa <%= index + 1 %>: até"></td>
-                      <td><% if from || to %><input type="checkbox" name="brackets[][remove]" value="1" aria-label="Remover a faixa <%= index + 1 %>"><% end %></td>
-                    </tr>
+                    <%= render "settings/portfolios/bracket_row", from: from, to: to, number: index + 1 %>
                   <% end %>
                 </tbody>
               </table>
+              <template data-modelo-da-faixa><%= render "settings/portfolios/bracket_row", from: nil, to: nil, number: 0 %></template>
+              <p><button type="button" data-variant="secondary" data-criar-faixa<%= " disabled" if rows.size >= Portfolio::AgingBrackets::MAXIMUM %>>Criar faixa</button></p>
             </div>
             <div>
-              <% saved = Portfolio::AgingBrackets.from_stored(setting.aging_brackets) %>
-              <h3 class="subtitulo-do-cartao">Faixas salvas</h3>
-              <ol class="previa" aria-label="Faixas de atraso salvas de <%= tenant.name %>">
-                <% saved.labels.each do |label| %><li><%= label %> dias</li><% end %>
+              <h3 class="subtitulo-do-cartao">Como vão ficar</h3>
+              <ol class="previa" aria-label="Prévia das faixas de atraso de <%= tenant.name %>" aria-live="polite" data-previa-das-faixas>
+                <% Portfolio::AgingBrackets.preview(rows).each do |label| %><li><%= label %> dias</li><% end %>
               </ol>
-              <p><small>A primeira começa em 1 dia, sem buraco nem sobreposição, e a última não tem fim. Linha em branco não é usada.</small></p>
+              <p><small>A primeira começa em 1 dia, sem buraco nem sobreposição, e a última não tem fim. De 1 a <%= Portfolio::AgingBrackets::MAXIMUM %> faixas; linha em branco não é usada.</small></p>
+              <% if several_tenants %>
+                <p><small>Estas faixas valem no resumo deste credor, na lista de clientes e na ficha. No resumo de todos os credores valem as faixas padrão do sistema.</small></p>
+              <% end %>
             </div>
           </div>
         </fieldset>

@@ -69,6 +69,22 @@ class PaymentCheckout < ApplicationRecord
 
   def boleto_payable?(instrument, today = Date.current) = today <= boleto_payable_until(instrument)
 
+  # 12, revisão 7, R280b: o beneficiário que a página mostra ao lado do Pix e do boleto. O do boleto cadastrado na integração, quando o fornecedor o pede
+  # (Bradesco, Mercado Pago); senão o credor, pela razão social (ou o nome) e o CNPJ do cadastro. Devolve [nome, "CNPJ 12.345.678/0001-90" ou nil].
+  def beneficiary(instrument)
+    config = instrument.account&.config || {}
+    name, document = instrument.boleto? && config["beneficiary_name"].present? ? config.values_at("beneficiary_name", "beneficiary_document") : [ tenant.legal_name.presence || tenant.name, tenant.cnpj ]
+    document = Document.normalize(document)
+    [ name.to_s, ("#{document.length == 11 ? 'CPF' : 'CNPJ'} #{Document.format(document)}" if document.length.in?([ 11, 14 ])) ]
+  end
+
+  # R280b: a data limite do instrumento na página. Pix: o vencimento (depois dele o Pix com vencimento cobra encargos, e o Pix imediato expira). Boleto: o
+  # último dia em que a página o mostra (R280, R284aa). Nenhuma passa da validade do link.
+  def payable_until(instrument)
+    limit = instrument.boleto? ? boleto_payable_until(instrument) : instrument.due_on
+    [ limit, expires_at.in_time_zone.to_date ].min
+  end
+
   def card_instruments = instruments.select(&:card?).sort_by(&:id)
 
   private

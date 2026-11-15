@@ -1,25 +1,29 @@
-<%# Carrossel da entrada, só na demonstração: as telas do CRM com legenda, para quem chega ver o que vai encontrar. O comportamento fica em `spa/vitrine`. %>
+<%# Carrossel da entrada, só na demonstração: as telas do CRM com nome e legenda, para quem chega ver o que vai encontrar.
+    Cada foto já é o recorte da tela que interessa, num tamanho em que o texto se lê. O comportamento fica em `spa/vitrine`. %>
 <% telas = [
-  [ "resumo", "Resumo da carteira", "O retrato da carteira: o que está vencido, o que entrou no mês e os acordos em andamento." ],
-  [ "ficha", "Ficha do cliente", "Tudo de um cliente numa tela: títulos, contatos, acionamentos e a linha do tempo." ],
-  [ "clientes", "Lista de clientes", "Milhares de clientes numa lista só, com filtros por atraso, segmento e promessa." ],
-  [ "simulacao", "Simulação de acordo", "Simule o acordo e veja a entrada, as parcelas e a alçada antes de gravar." ],
-  [ "segmentos", "Segmentos", "Segmentos escritos em português decidem encargos, filas e distribuição." ]
+  [ "regua", "Régua", "Régua de cobrança.", "Cada raia é um segmento e cada coluna, um dia depois do marco. A régua decide quem recebe cada ação e põe na fila." ],
+  [ "pagar", "Pagamento", "Página de pagamento.", "O cliente paga por Pix, boleto ou cartão num link só; o cartão vai direto ao fornecedor e nunca passa pelo CRM." ],
+  [ "resumo", "Resumo", "Resumo da carteira.", "O que está vencido, o que entrou no mês, os acordos e as faixas de atraso." ],
+  [ "ficha", "Ficha", "Ficha do cliente.", "Títulos, contatos, acionamentos e a linha do tempo de um cliente numa tela." ],
+  [ "simulacao", "Simulação", "Simulação de acordo.", "A entrada, as parcelas e a alçada antes de gravar o acordo." ],
+  [ "segmentos", "Segmentos", "Segmentos.", "Filtros escritos em português decidem encargos, filas, distribuição e réguas." ]
 ] %>
 <section class="vitrine" aria-roledescription="carrossel" aria-label="Telas do CRM" data-vitrine>
+  <ul class="vitrine-abas">
+    <% telas.each_with_index do |(_, nome, _, _), indice| %>
+      <li><button type="button" data-vitrine-ir="<%= indice %>"<%= ' aria-current="true"'.html_safe if indice.zero? %>><%= nome %></button></li>
+    <% end %>
+    <li class="vitrine-pausar"><button type="button" data-vitrine-pausar aria-pressed="false"><%= icone("pause") %><span>Pausar</span></button></li>
+  </ul>
   <div class="vitrine-palco">
-    <% telas.each_with_index do |(arquivo, nome, legenda), indice| %>
-      <figure class="vitrine-tela" data-vitrine-tela aria-roledescription="tela" aria-label="<%= indice + 1 %> de <%= telas.size %>" <%= indice.zero? ? "data-atual" : 'aria-hidden="true"'.html_safe %>>
-        <%= image_tag "vitrine/#{arquivo}.webp", alt: nome, width: 1120, height: 630, loading: indice.zero? ? "eager" : "lazy", decoding: "async" %>
-        <figcaption><%= legenda %></figcaption>
+    <% telas.each_with_index do |(arquivo, nome, titulo, legenda), indice| %>
+      <figure class="vitrine-tela" data-vitrine-tela data-titulo="<%= titulo %>" data-texto="<%= legenda %>" aria-roledescription="tela" aria-label="<%= nome %>, <%= indice + 1 %> de <%= telas.size %>" <%= indice.zero? ? "data-atual" : 'aria-hidden="true"'.html_safe %>>
+        <%= image_tag "vitrine/#{arquivo}.webp", alt: "#{titulo} #{legenda}", width: 2160, height: 1280, loading: indice.zero? ? "eager" : "lazy", decoding: "async" %>
       </figure>
     <% end %>
   </div>
-  <div class="vitrine-controles">
-    <button type="button" data-vitrine-passo="-1" aria-label="Tela anterior"><%= icone("chevron-left") %></button>
-    <% telas.each_with_index do |(_, nome, _), indice| %>
-      <button type="button" class="vitrine-ponto" data-vitrine-ir="<%= indice %>" aria-label="Mostrar: <%= nome %>"<%= ' aria-current="true"'.html_safe if indice.zero? %>></button>
-    <% end %>
-    <button type="button" data-vitrine-passo="1" aria-label="Próxima tela"><%= icone("chevron-right") %></button>
-  </div>
+  <p class="vitrine-legenda"><strong><%= telas.first[2] %></strong> <span><%= telas.first[3] %></span></p>
 </section>
+<%# Os dois desenhos do botão "Pausar", para o `spa/vitrine` trocar sem montar SVG à mão. %>
+<template id="vitrine-icone-pause"><%= icone("pause") %></template>
+<template id="vitrine-icone-play"><%= icone("play") %></template>

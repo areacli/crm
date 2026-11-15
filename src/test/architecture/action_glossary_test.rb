@@ -5,10 +5,11 @@ require "test_helper"
 # "Apagar", "Tirar", "Novo", "Cadastrar", "Subir", "Descer" e "Corrigir" saíram: a mesma ação tem um nome só (Editar, Excluir, Criar, Mover).
 # Filas (15; padrões de interface, revisão 29): "Próximo" (pedir a próxima entrega), "Devolver" (a entrega volta à fila) e "Liberar" (o gestor
 # encerra a entrega de um operador) entram no glossário com o sentido da especificação. Meios de pagamento (16; revisão 31): "Emitir" (criar um
-# instrumento de pagamento) e "Reemitir" (cancelar o vigente e emitir outro).
+# instrumento de pagamento) e "Reemitir" (cancelar o vigente e emitir outro). Página de pagamento (12, revisão 7; revisão 45): "Copiar" (um código para a
+# área de transferência).
 class ActionGlossaryTest < ActiveSupport::TestCase
   VERBS = %w[
-    Abrir Alocar Anonimizar Anular Aprovar Ativar Baixar Buscar Calcular Cancelar Concluir Conferir Confirmar Continuar Credenciar Criar Decidir
+    Abrir Alocar Anonimizar Anular Aprovar Ativar Baixar Buscar Calcular Cancelar Concluir Conferir Confirmar Continuar Copiar Credenciar Criar Decidir
     Desativar Descartar Desfazer Desistir Desmarcar Devolver Distribuir Duplicar Editar Emitir Entrar Enviar Estornar Excluir Exportar Filtrar Gerar Importar Incluir
     Liberar Ligar Desligar Marcar Mostrar Esconder Mover Pausar Próximo Quebrar Reativar Recolher Recusar Redefinir Reemitir Registrar Reter Reverter Sair Salvar Simular Testar Transferir Tratar Trocar Usar Ver Voltar
   ].freeze

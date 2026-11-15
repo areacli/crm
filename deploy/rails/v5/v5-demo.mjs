@@ -113,9 +113,13 @@ const maisAcoes = async (item) => {
 };
 const total = async (p = pagina) => Number(((await raiz(p).locator('.pagination-info').first().textContent()) ?? '').match(/de ([\d.]+)/)?.[1]?.replace(/\./g, '') ?? NaN);
 
-await passo('a entrada da casca mostra os usuários da demonstração', async () => {
+// Padrões de interface, revisão 46: um botão por usuário público, e os e-mails e as senhas em "Ver e-mails e senhas"; o carrossel começa pela régua.
+await passo('a entrada da casca mostra os usuários da demonstração e o carrossel com a régua primeiro', async () => {
     await pagina.goto(BASE + '/');
+    for (const nome of ['Gestor', 'Operador', 'Operação terceirizada']) await pagina.locator('[data-entrar-como]', { hasText: nome }).first().waitFor();
+    await pagina.locator('.entrada-demonstracao summary').click();
     await pagina.locator('.entrada-demonstracao').getByText('demonstracao-gestor').first().waitFor();
+    await pagina.locator('.vitrine-abas button[aria-current]', { hasText: 'Régua' }).waitFor();
 });
 
 await passo('entrar com e-mail e senha, com a faixa da demonstração no alto', async () => {

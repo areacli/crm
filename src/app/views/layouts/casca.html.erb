@@ -52,32 +52,65 @@
 
     <p id="sem-conexao" role="status" hidden>Sem conexão em tempo real. Esta tela pode estar desatualizada.</p>
 
+    <%# Entrada (padrões de interface, T1, revisão 46): tela dividida, o formulário na coluna branca e o que o CRM faz no lado marinho. O que é só da demonstração está em o documento da demonstração do projeto. %>
     <div id="entrada" hidden>
-      <div class="entrada-conteudo">
-      <%# Primeiro acesso com a senha temporária (02, R38): a pessoa define a senha aqui, antes de qualquer aba. %>
-      <div id="definir-senha" class="entrada-cartao" hidden>
-        <%= image_tag "logotipo-crm.svg", alt: "CRM AreaCli", width: 220 %>
-        <h1 class="definir-senha-titulo"></h1>
-        <div class="definir-senha-conteudo"></div>
-      </div>
-      <form id="entrada-form" class="entrada-cartao">
-        <%= image_tag "logotipo-crm.svg", alt: "CRM AreaCli", width: 220 %>
-        <p id="entrada-mensagem">Entre com o seu e-mail e a sua senha.</p>
-        <div class="campo"><label for="entrada-email">E-mail</label><input type="email" id="entrada-email" name="email_address" required autocomplete="username"></div>
-        <div class="campo"><label for="entrada-senha">Senha</label><input type="password" id="entrada-senha" name="password" required maxlength="72" autocomplete="current-password"></div>
-        <button type="submit" id="entrada-botao">Entrar</button>
-        <% if Demo.enabled? %>
-          <dl class="entrada-demonstracao">
-            <% Demo::WHO.each do |who| %>
-              <dt><%= Demo::LABELS.fetch(who) %></dt>
-              <dd><code><%= Demo.email(who) %></code></dd>
-              <dd><code><%= Demo.password(who) %></code></dd>
+      <section class="entrada-formulario" aria-label="Entrar">
+        <%= image_tag "logotipo-crm.svg", alt: "CRM AreaCli", width: 200, class: "entrada-marca" %>
+        <div class="entrada-meio">
+          <% if Demo.enabled? %><span class="entrada-selo">Demonstração · dados fictícios</span><% end %>
+          <%# Primeiro acesso com a senha temporária (02, R38): a pessoa define a senha aqui, antes de qualquer aba. %>
+          <div id="definir-senha" hidden>
+            <h1 class="definir-senha-titulo"></h1>
+            <div class="definir-senha-conteudo"></div>
+          </div>
+          <form id="entrada-form">
+            <h1>Entrar no CRM</h1>
+            <p id="entrada-mensagem">Entre com o seu e-mail e a sua senha.</p>
+            <div class="campo"><label for="entrada-email">E-mail</label><input type="email" id="entrada-email" name="email_address" required autocomplete="username"></div>
+            <div class="campo"><label for="entrada-senha">Senha</label><input type="password" id="entrada-senha" name="password" required maxlength="72" autocomplete="current-password"></div>
+            <button type="submit" id="entrada-botao">Entrar</button>
+            <% if Demo.enabled? %>
+              <p class="entrada-ou">ou entre com um usuário da demonstração</p>
+              <ul class="entrada-usuarios">
+                <% Demo::WHO.each do |who| %>
+                  <li><button type="button" data-variant="secondary" data-entrar-como="<%= who %>" data-email="<%= Demo.email(who) %>" data-senha="<%= Demo.password(who) %>">
+                    <strong><%= Demo::ENTRANCE.fetch(who).first %></strong><span><%= Demo::ENTRANCE.fetch(who).last %></span><%= icone("arrow-right") %>
+                  </button></li>
+                <% end %>
+              </ul>
+              <details class="entrada-demonstracao">
+                <summary>Ver e-mails e senhas</summary>
+                <dl>
+                  <% Demo::WHO.each do |who| %>
+                    <dt><%= Demo::LABELS.fetch(who) %></dt>
+                    <dd><code><%= Demo.email(who) %></code></dd>
+                    <dd><code><%= Demo.password(who) %></code></dd>
+                  <% end %>
+                </dl>
+              </details>
             <% end %>
-          </dl>
+          </form>
+        </div>
+        <% if Demo.enabled? %>
+          <p class="entrada-rodape">
+            <span>Os dados voltam ao início todo dia às <%= Demo.reset_at %>.</span>
+            <a href="https://blog.areacli.com/criei-um-crm/">Como foi feito, no Blog AreaCli</a>
+            <a href="https://github.com/areacli/crm">Código no GitHub</a>
+          </p>
         <% end %>
-      </form>
-      <% if Demo.enabled? %><%= render "layouts/vitrine" %><% end %>
-      </div>
+      </section>
+      <section class="entrada-lado" aria-label="O que é o CRM">
+        <div class="entrada-tese">
+          <% if Demo.enabled? %>
+            <p class="entrada-titulo">Um CRM de cobrança construído em público.</p>
+            <p>Carteira vinda de planilha, régua, filas, promessas, acordos e pagamento por Pix, boleto e cartão. Cada decisão do projeto, inclusive as erradas, está contada no Blog AreaCli.</p>
+          <% else %>
+            <p class="entrada-titulo">CRM de cobrança.</p>
+            <p>Carteira vinda de planilha, régua, filas, promessas, acordos e pagamento por Pix, boleto e cartão, num lugar só.</p>
+          <% end %>
+        </div>
+        <% if Demo.enabled? %><%= render "layouts/vitrine" %><% end %>
+      </section>
     </div>
   </body>
 </html>

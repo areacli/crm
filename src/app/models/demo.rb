@@ -3,6 +3,12 @@
 module Demo
   WHO = %w[gestor operador operacao].freeze
   LABELS = { "gestor" => "Gestor", "operador" => "Operador", "operacao" => "Operação" }.freeze
+  # Os botões da entrada (padrões de interface, revisão 46): o nome e uma linha sobre o que cada usuário vê.
+  ENTRANCE = {
+    "gestor" => [ "Gestor", "Configura a régua e os segmentos e vê toda a carteira" ],
+    "operador" => [ "Operador", "Atende os clientes, registra promessas e acordos" ],
+    "operacao" => [ "Operação terceirizada", "Vê só os clientes distribuídos ao escritório" ]
+  }.freeze
 
   module_function
 

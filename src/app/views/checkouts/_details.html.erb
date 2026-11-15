@@ -1,0 +1,24 @@
+<%# locals: (checkout:, instrument:) %>
+<%# 12, revisão 7, R280b: beneficiário, valor e data limite do instrumento, ao lado do QR Code (Pix) e acima da linha digitável (boleto). %>
+<% name, document = checkout.beneficiary(instrument) %>
+<% limit = checkout.payable_until(instrument) %>
+<dl class="dados-do-instrumento">
+  <div>
+    <dt><%= t("payments.checkout.page.beneficiary") %></dt>
+    <dd><%= name %><% if document %> <small><%= document %></small><% end %></dd>
+  </div>
+  <div>
+    <dt><%= t("payments.checkout.page.amount") %></dt>
+    <dd><%= money(instrument.amount_cents) %></dd>
+  </div>
+  <% if instrument.boleto? && instrument.due_on != limit %>
+    <div>
+      <dt><%= t("payments.checkout.page.due_on") %></dt>
+      <dd><%= date_br(instrument.due_on) %></dd>
+    </div>
+  <% end %>
+  <div>
+    <dt><%= t("payments.checkout.page.payable_until") %></dt>
+    <dd><%= date_br(limit) %></dd>
+  </div>
+</dl>

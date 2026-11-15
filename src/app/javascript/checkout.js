@@ -146,16 +146,23 @@ if (document.readyState === "loading") document.addEventListener("DOMContentLoad
 else montarCampos()
 document.addEventListener("htmx:afterSwap", montarCampos)
 
-// Copiar o código do Pix e a linha digitável do boleto.
+// Copiar o código do Pix e a linha digitável do boleto (12, revisão 7, R280b): o resultado sai em palavras ao lado do botão. Se o navegador não deixar
+// copiar, o código fica selecionado para a pessoa copiar à mão.
 document.addEventListener("click", async (evento) => {
   const botao = evento.target.closest("[data-copiar]")
   if (!botao) return
 
   const campo = document.getElementById(botao.dataset.copiar)
+  const situacao = document.getElementById(`${botao.dataset.copiar}-situacao`)
+  situacao.textContent = ""
   campo.select()
+  let copiou = false
   try {
     await navigator.clipboard.writeText(campo.value)
+    copiou = true
   } catch (erro) {
-    document.execCommand("copy")
+    copiou = document.execCommand("copy")
   }
+  situacao.textContent = copiou ? botao.dataset.copiado : botao.dataset.naoCopiado
+  situacao.dataset.tom = copiou ? "sucesso" : "aviso"
 })

@@ -41,17 +41,32 @@ class PortfolioScreensTest < ActionDispatch::IntegrationTest
     assert_select "h1", "Maria Souza"
   end
 
-  test "o resumo é um conjunto só de totais: sem nome de credor e, com faixas diferentes, só a nota das faixas (25/10/2026)" do
+  test "o resumo é um conjunto só de totais, com o filtro de credor e as tabelas por faixa sempre (01, revisão 8)" do
     entrar(users(:ana))
+    tenants(:beta).setting.update!(aging_brackets: [ { from: 1, to: 60 }, { from: 61, to: nil } ])
     get summary_path, headers: TRECHO
     assert_select "h2", text: /Escola Alfa|Clínica Beta/, count: 0
     assert_select "dl.kpis dt", text: /Clientes em cobrança/
-    assert_select "h2", text: /Faixas de atraso — /, count: 2 # faixas iguais: duas tabelas, somadas
-    tenants(:beta).setting.update!(aging_brackets: [ { from: 1, to: 60 }, { from: 61, to: nil } ])
+    assert_select "select[name=credor] option", text: "Todos os credores"
+    assert_select "select[name=credor] option", text: "Clínica Beta"
+    assert_select "h2", text: /Faixas de atraso — /, count: 2 # faixas diferentes: as duas tabelas, nas faixas padrão
+    assert_select "p", text: /Faixas padrão do sistema/
+    assert_select "td", text: "181–360"
+
+    # O filtro refaz só o trecho, com as faixas do credor escolhido.
+    get summary_path(credor: tenants(:beta).id), headers: TRECHO.merge("X-CRM-Fragmento" => "1")
+    assert_select "form.filtros", count: 0
+    assert_select "#resultado h2", text: /Faixas de atraso — /, count: 2
+    assert_select "td", text: "1–60"
+    assert_select "p", text: /Faixas padrão do sistema/, count: 0
+  end
+
+  test "quem consulta um credor só não vê o filtro de credor no resumo" do
+    entrar(@joana)
     get summary_path, headers: TRECHO
-    assert_select "section h2", text: "Faixas de atraso", count: 1
-    assert_select "p", text: /diferem entre os credores/
-    assert_select "table caption", text: /Faixas/, count: 0
+    assert_select "select[name=credor]", count: 0
+    assert_select "h2", text: /Faixas de atraso — /, count: 2
+    assert_select "p", text: /Faixas padrão do sistema/, count: 0
   end
 
   test "a busca da lista devolve só a página da grade, em JSON" do
@@ -119,6 +134,26 @@ class PortfolioScreensTest < ActionDispatch::IntegrationTest
     patch settings_portfolio_path, params: { credor: @alfa.id, section: "brackets", brackets: [ { from: "1", to: "10" }, { from: "30", to: "" } ] }
     assert_response :unprocessable_content
     assert_select "[role=alert]", /buraco/i
+    # A recusa devolve as linhas como foram digitadas, mais uma em branco, e a prévia delas.
+    assert_select "input[name='brackets[][from]'][value='30']"
+    assert_select "[data-previa-das-faixas] li", text: "mais de 29 dias"
+
+    onze = (1..11).map { |n| { from: (n * 10 - 9).to_s, to: (n == 11 ? "" : (n * 10).to_s) } }
+    patch settings_portfolio_path, params: { credor: @alfa.id, section: "brackets", brackets: onze }
+    assert_response :unprocessable_content
+    assert_select "[role=alert]", /no máximo 10 faixas/i
+  end
+
+  test "a tela das faixas tem uma linha em branco, Criar faixa e Excluir em cada linha (T6)" do
+    entrar(@joana)
+    get settings_portfolio_path, headers: TRECHO
+    bloco = css_select("[data-faixas]").first
+    assert_equal 7, bloco.css("tbody > tr").size # as 6 faixas padrão e uma em branco
+    assert_equal 1, bloco.css("tbody > tr").count { |linha| linha.css("input").all? { |campo| campo["value"].blank? } }
+    assert_equal 7, bloco.css("tbody [data-excluir-faixa]").size
+    assert_select "[data-faixas] button[data-criar-faixa]", text: "Criar faixa"
+    assert_select "[data-faixas] template[data-modelo-da-faixa]"
+    assert_select "input[name='brackets[][remove]']", count: 0
   end
 
   test "operador não abre a configuração" do
