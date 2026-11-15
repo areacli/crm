@@ -1,13 +1,12 @@
 require "test_helper"
 
-# Critérios de aceite e regras R45 a R59 da especificação 03: conferência (nada é gravado) e confirmação (numa transação).
+# Critérios de aceite e regras R46 a R59 da especificação 03: conferência (nada é gravado) e confirmação (numa transação).
 class Payments::PaymentImportTest < ActiveSupport::TestCase
   include ActiveJob::TestHelper
   include ActionCable::TestHelper
 
   setup do
     @alfa = tenants(:alfa)
-    @channel = make_channel(@alfa)
     @bill = make_bill(@alfa, number: "NF-1", amount_cents: 100_000)
   end
 
@@ -26,7 +25,8 @@ class Payments::PaymentImportTest < ActiveSupport::TestCase
     @bill.reload
     assert_equal [ "paid", 100_000, Date.current - 1 ], [ @bill.status, @bill.paid_cents, @bill.paid_on ]
     payment = Payment.sole
-    assert_equal [ "applied", 100_000, 0, @channel.id ], [ payment.status, payment.applied_cents, payment.credit_cents, payment.channel_id ]
+    assert_equal [ "applied", 100_000, 0, "pix", "itau", "Itaú", "0341123456", "Pix · Itaú · 0341-12345-6 · PIX-1" ],
+                 [ payment.status, payment.applied_cents, payment.credit_cents, payment.payment_method, payment.provider, payment.provider_name, payment.account_key, payment.how_paid ]
     assert_equal 0, Portfolio::Sql.rows("select 1 from payment_rows where import_id = #{import.id}").size
     assert_not File.exist?(import.file_path)
     assert_equal 0, Bill.active.where(tenant: @alfa).count
@@ -44,20 +44,24 @@ class Payments::PaymentImportTest < ActiveSupport::TestCase
     assert_equal before, [ Payment.count, Credit.count, @bill.reload.paid_cents ]
   end
 
-  test "mesmo canal e identificador nas linhas 2 e 3: a segunda é recusada (critério 3)" do
+  test "mesmo meio, fornecedor e identificador nas linhas 2 e 3: a segunda é recusada (critério 3; 03, revisão 12)" do
     import = run_payments_import([ payment_line, payment_line("valor" => "5,00") ])
     assert_equal [ 1, 1 ], [ import.summary_data[:valid], import.summary_data[:rejected] ]
     assert_equal "pagamento repetido na linha 2", import.rejections.sole.reason
     assert_equal 3, import.rejections.sole.line
   end
 
-  test "o mesmo identificador em dois canais do credor registra os dois (critério 4)" do
-    make_channel(@alfa, code: "CARTAO-1")
+  test "o mesmo identificador em dois fornecedores, ou em duas contas, registra os dois; fornecedor e conta lidos sem acento, espaço e hífen são os mesmos (critério 4; 03, revisão 12)" do
     other = make_bill(@alfa, number: "NF-2", amount_cents: 50_000, document: JOAO, contract_code: "CT-2", name: "João")
-    import = confirm_import(run_payments_import([ payment_line, payment_line("metodo_recebimento" => "CARTAO-1", "titulo" => "NF-2", "documento" => JOAO, "valor" => "500,00") ]))
-    assert_equal 2, Payment.count
+    third = make_bill(@alfa, number: "NF-3", amount_cents: 20_000, document: JOAO, contract_code: "CT-2", name: "João")
+    import = confirm_import(run_payments_import([ payment_line, payment_line("fornecedor" => "Bradesco", "titulo" => "NF-2", "documento" => JOAO, "valor" => "500,00"),
+                                                  payment_line("conta" => "0341-99999-9", "titulo" => "NF-3", "documento" => JOAO, "valor" => "200,00") ]))
+    assert_equal 3, Payment.count
     assert_predicate other.reload, :paid?
+    assert_predicate third.reload, :paid?
     assert_predicate import, :confirmed?
+    again = run_payments_import([ payment_line("fornecedor" => " ITAU ", "conta" => "0341 12345 6", "meio" => "boleto") ])
+    assert_equal "pagamento já registrado, ignorado", again.rejections.sole.reason, "o meio fica fora da identidade"
   end
 
   test "baixa parcial por padrão: o saldo cai e o título continua na lista (critério 5)" do
@@ -106,31 +110,32 @@ class Payments::PaymentImportTest < ActiveSupport::TestCase
     assert_equal [ "applied", late.id ], [ pending.reload.status, pending.bill_id ]
   end
 
-  test "canal não cadastrado, canal desativado, meio fora da lista e data futura são recusados (critérios 10 e 11, R49)" do
-    make_channel(@alfa, code: "DESATIVADO", active: false)
-    lines = [ payment_line("metodo_recebimento" => "341-1234-5678", "identificador" => "A"), payment_line("meio" => "cheque", "identificador" => "B"),
+  test "fornecedor em branco, meio fora da lista, crédito do contrato e data futura são recusados (critérios 10 e 11, R49; 03, revisão 12)" do
+    lines = [ payment_line("fornecedor" => " - ", "identificador" => "A"), payment_line("meio" => "cheque", "identificador" => "B"),
               payment_line("data_pagamento" => (Date.current + 1).strftime("%d/%m/%Y"), "identificador" => "C"),
-              payment_line("metodo_recebimento" => "DESATIVADO", "identificador" => "D"), payment_line("valor" => "0,00", "identificador" => "E"),
-              payment_line("documento" => "111.111.111-11", "identificador" => "F"), payment_line("identificador" => "G") ]
+              payment_line("meio" => "crédito do contrato", "identificador" => "D"), payment_line("valor" => "0,00", "identificador" => "E"),
+              payment_line("documento" => "111.111.111-11", "identificador" => "F"), payment_line("identificador" => "G"),
+              payment_line("conta" => " - ", "identificador" => "H") ]
     reasons = run_payments_import(lines).rejections.order(:line).pluck(:line, :reason).to_h
-    assert_equal "método de recebimento não cadastrado ou desativado", reasons[2]
+    assert_equal "fornecedor obrigatório", reasons[2]
     assert_equal "meio de pagamento fora da lista", reasons[3]
     assert_equal "data de pagamento futura", reasons[4]
-    assert_equal "método de recebimento não cadastrado ou desativado", reasons[5]
+    assert_equal "meio de pagamento fora da lista", reasons[5]
     assert_equal "valor deve ser maior que zero", reasons[6]
     assert_equal "CPF inválido", reasons[7]
     assert_nil reasons[8]
+    assert_equal "conta obrigatória", reasons[9]
   end
 
-  test "meio de pagamento Pix recorrente é aceito; a coluna se chama metodo_recebimento, e a antiga 'canal' é recusada (16, R375)" do
+  test "meio de pagamento Pix recorrente é aceito; o arquivo antigo, com metodo_recebimento e sem fornecedor, é recusado (16, R375; 03, revisão 12)" do
     import = confirm_import(run_payments_import([ payment_line("meio" => "pix recorrente") ]))
     assert_equal "pix_recurring", Payment.sole.payment_method
     assert_equal 0, import.rejections.count
-    header = PaymentsHelper::PAYMENT_HEADER.map { |column| column == "metodo_recebimento" ? "canal" : column }
-    started = Portfolio::ImportService.new.start(tenant: @alfa, user: users(:joana), file: write_csv([ payment_line("identificador" => "OUTRO").transform_keys { |key| key == "metodo_recebimento" ? "canal" : key } ], header: header),
+    header = PaymentsHelper::PAYMENT_HEADER.map { |column| column == "fornecedor" ? "metodo_recebimento" : column }
+    started = Portfolio::ImportService.new.start(tenant: @alfa, user: users(:joana), file: write_csv([ payment_line("identificador" => "OUTRO").transform_keys { |key| key == "fornecedor" ? "metodo_recebimento" : key } ], header: header),
                                                  mode: :incremental, original_name: "antiga.csv", kind: "payments")
     perform_enqueued_jobs(only: CheckImportJob)
-    assert_match "coluna obrigatória ausente: metodo_recebimento", started.reload.failure_reason.to_s
+    assert_match "coluna obrigatória ausente: fornecedor", started.reload.failure_reason.to_s
   end
 
   test "título pago que volta numa carga de carteira continua pago e a conferência diz 'pago neste sistema, mantido' (critério 12, R57)" do
@@ -199,9 +204,8 @@ class Payments::PaymentImportTest < ActiveSupport::TestCase
     assert_not Customer.column_names.include?("credit_cents")
   end
 
-  test "a unicidade é por credor: o mesmo canal e identificador em outro credor são outro pagamento (R48a)" do
+  test "a unicidade é por credor: o mesmo meio, fornecedor e identificador em outro credor são outro pagamento (R48a)" do
     beta = tenants(:beta)
-    make_channel(beta)
     make_bill(beta, number: "NF-1", amount_cents: 100_000)
     confirm_import(run_payments_import([ payment_line ]))
     import = confirm_import(run_payments_import([ payment_line ], tenant: beta, user: users(:ana)))
@@ -209,12 +213,11 @@ class Payments::PaymentImportTest < ActiveSupport::TestCase
     assert_predicate import, :confirmed?
   end
 
-  test "a linha com o canal de outro credor é recusada e o título de outro credor fica pendente (V10)" do
+  test "o título de outro credor fica pendente (V10; 03, revisão 12: sem o canal de outro credor)" do
     beta = tenants(:beta)
-    make_channel(beta, code: "SO-BETA")
     make_bill(beta, number: "NF-B", amount_cents: 10_000, document: JOAO)
-    import = run_payments_import([ payment_line("metodo_recebimento" => "SO-BETA"), payment_line("identificador" => "X", "titulo" => "NF-B", "documento" => JOAO) ])
-    assert_equal "método de recebimento não cadastrado ou desativado", import.rejections.sole.reason
+    import = run_payments_import([ payment_line("identificador" => "X", "titulo" => "NF-B", "documento" => JOAO) ])
+    assert_equal 0, import.rejections.count
     confirm_import(import)
     assert_equal "pending", Payment.sole.status
     assert_predicate Bill.find_by!(number: "NF-B"), :active?

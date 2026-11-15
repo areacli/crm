@@ -255,7 +255,6 @@ class ChargesScreensTest < ActionDispatch::IntegrationTest
   end
 
   test "R173: confirmar uma carga de carteira recalcula os segmentos e, depois, os valores; pagamentos e estornos recalculam os valores" do
-    make_channel(@alfa)
     on_the_day do
       run_payments_import([ payment_line("titulo" => "NF-1", "valor" => "100,00", "data_pagamento" => "21/10/2026") ], confirm: true)
       assert_enqueued_with(job: ValuesRecalculationJob)

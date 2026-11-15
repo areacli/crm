@@ -11,8 +11,7 @@ module TitularHelper
     bill = make_bill(tenant, document: document, name: name, contract_code: code, number: "NF-MARIA-#{document[-2, 2]}", status: :paid)
     bill.update!(paid_cents: bill.amount_cents, paid_on: ended_on, description: "Mensalidade de Maria Souza")
     customer = bill.customer
-    channel = tenant.payment_channels.first || make_channel(tenant)
-    payment = Payment.create!(tenant: tenant, channel: channel, identifier: "PIX-#{customer.id}", document: document.delete("^0-9"), bill_number: bill.number, bill: bill,
+    payment = Payment.create!(provider: "itau", provider_name: "Itaú", account_key: "0341123456", account_code: "0341-12345-6", tenant: tenant, identifier: "PIX-#{customer.id}", document: document.delete("^0-9"), bill_number: bill.number, bill: bill,
                               paid_on: ended_on, amount_cents: bill.amount_cents, payment_method: "pix", status: "applied", applied_cents: bill.amount_cents, reversed_cents: 0)
     add_contact(customer, "phone", PHONE)
     add_contact(customer, "email", EMAIL)

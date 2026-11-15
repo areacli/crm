@@ -16,12 +16,9 @@ module Settings
       @providers = provider_choices(@account.modality)
       @account.provider = nil unless @account.provider.in?(@providers)
       @chosen = choice_complete?(@account)
-      load_channels
-      # O método já escolhido fica quando o fornecedor muda; na troca, vem o da integração de hoje; com um método só, ele.
-      posted_channel = params.dig(:payment_account, :channel_id).presence
-      @account.channel_id = posted_channel if posted_channel && @channels.exists?(id: posted_channel)
-      @account.channel_id ||= @replaced&.channel_id || (@channels.first.id if @channels.one?)
       @account.nickname = nickname_for(@account)
+      # A conta digitada fica quando o fornecedor muda; numa troca, começa vazia (o fornecedor novo tem outra conta).
+      @account.account_code = params.dig(:payment_account, :account_code).to_s.strip.presence
       # Na SPA, a mudança da escolha pede só os campos que dependem dela (`data-spa-dependentes`).
       render partial: "settings/payment_accounts/dependent_blocks" if spa? && params[:payment_account].present?
     end
@@ -31,8 +28,9 @@ module Settings
       tenant = @tenants.find_by(id: permitted_params[:tenant_id]) or return head(:not_found)
       authorize PaymentAccount.new(tenant: tenant), :create?
       @replaced = replaced_account
-      @account = manager.create(tenant: tenant, channel: tenant.payment_channels.find_by(id: permitted_params[:channel_id]), modality: permitted_params[:modality],
-                                provider: permitted_params[:provider], environment: permitted_params[:environment], nickname: permitted_params[:nickname], values: values,
+      @account = manager.create(tenant: tenant, modality: permitted_params[:modality],
+                                provider: permitted_params[:provider], environment: permitted_params[:environment], nickname: permitted_params[:nickname],
+                                account_code: permitted_params[:account_code], values: values,
                                 replaces: @replaced)
       # A aba da nova integração passa a ser a da integração criada.
       panel_finish(edit_settings_payment_account_path(@account), notice: t(".done", nickname: @account.nickname), navegar: true, mesma_aba: true)
@@ -40,7 +38,6 @@ module Settings
       @account = error.record
       @chosen = true
       @providers = provider_choices(@account.modality)
-      load_channels
       render :new, status: :unprocessable_content
     end
 
@@ -51,7 +48,7 @@ module Settings
     end
 
     def update
-      manager.update(@account, nickname: permitted_params[:nickname], channel: @account.tenant.payment_channels.find_by(id: permitted_params[:channel_id]), values: values)
+      manager.update(@account, nickname: permitted_params[:nickname], account_code: permitted_params[:account_code], values: values)
       panel_finish(edit_settings_payment_account_path(@account), notice: t(".done", nickname: @account.nickname), atualizar: true)
     rescue ActiveRecord::RecordInvalid => error
       @account = error.record
@@ -69,15 +66,13 @@ module Settings
 
     private
       def set_account
-        @account = PaymentAccount.includes(:tenant, :channel).find(params[:id])
+        @account = PaymentAccount.includes(:tenant).find(params[:id])
         authorize @account
       end
 
       def manageable_tenants = Tenant.where(id: Current.user.tenant_ids_with("change_financial_policies")).order(:name)
 
       def manager = Payments::AccountManager.new(Current.user)
-
-      def load_channels = @channels = @account.tenant_id ? PaymentChannel.where(tenant_id: @account.tenant_id, active: true).order(:code) : PaymentChannel.none
 
       def load_history
         @history = Change.where(tenant_id: @account.tenant_id, subject_type: "payment_account", subject_id: @account.id).includes(:user).order(occurred_at: :desc, id: :desc).limit(40)
@@ -86,7 +81,7 @@ module Settings
       # Parâmetros: os fixos mais os campos do manifesto do fornecedor da conta (segredos e arquivos em grupos próprios).
       def permitted_params
         @permitted_params ||= begin
-          fixed = %i[tenant_id channel_id modality provider environment nickname nickname_suggested replaces_id]
+          fixed = %i[tenant_id modality provider environment nickname account_code nickname_suggested replaces_id]
           fields = account_fields
           groups = { config: fields.reject(&:secret?), secrets: fields.select { |f| f.type == "secret" }, files: fields.select(&:file?) }
                    .transform_values { |list| list.map { |field| field.name.to_sym } }.reject { |_group, names| names.empty? }

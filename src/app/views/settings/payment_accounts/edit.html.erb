@@ -34,10 +34,6 @@
         <%= label_tag "campo-nickname", "Apelido" %>
         <%= text_field_tag "payment_account[nickname]", @account.nickname, id: "campo-nickname", required: true, maxlength: 100 %>
       </div>
-      <div class="campo">
-        <%= label_tag "campo-channel", "Método de recebimento" %>
-        <%= select_tag "payment_account[channel_id]", options_for_select(PaymentChannel.where(tenant_id: @account.tenant_id).order(:code).map { |channel| [ "#{channel.code} · #{channel.description}", channel.id ] }, @account.channel_id), id: "campo-channel", required: true %>
-      </div>
       <% if @account.provider_available? %><%= render "settings/payment_accounts/fields", form: form, account: @account %><% end %>
       <div class="acoes" data-rodape><button type="submit">Salvar a integração</button></div>
     <% end %>

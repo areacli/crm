@@ -64,7 +64,6 @@ class PaymentsReconcilerTest < ActiveSupport::TestCase
     event = stored_event(@instrument)
     event.update_columns(state: "failed")
     beta = tenants(:beta)
-    make_channel(beta, code: "BETA-2")
     other_customer = make_customer(beta, document: PaymentsHelper::JOAO, name: "João")
     other = emit(beta, other_customer, "boleto", 1_000)
     foreign = stored_event(other)

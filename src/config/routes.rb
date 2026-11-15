@@ -154,10 +154,6 @@ Rails.application.routes.draw do
     resource :tenant_registry, path: "dados-do-credor", only: %i[show update]
     resource :retention_period, path: "prazo-de-guarda", only: :update
     resource :portfolio, path: "carteira", only: %i[show update]
-    # Métodos de recebimento (16, R373; antes "canais de recebimento"): os códigos da planilha, com os meios que entram por cada um.
-    resources :channels, path: "metodos-de-recebimento", path_names: { new: "novo", edit: "editar" }, except: :show do
-      resource :webhook_secret, path: "segredo-do-webhook", only: :create, module: :channels
-    end
     resource :payment_policy, path: "politicas-de-pagamento", only: %i[show update]
     # Meios de pagamento (16, revisão 1, R373a): a lista das integrações, um quadro por meio. Integrações (12, "contas de pagamento"): fornecedor de
     # boleto, Pix e cartão de crédito por meio de pagamento e ambiente, criadas e trocadas a partir do quadro do meio.
@@ -272,10 +268,8 @@ Rails.application.routes.draw do
     end
   end
 
-  # Webhook de pagamento de um canal (sem sessão: a autenticação é a assinatura HMAC do corpo).
   # Aviso por fornecedor (12, revisão 6, R284w): o fornecedor que configura o webhook uma vez por aplicação chama esta rota; a integração sai da conta conectada.
   post "webhooks/pagamentos/fornecedores/:fornecedor", to: "webhooks/payment_providers#create", as: :payment_provider_webhook, format: false, constraints: { fornecedor: /[a-z]+/ }
-  post "webhooks/pagamentos/:channel_id", to: "webhooks/payments#create", as: :payments_webhook
 
   # Aviso de um fornecedor de instrumentos de pagamento (12, parte D): uma rota por conta de pagamento. O Pix da Efí acrescenta `/pix` à URL registrada.
   post "webhooks/pagamentos/contas/:conta(/pix)", to: "webhooks/payment_accounts#create", as: :payment_account_webhook, format: false, constraints: { conta: /\d+/ }

@@ -21,9 +21,23 @@ class PaymentsInstrumentSyncTest < ActiveSupport::TestCase
     assert_equal [ 100_000, 100_000 ], [ instrument.paid_cents, instrument.payment.amount_cents ]
     assert_predicate bill.reload, :paid?
     payment = Payment.sole
-    assert_equal [ "applied", "boleto", "NF-1", instrument.account.channel_id ], [ payment.status, payment.payment_method, payment.bill_number, payment.channel_id ]
+    assert_equal [ "applied", "boleto", "NF-1", instrument.account.provider ], [ payment.status, payment.payment_method, payment.bill_number, payment.provider ]
     assert_equal "FAKE-BOLETO-1", payment.identifier.delete_prefix("fake:")
     assert_equal "instrumento #{instrument.custom_id}", Import.payments.last.original_name
+    assert_equal [ "0001-99999-0", "0001999990" ], [ payment.account_code, payment.account_key ]
+  end
+
+  test "a mesma transação do instrumento na planilha, com o fornecedor e a conta da integração, é já registrada (16, revisão 2; 03, R48)" do
+    _bill, instrument = paid_scenario
+    fake_paid!(instrument)
+    @sync.call(instrument)
+    payment = Payment.sole
+    line = payment_line("fornecedor" => "FAKE", "conta" => "0001 99999 0", "identificador" => payment.identifier, "meio" => "boleto")
+    import = run_payments_import([ line ])
+    assert_equal "pagamento já registrado, ignorado", import.rejections.sole.reason
+    import.update!(status: :discarded)
+    other = run_payments_import([ line.merge("conta" => "0001-99999-1") ]).tap { |checked| checked.update!(status: :discarded) }
+    assert_equal 0, other.rejections.count, "outra conta é outro pagamento"
   end
 
   test "Pix e cartão entram com o meio certo (R284)" do
@@ -98,7 +112,6 @@ class PaymentsInstrumentSyncTest < ActiveSupport::TestCase
 
   test "promessa (PRM-) pelo número do objeto cobrado" do
     customer, nf1, _nf2 = promise_scenario(@alfa, charges: false)
-    make_channel(@alfa)
     promise = register_promise(customer, [ nf1 ])
     instrument = emit(@alfa, customer, "pix", 100_000, object: promise)
     fake_paid!(instrument)
@@ -213,7 +226,6 @@ class PaymentsInstrumentSyncTest < ActiveSupport::TestCase
     bill, instrument = paid_scenario
     beta = tenants(:beta)
     other_customer = make_customer(beta, document: PaymentsHelper::JOAO, name: "João")
-    make_channel(beta, code: "BETA-1")
     other = emit(beta, other_customer, "boleto", 100_000)
     fake_paid!(other)
     event = PaymentEvent.record(instrument.account, Payments::Providers::Notification.new(event_id: "X", kind: :paid, external_id: other.external_id)).first

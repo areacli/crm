@@ -147,13 +147,12 @@ class Agreements::AcceptanceTest < ActiveSupport::TestCase
   end
 
   test "R220: pagamento chegado depois da montagem e pagamento estornado depois dela recusam o aceite" do
-    channel = make_channel(@alfa)
     travel_to at(13)
-    payment = Payment.create!(tenant: @alfa, channel: channel, identifier: "P-1", document: "52998224725", bill_number: "NF-2", bill: @nf2, paid_on: AGREEMENT_DAY, amount_cents: 100, payment_method: "pix", status: "applied", applied_cents: 100)
+    payment = Payment.create!(provider: "itau", provider_name: "Itaú", account_key: "0341123456", account_code: "0341-12345-6", tenant: @alfa, identifier: "P-1", document: "52998224725", bill_number: "NF-2", bill: @nf2, paid_on: AGREEMENT_DAY, amount_cents: 100, payment_method: "pix", status: "applied", applied_cents: 100)
     assert_equal I18n.t("agreements.accept_refused.bill_paid", number: "NF-2"), refuse_agreement { accept }
     payment.update_columns(created_at: at(11))
 
-    PaymentReversal.create!(tenant: @alfa, channel: channel, payment: payment, identifier: "E-1", reversed_on: AGREEMENT_DAY, amount_cents: 100, from_credit_cents: 0, from_bill_cents: 100)
+    PaymentReversal.create!(tenant: @alfa, payment: payment, identifier: "E-1", reversed_on: AGREEMENT_DAY, amount_cents: 100, from_credit_cents: 0, from_bill_cents: 100)
     assert_equal I18n.t("agreements.accept_refused.bill_reversed", number: "NF-2"), refuse_agreement { accept }
   end
 

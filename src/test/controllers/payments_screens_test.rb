@@ -1,102 +1,37 @@
 require "test_helper"
 
-# Telas de pagamentos: permissões 4, 5, 6, 14 e 17 por credor, isolamento (V10), canais, políticas, importações, ficha e resumo.
+# Telas de pagamentos: permissões 4, 5, 6, 14 e 17 por credor, isolamento (V10), políticas, importações, ficha e resumo.
 class PaymentsScreensTest < ActionDispatch::IntegrationTest
   include ActiveJob::TestHelper
 
   setup do
     @alfa = tenants(:alfa)
     @beta = tenants(:beta)
-    @channel = make_channel(@alfa)
-    @beta_channel = make_channel(@beta, code: "BETA-1")
   end
 
   def entrar(user, password = "senha-de-teste-1")
     post session_path, params: { email_address: user.email_address, password: password }
   end
 
-  test "operador não vê canais, políticas nem importação de pagamentos (404 registrado)" do
+  test "operador não vê políticas, meios de pagamento nem importação de pagamentos (404 registrado)" do
     entrar(users(:carlos))
-    [ settings_channels_path, settings_payment_policy_path, new_import_path(tipo: "pagamentos"), new_import_path(tipo: "estornos") ].each do |path|
+    [ settings_payment_methods_path, settings_payment_policy_path, new_import_path(tipo: "pagamentos"), new_import_path(tipo: "estornos") ].each do |path|
       get path, headers: TRECHO
       assert_response :not_found, path
     end
     assert_operator AccessEvent.where(event: "access_denied").count, :>=, 4
   end
 
-  test "lista de canais mostra só os credores da permissão 4 (V10) e o link direto de outro credor responde 404 registrado" do
+  test "métodos de recebimento não existem mais: o endereço não responde e nenhuma tela diz o nome (16, revisão 2; padrões de interface, revisão 48)" do
     entrar(users(:joana))
-    get settings_channels_path, headers: TRECHO
+    get "/configuracao/metodos-de-recebimento", headers: TRECHO
+    assert_response :not_found
+    get settings_payment_methods_path, headers: TRECHO
     assert_response :success
-    assert_select "th a", text: @channel.code
-    assert_select "th a", text: "BETA-1", count: 0
-    get edit_settings_channel_path(@beta_channel), headers: TRECHO
-    assert_response :not_found
-    assert_equal @beta.id, AccessEvent.where(event: "access_denied").last.tenant_id
-    patch settings_channel_path(@beta_channel), params: { payment_channel: { description: "x", kind: "card", code: "Z", active: "1" } }
-    assert_response :not_found
-    delete settings_channel_path(@beta_channel)
-    assert_response :not_found
-    assert PaymentChannel.exists?(@beta_channel.id)
-  end
-
-  test "quem tem a permissão 4 nos dois credores vê os dois, com a coluna Credor" do
-    user = make_user(@alfa, %w[change_settings])
-    Membership.create!(user: user, tenant: @beta, profile: Profile.create!(tenant: @beta, name: "Cfg", permissions: %w[view_portfolio change_settings]))
-    entrar(user)
-    get settings_channels_path, headers: TRECHO
-    assert_select "th a", text: "BETA-1"
-    assert_select "th", text: "Credor"
-  end
-
-  test "cadastra, edita e apaga um canal; tudo fica registrado (R45)" do
-    entrar(users(:joana))
-    post settings_channels_path, params: { payment_channel: { tenant_id: @alfa.id, kind: "card", code: "1029384756", description: "Cielo" } }
-    assert_redirected_to settings_channels_path
-    channel = PaymentChannel.find_by!(code: "1029384756")
-    assert_equal "created", Change.where(subject_type: "channel", subject_id: channel.id).last.event
-
-    patch settings_channel_path(channel), params: { payment_channel: { kind: "account", code: "NOVO", description: "Cielo loja", active: "1" } }
-    assert_equal [ "NOVO", "Cielo loja", "account" ], channel.reload.values_at(:code, :description, :kind).map(&:to_s)
-    assert_includes Change.where(subject_id: channel.id, event: "updated").pluck(:field), "description"
-
-    delete settings_channel_path(channel)
-    assert_redirected_to settings_channels_path
-    assert_not PaymentChannel.exists?(channel.id)
-    assert_equal "deleted", Change.where(subject_type: "channel", subject_id: channel.id).last.event
-  end
-
-  test "código repetido no credor é recusado; o mesmo código em outro credor vale" do
-    entrar(users(:joana))
-    post settings_channels_path, params: { payment_channel: { tenant_id: @alfa.id, kind: "account", code: @channel.code, description: "Repetido" } }
-    assert_response :unprocessable_content
-    assert_equal 1, PaymentChannel.where(code: @channel.code).count
-    assert_equal 2, PaymentChannel.where(code: [ @channel.code, "BETA-1" ]).count
-  end
-
-  test "canal com pagamento: o código não muda, só se desativa e não se apaga" do
-    make_bill(@alfa)
-    confirm_import(run_payments_import([ payment_line ]))
-    entrar(users(:joana))
-    patch settings_channel_path(@channel), params: { payment_channel: { kind: "account", code: "OUTRO", description: "Nova descrição", active: "0" } }
-    @channel.reload
-    assert_equal [ PaymentsHelper::CHANNEL_CODE, "Nova descrição", false ], [ @channel.code, @channel.description, @channel.active ]
-    delete settings_channel_path(@channel)
-    assert_redirected_to root_path
-    assert PaymentChannel.exists?(@channel.id)
-  end
-
-  test "o segredo do webhook aparece uma só vez na edição" do
-    entrar(users(:joana))
-    post settings_channel_webhook_secret_path(@channel)
-    assert_redirected_to edit_settings_channel_path(@channel)
-    seguir_redirecionamento!
-    secret = @channel.reload.webhook_secret
-    assert_includes response.body, secret
-    get edit_settings_channel_path(@channel), headers: TRECHO
-    assert_not_includes response.body, secret
-    assert_equal "webhook_secret_generated", Change.where(subject_id: @channel.id).last.event
-    assert_nil Change.where(subject_id: @channel.id).pluck(:before, :after).flatten.compact.find { |value| value.include?(secret) }
+    assert_no_match(/m[ée]todos? de recebimento/i, response.body)
+    get new_import_path(tipo: "pagamentos"), headers: TRECHO
+    assert_no_match(/m[ée]todos? de recebimento|metodo_recebimento/i, response.body)
+    assert_includes response.body, "fornecedor"
   end
 
   test "políticas de pagamento: a permissão 14 é separada da 4 e cada mudança fica registrada" do
@@ -121,8 +56,8 @@ class PaymentsScreensTest < ActionDispatch::IntegrationTest
   # Na SPA (fase 7), o item marcado é da casca (`spa/aplicacao`); o `menu.json` traz o submenu Configuração com as seções que o usuário vê.
   test "o item Configuração do menu traz as seções que o usuário vê, e a página delas responde como trecho" do
     entrar(make_user(@alfa, %w[change_financial_policies]))
-    # Com a 14 aparecem Métodos de recebimento e Meios de pagamento (16, revisão 1), Políticas de pagamento, Segmentos e Enquadramento financeiro (13), Promessas e acordos (10, R206) e Índices (08, R158).
-    assert_equal [ "Métodos de recebimento", "Meios de pagamento", "Políticas de pagamento", "Segmentos", "Enquadramento financeiro", "Promessas e acordos", "Índices" ], submenu_do_menu("Configuração")
+    # Com a 14 aparecem Meios de pagamento (16, revisões 1 e 2), Políticas de pagamento, Segmentos e Enquadramento financeiro (13), Promessas e acordos (10, R206) e Índices (08, R158).
+    assert_equal [ "Meios de pagamento", "Políticas de pagamento", "Segmentos", "Enquadramento financeiro", "Promessas e acordos", "Índices" ], submenu_do_menu("Configuração")
     get settings_payment_policy_path, headers: TRECHO
     assert_response :success
     assert_select "h1", text: "Políticas de pagamento"
@@ -183,7 +118,7 @@ class PaymentsScreensTest < ActionDispatch::IntegrationTest
     entrar(users(:joana))
     get template_imports_path(tipo: "pagamentos")
     assert_response :success
-    assert_includes response.body, "metodo_recebimento;identificador;documento;titulo;data_pagamento;valor;meio"
+    assert_includes response.body, "fornecedor;conta;identificador;documento;titulo;data_pagamento;valor;meio"
     get template_imports_path(tipo: "estornos")
     assert_includes response.body, "identificador_pagamento;identificador_estorno"
   end
@@ -199,7 +134,7 @@ class PaymentsScreensTest < ActionDispatch::IntegrationTest
     manager = SourceSystems::Manager.new(users(:joana))
     sap = manager.create(tenant: @alfa, name: "SAP", key_kind: "natural")
     get template_imports_path(tipo: "pagamentos")
-    assert_equal "metodo_recebimento;identificador;documento;titulo;data_pagamento;valor;meio;estado_final;sistema", response.body.lines.first.strip.delete_prefix("\uFEFF")
+    assert_equal "fornecedor;conta;identificador;documento;titulo;data_pagamento;valor;meio;estado_final;sistema", response.body.lines.first.strip.delete_prefix("\uFEFF")
     assert_includes response.body.lines.second, ";SAP"
     manager.create(tenant: @alfa, name: "ERP", key_kind: "own_id")
     get template_imports_path(tipo: "pagamentos")
@@ -318,7 +253,6 @@ class PaymentsScreensTest < ActionDispatch::IntegrationTest
   test "resumo: recuperado por meio, créditos e pendentes, somados sobre os credores visíveis, sem cartão por credor (R58, 25/10/2026)" do
     make_bill(@alfa, amount_cents: 100_000)
     make_bill(@beta, amount_cents: 20_000)
-    make_channel(@beta)
     confirm_import(run_payments_import([ payment_line("valor" => "1.050,00"), payment_line("identificador" => "P2", "titulo" => "NF-9", "valor" => "30,00", "meio" => "boleto") ]))
     Membership.create!(user: users(:joana), tenant: @beta, profile: profiles(:beta_operator))
     entrar(users(:joana))

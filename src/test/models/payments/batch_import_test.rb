@@ -9,7 +9,6 @@ class Payments::BatchImportTest < ActiveSupport::TestCase
 
   setup do
     @alfa = tenants(:alfa)
-    @channel = make_channel(@alfa)
     @joana = users(:joana)
     @bills = [ make_bill(@alfa, number: "NF-1", amount_cents: 100_000),
                make_bill(@alfa, number: "NF-2", amount_cents: 50_000, document: JOAO, contract_code: "CT-2"),

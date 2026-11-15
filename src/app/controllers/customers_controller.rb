@@ -150,7 +150,7 @@ class CustomersController < ApplicationController
     def load_payments_and_credits
       # Pagamentos de promessa não têm título (10, R194): aparecem pelo número da promessa, nas promessas dos contratos do cliente.
       promise_ids = PaymentPromise.where(contract_id: @contract ? @contract.id : ContractCustomer.where(customer_id: @customer.id).select(:contract_id)).select(:id)
-      @payments = Payment.where(bill_id: @bills.map(&:id)).or(Payment.where(promise_id: promise_ids)).applied.includes(:channel, :bill).order(paid_on: :desc, id: :desc)
+      @payments = Payment.where(bill_id: @bills.map(&:id)).or(Payment.where(promise_id: promise_ids)).applied.includes(:bill).order(paid_on: :desc, id: :desc)
       @contracts = @contract ? [ @contract ] : @all_contracts
       @contract_operations = Operations::Context.operation? ? {} : Distributions::Holders.for_contracts(@all_contracts.map(&:id))
       @timeline = CustomerTimeline.new(@customer, contract: @contract, kind: params[:linha], page: params[:linha_pagina], distributions: !Operations::Context.operation?)

@@ -3,7 +3,7 @@
 <% modality = @account.modality.present? ? t("payments.accounts.modalities.#{@account.modality}") : nil %>
 <% titulo = @replaced ? t("payments.methods.replace.title", modality: modality) : [ "Nova integração", modality ].compact.join(": ") %>
 <% fixed = @replaced || (@account.modality.present? && @account.tenant_id.present? && @tenants.exists?(@account.tenant_id)) %>
-<% subtitulo = fixed ? safe_join([ Tenant.find(@account.tenant_id).name, t("payments.accounts.environments.#{@account.environment}"), (@replaced && "hoje pela integração #{@replaced.nickname} (#{provider_name(@replaced.provider)})") ].compact, " · ") : "Um fornecedor de boleto, Pix ou cartão de crédito ligado a um método de recebimento do credor." %>
+<% subtitulo = fixed ? safe_join([ Tenant.find(@account.tenant_id).name, t("payments.accounts.environments.#{@account.environment}"), (@replaced && "hoje pela integração #{@replaced.nickname} (#{provider_name(@replaced.provider)})") ].compact, " · ") : "Um fornecedor de boleto, Pix ou cartão de crédito do credor." %>
 <% content_for :title, "Configuração · #{titulo}" %>
 <%= pagina titulo, subtitulo: subtitulo %>
 <%= render "settings/modelo" %>
@@ -52,7 +52,7 @@
         <dl class="dados">
           <dt>Fornecedor</dt><dd><%= provider_name(@replaced.provider) %></dd>
           <dt>Apelido</dt><dd><%= @replaced.nickname %></dd>
-          <dt>Método de recebimento</dt><dd><%= "#{@replaced.channel.code} · #{@replaced.channel.description}" %></dd>
+          <dt>Conta</dt><dd><%= @replaced.account_code %></dd>
           <dt>Instrumentos vigentes</dt><dd><%= number_with_delimiter(@replaced.instruments.where(open: true).count) %></dd>
           <dt>Depois da troca</dt><dd>Desativada, com a troca no histórico. O que ela emitiu continua sendo cancelado e conferido por ela.</dd>
         </dl>

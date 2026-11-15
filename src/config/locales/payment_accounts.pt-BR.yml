@@ -4,9 +4,9 @@ pt-BR:
     attributes:
       payment_account:
         nickname: "Apelido"
+        account_code: "Conta"
         provider: "Fornecedor"
         modality: "Meio de pagamento"
-        channel: "Método de recebimento"
     errors:
       models:
         payment_account:
@@ -15,8 +15,9 @@ pt-BR:
               unavailable: "não está instalado neste sistema"
             modality:
               unsupported: "não é atendida por esse fornecedor"
-            channel:
-              other_tenant: "é de outro credor"
+            account_code:
+              blank: "não pode ficar em branco"
+              too_long: "tem no máximo 100 caracteres"
             nickname:
               taken: "já está em uso neste credor"
               blank: "não pode ficar em branco"
@@ -28,11 +29,6 @@ pt-BR:
               too_long_field: "%{field} tem no máximo %{count} caracteres."
               not_a_number: "%{field} deve ser um número."
               out_of_range: "%{field} deve estar entre %{min} e %{max}."
-        payment_channel:
-          attributes:
-            base:
-              "restrict_dependent_destroy":
-                has_many: "O método de recebimento tem integrações e não pode ser excluído."
   payments:
     instruments:
       no_account: "O credor não tem conta de %{kind} ativa neste ambiente."
@@ -55,8 +51,6 @@ pt-BR:
       too_large: "O arquivo é grande demais para ser um certificado (o limite é 64 KB)."
       no_private_key: "O arquivo não tem a chave privada."
       expired: "O certificado venceu em %{date}."
-    channels:
-      has_accounts: "O método de recebimento tem integrações. Exclua-as antes de excluir o método."
     accounts:
       in_use: "A conta já emitiu instrumentos e não se apaga; desative-a."
       modalities:
@@ -79,7 +73,7 @@ pt-BR:
         failed: "Falha: %{message}"
       fields:
         nickname: "Apelido"
-        channel: "Método de recebimento"
+        account_code: "Conta"
         active: "Situação"
         connection: "Conexão"
       history:

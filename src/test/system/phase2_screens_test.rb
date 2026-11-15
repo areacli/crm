@@ -25,8 +25,8 @@ class Phase2ScreensSystemTest < ApplicationSystemTestCase
   # As telas da administração e da configuração, que foram para a SPA na fase 7 (as das fases 3 a 6 já tinham saído); lá o axe não roda (D7).
   def rotas
     [ memberships_path, membership_path(Membership.find_by!(user: users(:carlos))),
-      profiles_path, new_profile_path, data_retention_path, settings_tenant_registry_path, settings_portfolio_path, settings_channels_path,
-      edit_settings_channel_path(@alfa.payment_channels.first || make_channel(@alfa)), settings_payment_policy_path, new_settings_payment_account_path(credor: @alfa.id),
+      profiles_path, new_profile_path, data_retention_path, settings_tenant_registry_path, settings_portfolio_path,
+      settings_payment_methods_path, settings_payment_policy_path, new_settings_payment_account_path(credor: @alfa.id),
       settings_segments_path, new_settings_segment_path(credor: @alfa.id), settings_tiers_path, settings_promises_path, settings_indexes_path, settings_contact_results_path ]
   end
 

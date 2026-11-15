@@ -14,7 +14,7 @@ class OperationsStage4Test < ActionDispatch::IntegrationTest
   end
 
   test "R321: o pagamento aplicado grava a posse do contrato na data" do
-    payment = Payment.create!(tenant: @alfa, channel: make_channel(@alfa), bill: @ana.bills.first, bill_number: @ana.bills.first.number, paid_on: Date.current,
+    payment = Payment.create!(provider: "itau", provider_name: "Itaú", account_key: "0341123456", account_code: "0341-12345-6", tenant: @alfa, bill: @ana.bills.first, bill_number: @ana.bills.first.number, paid_on: Date.current,
                               amount_cents: 1_000, applied_cents: 1_000, payment_method: "pix", status: "applied", identifier: "POSSE-1", document: @ana.document)
     assert_equal [ @operation.id ], payment.possession_operation_ids
   end

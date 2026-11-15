@@ -98,8 +98,8 @@ module Agreements
         date = [ money_on, bill.created_at.to_date ].max
         agreement = bill.agreement || bill.origin_agreement
         tolerance = agreement&.tolerance_spec
-        payment = Payment.create!(tenant_id: bill.tenant_id, channel: CreditUse.channel_for(bill.tenant), identifier: "ALOC-#{SecureRandom.hex(5)}", document: bill.customer.document,
-                                  bill_number: bill.number, bill: bill, paid_on: date, amount_cents: cents, payment_method: "other", status: "applied")
+        payment = Payment.create!(tenant_id: bill.tenant_id, **CreditUse::PAYMENT, identifier: "ALOC-#{SecureRandom.hex(5)}", document: bill.customer.document,
+                                  bill_number: bill.number, bill: bill, paid_on: date, amount_cents: cents, status: "applied")
         outcome = TitleSettler.pay!(payment, bill, cents, date, tolerance: tolerance, early: false)
         raise Refused, I18n.t("agreements.reversion.nothing_applied") if outcome.applied.zero?
 
@@ -156,13 +156,13 @@ module Agreements
             cash = result.cash
             cash_total += cash
             CreditBook.add!(bill.contract_id, cash, reason: "settlement_reversed", bucket: "awaiting", payment_id: payment.id, agreement_id: agreement.id, note: bill.number, user: @actor) if cash.positive?
-            credit_paid[bill.contract_id] += cash if payment.channel.code == CreditUse::CHANNEL_CODE
+            credit_paid[bill.contract_id] += cash if payment.via_contract_credit?
             list << { "payment_id" => payment.id, "bill_id" => bill.id, "contract_id" => bill.contract_id, "parts" => result.parts, "abated" => result.abated, "cash" => cash }
           end
           next unless cash_total.positive?
 
           payment.update!(moved_to_credit_cents: payment.moved_to_credit_cents + cash_total)
-          PaymentReversal.create!(tenant_id: payment.tenant_id, channel_id: payment.channel_id, payment: payment, identifier: "#{LIQUIDATION_PREFIX}-#{agreement.number}-#{payment.id}", reversed_on: today,
+          PaymentReversal.create!(tenant_id: payment.tenant_id, payment: payment, identifier: "#{LIQUIDATION_PREFIX}-#{agreement.number}-#{payment.id}", reversed_on: today,
                                   amount_cents: cash_total, from_bill_cents: cash_total, reason: "liquidação estornada na reversão de #{agreement.number}")
         end
         agreement.terms["credit_paid"] = credit_paid.transform_keys(&:to_s)

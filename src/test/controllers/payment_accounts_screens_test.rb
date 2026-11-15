@@ -5,8 +5,6 @@ class PaymentAccountsScreensTest < ActionDispatch::IntegrationTest
   setup do
     @alfa = tenants(:alfa)
     @beta = tenants(:beta)
-    @channel = make_channel(@alfa)
-    @beta_channel = make_channel(@beta, code: "BETA-1")
   end
 
   def entrar(user, password = "senha-de-teste-1")
@@ -14,49 +12,31 @@ class PaymentAccountsScreensTest < ActionDispatch::IntegrationTest
   end
 
   def account_params(overrides = {})
-    { tenant_id: @alfa.id, channel_id: @channel.id, modality: "boleto", provider: "fake", environment: "sandbox", nickname: "Boleto Alfa",
+    { tenant_id: @alfa.id, account_code: "2847193", modality: "boleto", provider: "fake", environment: "sandbox", nickname: "Boleto Alfa",
       config: { connection_result: "ok", expire_days: "7" }, secrets: { api_key: "chave-1" } }.deep_merge(overrides)
   end
 
   test "operador não vê a aba nem as contas (404 registrado) (R267)" do
     entrar(users(:carlos))
-    get settings_channels_path, headers: TRECHO
+    get settings_payment_methods_path, headers: TRECHO
     assert_response :not_found
     get new_settings_payment_account_path, headers: TRECHO
     assert_response :not_found
     assert_operator AccessEvent.where(event: "access_denied").count, :>=, 2
   end
 
-  test "Métodos de recebimento mostra os meios de cada método, e as integrações ficam em Meios de pagamento (16, R373, R373d)" do
-    make_account(@alfa, nickname: "Boleto do método")
+  test "Meios de pagamento fica no menu no lugar de Métodos de recebimento, só com a 14 (16, R373, R373d; revisão 2)" do
     entrar(users(:joana))
     configuracao = submenu_do_menu("Configuração")
-    assert_equal configuracao.index("Métodos de recebimento") + 1, configuracao.index("Meios de pagamento")
+    assert_includes configuracao, "Meios de pagamento"
+    assert_not_includes configuracao, "Métodos de recebimento"
     assert_not_includes configuracao, "Contas de pagamento"
-    get settings_channels_path, headers: TRECHO
-    assert_response :success
-    assert_select "th", text: "Meios"
-    assert_select "td a[href=?]", settings_payment_methods_path(credor: @alfa.id), text: "Boleto"
-    assert_select "a", text: "Boleto do método", count: 0
-    assert_select "a", text: "Criar integração", count: 0
     only_settings = make_user(@alfa, %w[view_portfolio change_settings])
     delete session_path
     entrar(only_settings)
     assert_not_includes submenu_do_menu("Configuração"), "Meios de pagamento"
-    get settings_channels_path, headers: TRECHO
-    assert_response :success
-    assert_select "td", text: /Boleto/
-    assert_select "td a", text: "Boleto", count: 0
     get settings_payment_methods_path, headers: TRECHO
     assert_response :not_found
-    only_financial = make_user(@alfa, %w[view_portfolio change_financial_policies], email: "fin@alfa.test")
-    delete session_path
-    entrar(only_financial)
-    get settings_channels_path, headers: TRECHO
-    assert_response :success
-    assert_select "td a", text: "Boleto"
-    assert_select "th a", text: @channel.code, count: 0
-    assert_select "button", text: "Criar método de recebimento", count: 0
   end
 
   test "a página própria das contas de pagamento não existe mais (16, R373)" do
@@ -64,6 +44,8 @@ class PaymentAccountsScreensTest < ActionDispatch::IntegrationTest
     get "/configuracao/contas-de-pagamento", headers: TRECHO
     assert_response :not_found
     get "/configuracao/canais-de-recebimento", headers: TRECHO
+    assert_response :not_found
+    get "/configuracao/metodos-de-recebimento", headers: TRECHO
     assert_response :not_found
   end
 
@@ -96,7 +78,7 @@ class PaymentAccountsScreensTest < ActionDispatch::IntegrationTest
 
   test "criar conta em credor sem a permissão responde 404 (R267)" do
     entrar(users(:joana))
-    post settings_payment_accounts_path, params: { payment_account: account_params(tenant_id: @beta.id, channel_id: @beta_channel.id) }
+    post settings_payment_accounts_path, params: { payment_account: account_params(tenant_id: @beta.id) }
     assert_response :not_found
     assert_equal 0, PaymentAccount.where(tenant_id: @beta.id).count
   end
@@ -146,12 +128,14 @@ class PaymentAccountsScreensTest < ActionDispatch::IntegrationTest
     assert groups["Acesso"].at_css("input[type=file][name='payment_account[files][certificate]']")
     assert groups["Acesso"].at_css("input[type=password][name='payment_account[secrets][client_secret]']")
     assert groups["Acesso"].at_css("input[name='payment_account[config][pix_key]']")
+    assert groups["Acesso"].at_css("input[required][name='payment_account[account_code]']"), "a conta da integração abre o grupo Acesso (16, revisão 2)"
     assert groups["Cobrança"].at_css("input[name='payment_account[config][expire_days]']")
     assert_nil groups["Acesso"].at_css("input[name='payment_account[config][expire_days]']")
     assert_select "input[name='payment_account[config][payee_code]']", count: 0
     assert_select "form[enctype='multipart/form-data']"
-    # Com um método de recebimento só, ele já vem escolhido.
-    assert_select "select[name='payment_account[channel_id]'] option[selected]" if @alfa.payment_channels.where(active: true).one?
+    # 16, revisão 2: a integração não pede método de recebimento.
+    assert_select "[name='payment_account[channel_id]']", count: 0
+    assert_no_match(/m[ée]todo de recebimento/i, response.body)
     get new_settings_payment_account_path(credor: @alfa.id, meio: "boleto", ambiente: "homologacao", fornecedor: "efi"), headers: TRECHO
     assert_select "input[type=file]", count: 0
     assert_select "input[name='payment_account[config][write_off_days]']"
@@ -185,14 +169,14 @@ class PaymentAccountsScreensTest < ActionDispatch::IntegrationTest
   test "segredo vazio mantém o valor e preenchido troca, com histórico sem o valor (R261, R268)" do
     account = make_account(@alfa, nickname: "Edita", secrets: { "api_key" => "original" })
     entrar(users(:joana))
-    patch settings_payment_account_path(account), params: { payment_account: { nickname: "Edita", channel_id: @channel.id, secrets: { api_key: "" }, config: { expire_days: "9" } } }
+    patch settings_payment_account_path(account), params: { payment_account: { nickname: "Edita", secrets: { api_key: "" }, config: { expire_days: "9" } } }
     assert_redirected_to edit_settings_payment_account_path(account)
     assert_equal "original", account.reload.secrets["api_key"]
     assert_empty Change.where(subject_id: account.id, event: "secret_replaced")
     assert_equal [ "5", "9" ], Change.where(subject_id: account.id, event: "updated", field: "expire_days").pluck(:before, :after).first
 
     novo = sentinel("troca")
-    patch settings_payment_account_path(account), params: { payment_account: { nickname: "Edita", channel_id: @channel.id, secrets: { api_key: novo } } }
+    patch settings_payment_account_path(account), params: { payment_account: { nickname: "Edita", secrets: { api_key: novo } } }
     assert_equal novo, account.reload.secrets["api_key"]
     change = Change.where(subject_id: account.id, event: "secret_replaced").last
     assert_equal [ "api_key", nil, nil ], [ change.field, change.before, change.after ]
@@ -209,6 +193,19 @@ class PaymentAccountsScreensTest < ActionDispatch::IntegrationTest
     assert_select "aside[role=alert]", text: /Dias de validade deve estar entre 1 e 365/
     assert_select "aside[role=alert]", text: /Chave de API é obrigatório/
     assert_equal 0, PaymentAccount.count
+  end
+
+  test "a integração não salva sem a conta, e a conta digitada volta no formulário; o histórico registra a troca da conta (16, revisão 2; 12, R260)" do
+    entrar(users(:joana))
+    post settings_payment_accounts_path, params: { payment_account: account_params(account_code: " ") }
+    assert_response :unprocessable_content
+    assert_select "aside[role=alert]", text: /Conta não pode ficar em branco/
+    post settings_payment_accounts_path, params: { payment_account: account_params(account_code: " 2847-1 ") }
+    account = PaymentAccount.sole
+    assert_equal "2847-1", account.account_code
+    patch settings_payment_account_path(account), params: { payment_account: { nickname: account.nickname, account_code: "2847-2" } }
+    assert_equal "2847-2", account.reload.account_code
+    assert_equal [ "2847-1", "2847-2" ], Change.where(subject_type: "payment_account", subject_id: account.id, field: "account_code").sole.values_at(:before, :after)
   end
 
   test "segunda conta ativa da mesma modalidade e ambiente é recusada; ativar a desativada também enquanto há outra (R260)" do
@@ -239,7 +236,7 @@ class PaymentAccountsScreensTest < ActionDispatch::IntegrationTest
     account = make_account(@alfa, modality: "pix", nickname: "Pix Alfa", config: { "connection_result" => "ok", "pix_key" => "pix@alfa.com.br" })
     entrar(users(:joana))
     senha = sentinel("senha-p12")
-    patch settings_payment_account_path(account), params: { payment_account: { nickname: "Pix Alfa", channel_id: @channel.id, secrets: { certificate_password: senha },
+    patch settings_payment_account_path(account), params: { payment_account: { nickname: "Pix Alfa", secrets: { certificate_password: senha },
                                                                               files: { certificate: p12_upload(subject: "CN=Escola Alfa", days: 90, password: senha) } } }
     assert_redirected_to edit_settings_payment_account_path(account)
     seguir_redirecionamento!
@@ -255,7 +252,7 @@ class PaymentAccountsScreensTest < ActionDispatch::IntegrationTest
     account = make_account(@alfa, modality: "pix", nickname: "Pix Alfa", config: { "connection_result" => "ok", "pix_key" => "pix@alfa.com.br" })
     entrar(users(:joana))
     [ p12_upload(days: -3), p12_upload(with_key: false), p12_upload(password: "certa") ].each do |upload|
-      patch settings_payment_account_path(account), params: { payment_account: { nickname: "Pix Alfa", channel_id: @channel.id, secrets: { certificate_password: "errada" }, files: { certificate: upload } } }
+      patch settings_payment_account_path(account), params: { payment_account: { nickname: "Pix Alfa", secrets: { certificate_password: "errada" }, files: { certificate: upload } } }
       assert_response :unprocessable_content
       assert_select "aside[role=alert]", text: /Certificado \(\.p12\):/
     end
@@ -283,7 +280,7 @@ class PaymentAccountsScreensTest < ActionDispatch::IntegrationTest
   test "testar a conexão: o falso responde conforme a configuração e a Efí autentica de verdade (R266)" do
     ok = make_account(@alfa, nickname: "Boa")
     refused = make_account(@alfa, nickname: "Recusada", modality: "card", config: { "connection_result" => "refused" })
-    efi = @alfa.payment_accounts.build(channel: @channel, modality: "boleto", provider: "efi", environment: "production", nickname: "Efí")
+    efi = @alfa.payment_accounts.build(account_code: "0001-99999-0", modality: "boleto", provider: "efi", environment: "production", nickname: "Efí")
     efi.assign_values(secrets: { "client_id" => "i", "client_secret" => "s" })
     efi.save!
     entrar(users(:joana))
@@ -316,23 +313,19 @@ class PaymentAccountsScreensTest < ActionDispatch::IntegrationTest
     assert_match(/não se apaga/i, flash[:alert].to_s)
   end
 
-  test "apagar a conta registra o ato e o canal com conta não se apaga (R269)" do
+  test "apagar a conta registra o ato (R269)" do
     account = make_account(@alfa, nickname: "Some")
     entrar(users(:joana))
-    delete settings_channel_path(@channel)
-    assert PaymentChannel.exists?(@channel.id)
     delete settings_payment_account_path(account)
     assert_redirected_to settings_payment_methods_path(credor: @alfa.id)
     assert_not PaymentAccount.exists?(account.id)
     assert_equal "deleted", Change.where(subject_type: "payment_account", subject_id: account.id).order(:id).last.event
-    delete settings_channel_path(@channel)
-    assert_not PaymentChannel.exists?(@channel.id)
   end
 
   test "o histórico mostra antes e depois dos campos comuns e só o nome dos secretos (R268)" do
     account = make_account(@alfa, nickname: "Hist")
     entrar(users(:joana))
-    patch settings_payment_account_path(account), params: { payment_account: { nickname: "Hist 2", channel_id: @channel.id, config: { expire_days: "12" }, secrets: { api_key: sentinel("h") } } }
+    patch settings_payment_account_path(account), params: { payment_account: { nickname: "Hist 2", config: { expire_days: "12" }, secrets: { api_key: sentinel("h") } } }
     get edit_settings_payment_account_path(account), headers: TRECHO
     assert_select "section[aria-labelledby=historico] td", text: "Hist 2"
     assert_select "section[aria-labelledby=historico] td", text: "Dias de validade"
@@ -382,7 +375,7 @@ class PaymentAccountsScreensTest < ActionDispatch::IntegrationTest
     assert_select "aside", text: /A integração Boleto de teste deixa de emitir boleto em homologação quando a troca terminar\. Ela não tem instrumento vigente\./
     assert_select "input[type=radio][value=fake]", count: 0
     assert_select "input[type=radio][value=efi]"
-    post settings_payment_accounts_path, params: { payment_account: { replaces_id: old.id, tenant_id: @alfa.id, channel_id: @channel.id, modality: "boleto", provider: "efi", environment: "sandbox",
+    post settings_payment_accounts_path, params: { payment_account: { replaces_id: old.id, tenant_id: @alfa.id, account_code: "0001-2", modality: "boleto", provider: "efi", environment: "sandbox",
                                                                       nickname: "Boleto Efí homologação", secrets: { client_id: "id", client_secret: "segredo" } } }
     created = PaymentAccount.find_by!(nickname: "Boleto Efí homologação")
     assert_redirected_to edit_settings_payment_account_path(created)
@@ -392,7 +385,7 @@ class PaymentAccountsScreensTest < ActionDispatch::IntegrationTest
     assert_equal "replaced", Change.where(subject_type: "payment_account", subject_id: old.id).order(:id).last.event
     assert_equal "replacing", Change.where(subject_type: "payment_account", subject_id: created.id).order(:id).last.event
     # Só a ativa se troca.
-    post settings_payment_accounts_path, params: { payment_account: { replaces_id: old.id, tenant_id: @alfa.id, channel_id: @channel.id, modality: "boleto", provider: "fake", environment: "sandbox",
+    post settings_payment_accounts_path, params: { payment_account: { replaces_id: old.id, tenant_id: @alfa.id, account_code: "0001-2", modality: "boleto", provider: "fake", environment: "sandbox",
                                                                       nickname: "Outra troca", config: { connection_result: "ok" }, secrets: { api_key: "x" } } }
     assert_response :unprocessable_content
     assert_not PaymentAccount.exists?(nickname: "Outra troca")
@@ -404,7 +397,7 @@ class PaymentAccountsScreensTest < ActionDispatch::IntegrationTest
     entrar(users(:joana))
     get new_settings_payment_account_path(substitui: old.id, payment_account: { replaces_id: old.id, provider: "pagbank" }), headers: TRECHO
     assert_select "aside", text: /Até a conexão voltar, boleto continua pela integração Boleto de teste/
-    post settings_payment_accounts_path, params: { payment_account: { replaces_id: old.id, tenant_id: @alfa.id, channel_id: @channel.id, modality: "boleto", provider: "pagbank", environment: "sandbox",
+    post settings_payment_accounts_path, params: { payment_account: { replaces_id: old.id, tenant_id: @alfa.id, account_code: "0001-2", modality: "boleto", provider: "pagbank", environment: "sandbox",
                                                                       nickname: "Boleto PagBank homologação" } }
     created = PaymentAccount.find_by!(nickname: "Boleto PagBank homologação")
     assert_not created.active?

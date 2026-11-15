@@ -127,7 +127,7 @@ pt-BR:
       promise_state: { pending: "pendente", open: "aberta", fulfilled: "cumprida", fulfilled_late: "cumprida com atraso", broken: "quebrada", canceled: "cancelada", refused: "recusada", not_approved: "não aprovada" }
       agreement_state: { pending: "pendente", approved: "aprovada", refused: "recusada", not_approved: "não aprovada", expired: "expirada", canceled: "cancelada", awaiting_effectuation: "aguardando efetivação", active_on_time: "em dia", active_late: "em atraso", settled: "quitado", broken: "quebrado", renegotiated: "renegociado" }
       mode: { installments: "parcelado", cash: "à vista" }
-      method: { pix: "Pix", boleto: "boleto", credit_card: "cartão de crédito", debit_card: "cartão de débito", transfer: "transferência", cash: "dinheiro", other: "outro" }
+      method: { pix: "Pix", pix_recurring: "Pix recorrente", boleto: "boleto", credit_card: "cartão de crédito", debit_card: "cartão de débito", transfer: "transferência", cash: "dinheiro", other: "outro", contract_credit: "crédito do contrato" }
       command_kind: { sms: "SMS", email: "e-mail", whatsapp: "WhatsApp", letter: "carta", issue_instrument: "emissão", proposal: "proposta", promise: "promessa", task: "tarefa", negativation: "negativação", protest: "protesto", lawsuit: "ajuizamento", credit_suspension: "suspensão do crédito" }
       command_state: { queued: "na fila", executed: "executado", failed: "falhou", no_return: "sem retorno", discarded: "descartado" }
     unknown_result: "resultado removido"

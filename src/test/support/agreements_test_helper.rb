@@ -54,7 +54,6 @@ module AgreementsTestHelper
   # Proposta aceita da Maria (aguardando efetivação) com o canal de pagamentos pronto; devolve [cliente, NF-1, NF-2, acordo].
   def accepted_agreement(tenant = tenants(:alfa), **options)
     customer, nf1, nf2 = agreement_scenario(tenant)
-    make_channel(tenant)
     agreement = create_proposal(customer, [ nf1, nf2 ], **options)
     accept_proposal(agreement, customer)
     [ customer, nf1, nf2, agreement.reload ]

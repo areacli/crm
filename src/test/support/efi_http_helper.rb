@@ -45,8 +45,7 @@ module EfiHttpHelper
 
   # Conta Efí pronta (credenciais de teste; para Pix, com .p12).
   def make_efi_account(tenant, modality: "boleto", environment: "sandbox", nickname: nil)
-    channel = tenant.payment_channels.first || make_channel(tenant)
-    account = tenant.payment_accounts.build(channel: channel, modality: modality, provider: "efi", environment: environment, nickname: nickname || "Efí #{modality} #{SecureRandom.hex(2)}")
+    account = tenant.payment_accounts.build(account_code: "0001-99999-0", modality: modality, provider: "efi", environment: environment, nickname: nickname || "Efí #{modality} #{SecureRandom.hex(2)}")
     secrets = { "client_id" => "Client_Id_#{SecureRandom.hex(4)}", "client_secret" => "Client_Secret_#{SecureRandom.hex(4)}" }
     config = { "pix_key" => "pix@alfa.com.br", "fine_percent" => 2, "interest_percent" => 1, "write_off_days" => 30 }
     config = config.merge("payee_code" => "ac0123456789abcdef", "max_installments" => 6) if modality == "card"

@@ -21,7 +21,7 @@ class PaymentPromise < ApplicationRecord
 
   # `prefix` porque `open` colidiria com o método do Kernel.
   enum :state, STATES.index_with(&:itself), prefix: :state, validate: true
-  enum :payment_method, Payment.payment_methods, prefix: :via, validate: true
+  enum :payment_method, PaymentMethod::ENUM, prefix: :via, validate: true
 
   scope :holding, -> { where(state: HOLDING) }
   scope :recent, -> { order(created_at: :desc, id: :desc) }

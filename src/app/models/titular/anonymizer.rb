@@ -95,12 +95,6 @@ module Titular
       Sql.run("update value_discrepancies set note = ? where note is not null and bill_id in (select id from bills where customer_id in #{targets})", REMOVED)
       Sql.run("update credits set note = ? where reason = 'transfer' and note is not null and contract_id in " \
               "(select cc.contract_id from contract_customers cc where cc.customer_id in #{targets})", REMOVED)
-      Sql.run(<<~SQL, t)
-        update webhook_events w set payload = jsonb_set(w.payload, '{data,document}', to_jsonb(tg.new_document))
-        from anon_targets tg
-        where w.tenant_id = ? and jsonb_typeof(w.payload #> '{data}') = 'object'
-          and upper(regexp_replace(coalesce(w.payload #>> '{data,document}', ''), '[^0-9A-Za-z]', '', 'g')) = tg.old_document
-      SQL
 
       # O registro (R134) é escrito antes de trocar o nome, para guardar o identificador novo, e nunca o documento nem o nome antigo.
       Sql.run(<<~SQL, t, @actor&.id, @reason, @form)

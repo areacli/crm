@@ -23,7 +23,7 @@ pt-BR:
         - title: "Promessas e acordos com régua"
           text: "Registre promessas, acompanhe os prazos e monte acordos com alçada e termo de aceite."
         - title: "Instrumentos de pagamento"
-          text: "Pix, boleto e cartão em link público, com a baixa pelos métodos de recebimento do credor."
+          text: "Pix, boleto e cartão em link público, com a baixa pelo aviso de cada fornecedor."
         - title: "Auditoria e LGPD"
           text: "Histórico de cada alteração, acesso por perfil e os direitos do titular atendidos na ficha."
   imports:
@@ -91,8 +91,9 @@ pt-BR:
   payments:
     sheet:
       payments:
-        metodo_recebimento: "Código de um método de recebimento cadastrado e ativo"
-        identificador: "Código do evento no método de recebimento, único dentro dele"
+        fornecedor: "Quem deu o identificador: o banco, a adquirente ou o fornecedor de pagamento (Itaú, Cielo, Efí...), sem diferença de maiúsculas, acentos e espaços"
+        conta: "A conta no fornecedor: agência e conta, convênio ou id da conta, como na integração do meio de pagamento; sem diferença de espaços e hífens"
+        identificador: "O identificador único da transação (id da transação Pix, nosso número do boleto, TID ou NSU do cartão); único com o fornecedor e a conta"
         documento: "CPF ou CNPJ de quem pagou"
         titulo: "Número do título pago; sem ele a linha é recusada"
         data_pagamento: "Data dd/mm/aaaa, não futura"
@@ -103,9 +104,11 @@ pt-BR:
         sistema: "Nome do sistema de onde o pagamento vem; obrigatório no credor com mais de um sistema, menos na linha com número de promessa (PRM-) ou de acordo (ACD-)"
         id_titulo: "Id do título no sistema, até 100 caracteres; vale em sistema de id próprio e é ignorado em chave natural"
       reversals:
-        metodo_recebimento: "Código de um método de recebimento cadastrado (pode estar desativado)"
-        identificador_pagamento: "Identificador do pagamento estornado, no método de recebimento"
-        identificador_estorno: "Único dentro do método de recebimento"
+        meio: "O meio do pagamento estornado: pix, pix recorrente, boleto, cartão de crédito, cartão de débito, transferência, dinheiro ou outro"
+        fornecedor: "O fornecedor do pagamento estornado, como veio na planilha de pagamentos ou o da integração (Efí, Bradesco, PagBank, Mercado Pago)"
+        conta: "A conta do pagamento estornado, como veio na planilha de pagamentos ou a da integração"
+        identificador_pagamento: "Identificador do pagamento estornado"
+        identificador_estorno: "Único com o fornecedor e a conta"
         data_estorno: "Data dd/mm/aaaa, não futura nem anterior ao pagamento"
         valor: "Reais, com vírgula nos centavos; até o que falta estornar"
         motivo: "Texto, até 300 caracteres"
@@ -124,6 +127,7 @@ pt-BR:
       transfer: "Transferência"
       cash: "Dinheiro"
       other: "Outro"
+      contract_credit: "Crédito do contrato"
     credit_reasons:
       already_paid: "Título já pago"
       excess: "Excedente"
@@ -140,12 +144,6 @@ pt-BR:
       reason_required: "Informe o motivo da transferência."
       invalid_amount: "O valor da transferência deve ser maior que zero."
       above_available: "O valor é maior que o crédito disponível do contrato de origem (R$ %{available})."
-    channels:
-      in_use: "O método de recebimento tem pagamentos: só pode ser desativado."
-      kinds:
-        account: "Conta bancária"
-        agreement: "Convênio de cobrança"
-        card: "Estabelecimento de cartão"
     policies:
       partial_payment_policy:
         partial: "Baixa parcial: o saldo do título diminui e ele continua em cobrança"
@@ -328,13 +326,6 @@ pt-BR:
           done: "Resultado %{name} reativado."
         destroy:
           done: "Resultado %{name} desativado: some da escolha e continua nos acionamentos antigos."
-    channels:
-      create:
-        done: "Método de recebimento %{code} cadastrado."
-      update:
-        done: "Método de recebimento %{code} salvo."
-      destroy:
-        done: "Método de recebimento %{code} excluído."
     payment_policies:
       update:
         done: "Políticas de pagamento de %{tenant} salvas."

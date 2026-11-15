@@ -3,7 +3,7 @@ module Payments
   # cancelado ou devolvido a partir de aviso ou conciliação, e ele sempre CONSULTA o fornecedor antes: o aviso só diz que vale a pena olhar, nunca
   # decide (corpo que diz "pago" com consulta que diz "ativo" não muda nada). Idempotente: repetir com o mesmo estado consultado não faz nada.
   #
-  #   ativo, vencido ou falho (com identificador) -> pago: registra o pagamento no canal da conta pelo mesmo caminho do arquivo (ExternalPayment: baixa
+  #   ativo, vencido ou falho (com identificador) -> pago: registra o pagamento com o meio, o fornecedor e a conta da integração pelo mesmo caminho do arquivo (ExternalPayment: baixa
   #   pelas políticas do credor, encargos por componente, promessas PRM- e acordos ACD- pelo número do objeto cobrado) e liga o instrumento a ele;
   #   ativo -> vencido ou cancelado; pago com devolução maior que a registrada -> estorno do pagamento ligado.
   #
@@ -74,7 +74,7 @@ module Payments
         posting.kind == :review ? posting : Outcome.new(:applied, "instrumento pago: #{posting.text}")
       end
 
-      # Entra no mesmo caminho do pagamento existente (R284): o pagamento é do canal da conta. 17, R417b: ele vale para o objeto a que o instrumento foi emitido,
+      # Entra no mesmo caminho do pagamento existente (R284): o pagamento leva o meio do instrumento e o fornecedor e a conta da integração (03, revisão 12). 17, R417b: ele vale para o objeto a que o instrumento foi emitido,
       # percorrendo a ligação: o título vai pronto (outro título de mesmo número, em outro sistema, não entra na conta) e a promessa segue pelo número dela, que é
       # único no credor. O pai do pagamento é o CRM, que emitiu o instrumento.
       def post_payment(instrument, paid_cents, paid_at, notification)
@@ -83,13 +83,14 @@ module Payments
 
         identifier = notification&.end_to_end_id.presence || "#{instrument.provider}:#{instrument.external_id}"
         paid_on = [ paid_at.in_time_zone.to_date, Date.current ].min
-        result = ExternalPayment.new.pay(instrument.account.channel, { identifier: identifier, document: instrument.payer_document, bill_number: number, paid_on: paid_on,
+        result = ExternalPayment.new.pay(instrument.account, { identifier: identifier, document: instrument.payer_document, bill_number: number, paid_on: paid_on,
                                                                        amount_cents: paid_cents, payment_method: PaymentMethod.label(PaymentMethod.for_instrument(instrument.kind)),
                                                                        own: true, target_bill_id: instrument.bill_id },
                                          label: "instrumento #{instrument.custom_id}")
         return Outcome.new(:review, "o pagamento não entrou: #{result.outcome}") if result.status == :rejected
 
-        payment = Payment.find_by(tenant_id: instrument.tenant_id, channel_id: instrument.account.channel_id, identifier: identifier)
+        payment = Payment.find_by(tenant_id: instrument.tenant_id, provider: instrument.account.provider, account_key: PaymentProvider.account_key(instrument.account.account_code),
+                                identifier: identifier)
         instrument.update!(payment: payment)
         Outcome.new(:applied, result.outcome)
       end
@@ -101,7 +102,7 @@ module Payments
 
         delta = [ issued.refunded_cents - instrument.refunded_cents, payment.reversible_cents ].min
         if delta.positive?
-          result = ExternalPayment.new.reverse(instrument.account.channel, payment_identifier: payment.identifier, identifier: "#{instrument.custom_id}:#{issued.refunded_cents}",
+          result = ExternalPayment.new.reverse(payment, identifier: "#{instrument.custom_id}:#{issued.refunded_cents}",
                                                reversed_on: [ (notification&.occurred_at || Time.current).in_time_zone.to_date, Date.current ].min, amount_cents: delta,
                                                reason: I18n.t("payments.sync.refund_reason.#{instrument.kind}"), label: "devolução #{instrument.custom_id}")
           return Outcome.new(:review, "o estorno não entrou: #{result.outcome}") if result.status == :rejected

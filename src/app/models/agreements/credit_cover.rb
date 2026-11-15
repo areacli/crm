@@ -132,8 +132,8 @@ module Agreements
         return 0 unless cents.positive?
 
         # O valor é no máximo o devido na data, então o aplicado é o próprio valor (sem reler o pagamento depois).
-        payment = Payment.create!(tenant_id: bill.tenant_id, channel: (@channel ||= CreditUse.channel_for(@tenant)), identifier: "CRED-AUTO-#{SecureRandom.hex(5)}", document: bill.customer.document,
-                                  bill_number: bill.number, bill: bill, paid_on: date, amount_cents: cents, applied_cents: cents, payment_method: "other", status: "applied")
+        payment = Payment.create!(tenant_id: bill.tenant_id, **CreditUse::PAYMENT, identifier: "CRED-AUTO-#{SecureRandom.hex(5)}", document: bill.customer.document,
+                                  bill_number: bill.number, bill: bill, paid_on: date, amount_cents: cents, applied_cents: cents, status: "applied")
         outcome = TitleSettler.pay!(payment, bill, cents, date, tolerance: agreement&.tolerance_spec, ledger: ledger)
         payment.update_columns(applied_cents: outcome.applied) if outcome.applied != cents
         CreditBook.take!(bill.contract_id, outcome.applied, kind: "used", reason: "used_on_title", bill_id: bill.id, note: bill.number, tenant_id: @tenant.id)

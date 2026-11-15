@@ -101,7 +101,7 @@ class ProvidersTest < ActiveSupport::TestCase
     assert_equal "failed", refused.reload.last_test_status
     assert_equal [ false, "Fornecedor indisponível." ], Payments::AccountTester.new.call(unavailable).then { |r| [ r.ok, r.message ] }
 
-    efi = @alfa.payment_accounts.build(channel: ok.channel, modality: "boleto", provider: "efi", environment: "production", nickname: "Efí boleto", active: false)
+    efi = @alfa.payment_accounts.build(account_code: "0001-99999-0", modality: "boleto", provider: "efi", environment: "production", nickname: "Efí boleto", active: false)
     efi.assign_values(secrets: { "client_id" => "id", "client_secret" => "segredo" })
     efi.save!
     use_efi_client(efi_client.on(:post, "/v1/authorize", status: 401, body: { "error" => "invalid_client" }))

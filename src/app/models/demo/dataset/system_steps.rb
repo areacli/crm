@@ -31,13 +31,14 @@ module Demo
 
         # Um em cada quatro títulos do ERP vencidos há mais de 15 dias é quitado pelo valor atualizado, achado pelo id do título no sistema (R417).
         def system_payments(tenant, erp)
-          code = CHANNELS.fetch("pix").first
+          provider = PROVIDERS.fetch("pix")
+          account = ACCOUNTS.fetch("pix")
           bills = Bill.where(tenant_id: tenant.id, source_system_id: erp.id).joins(:customer).joins("left join bill_valuations on bill_valuations.bill_id = bills.id")
                       .where("bills.due_date < ?", today - 15).order(:id)
                       .pluck("customers.document", :external_id, Arel.sql("coalesce(bill_valuations.total_cents, bills.amount_cents)"))
-          lines = [ %w[metodo_recebimento identificador documento id_titulo data_pagamento valor meio sistema] ]
+          lines = [ %w[fornecedor conta identificador documento id_titulo data_pagamento valor meio sistema] ]
           bills.each_slice(4) do |(document, external_id, cents), *|
-            lines << [ code, "ERP-#{external_id}", document, external_id, (today - 1).strftime("%d/%m/%Y"), Money.format(cents), "pix", erp.name ]
+            lines << [ provider, account, "ERP-#{external_id}", document, external_id, (today - 1).strftime("%d/%m/%Y"), Money.format(cents), "pix", erp.name ]
           end
           path = @tmp.join("pagamentos-erp-#{tenant.id}.csv").to_s
           File.write(path, lines.map { |line| line.join(";") }.join("\n") + "\n")

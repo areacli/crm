@@ -23,7 +23,7 @@ class PanelActionsTest < ActionDispatch::IntegrationTest
 
   test "o formulário abre como diálogo (modal de 400 px ou lateral de 480 px); o endereço como página leva à casca" do
     { new_agreement_reversion_path(@agreement) => "400", new_agreement_break_path(@agreement) => "400", new_agreement_settlement_path(@agreement) => "400",
-      new_membership_path => "480", new_settings_channel_path => "480", new_settings_contact_result_path => "480",
+      new_membership_path => "480", new_settings_contact_result_path => "480",
       new_agreement_export_path => "400" }.each do |caminho, largura|
       get caminho, headers: PAINEL
       assert_response :success, caminho
@@ -86,15 +86,6 @@ class PanelActionsTest < ActionDispatch::IntegrationTest
     delete profile_path(profiles(:alfa_operator)), headers: PAINEL
     assert_response :no_content
     assert_equal "danger", evento_da_spa["tom"] if Profile.exists?(profiles(:alfa_operator).id)
-  end
-
-  test "canais: criar pelo painel e a validação em 422" do
-    post settings_channels_path, params: { payment_channel: { tenant_id: @alfa.id, kind: "account", code: "999-1", description: "Conta nova" } }, headers: PAINEL
-    assert_response :no_content
-
-    post settings_channels_path, params: { payment_channel: { tenant_id: @alfa.id, kind: "account", code: "", description: "" } }, headers: PAINEL
-    assert_response :unprocessable_content
-    assert_select "form.dialogo"
   end
 
   test "a exportação do arquivo de acordos e a correção de índice abrem pelo painel" do

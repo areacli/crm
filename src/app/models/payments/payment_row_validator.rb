@@ -2,10 +2,10 @@ module Payments
   # Valida um registro canônico de pagamento (R49, R52a; 17, R416 e R417), venha de arquivo, de webhook ou de instrumento pago. Devolve
   # [linha normalizada, nil] ou [nil, motivo da recusa].
   class PaymentRowValidator
-    ParsedRow = Data.define(:line, :channel_code, :identifier, :document, :bill_number, :paid_on, :amount_cents, :payment_method, :final_state,
+    ParsedRow = Data.define(:line, :provider, :provider_name, :account_key, :account_code, :identifier, :document, :bill_number, :paid_on, :amount_cents, :payment_method, :final_state,
                             :source_system_id, :external_bill_id, :target_bill_id)
 
-    FIELD_NAMES = { "metodo_recebimento" => "método de recebimento", "identificador" => "identificador", "documento" => "documento", "data_pagamento" => "data de pagamento",
+    FIELD_NAMES = { "fornecedor" => "fornecedor", "conta" => "conta", "identificador" => "identificador", "documento" => "documento", "data_pagamento" => "data de pagamento",
                     "valor" => "valor", "meio" => "meio" }.freeze
 
     # `systems`: os sistemas do credor (`Payments::Systems`), lidos uma vez por arquivo ou por evento.
@@ -20,7 +20,7 @@ module Payments
       return [ nil, "linha com mais colunas que o cabeçalho" ] if record.extra
       return [ nil, "linha incompleta" ] if record.short
 
-      FIELD_NAMES.each { |field, label| return [ nil, "#{label} obrigatório" ] if values[field].blank? }
+      FIELD_NAMES.each { |field, label| return [ nil, "#{label} #{field == "conta" ? "obrigatória" : "obrigatório"}" ] if values[field].blank? }
       number = values["titulo"].presence
       system, reason = own ? [ nil, nil ] : @systems.of_line(values["sistema"], internal: Promises.number?(number) || Agreements.number?(number))
       return [ nil, reason ] if reason
@@ -30,7 +30,12 @@ module Payments
       # R52a: todo pagamento identifica um título; sem ele a linha é recusada.
       return [ nil, "título não informado" ] if number.nil? && external_id.nil? && target_bill_id.nil?
       return [ nil, "identificador acima de 200 caracteres" ] if values["identificador"].length > 200
-      return [ nil, "método de recebimento ou título acima de 100 caracteres" ] if values["metodo_recebimento"].length > 100 || number.to_s.length > 100
+      return [ nil, "fornecedor, conta ou título acima de 100 caracteres" ] if values["fornecedor"].strip.length > 100 || values["conta"].strip.length > 100 || number.to_s.length > 100
+      # 03, revisão 12: o fornecedor e a conta entram na identidade pela chave lida sem maiúsculas, acentos, espaços e hífens.
+      provider = PaymentProvider.key(values["fornecedor"])
+      return [ nil, "fornecedor obrigatório" ] if provider.empty?
+      account = PaymentProvider.account_key(values["conta"])
+      return [ nil, "conta obrigatória" ] if account.empty?
       return [ nil, "id do título acima de 100 caracteres" ] if external_id.to_s.length > 100
 
       problem = Document.problem(values["documento"])
@@ -42,7 +47,7 @@ module Payments
 
       %i[amount payment_method final_state].each { |field| return [ nil, problems[field] ] if problems[field] }
 
-      [ ParsedRow.new(line: record.position, channel_code: values["metodo_recebimento"], identifier: values["identificador"], document: record.document,
+      [ ParsedRow.new(line: record.position, provider: provider, provider_name: values["fornecedor"].strip, account_key: account, account_code: values["conta"].strip, identifier: values["identificador"], document: record.document,
                       bill_number: number, paid_on: record.paid_on, amount_cents: record.amount_cents, payment_method: record.payment_method, final_state: record.final_state,
                       source_system_id: system&.id, external_bill_id: external_id, target_bill_id: target_bill_id), nil ]
     end

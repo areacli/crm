@@ -30,11 +30,10 @@ module Agreements
     private
       # O pagamento da entrada feito com crédito é estornado (o crédito volta pelo `CreditUse.release!`).
       def reverse_credit_payments(agreement, entry, on)
-        channel = PaymentChannel.find_by(tenant_id: agreement.tenant_id, code: CreditUse::CHANNEL_CODE) or return
-        Payment.where(agreement_id: agreement.id, channel_id: channel.id).where("reversed_cents < amount_cents").find_each do |payment|
+        Payment.where(agreement_id: agreement.id, payment_method: CreditUse::METHOD).where("reversed_cents < amount_cents").find_each do |payment|
           undo_allocations(payment, entry)
           left = payment.amount_cents - payment.reversed_cents
-          PaymentReversal.create!(tenant_id: payment.tenant_id, channel_id: channel.id, payment: payment, identifier: "EST-#{payment.identifier}", reversed_on: on, amount_cents: left,
+          PaymentReversal.create!(tenant_id: payment.tenant_id, payment: payment, identifier: "EST-#{payment.identifier}", reversed_on: on, amount_cents: left,
                                   from_credit_cents: 0, from_bill_cents: left, reason: "acordo desfeito antes da efetivação")
           payment.update!(reversed_cents: payment.amount_cents, status: "cancelled")
         end
@@ -54,8 +53,7 @@ module Agreements
       # O que os pagamentos reais cobriram da entrada volta aos originais (AC10).
       def move_entry_payments(agreement, entry, on)
         originals = agreement.agreement_bills.includes(:bill).sort_by { |item| [ item.bill.due_date, item.bill_id ] }.map(&:bill)
-        payments = Payment.joins(:channel).where(id: PaymentAllocation.where(bill_id: entry.id).select(:payment_id))
-                          .where.not(payment_channels: { code: CreditUse::CHANNEL_CODE }).includes(:channel).order(:paid_on, :id)
+        payments = Payment.where(id: PaymentAllocation.where(bill_id: entry.id).select(:payment_id)).where.not(payment_method: CreditUse::METHOD).order(:paid_on, :id)
         settlement = Charges::Settlement.for(agreement.tenant, today: on)
         settlement&.preload(originals.map(&:id))
         items = entry.composition.fetch("items", [])

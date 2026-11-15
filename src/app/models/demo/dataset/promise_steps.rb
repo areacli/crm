@@ -34,12 +34,12 @@ module Demo
           broken = 3.times.map { make.call(9, 3) }
           not_approved = 2.times.map { make.call(40, 25, pool: old) }
 
-          rows = [ %w[metodo_recebimento identificador documento titulo data_pagamento valor meio] ]
+          rows = [ %w[fornecedor conta identificador documento titulo data_pagamento valor meio] ]
           fulfilled.each { |promise| rows << payment_row(promise, today - 5, promise.total_cents) }
           # Pagos direto nos títulos, depois da data prometida (ainda dentro da tolerância): a promessa termina cumprida com atraso.
           late.each do |promise|
             promise.promise_bills.includes(:bill).each do |item|
-              rows << [ @channels["341-1234-56789"].code, "PL#{item.id}", promise.customer.document, item.bill.number, (today - 3).strftime("%d/%m/%Y"), Money.format(item.total_cents + 2_000), "pix" ]
+              rows << [ PROVIDERS.fetch("pix"), ACCOUNTS.fetch("pix"), "PL#{item.id}", promise.customer.document, item.bill.number, (today - 3).strftime("%d/%m/%Y"), Money.format(item.total_cents + 2_000), "pix" ]
             end
           end
           # Uma promessa aberta com pagamento parcial ("pago 40%").
@@ -52,7 +52,7 @@ module Demo
         end
 
         def payment_row(promise, date, cents)
-          [ @channels["341-1234-56789"].code, "PR#{promise.id}", promise.customer.document, promise.number, date.strftime("%d/%m/%Y"), Money.format(cents), "pix" ]
+          [ PROVIDERS.fetch("pix"), ACCOUNTS.fetch("pix"), "PR#{promise.id}", promise.customer.document, promise.number, date.strftime("%d/%m/%Y"), Money.format(cents), "pix" ]
         end
     end
   end

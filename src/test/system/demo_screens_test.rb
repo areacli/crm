@@ -67,6 +67,25 @@ class DemoScreensSystemTest < ApplicationSystemTestCase
     assert_not rola, "a entrada rola em 1.366 × 620"
   end
 
+  # Revisão 46, nota de 15/11/2026 (tablet em paisagem): numa janela mais baixa que o conteúdo, nada fica cortado; a entrada rola com as duas colunas,
+  # e o lado marinho acompanha até a legenda. No Android, 100vh é a janela sem a barra do navegador, e a foto saía mais alta que a área visível; o
+  # Chrome de mesa não tem essa barra, então o teste fixa a altura da foto como ela saía no tablet.
+  test "na janela mais baixa que o conteúdo, o lado marinho não corta o título nem a legenda, e a entrada rola" do
+    page.driver.resize(1280, 560)
+    visit root_path
+    assert_selector ".vitrine-abas button[aria-current]", text: "Régua"
+    page.execute_script("document.head.insertAdjacentHTML('beforeend', '<style>.vitrine-palco { max-height: none !important; height: 420px }</style>')")
+    assert_operator page.evaluate_script("document.querySelector('.entrada-tese').getBoundingClientRect().top"), :>=, 0, "o título do lado marinho começa acima da janela"
+    page.execute_script("const e = document.querySelector('#entrada'); e.scrollTop = e.scrollHeight")
+    medidas = page.evaluate_script(<<~JS)
+      (() => { const r = (s) => document.querySelector(s).getBoundingClientRect();
+        return { legenda: r('.vitrine-legenda').bottom, lado: r('.entrada-lado').bottom, rodape: r('.entrada-rodape').bottom, janela: innerHeight } })()
+    JS
+    assert_operator medidas["legenda"], :<=, medidas["janela"], "a legenda não aparece nem rolando"
+    assert_operator medidas["legenda"], :<=, medidas["lado"], "a legenda passa do fundo marinho"
+    assert_operator medidas["rodape"], :<=, medidas["janela"], "o rodapé da coluna branca não aparece nem rolando"
+  end
+
   test "fora da demonstração a entrada é a tela dividida, sem carrossel nem usuários públicos" do
     Rails.configuration.x.demo.enabled = false
     visit root_path
@@ -85,7 +104,6 @@ class DemoScreensSystemTest < ApplicationSystemTestCase
   end
 
   test "a página pública de pagamento mostra o aviso da demonstração e passa no axe" do
-    make_channel(@alfa)
     checkout = make_checkout(customer: make_customer(@alfa), boleto: true, pix: true)
     visit checkout_path(checkout)
     assert_text "nenhum pagamento é real"

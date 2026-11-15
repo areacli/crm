@@ -6,7 +6,6 @@ class Payments::ReversalImportTest < ActiveSupport::TestCase
 
   setup do
     @alfa = tenants(:alfa)
-    @channel = make_channel(@alfa)
     @bill = make_bill(@alfa, number: "NF-1", amount_cents: 100_000)
   end
 
@@ -14,8 +13,9 @@ class Payments::ReversalImportTest < ActiveSupport::TestCase
     confirm_import(run_payments_import([ payment_line("valor" => value, "identificador" => id, "titulo" => number, "documento" => document) ]))
   end
 
-  def reverse(value, payment_id: "PIX-1", id: "EST-1", confirm: true, **options)
-    run_payments_import([ reversal_line("valor" => value, "identificador_pagamento" => payment_id, "identificador_estorno" => id) ], kind: "reversals", confirm: confirm, **options)
+  def reverse(value, payment_id: "PIX-1", id: "EST-1", confirm: true, overrides: {}, **options)
+    line = reversal_line({ "valor" => value, "identificador_pagamento" => payment_id, "identificador_estorno" => id }.merge(overrides))
+    run_payments_import([ line ], kind: "reversals", confirm: confirm, **options)
   end
 
   test "estorno parcial: sai primeiro do crédito e depois do título, que volta à cobrança com o saldo reaberto (critério, R62)" do
@@ -69,7 +69,7 @@ class Payments::ReversalImportTest < ActiveSupport::TestCase
               reversal_line("identificador_estorno" => "D", "data_estorno" => (Date.current + 2).strftime("%d/%m/%Y")) ]
     reasons = run_payments_import(lines, kind: "reversals").rejections.order(:line).pluck(:line, :reason).to_h
     assert_equal "estorno repetido na linha 2", reasons[3]
-    assert_equal "pagamento não encontrado no método de recebimento", reasons[4]
+    assert_equal "pagamento não encontrado", reasons[4]
     assert_equal "data do estorno anterior ao pagamento", reasons[5]
     assert_equal "data de estorno futura", reasons[6]
   end
@@ -104,19 +104,23 @@ class Payments::ReversalImportTest < ActiveSupport::TestCase
     assert_equal [ "withdrawn", 30_000 ], [ @bill.reload.status, @bill.paid_cents ]
   end
 
-  test "estorno de pagamento feito por canal desativado é aceito (revisão 5)" do
+  test "o estorno acha o pagamento pelo fornecedor, pela conta e pelo identificador; com outro fornecedor ou outra conta, não acha (R61; 03, revisão 12)" do
     pay("400,00")
-    @channel.update!(active: false)
-    import = reverse("100,00", confirm: false)
+    other = reverse("100,00", confirm: false, overrides: { "fornecedor" => "Bradesco" })
+    assert_equal "pagamento não encontrado", other.rejections.sole.reason
+    other.update!(status: :discarded)
+    other_method = reverse("100,00", confirm: false, overrides: { "conta" => "0341-99999-9", "identificador_estorno" => "EST-2" })
+    assert_equal "pagamento não encontrado", other_method.rejections.sole.reason
+    other_method.update!(status: :discarded)
+    import = reverse("100,00", confirm: false, overrides: { "fornecedor" => "itau", "conta" => "0341.12345.6", "identificador_estorno" => "EST-3" })
     assert_equal [ 1, 0 ], [ import.summary_data[:valid], import.summary_data[:rejected] ]
   end
 
   test "estorno de pagamento de outro credor é recusado como pagamento não encontrado (V10)" do
     beta = tenants(:beta)
-    make_channel(beta)
     pay("400,00")
     import = reverse("100,00", tenant: beta, user: users(:ana), confirm: false)
-    assert_equal "pagamento não encontrado no método de recebimento", import.rejections.sole.reason
+    assert_equal "pagamento não encontrado", import.rejections.sole.reason
     assert_equal 0, Payment.sole.reversed_cents
   end
 
@@ -130,9 +134,9 @@ class Payments::ReversalImportTest < ActiveSupport::TestCase
   test "mês do estorno ou mês do pagamento no recuperado do resumo (R64)" do
     october = Date.new(2026, 10, 15)
     november = Date.new(2026, 11, 5)
-    payment = Payment.create!(tenant: @alfa, channel: @channel, bill: @bill, identifier: "OUT", document: "52998224725", bill_number: "NF-1", paid_on: october,
+    payment = Payment.create!(provider: "itau", provider_name: "Itaú", account_key: "0341123456", account_code: "0341-12345-6", tenant: @alfa, bill: @bill, identifier: "OUT", document: "52998224725", bill_number: "NF-1", paid_on: october,
                               amount_cents: 100_000, payment_method: :pix, status: :applied, applied_cents: 100_000)
-    PaymentReversal.create!(tenant: @alfa, channel: @channel, payment: payment, identifier: "E", reversed_on: november, amount_cents: 40_000, from_bill_cents: 40_000)
+    PaymentReversal.create!(tenant: @alfa, payment: payment, identifier: "E", reversed_on: november, amount_cents: 40_000, from_bill_cents: 40_000)
     summary = -> { Portfolio::Summary.new(users(:joana), reference: november).for_tenant(@alfa)[:recovered].map { |month| month[:total_cents] } }
 
     assert_equal [ -40_000, 100_000 ], summary.call, "mês do estorno: outubro intacto, novembro com o estorno"

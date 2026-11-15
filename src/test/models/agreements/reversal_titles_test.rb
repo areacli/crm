@@ -9,7 +9,6 @@ class Agreements::ReversalTitlesTest < ActiveSupport::TestCase
     @alfa.setting.update!(agreement_policies: { "credit_entry" => "rebate" })
     travel_day(AGREEMENT_DAY)
     @customer, @nf1, @nf2 = agreement_scenario(@alfa)
-    make_channel(@alfa)
     pago = make_bill(@alfa, number: "NF-0", contract_code: "CT-1", amount_cents: 10_000, status: :paid, document: PaymentsHelper::MARIA)
     pago.update_columns(paid_cents: 10_000)
     travel_day(Date.new(2026, 10, 20))

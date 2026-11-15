@@ -53,7 +53,7 @@ class CheckoutArchitectureTest < ActiveSupport::TestCase
       manifest = Payments::Providers.manifest(name)
       next unless manifest.supports?("card")
 
-      account = PaymentAccount.new(provider: name, modality: "card", environment: "production")
+      account = PaymentAccount.new(account_code: "0001-99999-0", provider: name, modality: "card", environment: "production")
       hosts = Payments::Providers.adapter(name).card_checkout_hosts(account)
       assert_equal %i[connect frame img script], hosts.keys.sort
       hosts.values.flatten.each { |origin| assert_match(%r{\Ahttps://[a-z0-9.-]+\z}, origin, "#{name}: #{origin}") }

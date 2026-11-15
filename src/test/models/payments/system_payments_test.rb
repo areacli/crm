@@ -45,7 +45,6 @@ class Payments::SystemPaymentsTest < ActiveSupport::TestCase
   def payment(identifier) = Payment.find_by!(tenant: @tenant, identifier: identifier)
 
   test "R416, R418: cada linha declara o sistema, sem diferenciar maiúsculas; o pai do pagamento é o sistema da linha e a linha sem sistema é recusada" do
-    make_channel(@tenant)
     nf1 = system_bill(@sap, number: "NF-1")
     t77 = system_bill(@erp, number: "NF-9", external_id: "T-77")
     import = check([ payment_line(identificador: "PIX-1", sistema: "SAP"),
@@ -81,7 +80,6 @@ class Payments::SystemPaymentsTest < ActiveSupport::TestCase
   end
 
   test "R416, R398: o sistema pausado recusa a linha; com um só sistema a coluna é ignorada" do
-    make_channel(@tenant)
     system_bill(@sap, number: "NF-1")
     @manager.pause(@sap)
     assert_equal({ 2 => "o sistema SAP está pausado" }, reasons(check([ payment_line(sistema: "SAP") ])))
@@ -96,7 +94,6 @@ class Payments::SystemPaymentsTest < ActiveSupport::TestCase
   end
 
   test "R417: o id que não existe no sistema não cai para o número (fica pendente); em chave natural a coluna de id é ignorada" do
-    make_channel(@tenant)
     t77 = system_bill(@erp, number: "NF-9", external_id: "T-77")
     nf1 = system_bill(@sap, number: "NF-1")
     pay([ payment_line(identificador: "PIX-1", sistema: "ERP", titulo: "NF-9", id_titulo: "T-99"),
@@ -108,7 +105,6 @@ class Payments::SystemPaymentsTest < ActiveSupport::TestCase
   end
 
   test "R417: o título é procurado só no sistema da linha; o mesmo número em outro sistema não entra na conta" do
-    make_channel(@tenant)
     planilha = make_bill(@tenant, number: "NF-100")
     sap = system_bill(@sap, number: "NF-100")
     pay([ payment_line(identificador: "PIX-1", sistema: "SAP", titulo: "NF-100") ])
@@ -119,7 +115,6 @@ class Payments::SystemPaymentsTest < ActiveSupport::TestCase
   end
 
   test "R417a: pagador terceiro acha o título pelo número único naquele sistema; com mais de um, fica pendente" do
-    make_channel(@tenant)
     make_bill(@tenant, number: "NF-5")
     nf5 = system_bill(@sap, number: "NF-5")
     system_bill(@sap, number: "NF-6")
@@ -132,7 +127,6 @@ class Payments::SystemPaymentsTest < ActiveSupport::TestCase
   end
 
   test "R418: o pendente só é reavaliado no sistema dele; reenviado com o mesmo identificador e outro sistema, troca de sistema e é aplicado" do
-    make_channel(@tenant)
     oracle = @manager.create(tenant: @tenant, name: "Oracle", key_kind: "natural")
     nf100 = system_bill(oracle, number: "NF-100")
     system_bill(@sap, number: "NF-1")
@@ -163,7 +157,6 @@ class Payments::SystemPaymentsTest < ActiveSupport::TestCase
   end
 
   test "R418: o pendente reenviado para um sistema que também não tem o título troca de sistema e continua pendente" do
-    make_channel(@tenant)
     pay([ payment_line(identificador: "PIX-7", sistema: "SAP", titulo: "NF-100") ])
     pay([ payment_line(identificador: "PIX-7", sistema: "ERP", titulo: "NF-100", id_titulo: "T-100") ])
 
@@ -184,7 +177,6 @@ class Payments::SystemPaymentsTest < ActiveSupport::TestCase
   end
 
   test "R416, estornos: o sistema da linha é o do pagamento estornado; vazio, de outro sistema ou desconhecido, a linha é recusada" do
-    make_channel(@tenant)
     system_bill(@sap, number: "NF-1")
     pay([ payment_line(identificador: "PIX-1", sistema: "SAP") ])
 
@@ -198,7 +190,6 @@ class Payments::SystemPaymentsTest < ActiveSupport::TestCase
   end
 
   test "estornos: o pagamento cujo pai é o CRM se estorna sem sistema, e o de sistema pausado não recebe estorno" do
-    make_channel(@tenant)
     system_bill(@sap, number: "NF-1")
     system_bill(@sap, number: "NF-2")
     pay([ payment_line(identificador: "PIX-1", sistema: "SAP"), payment_line(identificador: "PIX-2", sistema: "SAP", titulo: "NF-2") ])
@@ -235,7 +226,6 @@ class Payments::SystemPaymentsTest < ActiveSupport::TestCase
   end
 
   test "R423: a mudança de pagamento e de estorno guarda o sistema do pagamento; a do pagamento cujo pai é o CRM fica sem sistema" do
-    make_channel(@tenant)
     nf1 = system_bill(@sap, number: "NF-1")
     t77 = system_bill(@erp, number: "NF-9", external_id: "T-77")
     # O PIX-1 paga a mais: a sobra vira crédito do contrato, também com o sistema do pagamento.

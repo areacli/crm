@@ -21,9 +21,8 @@ module MercadopagoHttpHelper
 
   # Integração Mercado Pago conectada à conta SELLER, com a Public Key, como a volta do OAuth deixa.
   def make_mercadopago_account(tenant, modality: "pix", environment: "sandbox", connected: true, config: {})
-    channel = tenant.payment_channels.first || make_channel(tenant)
     base = { "boleto" => { "beneficiary_name" => "Escola Alfa Ltda", "beneficiary_document" => "41755489000155" }, "card" => { "max_installments" => 6 } }.fetch(modality, {})
-    account = Payments::AccountManager.new(users(:joana)).create(tenant: tenant, channel: channel, modality: modality, provider: "mercadopago", environment: environment,
+    account = Payments::AccountManager.new(users(:joana)).create(tenant: tenant, account_code: "0001-99999-0", modality: modality, provider: "mercadopago", environment: environment,
                                                                  nickname: "Mercado Pago #{modality} #{SecureRandom.hex(2)}", values: { config: base.merge(config) })
     return account unless connected
 

@@ -7,7 +7,6 @@ class ChargesSettlementTest < ActiveSupport::TestCase
 
   setup do
     @alfa = tenants(:alfa)
-    @channel = make_channel(@alfa)
     seed_indexes!
   end
 

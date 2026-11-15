@@ -92,7 +92,7 @@ class AnonymizerTest < ActiveSupport::TestCase
     active.update!(status: :withdrawn, withdrawn_at: Time.current)
     assert_match(/título retirado com saldo de R\$ 300,00/, assert_raises(Titular::Refused) { anonymize }.message)
     active.update!(status: :paid, paid_cents: 30_000, paid_on: Date.current - 400)
-    Payment.create!(tenant: @alfa, channel: @maria.payment.channel, identifier: "PEND-1", document: @maria.document, bill_number: "NF-X", paid_on: Date.current,
+    Payment.create!(provider: "itau", provider_name: "Itaú", account_key: "0341123456", account_code: "0341-12345-6", tenant: @alfa, identifier: "PEND-1", document: @maria.document, bill_number: "NF-X", paid_on: Date.current,
                     amount_cents: 12_300, payment_method: "pix", status: "pending")
     assert_match(/pagamento pendente com o documento do cliente, de R\$ 123,00/, assert_raises(Titular::Refused) { anonymize }.message)
   end
@@ -165,7 +165,7 @@ class AnonymizerTest < ActiveSupport::TestCase
                                        "kept_by_tenant" => { "contacts" => { "items" => [ { "customer" => "Maria Souza", "value" => PHONE } ] } } })
     discrepancy = ValueDiscrepancy.create!(tenant: @alfa, bill: @maria.bill, previous_cents: 1, reported_cents: 2, allocated_cents: 1, balance_before_cents: 0, balance_after_cents: 0,
                                            effect: "record_only", policy: "keep", status: "handled", note: "Maria Souza pediu")
-    reversal = PaymentReversal.create!(tenant: @alfa, channel: @maria.payment.channel, payment: @maria.payment, identifier: "EST-9", reversed_on: Date.current, amount_cents: 100, reason: "Maria Souza contestou")
+    reversal = PaymentReversal.create!(tenant: @alfa, payment: @maria.payment, identifier: "EST-9", reversed_on: Date.current, amount_cents: 100, reason: "Maria Souza contestou")
 
     anonymize
 
@@ -175,11 +175,9 @@ class AnonymizerTest < ActiveSupport::TestCase
     assert_equal "removido na anonimização", reversal.reload.reason
   end
 
-  test "R132: o documento do pagamento pendente sem título (mesmo cancelado) e o corpo do webhook também são trocados" do
-    channel = @maria.payment.channel
-    Payment.create!(tenant: @alfa, channel: channel, identifier: "PEND-2", document: @maria.document, bill_number: "NF-Y", paid_on: Date.current, amount_cents: 500,
+  test "R132: o documento do pagamento pendente sem título (mesmo cancelado) também é trocado" do
+    Payment.create!(provider: "itau", provider_name: "Itaú", account_key: "0341123456", account_code: "0341-12345-6", tenant: @alfa, identifier: "PEND-2", document: @maria.document, bill_number: "NF-Y", paid_on: Date.current, amount_cents: 500,
                     payment_method: "pix", status: "cancelled", reversed_cents: 500)
-    WebhookEvent.create!(tenant: @alfa, channel: channel, event_id: "evt-9", payload: { "id" => "evt-9", "data" => { "document" => "529.982.247-25" } })
 
     anonymize
 

@@ -4,7 +4,6 @@ require "application_system_test_case"
 class PaymentAccountsScreensSystemTest < ApplicationSystemTestCase
   setup do
     @alfa = tenants(:alfa)
-    @channel = make_channel(@alfa)
     @account = make_account(@alfa, modality: "pix", nickname: "Pix Alfa", config: { "connection_result" => "ok", "pix_key" => "pix@alfa.com.br", "expire_days" => 5 })
     @account.assign_values(secrets: { "certificate_password" => "abc123" }, files: { "certificate" => p12_upload(subject: "CN=Escola Alfa", days: 200, password: "abc123") })
     @account.save!

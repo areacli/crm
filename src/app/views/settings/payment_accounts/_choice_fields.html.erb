@@ -2,18 +2,10 @@
     do atual (`fora_de_banda`). Locais: form (pode faltar no pedido do bloco), fora_de_banda. %>
 <div id="campos-da-integracao" class="campos-do-cartao"<% if local_assigns[:fora_de_banda] %> data-fora-de-banda="true"<% end %>>
   <% if @chosen %>
-    <% if @channels.empty? %>
-      <%= aviso(tom: :warning) { tag.p { safe_join([ "O credor não tem método de recebimento ativo. ", link_to("Cadastre um método de recebimento", settings_channels_path), " antes." ]) } } %>
-    <% end %>
     <div class="campo">
       <%= label_tag "campo-nickname", "Apelido" %>
       <%= text_field_tag "payment_account[nickname]", @account.nickname, id: "campo-nickname", required: true, maxlength: 100 %>
       <%= hidden_field_tag "payment_account[nickname_suggested]", @nickname_suggested, id: nil %>
-    </div>
-    <div class="campo">
-      <%= label_tag "campo-channel", "Método de recebimento" %>
-      <%= select_tag "payment_account[channel_id]", options_for_select(@channels.map { |channel| [ "#{channel.code} · #{channel.description}", channel.id ] }, @account.channel_id), id: "campo-channel", "aria-describedby": "campo-channel-ajuda" %>
-      <small id="campo-channel-ajuda">Onde o dinheiro entra: o código que a planilha de pagamentos traz.</small>
     </div>
     <%= render "settings/payment_accounts/fields", form: local_assigns[:form], account: @account, replaced: @replaced %>
   <% end %>

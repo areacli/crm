@@ -31,12 +31,11 @@ module Agreements
     end
 
     private
-      # Crédito usado como pagamento da entrada: a entrada reabre pela parte (o pagamento do canal de crédito é desfeito do último componente para o primeiro).
+      # Crédito usado como pagamento da entrada: a entrada reabre pela parte (o pagamento com crédito do contrato é desfeito do último componente para o primeiro).
       def reopen_down_payment(agreement, cents, on)
         entry = agreement.entry_title or return @effects.wait_credit({}, cents)
-        channel = PaymentChannel.find_by(tenant_id: agreement.tenant_id, code: CreditUse::CHANNEL_CODE)
         left = cents
-        Payment.where(agreement_id: agreement.id, channel_id: channel&.id).order(id: :desc).each do |payment|
+        Payment.where(agreement_id: agreement.id, payment_method: CreditUse::METHOD).order(id: :desc).each do |payment|
           break unless left.positive?
 
           left -= AllocationUndo.call(payment, entry.reload, cents: left).cash

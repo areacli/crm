@@ -6,8 +6,6 @@ class PaymentsScreensSystemTest < ApplicationSystemTestCase
 
   setup do
     @alfa = tenants(:alfa)
-    @channel = make_channel(@alfa)
-    @channel.regenerate_webhook_secret!
     bill = make_bill(@alfa, amount_cents: 100_000)
     @customer = bill.customer
     make_bill(@alfa, number: "NF-2", amount_cents: 50_000, document: JOAO, contract_code: "CT-2", name: "João Pereira")
@@ -20,22 +18,12 @@ class PaymentsScreensSystemTest < ApplicationSystemTestCase
     entrar_na_casca
   end
 
-  test "o resumo, canais, políticas, importações e ficha abrem nas abas" do
+  test "o resumo, políticas, importações e ficha abrem nas abas" do
     assert_selector ".aba-raiz", text: "Recuperado em", wait: 15
 
-    # Métodos de recebimento e políticas estão na SPA (fase 7), fora do axe (D7).
-    visit settings_channels_path
-    assert_selector ".aba-raiz h1", text: "Métodos de recebimento", wait: 15
-    find(".aba-raiz .cabecalho-da-pagina .botao", text: "Criar método de recebimento").click
-    no_dialogo { assert_field "Código" }
-    send_keys :escape
-    abrir_aba settings_payment_policy_path
-    assert_selector ".aba-raiz h1", text: "Políticas de pagamento", wait: 10
-    abrir_aba edit_settings_channel_path(@channel)
-    assert_selector ".aba-raiz h2", text: "Webhook de pagamento", wait: 10
-    find(".aba-raiz .cabecalho-da-pagina .botao", text: "Gerar novo segredo").click
-    no_dialogo { assert_text "O segredo atual, se houver, deixa de valer na hora" }
-    send_keys :escape
+    # Políticas estão na SPA (fase 7), fora do axe (D7).
+    visit settings_payment_policy_path
+    assert_selector ".aba-raiz h1", text: "Políticas de pagamento", wait: 15
 
     # Importações estão na SPA (fase 5), fora do axe (D7).
     visit new_import_path(tipo: "pagamentos")

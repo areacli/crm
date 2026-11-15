@@ -175,7 +175,7 @@ module Payments
         else
           new_payments << payment_row(import, row, bill_id, "applied", result.applied, result.credit, promise_id: promise_id, counted: counted)
         end
-        key = row["src"].to_i.zero? ? row["payment_id"].to_i : [ row["channel_id"].to_i, row["identifier"] ]
+        key = row["src"].to_i.zero? ? row["payment_id"].to_i : [ row["provider"], row["account_key"], row["identifier"] ]
         allocations << { key: key, bill_id: bill_id, components: result.components } if result.components.any?
         if result.abatement.any?
           # R226, R228a: a diferença dada por paga (estado final do credor ou tolerância) fica registrada por componente.
@@ -201,7 +201,7 @@ module Payments
           summary[:credits] += 1
           summary[:credit_cents] += outcome.credit
         end
-        key = row["src"].to_i.zero? ? row["payment_id"].to_i : [ row["channel_id"].to_i, row["identifier"] ]
+        key = row["src"].to_i.zero? ? row["payment_id"].to_i : [ row["provider"], row["account_key"], row["identifier"] ]
         if row["src"].to_i.zero?
           summary[:pending_applied] += 1
           updates << [ row["payment_id"].to_i, nil, outcome.applied, outcome.credit, promise_id, outcome.counted ]
@@ -237,7 +237,7 @@ module Payments
         end
         bills = outcome.allocations.map(&:first).uniq
         bill_id = bills.size == 1 && outcome.target == bills.first ? bills.first : nil
-        key = row["src"].to_i.zero? ? row["payment_id"].to_i : [ row["channel_id"].to_i, row["identifier"] ]
+        key = row["src"].to_i.zero? ? row["payment_id"].to_i : [ row["provider"], row["account_key"], row["identifier"] ]
         if row["src"].to_i.zero?
           summary[:pending_applied] += 1
           updates << [ row["payment_id"].to_i, bill_id, outcome.applied, outcome.credit, nil, false, outcome.agreement_id ]
@@ -254,7 +254,7 @@ module Payments
       end
 
       def payment_row(import, row, bill_id, status, applied, credit, promise_id: nil, counted: false, agreement_id: nil)
-        { agreement_id: agreement_id, final_state: row["final_state"], promise_id: promise_id, promise_counted: counted, channel_id: row["channel_id"].to_i, identifier: row["identifier"],
+        { agreement_id: agreement_id, final_state: row["final_state"], promise_id: promise_id, promise_counted: counted, provider: row["provider"], provider_name: row["provider_name"], account_key: row["account_key"], account_code: row["account_code"], identifier: row["identifier"],
           # 17, R417: o pagamento que só trouxe o id do título guarda o número do título achado; pendente, fica sem número e com o id.
           document: row["document"], bill_number: row["bill_number"] || row["found_number"] || "", bill_id: bill_id, paid_on: row["paid_on"], amount_cents: row["amount_cents"].to_i,
           payment_method: row["payment_method"], status: status, applied_cents: applied, credit_cents: credit, reversed_cents: 0, credit_reversed_cents: 0,
@@ -267,15 +267,13 @@ module Payments
         import = @import
         tenant = import.tenant
         now = Time.current
-        channels = PaymentChannel.where(id: new_payments.map { |attributes| attributes[:channel_id] }.uniq).index_by(&:id)
         # 17, R418: o pai do pagamento é o sistema da linha; a linha sem sistema (promessa, acordo, instrumento pago) é do CRM. Uma leitura por lote.
         systems = Systems.new(tenant.id)
         created = new_payments.to_h do |attributes|
-          [ [ attributes[:channel_id], attributes[:identifier] ],
-            Payment.create!(**attributes.except(:channel_id, :source_system_id), tenant: tenant, source_system: systems.parent(attributes[:source_system_id]),
-                            channel: channels.fetch(attributes[:channel_id]), import: import) ]
+          [ attributes.values_at(:provider, :account_key, :identifier),
+            Payment.create!(**attributes.except(:source_system_id), tenant: tenant, source_system: systems.parent(attributes[:source_system_id]), import: import) ]
         end
-        pending = known(Payment.where(id: updates.map(&:first)).preload(:channel), tenant)
+        pending = known(Payment.where(id: updates.map(&:first)), tenant)
         updates.each do |id, bill_id, applied, credit, promise_id, counted, agreement_id|
           pending.fetch(id).update!(bill_id: bill_id, status: "applied", applied_cents: applied, credit_cents: credit, promise_id: promise_id, promise_counted: counted,
                                     agreement_id: agreement_id, import: import)

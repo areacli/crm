@@ -1,25 +1,29 @@
-# Planilhas e registros de pagamentos para os testes: canal, cliente, contrato e título prontos, e as linhas dos CSVs.
+# Planilhas e registros de pagamentos para os testes: cliente, contrato e título prontos, e as linhas dos CSVs (03, revisão 12: meio, fornecedor e identificador).
 module PaymentsHelper
-  PAYMENT_HEADER = %w[metodo_recebimento identificador documento titulo data_pagamento valor meio estado_final].freeze
-  REVERSAL_HEADER = %w[metodo_recebimento identificador_pagamento identificador_estorno data_estorno valor motivo].freeze
-  CHANNEL_CODE = "341-1234-56789".freeze
+  PAYMENT_HEADER = %w[fornecedor conta identificador documento titulo data_pagamento valor meio estado_final].freeze
+  REVERSAL_HEADER = %w[meio fornecedor conta identificador_pagamento identificador_estorno data_estorno valor motivo].freeze
+  # O fornecedor das linhas de teste: como a planilha escreve e a chave que entra na identidade do pagamento.
+  PROVIDER = "Itaú".freeze
+  PROVIDER_KEY = "itau".freeze
+  ACCOUNT = "0341-12345-6".freeze
   MARIA = "529.982.247-25".freeze
   JOAO = "390.533.447-05".freeze
 
   def brl_date(days_ago = 1) = (Date.current - days_ago).strftime("%d/%m/%Y")
 
   def payment_line(overrides = {})
-    { "metodo_recebimento" => CHANNEL_CODE, "identificador" => "PIX-1", "documento" => MARIA, "titulo" => "NF-1", "data_pagamento" => brl_date(1), "valor" => "1.000,00",
+    { "fornecedor" => PROVIDER, "conta" => ACCOUNT, "identificador" => "PIX-1", "documento" => MARIA, "titulo" => "NF-1", "data_pagamento" => brl_date(1), "valor" => "1.000,00",
       "meio" => "pix" }.merge(overrides.transform_keys(&:to_s))
   end
 
   def reversal_line(overrides = {})
-    { "metodo_recebimento" => CHANNEL_CODE, "identificador_pagamento" => "PIX-1", "identificador_estorno" => "EST-1", "data_estorno" => brl_date(0), "valor" => "300,00",
+    { "meio" => "pix", "fornecedor" => PROVIDER, "conta" => ACCOUNT, "identificador_pagamento" => "PIX-1", "identificador_estorno" => "EST-1", "data_estorno" => brl_date(0), "valor" => "300,00",
       "motivo" => "contestação" }.merge(overrides.transform_keys(&:to_s))
   end
 
-  def make_channel(tenant, code: CHANNEL_CODE, active: true)
-    PaymentChannel.create!(tenant: tenant, kind: :account, code: code, description: "Conta #{code}", active: active)
+  # Os atributos de "como foi pago" de um pagamento criado direto no banco.
+  def paid_via(method = "pix", provider: PROVIDER, account: ACCOUNT)
+    { payment_method: method, provider: PaymentProvider.key(provider), provider_name: provider, account_key: PaymentProvider.account_key(account), account_code: account }
   end
 
   # Cliente com um contrato e um título; devolve o título.

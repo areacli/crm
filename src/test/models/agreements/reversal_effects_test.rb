@@ -86,7 +86,6 @@ class Agreements::ReversalEffectsTest < ActiveSupport::TestCase
 
   test "AF3: o pagamento anterior à montagem, estornado depois da efetivação, gera o título de estorno com os descontos do acordo, fora do acordo" do
     customer, nf1, nf2 = agreement_scenario(@alfa)
-    make_channel(@alfa)
     travel_day(Date.new(2026, 10, 1))
     pay_lines([ pay_line("NF-2", Date.new(2026, 10, 1), 10_000, id: "PIX-ANTES") ])
     travel_day(AGREEMENT_DAY)
@@ -110,7 +109,6 @@ class Agreements::ReversalEffectsTest < ActiveSupport::TestCase
   test "U1: o estorno da origem do crédito usado como abatimento, depois da efetivação, gera o título de estorno com a composição que o crédito cobriu" do
     @alfa.setting.update!(agreement_policies: { "credit_entry" => "rebate" })
     @customer, @nf1, @nf2 = agreement_scenario(@alfa)
-    make_channel(@alfa)
     pago = make_bill(@alfa, number: "NF-0", contract_code: "CT-1", amount_cents: 10_000, status: :paid, document: PaymentsHelper::MARIA)
     pago.update_columns(paid_cents: 10_000)
     travel_day(Date.new(2026, 10, 20))
@@ -134,7 +132,6 @@ class Agreements::ReversalEffectsTest < ActiveSupport::TestCase
   test "V1: o estorno da origem do crédito usado como abatimento cancela o acordo que ainda aguarda a efetivação" do
     @alfa.setting.update!(agreement_policies: { "credit_entry" => "rebate" })
     @customer, @nf1, @nf2 = agreement_scenario(@alfa)
-    make_channel(@alfa)
     pago = make_bill(@alfa, number: "NF-0", contract_code: "CT-1", amount_cents: 10_000, status: :paid, document: PaymentsHelper::MARIA)
     pago.update_columns(paid_cents: 10_000)
     travel_day(Date.new(2026, 10, 20))
@@ -151,7 +148,6 @@ class Agreements::ReversalEffectsTest < ActiveSupport::TestCase
   test "R62: o estorno do pagamento cujo crédito foi transferido sai do contrato de quem recebeu, sem título de estorno" do
     pago = make_bill(@alfa, number: "NF-0", contract_code: "CT-A", amount_cents: 10_000, status: :paid, document: PaymentsHelper::MARIA)
     pago.update_columns(paid_cents: 10_000)
-    make_channel(@alfa)
     other = make_bill(@alfa, number: "OUTRO", contract_code: "CT-B", document: PaymentsHelper::JOAO, name: "João").contract
     travel_day(Date.new(2026, 10, 20))
     pay_lines([ pay_line("NF-0", Date.new(2026, 10, 20), 20_000, id: "PIX-CRED") ])
@@ -185,7 +181,6 @@ class Agreements::ReversalEffectsTest < ActiveSupport::TestCase
 
   test "R240, AF3: o estorno de pagamento feito antes da montagem cancela o acordo que ainda aguarda a efetivação, com 'valor do título mudou'" do
     customer, nf1, nf2 = agreement_scenario(@alfa)
-    make_channel(@alfa)
     travel_day(Date.new(2026, 10, 1))
     pay_lines([ pay_line("NF-2", Date.new(2026, 10, 1), 10_000, id: "PIX-ANTES") ])
     travel_day(AGREEMENT_DAY)

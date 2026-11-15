@@ -5,7 +5,6 @@ class PaymentAccountTest < ActiveSupport::TestCase
   setup do
     @alfa = tenants(:alfa)
     @beta = tenants(:beta)
-    make_channel(@alfa)
   end
 
   test "a conta nasce ativa com os padrões do manifesto e o segredo cifrado (R259, R260, R262)" do
@@ -20,14 +19,14 @@ class PaymentAccountTest < ActiveSupport::TestCase
   end
 
   test "campo obrigatório do manifesto vazio recusa a gravação com o nome do campo (R259)" do
-    account = @alfa.payment_accounts.build(channel: @alfa.payment_channels.first, modality: "pix", provider: "fake", environment: "sandbox", nickname: "Pix sem chave")
+    account = @alfa.payment_accounts.build(account_code: "0001-99999-0", modality: "pix", provider: "fake", environment: "sandbox", nickname: "Pix sem chave")
     account.assign_values(config: { "connection_result" => "ok" }, secrets: { "api_key" => "x" })
     assert_not account.valid?
     assert_includes account.errors.full_messages.to_sentence, "Chave Pix é obrigatório"
   end
 
   test "número fora dos limites e opção inválida são recusados (R259)" do
-    account = @alfa.payment_accounts.build(channel: @alfa.payment_channels.first, modality: "boleto", provider: "fake", environment: "sandbox", nickname: "Ruim")
+    account = @alfa.payment_accounts.build(account_code: "0001-99999-0", modality: "boleto", provider: "fake", environment: "sandbox", nickname: "Ruim")
     account.assign_values(config: { "connection_result" => "talvez", "expire_days" => "400" }, secrets: { "api_key" => "x" })
     assert_not account.valid?
     messages = account.errors.full_messages.to_sentence
@@ -37,7 +36,7 @@ class PaymentAccountTest < ActiveSupport::TestCase
 
   test "uma conta ativa por credor, modalidade e ambiente; outro ambiente, outra modalidade e a desativada valem (R260)" do
     make_account(@alfa, modality: "boleto", environment: "production", nickname: "Boleto produção")
-    other = @alfa.payment_accounts.build(channel: @alfa.payment_channels.first, modality: "boleto", provider: "fake", environment: "production", nickname: "Outra")
+    other = @alfa.payment_accounts.build(account_code: "0001-99999-0", modality: "boleto", provider: "fake", environment: "production", nickname: "Outra")
     other.assign_values(config: { "connection_result" => "ok" }, secrets: { "api_key" => "x" })
     assert_not other.valid?
     assert_includes other.errors.full_messages.to_sentence, "Já existe uma conta de Boleto ativa neste ambiente (Produção)"
@@ -51,15 +50,13 @@ class PaymentAccountTest < ActiveSupport::TestCase
 
   test "o banco também garante uma conta ativa por modalidade e ambiente (R260)" do
     make_account(@alfa, modality: "pix", environment: "production", nickname: "Pix 1", config: { "connection_result" => "ok", "pix_key" => "a@b.com" })
-    clone = PaymentAccount.new(tenant: @alfa, channel: @alfa.payment_channels.first, modality: "pix", provider: "fake", environment: "production", nickname: "Pix 2", config: {}, active: true)
+    clone = PaymentAccount.new(account_code: "0001-99999-0", tenant: @alfa, modality: "pix", provider: "fake", environment: "production", nickname: "Pix 2", config: {}, active: true)
     assert_raises(ActiveRecord::RecordNotUnique) { clone.save!(validate: false) }
   end
 
-  test "o canal tem de ser do mesmo credor e o fornecedor tem de existir e atender a modalidade (R260)" do
-    beta_channel = make_channel(@beta, code: "BETA-1")
-    account = @alfa.payment_accounts.build(channel: beta_channel, modality: "boleto", provider: "inexistente", environment: "sandbox", nickname: "X")
+  test "o fornecedor tem de existir e atender a modalidade (R260)" do
+    account = @alfa.payment_accounts.build(account_code: "0001-99999-0", modality: "boleto", provider: "inexistente", environment: "sandbox", nickname: "X")
     assert_not account.valid?
-    assert_includes account.errors.full_messages.to_sentence, "Método de recebimento é de outro credor"
     assert_includes account.errors.full_messages.to_sentence, "Fornecedor não está instalado neste sistema"
   end
 
@@ -126,10 +123,5 @@ class PaymentAccountTest < ActiveSupport::TestCase
     account.assign_values(files: { "certificate" => p12_upload(days: 400) })
     account.save!
     assert_nil account.reload.certificate_warned_for
-  end
-
-  test "o canal com conta de pagamento não se apaga (R269)" do
-    account = make_account(@alfa)
-    assert_raises(Access::Refused) { Payments::ChannelManager.new(users(:joana)).destroy(account.channel) }
   end
 end

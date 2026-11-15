@@ -17,7 +17,7 @@ module Promises
       contract = contract_for(attempt, customer, attributes)
       bills = chosen_bills(contract, attributes[:promise_bill_ids])
       method = attributes[:promise_payment_method].to_s
-      refuse!(:method) unless Payment.payment_methods.key?(method)
+      refuse!(:method) unless PaymentMethod.known?(method)
       contacted_on = attempt.contacted_at.in_time_zone.to_date
       tier = Limits.tier_of(contract)
       promised_on = check_date(attributes[:promise_on], contacted_on, tier)

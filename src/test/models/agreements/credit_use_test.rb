@@ -8,7 +8,6 @@ class Agreements::CreditUseTest < ActiveSupport::TestCase
     @alfa = tenants(:alfa)
     travel_day(AGREEMENT_DAY)
     @customer, @nf1, @nf2 = agreement_scenario(@alfa)
-    make_channel(@alfa)
     @contract = @nf1.contract
     add_credit(@contract, 4_366)
   end
@@ -28,7 +27,7 @@ class Agreements::CreditUseTest < ActiveSupport::TestCase
     assert_equal 0, @contract.credit_cents, "o crédito foi consumido no aceite"
     assert_predicate agreement.reload, :state_awaiting_effectuation?
     assert_equal 30_000, Agreements::LedgerLoader.new(@alfa, today: AGREEMENT_DAY).one(entry).due(AGREEMENT_DAY).total
-    assert_equal "CRM-CREDITO", Payment.find_by!(agreement_id: agreement.id).channel.code
+    assert_equal [ "contract_credit", "crm" ], Payment.find_by!(agreement_id: agreement.id).values_at(:payment_method, :provider)
   end
 
   test "R223: o crédito que cobre a entrada inteira efetiva o acordo no aceite" do

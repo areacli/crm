@@ -24,8 +24,11 @@ module Demo
     BETA = "Clínica Beta".freeze
     # Métodos de recebimento sem marca de banco ou de adquirente (decisão do Paulo, 15/11/2026): as integrações da vitrine são todas do fornecedor falso, e um
     # nome de marca ao lado delas parecia uma integração que não existe. Os códigos são os da planilha de exemplo e não mudam.
-    CHANNELS = { "pix" => [ "341-1234-56789", :account, "Conta bancária principal" ], "boleto" => [ "2847193", :agreement, "Convênio de cobrança" ],
-                 "cartão de crédito" => [ "1029384756", :card, "Adquirente de cartão, loja virtual" ], "transferência" => [ "341-1234-56789", :account, nil ] }.freeze
+    # O fornecedor de cada meio nas planilhas fictícias de pagamentos (03, revisão 12): nomes genéricos, sem marca, para não parecer integração.
+    PROVIDERS = { "pix" => "Banco Exemplo", "boleto" => "Banco Exemplo", "cartão de crédito" => "Adquirente Exemplo", "transferência" => "Banco Exemplo" }.freeze
+    # A conta no fornecedor de cada meio, nas planilhas fictícias e nas integrações do fornecedor falso (16, revisão 2).
+    ACCOUNTS = { "pix" => "0001-12345-6", "boleto" => "0001-12345-6", "cartão de crédito" => "EC-1029384756", "transferência" => "0001-12345-6" }.freeze
+    INTEGRATION_ACCOUNT = "0001-99999-0".freeze
     # Segmentos da demonstração (13): nome, sujeito, condições e posição no enquadramento financeiro (nil: sem uso, só para a lista).
     SEGMENTS = [
       [ "Mensalidade recente", "contracts", [ { "path" => "product", "op" => "eq", "value" => "Mensalidade" }, { "path" => "overdue_days", "op" => "lte", "value" => 90 } ], 1 ],
@@ -122,7 +125,7 @@ module Demo
         link(@manager, tenant, gestor.name)
         link(@operator, tenant, "Operador")
         @alpha = tenant
-        channels(tenant)
+        accounts(tenant)
         configure(tenant)
         step("  carteira (#{@customers} clientes)") { portfolio(tenant, 0...@customers, name: "carteira-outubro.csv") }
         step("  segmentos e valores atualizados") { recalc(tenant) }
@@ -147,13 +150,12 @@ module Demo
         registry(tenant, trade_name: "Clínica Beta", street: "Rua XV de Novembro", number: "250", district: "Centro", city: "Curitiba", state: "PR", zip: "80020310",
                          email: "financeiro@clinicabeta.exemplo.com.br", phone: "(41) 3222-1000")
         link(@manager, tenant, "Operador")
-        channel = PaymentChannel.create!(tenant: tenant, kind: :account, code: "001-4455-90210", description: "Conta bancária da clínica")
         tenant.setting.update!(charge_fine_pct: 2, charge_interest_pct: 1, charge_index: "ipca")
         Tier.catch_all_of(tenant).update!(interest_kind: "fixed")
         Charges::RuleHistory.record!(tenant, since: Date.new(2020, 1, 1))
         portfolio(tenant, 20_000...20_000 + [ @customers / 16, 40 ].max, name: "carteira-clinica.csv")
         recalc(tenant)
-        payments(tenant, codes: CHANNELS.keys.index_with { channel.code }, share: 30)
+        payments(tenant, share: 30)
         attempts(tenant, total: 600)
         recalc(tenant)
         tenant
@@ -231,14 +233,10 @@ module Demo
         Charges::Recalculation.new(tenant).apply(today: today)
       end
 
-      # Canais de recebimento e as contas do fornecedor falso (nada de segredo real: a chave é uma frase fixa de demonstração).
-      def channels(tenant)
-        @channels = CHANNELS.values.uniq { |code, _, _| code }.to_h do |code, kind, description|
-          [ code, PaymentChannel.create!(tenant: tenant, kind: kind, code: code, description: description || "Conta #{code}") ]
-        end
-        pix_channel = @channels["341-1234-56789"]
-        { "boleto" => @channels["2847193"], "pix" => pix_channel, "card" => @channels["1029384756"] }.each do |modality, channel|
-          account = tenant.payment_accounts.build(channel: channel, modality: modality, provider: "fake", environment: "production", active: true,
+      # As integrações do fornecedor falso (nada de segredo real: a chave é uma frase fixa de demonstração).
+      def accounts(tenant)
+        %w[boleto pix card].each do |modality|
+          account = tenant.payment_accounts.build(modality: modality, provider: "fake", environment: "production", active: true, account_code: INTEGRATION_ACCOUNT,
                                                    nickname: "#{{ 'boleto' => 'Boleto', 'pix' => 'Pix', 'card' => 'Cartão' }.fetch(modality)} (fornecedor de demonstração)")
           account.assign_values(config: { "connection_result" => "ok", "pix_key" => "pagamentos@escolaalfa.exemplo.com.br", "max_installments" => 6 },
                                 secrets: { "api_key" => "chave-fictícia-de-demonstração" })
@@ -263,11 +261,11 @@ module Demo
 
       # Recebimentos: pagam cerca de um quinto dos títulos vencidos há mais de 15 dias (a baixa por componente passa pelo fluxo completo, e o volume foi reduzido de 38% para 22% na revisão do lote, decisão 0021, sem perder nenhum cenário) (quitam, pagam metade, pagam a mais, parcial de 30%), com uma
       # linha repetida e linhas de título que não existe (ficam pendentes). Depois, estornos de alguns pagamentos aplicados.
-      def payments(tenant, codes: CHANNELS.transform_values(&:first), share: 22)
+      def payments(tenant, share: 22)
         # O pagamento baixa primeiro os encargos (baixa por componente, 09): quem quita paga o valor atualizado de hoje, que a tabela de valores guarda.
         bills = Bill.where(tenant_id: tenant.id).joins(:customer).joins("left join bill_valuations on bill_valuations.bill_id = bills.id").where("bills.due_date < ?", today - 15).order(:id)
                     .pluck("customers.document", :number, Arel.sql("coalesce(bill_valuations.total_cents, bills.amount_cents)"), :due_date, :id)
-        lines = [ %w[metodo_recebimento identificador documento titulo data_pagamento valor meio] ]
+        lines = [ %w[fornecedor conta identificador documento titulo data_pagamento valor meio] ]
         methods = %w[pix boleto cartão\ de\ crédito transferência]
         bills.each do |document, number, cents, due, id|
           roll = Zlib.crc32("pay:#{id}") % 100
@@ -282,7 +280,7 @@ module Demo
           end
           method = methods[id % 4]
           date = kind < 60 ? today - 1 - (Zlib.crc32("when:#{id}") % 20) : [ due + (Zlib.crc32("when:#{id}") % 26), today - 1 ].min
-          lines << [ codes.fetch(method), "P#{id}", document, number, date.strftime("%d/%m/%Y"), Money.format(value), method ]
+          lines << [ PROVIDERS.fetch(method), ACCOUNTS.fetch(method), "P#{id}", document, number, date.strftime("%d/%m/%Y"), Money.format(value), method ]
         end
         # Três clientes com tudo a vencer e pago em dia, sem crédito nem saldo: são os que a anonimização a pedido aceita (07, R130).
         Portfolio::Sql.rows(<<~SQL, tenant.id, today, 3).each do |row|
@@ -290,25 +288,25 @@ module Demo
           where b.tenant_id = ? and b.customer_id in (
             select customer_id from bills where tenant_id = b.tenant_id group by customer_id having min(due_date) >= ?::date and count(*) <= 2 order by customer_id desc limit ?)
         SQL
-          lines << [ codes.fetch("pix"), "Q#{row['id']}", row["document"], row["number"], (today - 1).strftime("%d/%m/%Y"), Money.format(row["amount_cents"].to_i), "pix" ]
+          lines << [ PROVIDERS.fetch("pix"), ACCOUNTS.fetch("pix"), "Q#{row['id']}", row["document"], row["number"], (today - 1).strftime("%d/%m/%Y"), Money.format(row["amount_cents"].to_i), "pix" ]
         end
         duplicate = lines[1]
         lines << duplicate.dup
         40.times do |n|
-          lines << [ codes.fetch("pix"), "PEND#{n}", FakeData.cpf(n * 7), "NF-9999#{n}/1", (today - 1 - n % 20).strftime("%d/%m/%Y"), Money.format(15_000 + n * 1_000), "pix" ]
+          lines << [ PROVIDERS.fetch("pix"), ACCOUNTS.fetch("pix"), "PEND#{n}", FakeData.cpf(n * 7), "NF-9999#{n}/1", (today - 1 - n % 20).strftime("%d/%m/%Y"), Money.format(15_000 + n * 1_000), "pix" ]
         end
         path = @tmp.join("pagamentos-#{tenant.id}.csv").to_s
         File.write(path, lines.map { |line| line.join(";") }.join("\n") + "\n")
         run_import(tenant, path, kind: "payments", name: "pagamentos-outubro.csv")
         Charges::Recalculation.new(tenant).apply(today: today)
 
-        applied = Payment.where(tenant_id: tenant.id, status: "applied").where("amount_cents > 3000").joins(:channel).order(:id).limit(2_000)
-                         .pluck("payment_channels.code", :identifier, :amount_cents)
-        reversals = [ %w[metodo_recebimento identificador_pagamento identificador_estorno data_estorno valor motivo] ]
-        applied.each_with_index do |(code, identifier, cents), index|
+        applied = Payment.where(tenant_id: tenant.id, status: "applied").where("amount_cents > 3000").order(:id).limit(2_000)
+                         .pluck(:payment_method, :provider_name, :account_code, :identifier, :amount_cents)
+        reversals = [ %w[meio fornecedor conta identificador_pagamento identificador_estorno data_estorno valor motivo] ]
+        applied.each_with_index do |(method, provider, account, identifier, cents), index|
           next unless (index % 25).zero?
 
-          reversals << [ code, identifier, "E#{identifier}", today.strftime("%d/%m/%Y"), Money.format((index % 50).zero? ? cents : cents / 3),
+          reversals << [ PaymentMethod.label(method), provider, account, identifier, "E#{identifier}", today.strftime("%d/%m/%Y"), Money.format((index % 50).zero? ? cents : cents / 3),
                          index.even? ? "contestação do pagador" : "pagamento em duplicidade" ]
         end
         path = @tmp.join("estornos-#{tenant.id}.csv").to_s

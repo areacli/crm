@@ -7,7 +7,6 @@ class Payments::FinalStateTest < ActiveSupport::TestCase
 
   setup do
     @alfa = tenants(:alfa)
-    @channel = make_channel(@alfa)
     seed_indexes!
     configure_charges(@alfa)
     @bill = make_bill(@alfa, number: "NF-2", amount_cents: 50_000, due: Date.new(2026, 9, 15))

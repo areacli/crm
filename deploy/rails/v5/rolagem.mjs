@@ -26,7 +26,7 @@ const raiz = () => pagina.locator('.aba-raiz:visible').first();
 
 const rotas = ['/resumo', '/clientes', '/acionamentos', '/importacoes', '/importacoes/nova', '/importacoes/nova?tipo=pagamentos', '/divergencias-de-valor', '/acordos', '/acordos/pendentes',
     '/promessas/pendentes', '/estornos-a-espera', '/arquivo-de-acordos', '/distribuicao', '/filas', '/operacoes', '/guarda-de-dados', '/configuracao/carteira',
-    '/configuracao/metodos-de-recebimento', '/configuracao/politicas-de-pagamento', '/configuracao/segmentos', '/configuracao/enquadramento-financeiro',
+    '/configuracao/meios-de-pagamento', '/configuracao/politicas-de-pagamento', '/configuracao/segmentos', '/configuracao/enquadramento-financeiro',
     '/configuracao/promessas-e-acordos', '/configuracao/indices', '/configuracao/resultados-de-acionamento', '/configuracao/dados-do-credor', '/importacoes/nova?tipo=estornos'];
 // Uma ficha, com as abas internas, e um acordo, achados pelas listas.
 await pagina.evaluate(async () => (await import('spa/abas')).abrir('/clientes')); await ocioso();

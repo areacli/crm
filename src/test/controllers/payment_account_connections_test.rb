@@ -5,7 +5,6 @@ require "test_helper"
 class PaymentAccountConnectionsTest < ActionDispatch::IntegrationTest
   setup do
     @alfa = tenants(:alfa)
-    make_channel(@alfa)
     with_pagbank_app
     @previous_url = Rails.configuration.x.payments.public_url
     Rails.configuration.x.payments.public_url = "https://crm.exemplo.com.br"
@@ -111,7 +110,7 @@ class PaymentAccountConnectionsTest < ActionDispatch::IntegrationTest
   # 16, revisão 1 (R373c): a troca de fornecedor que esperava a conexão se completa na volta, no mesmo ato.
   test "a volta da conexão completa a troca de fornecedor: a nova entra e a anterior sai" do
     old = make_account(@alfa, nickname: "Boleto de teste", modality: "boleto", environment: "sandbox")
-    created = Payments::AccountManager.new(users(:joana)).create(tenant: @alfa, channel: @alfa.payment_channels.first, modality: "boleto", provider: "pagbank", environment: "sandbox",
+    created = Payments::AccountManager.new(users(:joana)).create(tenant: @alfa, account_code: "0001-99999-0", modality: "boleto", provider: "pagbank", environment: "sandbox",
                                                                  nickname: "Boleto PagBank", replaces: old)
     assert_not created.active?
     use_pagbank_client(pagbank_client.on(:post, "/oauth2/token", body: token_response))

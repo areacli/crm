@@ -27,13 +27,13 @@ module Payments
     def stage_pending(import)
       crm_id = SourceSystem.crm_of(import.tenant_id).id
       repointed = Repoint.targets(import)
-      pending = Payment.where(tenant_id: import.tenant_id, status: "pending").where("amount_cents - reversed_cents > 0").joins(:channel).order(:id)
-                       .pluck("payments.id", "payment_channels.code", :identifier, :document, :bill_number, :paid_on, Arel.sql("payments.amount_cents - payments.reversed_cents"),
+      pending = Payment.where(tenant_id: import.tenant_id, status: "pending").where("amount_cents - reversed_cents > 0").order(:id)
+                       .pluck(:id, :provider, :provider_name, :account_key, :account_code, :identifier, :document, :bill_number, :paid_on, Arel.sql("payments.amount_cents - payments.reversed_cents"),
                               :payment_method, :final_state, :source_system_id, :external_bill_id)
       pending.each_slice(1000).with_index do |slice, slice_index|
-        PaymentRow.insert_all!(slice.each_with_index.map do |(id, code, identifier, document, number, paid_on, cents, method, final_state, system_id, external_id), index|
+        PaymentRow.insert_all!(slice.each_with_index.map do |(id, provider, provider_name, account_key, account_code, identifier, document, number, paid_on, cents, method, final_state, system_id, external_id), index|
           system_id, external_id, number = repointed[id].first(2) + [ number.presence || repointed[id].last ] if repointed.key?(id)
-          { import_id: import.id, line: slice_index * 1000 + index - pending.size, channel_code: code, identifier: identifier, document: document, bill_number: number.presence,
+          { import_id: import.id, line: slice_index * 1000 + index - pending.size, provider: provider, provider_name: provider_name, account_key: account_key, account_code: account_code, identifier: identifier, document: document, bill_number: number.presence,
             paid_on: paid_on, amount_cents: cents, payment_method: method, final_state: final_state, ok: true, pending_payment_id: id, rank: PENDING_RANK,
             source_system_id: (system_id unless system_id == crm_id), external_bill_id: external_id }
         end, returning: false)
@@ -65,13 +65,12 @@ module Payments
       return [] if keys.empty?
 
       Sql.rows(<<~SQL, import.id, keys.map(&:line), *([ import.tenant_id ] * 3))
-        select s.rank, case when s.pending_payment_id is null then 1 else 0 end as src, s.line, s.pending_payment_id as payment_id, ch.id as channel_id, s.identifier, s.document,
+        select s.rank, case when s.pending_payment_id is null then 1 else 0 end as src, s.line, s.pending_payment_id as payment_id, s.provider, s.provider_name, s.account_key, s.account_code, s.identifier, s.document,
                s.bill_number, s.paid_on, s.amount_cents, s.payment_method, s.final_state, s.source_system_id, s.external_bill_id, b.number as found_number,
                case when pp.id is null then b.id end as bill_id, pp.id as promise_id, count(b.id) over (partition by b.id) as repeats, b.contract_id, b.amount_cents as bill_amount, b.paid_cents,
                b.status as bill_status, b.agreement_id as bill_agreement_id, b.origin_agreement_id as bill_origin_agreement_id, ag.id as agreement_ref_id, hold.agreement_id as held_agreement_id,
                hold.state as held_state
         from (select * from payment_rows where import_id = ? and line in (?)) s
-        join payment_channels ch on ch.tenant_id = #{import.tenant_id.to_i} and ch.code = s.channel_code
         -- R50, R50a e 17, R417 a R417b: o título da linha, achado antes, em Ruby, dentro do sistema dela. A lista vem pronta porque agregar os títulos do credor
         -- dentro desta consulta fazia o planejador repetir a agregação por linha (25 s por lote com 200 mil títulos).
         left join #{resolved_bills(import, keys)} on rb.line = s.line
@@ -92,14 +91,13 @@ module Payments
 
       Sql.rows(<<~SQL, import.id, lines, *([ import.tenant_id ] * 2))
         select r.rank, r.line, r.identifier, r.paid_on as reversed_on, r.amount_cents, r.reason,
-               p.id as payment_id, p.channel_id, p.status as payment_status, p.amount_cents as payment_amount, p.applied_cents, p.credit_cents + p.moved_to_credit_cents as credit_cents,
+               p.id as payment_id, p.payment_method as payment_method, p.provider, p.account_key, p.status as payment_status, p.amount_cents as payment_amount, p.applied_cents, p.credit_cents + p.moved_to_credit_cents as credit_cents,
                p.reversed_cents, p.credit_reversed_cents, p.bill_id, p.promise_id, p.agreement_id, b.kind as bill_kind, b.agreement_id as bill_agreement_id,
                (a.reversing_since is not null and a.reverted_at is null) as ag_reversing, a.state as ag_state, hold.agreement_id as held_agreement_id, hold.state as held_state, p.promise_counted,
                coalesce(b.contract_id, pr.contract_id, (select min(contract_id) from agreement_bills where agreement_id = p.agreement_id)) as contract_id, b.amount_cents as bill_amount,
                b.paid_cents, b.paid_on as bill_paid_on, b.status as bill_status, b.withdrawn_at
         from (select * from payment_rows where import_id = ? and line in (?)) r
-        join payment_channels ch on ch.tenant_id = #{import.tenant_id.to_i} and ch.code = r.channel_code
-        join payments p on p.tenant_id = ? and p.channel_id = ch.id and p.identifier = r.payment_identifier
+        join payments p on p.tenant_id = ? and p.provider = r.provider and p.account_key = r.account_key and p.identifier = r.payment_identifier
         left join bills b on b.id = p.bill_id
         left join payment_promises pr on pr.id = p.promise_id
         left join agreements a on a.id = coalesce(b.agreement_id, p.agreement_id)

@@ -12,7 +12,7 @@
           <caption class="apenas-leitor-de-tela">Integrações de <%= modality_label(modality) %></caption>
           <thead>
             <tr>
-              <th scope="col">Ambiente</th><th scope="col">Fornecedor</th><th scope="col">Apelido</th><th scope="col">Método de recebimento</th><th scope="col">Acesso</th>
+              <th scope="col">Ambiente</th><th scope="col">Fornecedor</th><th scope="col">Apelido</th><th scope="col">Conta</th><th scope="col">Acesso</th>
               <th scope="col">Último teste</th><th scope="col">Aviso de pagamento</th><th scope="col">Situação</th><th scope="col"><span class="apenas-leitor-de-tela">Ações</span></th>
             </tr>
           </thead>
@@ -29,7 +29,7 @@
                 <% if active %>
                   <td><%= provider_name(active.provider) %></td>
                   <td><%= link_to active.nickname, edit_settings_payment_account_path(active) %></td>
-                  <td><%= "#{active.channel.code} · #{active.channel.description}" %></td>
+                  <td><%= active.account_code %></td>
                   <td><%= account_access_line(active) %></td>
                   <td><%= account_last_test(active) %></td>
                   <td><%= account_notice_line(active) %></td>
@@ -57,7 +57,7 @@
                   <th scope="row"><%= environment_label %></th>
                   <td><%= provider_name(waiting.provider) %></td>
                   <td><%= link_to waiting.nickname, edit_settings_payment_account_path(waiting) %></td>
-                  <td><%= "#{waiting.channel.code} · #{waiting.channel.description}" %></td>
+                  <td><%= waiting.account_code %></td>
                   <td><%= account_access_line(waiting) %></td>
                   <td><%= account_last_test(waiting) %></td>
                   <td><%= account_notice_line(waiting) %></td>
@@ -75,13 +75,13 @@
                 <%= detalhe_da_linha(detail_id, 9) do %>
                   <table>
                     <caption><%= t("payments.methods.inactive_caption", modality: modality_label(modality), environment: environment_label.downcase) %></caption>
-                    <thead><tr><th scope="col">Fornecedor</th><th scope="col">Apelido</th><th scope="col">Método de recebimento</th><th scope="col">Desativada em</th><th scope="col" data-numerico>Instrumentos vigentes</th></tr></thead>
+                    <thead><tr><th scope="col">Fornecedor</th><th scope="col">Apelido</th><th scope="col">Conta</th><th scope="col">Desativada em</th><th scope="col" data-numerico>Instrumentos vigentes</th></tr></thead>
                     <tbody>
                       <% retired.each do |account| %>
                         <tr>
                           <td><%= provider_name(account.provider) %></td>
                           <th scope="row"><%= link_to account.nickname, edit_settings_payment_account_path(account) %></th>
-                          <td><%= "#{account.channel.code} · #{account.channel.description}" %></td>
+                          <td><%= account.account_code %></td>
                           <td><%= @retired_at[account.id] ? datetime_br(@retired_at[account.id]) : "—" %></td>
                           <td data-numerico><%= number_with_delimiter(@open_counts.fetch(account.id, 0)) %></td>
                         </tr>

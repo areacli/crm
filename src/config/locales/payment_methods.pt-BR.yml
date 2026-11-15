@@ -1,4 +1,4 @@
-# Meios de pagamento, métodos de recebimento e emissão de instrumentos (16, camada 20).
+# Meios de pagamento e emissão de instrumentos (16, camada 20).
 pt-BR:
   activerecord:
     errors:
