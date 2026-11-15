@@ -1,0 +1,21 @@
+<%# A escolha do fornecedor (16, revisão 1, R373b): só os instalados que emitem o meio, cada um com o que pede antes. Na SPA, volta no lugar do atual quando
+    o meio muda (`fora_de_banda`). Locais: fora_de_banda. %>
+<div id="fornecedores-da-integracao"<% if local_assigns[:fora_de_banda] %> data-fora-de-banda="true"<% end %>>
+  <% if @account.modality.blank? %>
+    <p class="vazio">Escolha o meio de pagamento para ver os fornecedores que o emitem.</p>
+  <% elsif @providers.empty? %>
+    <p class="vazio"><%= t("payments.methods.replace.no_other") %></p>
+  <% else %>
+    <fieldset class="escolha-de-fornecedor">
+      <legend>Fornecedor</legend>
+      <% @providers.each do |provider| %>
+        <% manifest = Payments::Providers.manifest(provider) %>
+        <label>
+          <%= radio_button_tag "payment_account[provider]", provider, @account.provider == provider, id: "fornecedor-#{provider}" %>
+          <strong><%= manifest.label %></strong>
+          <% if manifest.about(@account.modality).present? %><small><%= manifest.about(@account.modality) %></small><% end %>
+        </label>
+      <% end %>
+    </fieldset>
+  <% end %>
+</div>

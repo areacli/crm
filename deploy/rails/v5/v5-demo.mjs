@@ -136,7 +136,7 @@ const telas = [
     ['/importacoes/nova?tipo=pagamentos', 'Importar pagamentos'], ['/importacoes/nova?tipo=estornos', 'Importar estornos'], ['/divergencias-de-valor', 'Divergências de valor'],
     ['/acordos', 'Acordos'], ['/acordos/pendentes', 'Acordos pendentes'], ['/promessas/pendentes', 'Promessas pendentes'], ['/estornos-a-espera', 'Estornos à espera do gestor'],
     ['/arquivo-de-acordos', 'Arquivo de acordos'], ['/distribuicao', 'Distribuição'], ['/filas', 'Filas'], ['/operacoes', 'Operações credenciadas'], ['/guarda-de-dados', 'Guarda de dados'],
-    ['/configuracao/dados-do-credor', 'Dados do credor'], ['/configuracao/carteira', 'Carteira'], ['/configuracao/metodos-de-recebimento', 'Métodos de recebimento'],
+    ['/configuracao/dados-do-credor', 'Dados do credor'], ['/configuracao/carteira', 'Carteira'], ['/configuracao/metodos-de-recebimento', 'Métodos de recebimento'], ['/configuracao/meios-de-pagamento', 'Meios de pagamento'],
     ['/configuracao/politicas-de-pagamento', 'Políticas de pagamento'], ['/configuracao/segmentos', 'Segmentos'], ['/configuracao/enquadramento-financeiro', 'Enquadramento financeiro'],
     ['/configuracao/promessas-e-acordos', 'Promessas e acordos'], ['/configuracao/indices', 'Índices do Banco Central'], ['/configuracao/resultados-de-acionamento', 'Resultados de acionamento'],
     ['/sistemas', 'Sistemas'],
@@ -157,11 +157,19 @@ await passo('usuários e perfis ficam fechados (não encontrado) e a troca de se
     if (!html.includes('Fechado na demonstração')) throw new Error('a troca de senha não está fechada');
 });
 
-await passo('integrações: a lista abre no detalhe dos métodos de recebimento e a nova integração fica fechada', async () => {
-    await aba('/configuracao/metodos-de-recebimento', 'Métodos de recebimento');
-    await raiz().locator(".datagrid-header [aria-label='Mostrar os detalhes de todas as linhas']").first().click();
+// 16, revisão 1: as integrações por meio. Na demonstração, a integração nova mostra os fornecedores reais e os campos de cada um; salvar fica fechado.
+await passo('meios de pagamento: um quadro por meio, e a integração nova com os fornecedores reais', async () => {
+    await aba('/configuracao/meios-de-pagamento', 'Meios de pagamento');
+    for (const meio of ['Boleto', 'Pix', 'Cartão de crédito']) await raiz().locator('section.cartao h2', { hasText: meio }).first().waitFor();
     await raiz().getByText('fornecedor de demonstração').first().waitFor();
-    await aba('/configuracao/integracoes/nova', 'Fechado na demonstração');
+    await raiz().locator('section[aria-labelledby=meio-pix] a.botao', { hasText: 'Criar integração' }).first().click();
+    await ocioso();
+    await raiz().locator('h1', { hasText: 'Nova integração: Pix' }).first().waitFor();
+    for (const nome of ['Efí', 'Bradesco', 'PagBank', 'Mercado Pago']) await raiz().locator('fieldset.escolha-de-fornecedor label', { hasText: nome }).first().waitFor();
+    await raiz().locator('fieldset.escolha-de-fornecedor label', { hasText: 'Efí' }).first().click();
+    await ocioso();
+    await raiz().locator('legend', { hasText: 'Acesso' }).first().waitFor();
+    await raiz().locator("input[name='payment_account[secrets][client_secret]']").first().waitFor({ state: 'attached' });
 });
 
 // A recriação diária deixa uma importação conferida à espera: ela ocupa o credor (R10). Descarta para poder enviar.

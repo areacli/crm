@@ -1,41 +1,39 @@
-<%# Trecho que a SPA refaz a cada busca: tabela, contagem e paginação. Uma linha por método de recebimento (16, R373); o detalhe, pela seta,
-    mostra as integrações dele (antes "contas de pagamento"), só a quem tem a 14 no credor do método. A integração ativa é única por credor,
-    meio de pagamento e ambiente, em qualquer método (12, R260). %>
+<%# Trecho que a SPA refaz a cada busca: tabela, contagem e paginação. Uma linha por método de recebimento (16, R373, revisão 1): a coluna Meios diz quais
+    meios têm integração ativa ligada ao método; as integrações ficam na página "Meios de pagamento", e o nome do meio leva até lá a quem tem a 14 no credor. %>
 <div id="resultado" aria-live="polite">
   <% if @channels.empty? %>
     <p class="vazio">Nenhum método de recebimento cadastrado.</p>
   <% else %>
     <div class="tabela" tabindex="0" data-fixa>
-      <table data-detalhes>
+      <table>
         <caption class="apenas-leitor-de-tela">Métodos de recebimento</caption>
         <thead>
           <tr>
-            <th scope="col"><%= alternar_todos_os_detalhes %>Código</th>
+            <th scope="col">Código</th>
             <th scope="col">Descrição</th>
             <% if @several_tenants %><th scope="col">Credor</th><% end %>
             <th scope="col">Tipo</th>
-            <th scope="col" data-numerico>Integrações</th>
+            <th scope="col">Meios</th>
             <th scope="col">Webhook</th>
             <th scope="col">Situação</th>
             <th scope="col"><span class="apenas-leitor-de-tela">Ações</span></th>
           </tr>
         </thead>
         <tbody>
-          <% columns = @several_tenants ? 8 : 7 %>
           <% @channels.each do |channel| %>
-            <% detail_id = "detalhe-metodo-#{channel.id}" %>
             <% editable = @editable_tenant_ids.include?(channel.tenant_id) %>
             <% financial = @financial_tenant_ids.include?(channel.tenant_id) %>
-            <% accounts = financial ? channel.payment_accounts.sort_by { |account| [ account.active? ? 0 : 1, account.modality, account.environment ] } : [] %>
+            <% modalities = Payments::Providers::MODALITIES & channel.payment_accounts.select(&:active?).map(&:modality) %>
             <tr>
-              <th scope="row">
-                <% if financial %><%= alternar_detalhe(detail_id, "método #{channel.code}") %><% end %>
-                <%= editable ? link_to(channel.code, edit_settings_channel_path(channel)) : channel.code %>
-              </th>
+              <th scope="row"><%= editable ? link_to(channel.code, edit_settings_channel_path(channel)) : channel.code %></th>
               <td><%= channel.description %></td>
               <% if @several_tenants %><td><%= channel.tenant.name %></td><% end %>
               <td><%= t("payments.channels.kinds.#{channel.kind}") %></td>
-              <td data-numerico><%= financial ? channel.payment_accounts.size : "—" %></td>
+              <td>
+                <% if modalities.empty? %>—<% else %>
+                  <%= safe_join(modalities.map { |modality| financial ? link_to(t("payments.accounts.modalities.#{modality}"), settings_payment_methods_path(credor: channel.tenant_id)) : t("payments.accounts.modalities.#{modality}") }, ", ") %>
+                <% end %>
+              </td>
               <td><%= channel.webhook_enabled? ? "Ativo" : "Sem segredo" %></td>
               <td><%= channel.active? ? situacao("Ativo", tom: :success) : situacao("Desativado", tom: :neutral) %></td>
               <td data-acoes>
@@ -47,36 +45,6 @@
                 <% end %>
               </td>
             </tr>
-            <% if financial %>
-              <%= detalhe_da_linha(detail_id, columns) do %>
-                <% if accounts.empty? %>
-                  <p>Nenhuma integração com fornecedor: este método recebe só pela planilha de pagamentos. <%= link_to "Criar integração", new_settings_payment_account_path(credor: channel.tenant_id) %></p>
-                <% else %>
-                  <table>
-                    <caption>Integrações do método <%= channel.code %></caption>
-                    <thead>
-                      <tr>
-                        <th scope="col">Apelido</th><th scope="col">Meio de pagamento</th><th scope="col">Fornecedor</th><th scope="col">Ambiente</th>
-                        <th scope="col">Certificado</th><th scope="col">Último teste</th><th scope="col">Situação</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <% accounts.each do |account| %>
-                        <tr>
-                          <th scope="row"><%= link_to account.nickname, edit_settings_payment_account_path(account) %></th>
-                          <td><%= t("payments.accounts.modalities.#{account.modality}") %></td>
-                          <td><%= provider_name(account.provider) %></td>
-                          <td><%= t("payments.accounts.environments.#{account.environment}") %></td>
-                          <td><%= account.certificate_expires_on ? "vence em #{date_br(account.certificate_expires_on)}" : "—" %></td>
-                          <td><%= account.last_test_status ? "#{account.last_test_status == 'ok' ? 'Boa' : 'Falhou'}, #{datetime_br(account.last_tested_at)}" : "Nunca testada" %></td>
-                          <td><%= account.active? ? situacao("Ativa", tom: :success) : situacao("Desativada", tom: :neutral) %></td>
-                        </tr>
-                      <% end %>
-                    </tbody>
-                  </table>
-                <% end %>
-              <% end %>
-            <% end %>
           <% end %>
         </tbody>
       </table>

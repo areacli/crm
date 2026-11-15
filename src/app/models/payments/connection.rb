@@ -65,6 +65,8 @@ module Payments
       tokens = account.adapter.exchange_authorization_code(account, app: app, code: code.to_s, redirect_uri: self.class.redirect_uri)
       store(account, tokens, now: now)
       log(account, "connected", note: tokens.account_label)
+      # A troca de fornecedor que esperava esta conexão se completa agora (16, revisão 1, R373c).
+      AccountManager.new(@actor).complete_replacement(account) if account.replaces_id && !account.active?
       account
     rescue Providers::Error => error
       log(account, "connection_failed", note: error.message) if account

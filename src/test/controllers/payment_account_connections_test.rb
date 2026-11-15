@@ -107,6 +107,23 @@ class PaymentAccountConnectionsTest < ActionDispatch::IntegrationTest
     assert_nil account.secrets["access_token"]
     assert Change.where(subject_id: account.id, event: "disconnected").exists?
   end
+
+  # 16, revisão 1 (R373c): a troca de fornecedor que esperava a conexão se completa na volta, no mesmo ato.
+  test "a volta da conexão completa a troca de fornecedor: a nova entra e a anterior sai" do
+    old = make_account(@alfa, nickname: "Boleto de teste", modality: "boleto", environment: "sandbox")
+    created = Payments::AccountManager.new(users(:joana)).create(tenant: @alfa, channel: @alfa.payment_channels.first, modality: "boleto", provider: "pagbank", environment: "sandbox",
+                                                                 nickname: "Boleto PagBank", replaces: old)
+    assert_not created.active?
+    use_pagbank_client(pagbank_client.on(:post, "/oauth2/token", body: token_response))
+    entrar(users(:joana))
+    get new_settings_payment_account_connection_path(created)
+    query = Rack::Utils.parse_query(URI.parse(response.location).query)
+    get settings_payment_account_connection_return_path(state: query["state"], code: "CODIGO-1")
+    assert created.reload.active?
+    assert_not old.reload.active?
+    assert_equal %w[replaced], Change.where(subject_type: "payment_account", subject_id: old.id).order(:id).pluck(:event).last(1)
+    assert_equal "replacement_completed", Change.where(subject_type: "payment_account", subject_id: created.id).order(:id).last.event
+  end
 end
 
 class PaymentConnectionRenewalTest < ActiveSupport::TestCase

@@ -27,29 +27,34 @@ class PaymentAccountsScreensTest < ActionDispatch::IntegrationTest
     assert_operator AccessEvent.where(event: "access_denied").count, :>=, 2
   end
 
-  test "a tela Métodos de recebimento abre para a 4 e para a 14; as integrações só aparecem a quem tem a 14 (16, R373; 12, R267)" do
+  test "Métodos de recebimento mostra os meios de cada método, e as integrações ficam em Meios de pagamento (16, R373, R373d)" do
     make_account(@alfa, nickname: "Boleto do método")
     entrar(users(:joana))
     configuracao = submenu_do_menu("Configuração")
-    assert_includes configuracao, "Métodos de recebimento"
+    assert_equal configuracao.index("Métodos de recebimento") + 1, configuracao.index("Meios de pagamento")
     assert_not_includes configuracao, "Contas de pagamento"
     get settings_channels_path, headers: TRECHO
     assert_response :success
-    assert_select "th a", text: "Boleto do método"
-    assert_select "a", text: "Criar integração"
+    assert_select "th", text: "Meios"
+    assert_select "td a[href=?]", settings_payment_methods_path(credor: @alfa.id), text: "Boleto"
+    assert_select "a", text: "Boleto do método", count: 0
+    assert_select "a", text: "Criar integração", count: 0
     only_settings = make_user(@alfa, %w[view_portfolio change_settings])
     delete session_path
     entrar(only_settings)
+    assert_not_includes submenu_do_menu("Configuração"), "Meios de pagamento"
     get settings_channels_path, headers: TRECHO
     assert_response :success
-    assert_select "th a", text: "Boleto do método", count: 0
-    assert_select "a", text: "Criar integração", count: 0
+    assert_select "td", text: /Boleto/
+    assert_select "td a", text: "Boleto", count: 0
+    get settings_payment_methods_path, headers: TRECHO
+    assert_response :not_found
     only_financial = make_user(@alfa, %w[view_portfolio change_financial_policies], email: "fin@alfa.test")
     delete session_path
     entrar(only_financial)
     get settings_channels_path, headers: TRECHO
     assert_response :success
-    assert_select "th a", text: "Boleto do método"
+    assert_select "td a", text: "Boleto"
     assert_select "th a", text: @channel.code, count: 0
     assert_select "button", text: "Criar método de recebimento", count: 0
   end
@@ -66,9 +71,11 @@ class PaymentAccountsScreensTest < ActionDispatch::IntegrationTest
     mine = make_account(@alfa, nickname: "Minha")
     theirs = make_account(@beta, nickname: "Da Beta")
     entrar(users(:joana))
-    get settings_channels_path, headers: TRECHO
-    assert_select "th a", text: "Minha"
-    assert_select "th a", text: "Da Beta", count: 0
+    get settings_payment_methods_path, headers: TRECHO
+    assert_select "td a", text: "Minha"
+    assert_select "td a", text: "Da Beta", count: 0
+    get settings_payment_methods_path(credor: @beta.id), headers: TRECHO
+    assert_response :not_found
     get edit_settings_payment_account_path(theirs), headers: TRECHO
     assert_response :not_found
     assert_equal @beta.id, AccessEvent.where(event: "access_denied").last.tenant_id
@@ -100,33 +107,62 @@ class PaymentAccountsScreensTest < ActionDispatch::IntegrationTest
     make_account(@alfa, nickname: "Alfa 1")
     make_account(@beta, nickname: "Beta 1")
     entrar(user)
-    get settings_channels_path, headers: TRECHO
-    assert_select "th a", text: "Beta 1"
-    assert_select "th", text: "Credor"
+    # Um credor por vez (R373a): o filtro Credor sem "Todos".
+    get settings_payment_methods_path, headers: TRECHO
+    assert_select "select[name=credor] option", count: 2
+    assert_select "select[name=credor] option", text: "Todos", count: 0
+    get settings_payment_methods_path(credor: @alfa.id), headers: TRECHO
+    assert_select "td a", text: "Alfa 1"
+    assert_select "td a", text: "Beta 1", count: 0
+    get settings_payment_methods_path(credor: @beta.id), headers: TRECHO
+    assert_select "td a", text: "Beta 1"
+    assert_select "td a", text: "Alfa 1", count: 0
   end
 
-  test "o passo de escolha mostra o formulário montado pelo manifesto do fornecedor (R259)" do
+  test "a integração nova pelo meio: só os fornecedores que emitem o meio, cada um com o que pede, e os campos em Acesso e Cobrança (16, R373b; 12, R259)" do
     entrar(users(:joana))
-    get new_settings_payment_account_path, headers: TRECHO
-    assert_select "h2", text: "Integração"
-    assert_select "[id=campos-da-integracao] p.vazio", text: /Escolha o meio de pagamento e o fornecedor/
+    get new_settings_payment_account_path(credor: @alfa.id, meio: "pix", ambiente: "homologacao"), headers: TRECHO
+    assert_select "h1", text: "Nova integração: Pix"
+    assert_select "input[type=hidden][name='payment_account[environment]'][value=sandbox]"
+    assert_select "input[type=radio][name='payment_account[provider]']", count: Payments::Providers.for_modality("pix").size
+    assert_select "#fornecedores-da-integracao label", text: /Efí.*certificado \.p12/m
     assert_select "input[name='payment_account[nickname]']", count: 0
-    # A escolha feita na tela pede só o bloco dos campos que dependem dela, para entrar no lugar do atual.
-    get new_settings_payment_account_path(payment_account: { tenant_id: @alfa.id, modality: "pix", provider: "efi" }), headers: TRECHO
-    assert_select "[id=campos-da-integracao][data-fora-de-banda=true] input[name='payment_account[nickname]']"
+    get new_settings_payment_account_path(credor: @alfa.id, meio: "boleto", ambiente: "producao"), headers: TRECHO
+    assert_select "input[type=radio][value=efi]"
+    assert_select "input[type=radio][value=bradesco]", count: 0 # o boleto do Bradesco espera a autenticação (12, R284j)
+    # A escolha do fornecedor pede só os blocos que dependem dela, para entrar no lugar dos atuais; o apelido vem sugerido.
+    get new_settings_payment_account_path(payment_account: { tenant_id: @alfa.id, modality: "pix", environment: "sandbox", provider: "efi" }), headers: TRECHO
+    assert_select "[id=fornecedores-da-integracao][data-fora-de-banda=true] input[type=radio][value=efi][checked]"
+    assert_select "[id=campos-da-integracao][data-fora-de-banda=true] input[name='payment_account[nickname]'][value=?]", "Pix Efí homologação"
     assert_select "h1", count: 0
-    get new_settings_payment_account_path(credor: @alfa.id, modalidade: "pix", fornecedor: "efi"), headers: TRECHO
-    assert_select "input[type=file][name='payment_account[files][certificate]']"
-    assert_select "input[type=password][name='payment_account[secrets][client_secret]']"
-    assert_select "input[name='payment_account[config][pix_key]']"
+    # O apelido que a pessoa digitou fica; a sugestão que ela não mexeu acompanha a troca do fornecedor.
+    get new_settings_payment_account_path(payment_account: { tenant_id: @alfa.id, modality: "pix", environment: "sandbox", provider: "fake", nickname: "Pix Efí homologação", nickname_suggested: "Pix Efí homologação" }), headers: TRECHO
+    assert_select "input[name='payment_account[nickname]'][value=?]", "Pix Fornecedor de teste (falso) homologação"
+    get new_settings_payment_account_path(payment_account: { tenant_id: @alfa.id, modality: "pix", environment: "sandbox", provider: "fake", nickname: "Meu Pix", nickname_suggested: "Pix Efí homologação" }), headers: TRECHO
+    assert_select "input[name='payment_account[nickname]'][value=?]", "Meu Pix"
+    get new_settings_payment_account_path(credor: @alfa.id, meio: "pix", ambiente: "homologacao", fornecedor: "efi"), headers: TRECHO
+    groups = css_select("fieldset").to_h { |fieldset| [ fieldset.at_css("legend")&.text.to_s.strip, fieldset ] }
+    assert_equal [ "Fornecedor", "Acesso", "Cobrança" ], groups.keys
+    assert groups["Acesso"].at_css("input[type=file][name='payment_account[files][certificate]']")
+    assert groups["Acesso"].at_css("input[type=password][name='payment_account[secrets][client_secret]']")
+    assert groups["Acesso"].at_css("input[name='payment_account[config][pix_key]']")
+    assert groups["Cobrança"].at_css("input[name='payment_account[config][expire_days]']")
+    assert_nil groups["Acesso"].at_css("input[name='payment_account[config][expire_days]']")
     assert_select "input[name='payment_account[config][payee_code]']", count: 0
     assert_select "form[enctype='multipart/form-data']"
-    get new_settings_payment_account_path(credor: @alfa.id, modalidade: "boleto", fornecedor: "efi"), headers: TRECHO
+    # Com um método de recebimento só, ele já vem escolhido.
+    assert_select "select[name='payment_account[channel_id]'] option[selected]" if @alfa.payment_channels.where(active: true).one?
+    get new_settings_payment_account_path(credor: @alfa.id, meio: "boleto", ambiente: "homologacao", fornecedor: "efi"), headers: TRECHO
     assert_select "input[type=file]", count: 0
     assert_select "input[name='payment_account[config][write_off_days]']"
-    get new_settings_payment_account_path(credor: @alfa.id, modalidade: "card", fornecedor: "fake"), headers: TRECHO
+    get new_settings_payment_account_path(credor: @alfa.id, meio: "cartao", ambiente: "homologacao", fornecedor: "fake"), headers: TRECHO
+    assert_select "h1", text: "Nova integração: Cartão de crédito"
     assert_select "input[name='payment_account[config][max_installments]']"
     assert_select "select[name='payment_account[config][connection_result]']"
+    # Sem o quadro (um endereço antigo), a página pede credor, meio e ambiente.
+    get new_settings_payment_account_path, headers: TRECHO
+    assert_select "select[name='payment_account[modality]']"
+    assert_select "#fornecedores-da-integracao p.vazio", text: /Escolha o meio de pagamento/
   end
 
   test "cadastra a conta, cifra o segredo e registra sem valor (R260, R261, R262, R268)" do
@@ -286,7 +322,7 @@ class PaymentAccountsScreensTest < ActionDispatch::IntegrationTest
     delete settings_channel_path(@channel)
     assert PaymentChannel.exists?(@channel.id)
     delete settings_payment_account_path(account)
-    assert_redirected_to settings_channels_path
+    assert_redirected_to settings_payment_methods_path(credor: @alfa.id)
     assert_not PaymentAccount.exists?(account.id)
     assert_equal "deleted", Change.where(subject_type: "payment_account", subject_id: account.id).order(:id).last.event
     delete settings_channel_path(@channel)
@@ -308,11 +344,80 @@ class PaymentAccountsScreensTest < ActionDispatch::IntegrationTest
     account = make_account(@alfa, nickname: "Orfã")
     account.update_columns(provider: "extinto")
     entrar(users(:joana))
-    get settings_channels_path, headers: TRECHO
+    get settings_payment_methods_path, headers: TRECHO
     assert_response :success
     assert_select "td", text: "extinto"
     get edit_settings_payment_account_path(account), headers: TRECHO
     assert_response :success
     assert_select "aside", text: /não está mais instalado/
+  end
+
+  test "Meios de pagamento: um quadro por meio, uma linha por ambiente, a ativa ou Criar integração, e as desativadas no detalhe (16, R373a)" do
+    make_account(@alfa, nickname: "Boleto ativo", environment: "production")
+    make_account(@alfa, nickname: "Boleto antigo", environment: "production", active: false)
+    entrar(users(:joana))
+    get settings_payment_methods_path, headers: TRECHO
+    assert_response :success
+    assert_select "h1", text: "Meios de pagamento"
+    assert_equal [ "Boleto", "Pix", "Cartão de crédito" ], css_select("section.cartao > header h2").map { |title| title.text.strip }
+    boleto = css_select("section[aria-labelledby=meio-boleto]").first
+    assert_equal "Produção: Fornecedor de teste (falso) · Homologação: não emite", boleto.at_css("header p").text.strip
+    rows = boleto.css("table[data-detalhes] > tbody > tr:not(.detalhe-da-linha)")
+    assert_equal [ "Produção", "Homologação" ], rows.map { |row| row.at_css("th").text.strip }
+    assert_includes rows[0].text, "Boleto ativo"
+    assert_includes rows[0].text, "Credenciais definidas"
+    assert_includes rows[1].text, "Não emite"
+    assert rows[1].at_css("a[href='#{new_settings_payment_account_path(credor: @alfa.id, meio: "boleto", ambiente: "homologacao")}']"), "Criar integração com o meio e o ambiente da linha"
+    assert_includes boleto.at_css("tr.detalhe-da-linha").text, "Boleto antigo"
+    pix = css_select("section[aria-labelledby=meio-pix]").first
+    assert_equal 2, pix.css("a").count { |link| link.text.strip == "Criar integração" }
+    assert rows[0].at_css("a[href='#{new_settings_payment_account_path(substitui: PaymentAccount.find_by!(nickname: "Boleto ativo").id)}']"), "Trocar fornecedor na linha ativa"
+  end
+
+  test "trocar fornecedor com credenciais: a nova entra e a anterior sai no mesmo ato, e o que ela emitiu continua com ela (16, R373c)" do
+    old = make_account(@alfa, nickname: "Boleto de teste")
+    entrar(users(:joana))
+    get new_settings_payment_account_path(substitui: old.id), headers: TRECHO
+    assert_select "h1", text: "Trocar fornecedor: Boleto"
+    assert_select "aside", text: /A integração Boleto de teste deixa de emitir boleto em homologação quando a troca terminar\. Ela não tem instrumento vigente\./
+    assert_select "input[type=radio][value=fake]", count: 0
+    assert_select "input[type=radio][value=efi]"
+    post settings_payment_accounts_path, params: { payment_account: { replaces_id: old.id, tenant_id: @alfa.id, channel_id: @channel.id, modality: "boleto", provider: "efi", environment: "sandbox",
+                                                                      nickname: "Boleto Efí homologação", secrets: { client_id: "id", client_secret: "segredo" } } }
+    created = PaymentAccount.find_by!(nickname: "Boleto Efí homologação")
+    assert_redirected_to edit_settings_payment_account_path(created)
+    assert created.active?
+    assert_equal old.id, created.replaces_id
+    assert_not old.reload.active?
+    assert_equal "replaced", Change.where(subject_type: "payment_account", subject_id: old.id).order(:id).last.event
+    assert_equal "replacing", Change.where(subject_type: "payment_account", subject_id: created.id).order(:id).last.event
+    # Só a ativa se troca.
+    post settings_payment_accounts_path, params: { payment_account: { replaces_id: old.id, tenant_id: @alfa.id, channel_id: @channel.id, modality: "boleto", provider: "fake", environment: "sandbox",
+                                                                      nickname: "Outra troca", config: { connection_result: "ok" }, secrets: { api_key: "x" } } }
+    assert_response :unprocessable_content
+    assert_not PaymentAccount.exists?(nickname: "Outra troca")
+    assert created.reload.active?
+  end
+
+  test "trocar para fornecedor de conexão por autorização: a anterior continua até a conexão; Desistir exclui a nova (16, R373c)" do
+    old = make_account(@alfa, nickname: "Boleto de teste")
+    entrar(users(:joana))
+    get new_settings_payment_account_path(substitui: old.id, payment_account: { replaces_id: old.id, provider: "pagbank" }), headers: TRECHO
+    assert_select "aside", text: /Até a conexão voltar, boleto continua pela integração Boleto de teste/
+    post settings_payment_accounts_path, params: { payment_account: { replaces_id: old.id, tenant_id: @alfa.id, channel_id: @channel.id, modality: "boleto", provider: "pagbank", environment: "sandbox",
+                                                                      nickname: "Boleto PagBank homologação" } }
+    created = PaymentAccount.find_by!(nickname: "Boleto PagBank homologação")
+    assert_not created.active?
+    assert old.reload.active?
+    assert created.waiting_replacement?
+    get settings_payment_methods_path, headers: TRECHO
+    boleto = css_select("section[aria-labelledby=meio-boleto]").first
+    assert_includes boleto.text, "À espera da conexão"
+    assert_includes boleto.text, "Desistir"
+    get edit_settings_payment_account_path(created), headers: TRECHO
+    assert_select "aside", text: /Troca de Boleto de teste à espera da conexão/
+    delete settings_payment_account_path(created)
+    assert_not PaymentAccount.exists?(created.id)
+    assert old.reload.active?
   end
 end

@@ -1,6 +1,25 @@
-<%# Campos do manifesto do fornecedor. Locais: form, account. Segredo e arquivo entram em branco e nunca voltam (R261). %>
+<%# Campos do manifesto do fornecedor, nos grupos Acesso e Cobrança (16, revisão 1, R373b; 12, revisão 8, R259). Locais: form, account.
+    Segredo e arquivo entram em branco e nunca voltam (R261). O fornecedor de conexão por autorização não tem credencial: o grupo Acesso diz como conectar. %>
 <% manifest = account.manifest %>
-<% account.fields.reject(&:generated).each do |field| %>
+<% visible = account.fields.reject(&:generated) %>
+<% authorization = Payments::Connection.authorization?(account) %>
+<% Payments::Providers::Manifest::GROUPS.each do |group| %>
+  <% group_fields = visible.select { |field| field.group == group } %>
+  <% next if group_fields.empty? && !(group == "access" && authorization) %>
+  <fieldset class="grupo-da-integracao">
+    <legend><%= t("payments.methods.groups.#{group}") %></legend>
+    <p class="ajuda-do-grupo"><%= t("payments.methods.group_help.#{group}") %></p>
+    <% if group == "access" && authorization %>
+      <% provider = manifest.label %>
+      <% if account.new_record? && local_assigns[:replaced] %>
+        <%= aviso(tom: :info) { tag.p t("payments.methods.replace.authorization", provider: provider, modality: t("payments.accounts.modalities.#{account.modality}").downcase, nickname: local_assigns[:replaced].nickname) } %>
+      <% elsif account.new_record? %>
+        <p><%= t("payments.connection.connect_help", provider: provider) %></p>
+      <% else %>
+        <p><%= connection_state(account) %></p>
+      <% end %>
+    <% end %>
+<% group_fields.each do |field| %>
   <% id = "campo-#{field.name}" %>
   <% label = manifest.label_of(field) %>
   <% help = manifest.help_of(field) %>
@@ -33,4 +52,6 @@
     <% end %>
     <% if field.type.in?(%w[text number select]) && help.present? %><small id="<%= id %>-ajuda"><%= help %></small><% end %>
   </div>
+<% end %>
+  </fieldset>
 <% end %>

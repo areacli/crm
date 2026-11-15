@@ -1,0 +1,62 @@
+# Configuração por meio de pagamento (16, revisão 1, R373 a R373d) e o que cada fornecedor pede antes, por meio (12, revisão 8, R259).
+pt-BR:
+  payments:
+    providers:
+      fake:
+        about:
+          boleto: "Fornecedor de teste: emite sem chamar ninguém. Pede uma chave de API qualquer."
+          pix: "Fornecedor de teste: emite sem chamar ninguém. Pede uma chave de API qualquer e uma chave Pix."
+          card: "Fornecedor de teste: cobra sem chamar ninguém. Pede uma chave de API qualquer."
+      efi:
+        about:
+          boleto: "Client ID e Client Secret da aplicação na conta Efí."
+          pix: "Client ID e Client Secret da aplicação na Efí, o certificado .p12 da API Pix e a chave Pix cadastrada na conta."
+          card: "Client ID e Client Secret da aplicação na Efí e o identificador da conta (payee_code). O cartão é tokenizado no navegador do cliente."
+      bradesco:
+        about:
+          boleto: "Agência, conta, carteira e a faixa de nosso número combinada com o banco. A ficha do boleto é gerada aqui."
+          pix: "Client ID e Client Secret do Pix do Bradesco, o certificado .p12 com a razão social e o CNPJ do credor e a chave Pix. O acesso é pedido ao gerente de cash management."
+      pagbank:
+        about:
+          boleto: "Você autoriza na página do PagBank depois de salvar; nenhuma credencial é digitada aqui."
+          pix: "Você autoriza na página do PagBank depois de salvar; nenhuma credencial é digitada aqui."
+          card: "Você autoriza na página do PagBank depois de salvar; nenhuma credencial é digitada aqui. O cartão é cifrado no navegador do cliente."
+      mercadopago:
+        about:
+          boleto: "Você autoriza na página do Mercado Pago depois de salvar; aqui vão só a razão social e o CNPJ ou CPF do beneficiário. A ficha do boleto é gerada aqui."
+          pix: "Você autoriza na página do Mercado Pago depois de salvar; nenhuma credencial é digitada aqui."
+          card: "Você autoriza na página do Mercado Pago depois de salvar; nenhuma credencial é digitada aqui. O cliente digita o cartão em campos do Mercado Pago."
+    methods:
+      title: "Meios de pagamento"
+      subtitle: "O fornecedor que emite cada meio e o que ele pede. Em cada meio e ambiente, só uma integração fica ativa, e é ela que emite."
+      none_line: "Sem integração"
+      not_emitting: "Não emite"
+      waiting_connection: "À espera da conexão"
+      inactive_caption: "Integrações desativadas de %{modality} em %{environment}"
+      access:
+        connected: "Conectada em %{date}"
+        not_connected: "Não conectada"
+        certificate: "Certificado vence em %{date}"
+        credentials: "Credenciais definidas"
+        missing: "Sem credenciais"
+      notice:
+        per_charge: "Em cada cobrança"
+        registered: "Cadastrado em %{date}"
+        not_registered: "Não cadastrado: chega pela consulta"
+      groups:
+        access: "Acesso"
+        charge: "Cobrança"
+      group_help:
+        access: "O que liga o CRM à conta do credor no fornecedor. Chaves e certificado são cifrados ao salvar e não voltam para a tela."
+        charge: "O que vai em cada instrumento emitido por esta integração."
+      replace:
+        title: "Trocar fornecedor: %{modality}"
+        warning: "A integração %{nickname} deixa de emitir %{modality} em %{environment} quando a troca terminar. %{vigentes}"
+        vigentes:
+          zero: "Ela não tem instrumento vigente."
+          one: "O instrumento vigente dela continua valendo e é cancelado e conferido por ela."
+          other: "Os %{count} instrumentos vigentes dela continuam valendo e são cancelados e conferidos por ela."
+        authorization: "Depois de salvar, \"Conectar ao %{provider}\" leva você à página do %{provider} para autorizar. Até a conexão voltar, %{modality} continua pela integração %{nickname}; quando voltar, a troca se completa."
+        pending: "Troca de %{nickname} à espera da conexão: até o %{provider} autorizar, %{modality} continua pela integração %{nickname}."
+        no_other: "Nenhum outro fornecedor instalado emite este meio."
+        not_active: "Só a integração ativa pode ser trocada."

@@ -14,7 +14,9 @@ module FilterValue
     # Comandos da régua (21, R441): o estado do comando e o tipo da ação.
     "queued" => "na_fila", "executed" => "executado", "failed" => "falhou", "no_return" => "sem_retorno", "discarded" => "descartado",
     "letter" => "carta", "issue_instrument" => "emissao", "proposal" => "proposta", "promise" => "promessa", "task" => "tarefa",
-    "negativation" => "negativacao", "protest" => "protesto", "lawsuit" => "ajuizamento", "credit_suspension" => "suspensao_do_credito"
+    "negativation" => "negativacao", "protest" => "protesto", "lawsuit" => "ajuizamento", "credit_suspension" => "suspensao_do_credito",
+    # Meio e ambiente da integração (16, revisão 1): "Criar integração" e "Trocar fornecedor" levam os dois no endereço.
+    "card" => "cartao", "sandbox" => "homologacao", "production" => "producao"
   }.freeze
   INTERNAL = VALUES.invert.freeze
 

@@ -15,10 +15,12 @@ module Demo
     # Controladores fechados para qualquer método que não seja de leitura.
     CLOSED_WRITES = %w[memberships memberships/profiles memberships/activations memberships/password_resets profiles settings/tenant_registries
                        settings/payment_accounts settings/payment_accounts/activations settings/payment_accounts/webhook_secrets settings/payment_accounts/connection_tests
+                       settings/payment_accounts/connections
                        settings/channels/webhook_secrets source_systems source_systems/pauses source_systems/customer_record_policies].freeze
     # Fechados também para leitura (a tela só existe para alterar).
     CLOSED_ALL = %w[passwords].freeze
-    CLOSED_ACTIONS = [ [ "settings/payment_accounts", "new" ] ].freeze
+    # A integração nova abre para ver os fornecedores e os campos de cada um (16, revisão 1; decisão do Paulo, 15/11/2026); salvar continua fechado.
+    CLOSED_ACTIONS = [ [ "settings/payment_accounts/connections", "new" ] ].freeze
 
     # [controlador, ação] => { grupo de parâmetros => { campo => texto que o substitui } }
     SCRUB = {

@@ -1,6 +1,6 @@
 # Métodos de recebimento do credor (16, R373; antes "canais de recebimento", R45): lista, cadastro, edição e exclusão. A permissão 4 vale no
-# credor do método; a lista abre também para quem só tem a 14, que vê as integrações no detalhe de cada método. Quem tem acesso a mais de um
-# credor vê os métodos de todos, com a coluna Credor.
+# credor do método; a lista abre também para quem só tem a 14, que vê na coluna Meios os meios que entram por cada método e vai dali à página
+# "Meios de pagamento" (revisão 1). Quem tem acesso a mais de um credor vê os métodos de todos, com a coluna Credor.
 module Settings
   class ChannelsController < ApplicationController
     before_action :set_channel, only: %i[edit update destroy]

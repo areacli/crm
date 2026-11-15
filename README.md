@@ -94,10 +94,10 @@ Estado atual da aplicação em Rails (fotos recriadas a cada incremento por `dep
 
 | | |
 |---|---|
-| ![Integrações nos métodos de recebimento](docs/telas/contas-de-pagamento.png) | ![Nova integração](docs/telas/nova-conta-de-pagamento.png) |
-| As integrações com fornecedores ficam no detalhe de cada método de recebimento | Nova integração montada pelo manifesto do fornecedor: segredos em branco, certificado enviado como arquivo |
-| ![Integração](docs/telas/conta-de-pagamento.png) | |
-| Integração com certificado (titular, validade e impressão digital), teste de conexão, segredo do webhook e histórico sem valores | |
+| ![Meios de pagamento: boleto, Pix e cartão de crédito](docs/telas/contas-de-pagamento.png) | ![Nova integração pelo meio](docs/telas/nova-conta-de-pagamento.png) |
+| Um quadro por meio (boleto, Pix e cartão de crédito), com a integração ativa de cada ambiente e as desativadas no detalhe | Nova integração pelo meio: só os fornecedores que o emitem, cada um com o que pede, e os campos em Acesso e Cobrança |
+| ![Integração](docs/telas/conta-de-pagamento.png) | ![Trocar fornecedor](docs/telas/trocar-fornecedor.png) |
+| Integração com certificado (titular, validade e impressão digital), teste de conexão, segredo do webhook e histórico sem valores | Trocar fornecedor: a nova entra e a anterior sai no mesmo ato, e o que ela emitiu continua com ela |
 | ![Pagamento do cliente](docs/telas/pagamento-do-cliente.png) | |
 | Página pública de pagamento do cliente (link com token, sem login): Pix com QR Code local, boleto e cartão por checkout transparente; os campos do cartão não são enviados ao servidor | |
 
