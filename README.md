@@ -211,7 +211,7 @@ Só o Docker é necessário. Na raiz do repositório:
 
 ```sh
 # Imagem de desenvolvimento e ambiente (as senhas ficam num arquivo que não vai para o git).
-docker build -f deploy/rails/Dockerfile.dev -t crm-rails-dev:4.0.6 deploy/rails
+docker build -f deploy/rails/Dockerfile.dev -t crm-rails-dev:4.0.10 deploy/rails
 echo "DB_PASSWORD=$(openssl rand -hex 16)" > deploy/rails/.env.dev
 cd deploy/rails
 docker compose -f compose.dev.yml --env-file .env.dev up -d db valkey

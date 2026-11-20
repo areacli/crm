@@ -17,7 +17,7 @@ x-aplicacao: &aplicacao
 
 services:
   db:
-    image: postgres:19rc2-trixie@sha256:3c5f322ffe97481b51a1ebee693f58d0c081514d2bc3026500a9400b7428bea9
+    image: postgres:19.0-trixie@sha256:bb6e70add742cd868fb62cb3b2f67d1dd2bdd2b65a521e778420748753687c60
     environment:
       POSTGRES_DB: crm
       POSTGRES_USER: crm
@@ -36,7 +36,7 @@ services:
       retries: 30
 
   valkey:
-    image: valkey/valkey:9.1.3-trixie@sha256:3add1a336a920ea54770a001ab6feb3da5fceea96a40373a3a2cd469b815f0b7
+    image: valkey/valkey:9.2.0-trixie@sha256:13010f40f0623c52f0d3527a48bbf059870e6864b4eee642cdabad3f5e240e69
     command: ["valkey-server", "--requirepass", "${REDIS_PASSWORD}", "--appendonly", "yes", "--maxmemory", "256mb"]
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
