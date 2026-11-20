@@ -14,7 +14,7 @@ WHO=${3:-gestor}
 DOMAIN=${CRM_DEMO_DOMAIN:-demo.crm.areacli.com}
 TELAS=${V5_TELAS_HOST:-/tmp/v5-telas}
 mkdir -p "$TELAS"
-docker image inspect crm-rails-v5:1.55.0 >/dev/null 2>&1 || docker build -q -t crm-rails-v5:1.55.0 . >/dev/null
+docker image inspect crm-rails-v5:1.65.1 >/dev/null 2>&1 || docker build -q -t crm-rails-v5:1.65.1 . >/dev/null
 PROXY=""
 case "$BASE" in
   http://127.0.0.1:*|http://localhost:*)
@@ -26,4 +26,4 @@ esac
 exec docker run --rm --network host ${V5_ADD_HOST:+--add-host $V5_ADD_HOST} -v "$PWD:/src:ro" -v "$TELAS:/telas" \
     -e BASE_URL="$BASE" -e V5_EMAIL="${WHO}@${DOMAIN}" -e V5_SENHA="demonstracao-${WHO}" -e V5_TELAS=/telas -e LARGURA="${LARGURA:-1440}" \
     -e V5_CHECKOUT="${V5_CHECKOUT:-demonstracao-pagamento}" ${V4_EMAIL:+-e V4_EMAIL="$V4_EMAIL" -e V4_SENHA="$V4_SENHA"} \
-    crm-rails-v5:1.55.0 sh -c "cp /src/*.mjs /w/ && cd /w && $PROXY node $SCRIPT"
+    crm-rails-v5:1.65.1 sh -c "cp /src/*.mjs /w/ && cd /w && $PROXY node $SCRIPT"
